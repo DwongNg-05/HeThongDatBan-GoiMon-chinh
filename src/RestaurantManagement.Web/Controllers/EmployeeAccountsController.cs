@@ -11,6 +11,12 @@ public sealed class EmployeeAccountsController(IEmployeeAccountStore employeeAcc
 {
     private const string PasswordAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
 
+    [HttpGet]
+    public async Task<IActionResult> Index(CancellationToken cancellationToken)
+    {
+        return View(await employeeAccounts.GetEmployeeAccountsAsync(cancellationToken));
+    }
+
     [HttpGet("create")]
     public async Task<IActionResult> Create(CancellationToken cancellationToken)
     {
@@ -116,6 +122,22 @@ public sealed class EmployeeAccountsController(IEmployeeAccountStore employeeAcc
         TempData["TemporaryPassword"] = temporaryPassword;
         TempData["SuccessMessage"] = $"Đã tạo tài khoản cho {model.FullName}.";
         return RedirectToAction(nameof(Create));
+    }
+
+    [HttpPost("{accountId:int}/deactivate")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Deactivate(int accountId, CancellationToken cancellationToken)
+    {
+        if (await employeeAccounts.DeactivateAsync(accountId, cancellationToken))
+        {
+            TempData["StatusMessage"] = "Đã đặt tài khoản sang trạng thái đã nghỉ. Tài khoản không thể đăng nhập.";
+        }
+        else
+        {
+            TempData["StatusMessage"] = "Tài khoản này đã ở trạng thái đã nghỉ hoặc không tồn tại.";
+        }
+
+        return RedirectToAction(nameof(Index));
     }
 
     private async Task PopulateRolesAsync(CreateEmployeeAccountViewModel model, CancellationToken cancellationToken)
