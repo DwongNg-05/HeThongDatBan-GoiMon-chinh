@@ -1,0 +1,57 @@
+@model RestaurantManagement.Web.ViewModels.CreateEmployeeAccountViewModel
+@{
+    ViewData["Title"] = "Tạo tài khoản nhân viên";
+    var temporaryPassword = TempData["TemporaryPassword"] as string;
+    var successMessage = TempData["SuccessMessage"] as string;
+}
+
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <h1 class="mb-3">Tạo tài khoản nhân viên</h1>
+
+        @if (!string.IsNullOrWhiteSpace(temporaryPassword))
+        {
+            <div class="alert alert-success" role="alert">
+                <p class="mb-2">@successMessage</p>
+                <p class="mb-0">Mật khẩu tạm: <strong class="font-monospace">@temporaryPassword</strong></p>
+                <small>Hãy sao chép và gửi cho nhân viên ngay. Mật khẩu này sẽ không hiển thị lại sau khi tải lại trang.</small>
+            </div>
+        }
+
+        <form asp-action="Create" method="post" novalidate>
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+            <div class="mb-3">
+                <label asp-for="FullName" class="form-label"></label>
+                <input asp-for="FullName" class="form-control" autocomplete="name" />
+                <span asp-validation-for="FullName" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="PhoneNumber" class="form-label"></label>
+                <input asp-for="PhoneNumber" class="form-control" autocomplete="tel" inputmode="numeric" />
+                <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="UserName" class="form-label"></label>
+                <input asp-for="UserName" class="form-control" autocomplete="username" />
+                <span asp-validation-for="UserName" class="text-danger"></span>
+            </div>
+
+            <div class="mb-4">
+                <label asp-for="RoleId" class="form-label"></label>
+                <select asp-for="RoleId" asp-items="Model.Roles" class="form-select">
+                    <option value="">-- Chọn vai trò --</option>
+                </select>
+                <span asp-validation-for="RoleId" class="text-danger"></span>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Tạo tài khoản</button>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

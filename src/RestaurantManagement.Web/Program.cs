@@ -1,7 +1,12 @@
+using RestaurantManagement.Data;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+var connectionString = Environment.GetEnvironmentVariable("RM_CONNECTION_STRING")
+    ?? builder.Configuration.GetConnectionString("RestaurantManagement");
+builder.Services.AddSingleton<IEmployeeAccountStore>(new SqlEmployeeAccountStore(connectionString));
 
 var app = builder.Build();
 
