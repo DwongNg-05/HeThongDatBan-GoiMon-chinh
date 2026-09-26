@@ -2,3 +2,5 @@
 @media(min-width:1400px){.table-grid{grid-template-columns:repeat(8,minmax(0,1fr))}.container{max-width:1380px}}
 @media(max-width:991px){.table-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.map-toolbar{align-items:flex-start;flex-direction:column}.quick-count{padding-left:5px}}
 @media(max-width:575px){.navbar{padding:0 16px}.container{padding:0 16px}.map-page{padding-top:25px}.map-heading{align-items:flex-start;gap:12px}.map-heading h1{font-size:26px}.map-subtitle{max-width:220px;font-size:12px}.map-summary{gap:8px;padding:8px}.summary-icon{width:31px;height:31px}.map-summary strong{font-size:15px}.map-summary small{font-size:9px}.table-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.table-card{min-height:116px;padding:11px}.table-status{font-size:8px}.area-tabs{gap:4px}.area-tab{padding:8px 9px;font-size:11px}}
+.status-unknown{border-left:3px solid #707782}.status-unknown .table-status{background:#eceef0;color:#424a54}.status-unknown .table-status i{background:#707782}
+.table-status{font-weight:800}.status-serving .table-status{color:#754600}.status-reserved .table-status{color:#444b91}.status-cleaning .table-status{color:#21636b}

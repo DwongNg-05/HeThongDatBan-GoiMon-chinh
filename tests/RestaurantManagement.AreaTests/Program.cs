@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using RestaurantManagement.Web.Controllers;
 using RestaurantManagement.Web.Models.Areas;
+using RestaurantManagement.Web.Models;
+using RestaurantManagement.Web.Services;
 
 var count = 0;
 void Check(bool condition, string label)
@@ -23,6 +25,23 @@ Check(!Valid(new string('a',81), 1), "Name too long");
 Check(!Valid("Sân vườn", -1), "Negative order");
 Check(!Valid("Sân vườn", null), "Missing order");
 Check(Valid("  Sân  vườn ", 2), "Whitespace preserved");
+var expectedStatuses = new Dictionary<string, (string Label, string CssClass)>
+{
+    ["Available"] = ("Trống", "available"),
+    ["Reserved"] = ("Đã đặt trước", "reserved"),
+    ["Serving"] = ("Đang phục vụ", "serving"),
+    ["Cleaning"] = ("Đang dọn", "cleaning")
+};
+foreach (var (status, expected) in expectedStatuses)
+{
+    var display = TableStatusDisplay.From(status);
+    Check(display.Label == expected.Label && display.CssClass == expected.CssClass, $"{status} maps to its text label and color class");
+}
+Check(TableStatusDisplay.From("reserved").Label == "Đã đặt trước", "Status mapping ignores case");
+Check(TableStatusDisplay.From("Unexpected").Label == "Không xác định" && TableStatusDisplay.From("Unexpected").CssClass == "unknown", "Invalid status has a readable fallback");
+var demoTables = new DemoTableCatalog().Get(null).Tables;
+Check(demoTables.Count == 60 && expectedStatuses.Keys.All(status => demoTables.Any(table => table.Status == status)), "Demo map contains all four statuses across 60 tables");
+Check(demoTables.All(table => TableStatusDisplay.From(table.Status).Label == table.StatusLabel), "Every demo table displays the label resolved from its current status");
 var controller = new AreasController(new ConfigurationBuilder().Build());
 Check(controller.Create() is ViewResult { Model: AreaFormViewModel }, "GET create form");
 var form = new AreaFormViewModel { Name = "Sân vườn", SortOrder = -1 };
@@ -39,5 +58,4 @@ Check(RestaurantManagement.Web.Models.Reservations.BookingTime.NextStart(day.Add
 Check(RestaurantManagement.Web.Models.Reservations.BookingTime.NextStart(day.AddHours(23).AddMinutes(50)) == day.AddDays(1).AddHours(8), "Midnight rollover");
 Console.WriteLine($"{count} tests passed.");
 if (args.Contains("--integration")) await AreaHttpTests.Run();
-
 

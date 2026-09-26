@@ -40,7 +40,7 @@
                 <div class="table-grid">
                     @foreach (var table in group)
                     {
-                        <article class="table-card status-@table.Status.ToLowerInvariant()" aria-label="Bàn @table.Code, sức chứa @table.Capacity người, @table.StatusLabel">
+                        <article class="table-card status-@table.StatusClass" aria-label="Bàn @table.Code, sức chứa @table.Capacity người, trạng thái @table.StatusLabel">
                             <div class="table-card-top"><span class="table-glyph">♧</span><span class="table-status"><i></i>@table.StatusLabel</span></div>
                             <strong class="table-code">@table.Code</strong>
                             <span class="table-capacity"><span class="person-icon">♙</span> @table.Capacity chỗ</span>
