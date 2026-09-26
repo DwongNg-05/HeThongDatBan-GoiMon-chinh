@@ -1,0 +1,53 @@
+@model RestaurantManagement.Web.Models.Areas.AreaListViewModel
+@{ ViewData["Title"] = "Quản lý khu vực"; }
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Quản lý khu vực</h2>
+        <a asp-action="Create" class="btn btn-primary">+ Thêm khu vực</a>
+    </div>
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success" role="status">@TempData["Success"]</div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger" role="alert">@TempData["Error"]</div>
+    }
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover">
+            <thead><tr><th>Tên khu vực</th><th>Thứ tự hiển thị</th><th>Ghi chú</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+            <tbody>
+            @if (Model.Areas.Count == 0)
+            {
+                <tr><td colspan="5" class="text-center">Chưa có khu vực nào.</td></tr>
+            }
+            @foreach (var area in Model.Areas)
+            {
+                <tr data-area-id="@area.Id">
+                    <td>@area.Name</td><td>@area.SortOrder</td>
+                    <td style="white-space: pre-wrap">@(string.IsNullOrEmpty(area.Notes) ? "—" : area.Notes)</td>
+                    <td><span class="badge @(area.IsActive ? "bg-success" : "bg-secondary")">@(area.IsActive ? "Đang sử dụng" : "Ngừng sử dụng")</span></td>
+                    <td>
+                        <a asp-action="Edit" asp-route-id="@area.Id" class="btn btn-sm btn-outline-primary">Sửa</a>
+                        @if (area.IsActive)
+                        {
+                            <a asp-action="Deactivate" asp-route-id="@area.Id" class="btn btn-sm btn-outline-secondary">Ngừng sử dụng</a>
+                        }
+                        @if (!area.IsActive)
+                        {
+                            <form asp-action="Reactivate" asp-route-id="@area.Id" method="post" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-outline-success">Sử dụng lại</button>
+                            </form>
+                        }
+                        <form asp-action="Delete" asp-route-id="@area.Id" method="post" class="d-inline"
+                              onsubmit="return confirm('Bạn có chắc muốn xóa khu vực này?');">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Xóa</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+

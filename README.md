@@ -4,10 +4,10 @@ Database SQL Server và bộ khung ASP.NET Core MVC .NET 10 cho nhóm phát tri�
 
 ## Trạng thái hiện tại
 
-- Đã có 5 migration SQL: 38 bảng (gồm bảng theo dõi migration), 29 stored procedure, 7 view.
+- Đã có 8 migration SQL, bao gồm quản lý khu vực và tên khu vực lưu trên đặt bàn cũ.
 - Đã kiểm thử bằng SQL Server: 50 yêu cầu đặt cùng bàn đồng thời, 10 lần gửi thanh toán đồng thời, giá món tại thời điểm gọi, quyền chuyển trạng thái bếp, giảm giá, chốt ca, gộp bàn và thu hồi phiên QR.
 - Database trên máy người tạo: `RestaurantManagement_Dev`, server `.\MSSQLSERVER07`.
-- Ứng dụng MVC hiện là bộ khung, chưa có các màn hình nghiệp vụ hoặc kết nối EF hoàn chỉnh. Tài khoản mẫu chỉ là dữ liệu chuẩn bị cho chức năng đăng nhập sau này.
+- Đã có màn hình quản lý khu vực (thêm, sửa, ngừng sử dụng, xóa có kiểm tra liên kết), tạo/danh sách/chi tiết đặt bàn. Luồng này dùng stored procedure/SqlClient; chưa có đăng nhập web. Tài khoản mẫu vẫn là dữ liệu cho chức năng đăng nhập sau này.
 
 GitHub lưu **mã nguồn tạo database**, không lưu database đang chạy hay dữ liệu thật. Mỗi thành viên chạy các bước dưới đây để tạo database riêng.
 
@@ -93,3 +93,7 @@ dotnet run --project tools/RestaurantManagement.DbTool -- verify
 5. Sau khi lấy thay đổi mới bằng `git pull`, chạy lại `dotnet restore` và `migrate`.
 
 Không commit mật khẩu, chuỗi kết nối có thông tin đăng nhập, dữ liệu khách thật hoặc thư mục build. `.gitignore` đã loại các tệp cấu hình cục bộ, database vật lý và thư mục build thông dụng.
+
+## S1-06: quản lý khu vực
+
+Xem [báo cáo Lát 2–4](docs/S1-06-Task2-4-review.md) để biết quy tắc tên, nâng cấp migration 008, kiểm thử HTTP và kịch bản demo. Migration dừng nếu các tên cũ trùng sau chuẩn hóa, không tự gộp hoặc xóa dữ liệu.
