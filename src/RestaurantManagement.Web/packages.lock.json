@@ -2,6 +2,31 @@
   "version": 1,
   "dependencies": {
     "net10.0": {
+      "BCrypt.Net-Next": {
+        "type": "Direct",
+        "requested": "[4.0.3, )",
+        "resolved": "4.0.3",
+        "contentHash": "W+U9WvmZQgi5cX6FS5GDtDoPzUCV4LkBLkywq/kRZhuDwcbavOzcDAr3LXJFqHUi952Yj3LEYoWW0jbEUQChsA=="
+      },
+      "Microsoft.Data.SqlClient": {
+        "type": "Direct",
+        "requested": "[6.1.6, )",
+        "resolved": "6.1.6",
+        "contentHash": "6abRPXrjjEWxcNkTomBIzBdGolYnwD0ykP+6YAynaEEfKlGe94ZSQd58pggucusp28xUA7wLo9XcvzU92ZuF6Q==",
+        "dependencies": {
+          "Azure.Core": "1.50.0",
+          "Azure.Identity": "1.17.1",
+          "Microsoft.Data.SqlClient.SNI.runtime": "6.0.2",
+          "Microsoft.Identity.Client": "4.84.2",
+          "Microsoft.Identity.Client.Broker": "4.84.2",
+          "Microsoft.IdentityModel.JsonWebTokens": "7.7.1",
+          "Microsoft.IdentityModel.Protocols.OpenIdConnect": "7.7.1",
+          "Microsoft.SqlServer.Server": "1.0.0",
+          "System.Configuration.ConfigurationManager": "9.0.11",
+          "System.IdentityModel.Tokens.Jwt": "7.7.1",
+          "System.Security.Cryptography.Pkcs": "9.0.11"
+        }
+      },
       "Azure.Core": {
         "type": "Transitive",
         "resolved": "1.50.0",
@@ -26,24 +51,6 @@
         "type": "Transitive",
         "resolved": "8.0.0",
         "contentHash": "3WA9q9yVqJp222P3x1wYIGDAkpjAku0TMUaaQV22g6L67AI0LdOIrVS7Ht2vJfLHGSPVuqN94vIr15qn+HEkHw=="
-      },
-      "Microsoft.Data.SqlClient": {
-        "type": "Transitive",
-        "resolved": "6.1.6",
-        "contentHash": "6abRPXrjjEWxcNkTomBIzBdGolYnwD0ykP+6YAynaEEfKlGe94ZSQd58pggucusp28xUA7wLo9XcvzU92ZuF6Q==",
-        "dependencies": {
-          "Azure.Core": "1.50.0",
-          "Azure.Identity": "1.17.1",
-          "Microsoft.Data.SqlClient.SNI.runtime": "6.0.2",
-          "Microsoft.Identity.Client": "4.84.2",
-          "Microsoft.Identity.Client.Broker": "4.84.2",
-          "Microsoft.IdentityModel.JsonWebTokens": "7.7.1",
-          "Microsoft.IdentityModel.Protocols.OpenIdConnect": "7.7.1",
-          "Microsoft.SqlServer.Server": "1.0.0",
-          "System.Configuration.ConfigurationManager": "9.0.11",
-          "System.IdentityModel.Tokens.Jwt": "7.7.1",
-          "System.Security.Cryptography.Pkcs": "9.0.11"
-        }
       },
       "Microsoft.Data.SqlClient.SNI.runtime": {
         "type": "Transitive",
