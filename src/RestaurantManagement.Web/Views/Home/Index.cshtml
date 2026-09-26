@@ -5,7 +5,7 @@
     var freeCount = Model.Tables.Count(table => table.Status == "Available");
 }
 
-<section class="map-page" data-status-api="@Url.Content("~/api/table-status")">
+<section class="map-page" data-status-api="@Url.Content("~/api/table-status")" data-details-api="@Url.Content("~/api/table-map")">
     <div class="map-heading">
         <div>
             <div class="eyebrow">VẬN HÀNH NHÀ HÀNG <span>•</span> HÔM NAY</div>
@@ -41,9 +41,11 @@
                     @foreach (var table in group)
                     {
                         <article class="table-card status-@table.StatusClass" data-table-code="@table.Code" data-status="@table.Status" data-changed-at="@table.ChangedAtUtc.ToString("O")" aria-label="Bàn @table.Code, sức chứa @table.Capacity người, trạng thái @table.StatusLabel">
-                            <div class="table-card-top"><span class="table-glyph">♧</span><span class="table-status"><i></i><span class="table-status-label">@table.StatusLabel</span></span></div>
-                            <strong class="table-code">@table.Code</strong>
-                            <span class="table-capacity"><span class="person-icon">♙</span> @table.Capacity chỗ</span>
+                            <button class="table-detail-trigger" type="button" data-open-details="@table.Code" aria-label="Xem chi tiết bàn @table.Code">
+                                <span class="table-card-top"><span class="table-glyph">♧</span><span class="table-status"><i></i><span class="table-status-label">@table.StatusLabel</span></span></span>
+                                <strong class="table-code">@table.Code</strong>
+                                <span class="table-capacity"><span class="person-icon">♙</span> @table.Capacity chỗ</span>
+                            </button>
                             <label class="visually-hidden" for="status-@table.Code">Cập nhật trạng thái bàn @table.Code</label>
                             <select class="table-status-editor" id="status-@table.Code" data-status-editor aria-label="Cập nhật trạng thái bàn @table.Code">
                                 <option value="Available" selected="@(table.Status == "Available")">Trống</option>
@@ -59,6 +61,28 @@
     }
     <div class="map-footnote"><span class="connection-indicator" id="table-map-connection" aria-hidden="true"></span><span id="table-map-connection-label" role="status" aria-live="polite">Đang kết nối sơ đồ trực tiếp…</span><span class="last-update" id="table-map-last-update">· Chưa có thay đổi mới</span></div>
 </section>
+
+<dialog class="table-details-dialog" id="table-details-dialog" aria-labelledby="table-details-title">
+    <header class="details-header">
+        <div><span class="details-kicker">THÔNG TIN BÀN</span><h2 id="table-details-title">Chi tiết bàn</h2></div>
+        <button class="details-close" type="button" data-close-details aria-label="Đóng chi tiết">×</button>
+    </header>
+    <div class="details-status-row"><span class="table-status" id="details-status"><i></i><span id="details-status-label"></span></span><span id="details-area"></span></div>
+    <p class="details-context" id="details-context" aria-live="polite">Đang tải thông tin…</p>
+    <div class="details-metrics">
+        <section class="details-metric"><span id="details-person-heading">Khách đang ngồi</span><strong id="details-person">—</strong><small id="details-person-note"></small></section>
+        <section class="details-metric"><span>Thời gian phục vụ</span><strong id="details-started">—</strong><small id="details-duration"></small></section>
+        <section class="details-metric"><span>Tạm tính hiện tại</span><strong id="details-subtotal">—</strong><small id="details-subtotal-note"></small></section>
+    </div>
+    <section class="details-reservation" id="details-reservation" hidden>
+        <div class="details-section-title">Đặt bàn sắp tới</div>
+        <strong id="details-reservation-name"></strong>
+        <span id="details-reservation-phone"></span>
+        <span id="details-reservation-guests"></span>
+        <time id="details-reservation-time"></time>
+    </section>
+    <p class="details-source" id="details-source" hidden>Dữ liệu mẫu phát triển</p>
+</dialog>
 
 @section Scripts {
     <script src="~/js/table-map.js" asp-append-version="true"></script>

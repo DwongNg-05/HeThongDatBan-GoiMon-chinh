@@ -1,6 +1,9 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging.Abstractions;
 using RestaurantManagement.Web.Controllers;
 using RestaurantManagement.Web.Models.Areas;
 using RestaurantManagement.Web.Models;
@@ -42,6 +45,27 @@ Check(TableStatusDisplay.From("Unexpected").Label == "Không xác định" && Ta
 var demoTables = new DemoTableCatalog().Get(null).Tables;
 Check(demoTables.Count == 60 && expectedStatuses.Keys.All(status => demoTables.Any(table => table.Status == status)), "Demo map contains all four statuses across 60 tables");
 Check(demoTables.All(table => TableStatusDisplay.From(table.Status).Label == table.StatusLabel), "Every demo table displays the label resolved from its current status");
+var detailCatalog = new DemoTableCatalog();
+var detailService = new TableDetailsService(new ConfigurationBuilder().Build(), detailCatalog,
+    new TestHostEnvironment { EnvironmentName = "Development" }, NullLogger<TableDetailsService>.Instance);
+var detailCodes = detailCatalog.GetAll().GroupBy(table => table.Status).ToDictionary(group => group.Key, group => group.First().Code);
+var emptyDetails = await detailService.GetAsync(detailCodes["Available"], CancellationToken.None);
+Check(emptyDetails is { Status: "Available", HasActiveSession: false, CurrentGuestName: null, UpcomingReservation: null, CurrentSubtotal: null },
+    "Available table details show no current guest, reservation, session, or subtotal");
+var reservedDetails = await detailService.GetAsync(detailCodes["Reserved"], CancellationToken.None);
+Check(reservedDetails is { Status: "Reserved", UpcomingReservation: not null } && reservedDetails.UpcomingReservation.GuestCount > 0,
+    "Reserved table details include the upcoming guest and booking time");
+var servingDetails = await detailService.GetAsync(detailCodes["Serving"], CancellationToken.None);
+Check(servingDetails is { Status: "Serving", HasActiveSession: true, CurrentGuestName: not null, CurrentGuestPhone: not null, ServiceStartedAtUtc: not null, ServiceElapsedMinutes: not null, CurrentSubtotal: > 0 },
+    "Serving table details include current guest, service start, elapsed time, and subtotal");
+var cleaningDetails = await detailService.GetAsync(detailCodes["Cleaning"], CancellationToken.None);
+Check(cleaningDetails is { Status: "Cleaning", HasActiveSession: false, ServiceStartedAtUtc: null, CurrentSubtotal: null },
+    "Cleaning table details do not show a finished service as active");
+Check(await detailService.GetAsync("X99", CancellationToken.None) is null, "Unknown table has no details");
+detailCatalog.TryUpdateStatus(detailCodes["Available"], "Serving", out _, out _);
+var updatedDetails = await detailService.GetAsync(detailCodes["Available"], CancellationToken.None);
+Check(updatedDetails is { Status: "Serving", CurrentGuestName: not null, CurrentSubtotal: > 0 },
+    "Reopening details after a status update reflects the current table state");
 var sharedCatalog = new DemoTableCatalog();
 var eventBroker = new TableMapEventBroker();
 using (var sourceSubscription = eventBroker.Subscribe())
@@ -94,3 +118,11 @@ Check(RestaurantManagement.Web.Models.Reservations.BookingTime.NextStart(day.Add
 Check(RestaurantManagement.Web.Models.Reservations.BookingTime.NextStart(day.AddHours(23).AddMinutes(50)) == day.AddDays(1).AddHours(8), "Midnight rollover");
 Console.WriteLine($"{count} tests passed.");
 if (args.Contains("--integration")) await AreaHttpTests.Run();
+
+sealed class TestHostEnvironment : IHostEnvironment
+{
+    public string EnvironmentName { get; set; } = "Development";
+    public string ApplicationName { get; set; } = "RestaurantManagement.AreaTests";
+    public string ContentRootPath { get; set; } = AppContext.BaseDirectory;
+    public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
+}

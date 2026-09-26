@@ -13,6 +13,7 @@ builder.Configuration["ConnectionStrings:DefaultConnection"] = sqlConnectionStri
 builder.Services.AddControllersWithViews();
 builder.Services.AddSingleton<RestaurantManagement.Web.Services.DemoTableCatalog>();
 builder.Services.AddSingleton<RestaurantManagement.Web.Services.TableMapEventBroker>();
+builder.Services.AddScoped<RestaurantManagement.Web.Services.TableDetailsService>();
 builder.Services.AddHostedService<RestaurantManagement.Web.Services.TableStatusOutboxWorker>();
 
 builder.Services.AddDbContext<RestaurantDbContext>(options =>
