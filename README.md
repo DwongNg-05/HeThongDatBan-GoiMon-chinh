@@ -38,6 +38,17 @@ Lệnh `migrate` tạo database nếu chưa có và áp dụng từng migration 
 
 `TrustServerCertificate=True` dành cho môi trường phát triển cục bộ. Khi triển khai thật, cấu hình chứng chỉ hợp lệ và tài khoản ứng dụng có quyền tối thiểu; không dùng tài khoản quản trị để chạy website.
 
+### Kết nối ứng dụng web
+
+Ứng dụng web và worker thông báo trạng thái bàn cùng đọc chuỗi kết nối `RM_CONNECTION_STRING`. Nếu biến này không có, ứng dụng dùng `ConnectionStrings:DefaultConnection` trong `appsettings.json` (mặc định là `RestaurantManagement_Dev` trên `.\MSSQLSERVER07`). Có thể ghi đè trong PowerShell trước khi chạy web:
+
+```powershell
+$env:RM_CONNECTION_STRING = 'Server=.\MSSQLSERVER07;Database=RestaurantManagement_Dev;Trusted_Connection=True;Encrypt=True;TrustServerCertificate=True'
+dotnet run --project src/RestaurantManagement.Web
+```
+
+Hãy chạy `migrate` trước khi khởi động worker để tạo bảng outbox và trigger trạng thái bàn. Chuỗi kết nối chỉ tồn tại trong cửa sổ PowerShell hiện tại; không lưu thông tin đăng nhập vào Git.
+
 ## Dữ liệu mẫu (tuỳ chọn)
 
 Database vừa tạo có 4 vai trò, 19 quyền và lịch mở cửa. Chưa có tài khoản nhân viên, bàn hay món ăn.
