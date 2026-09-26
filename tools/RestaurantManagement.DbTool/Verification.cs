@@ -18,7 +18,7 @@ internal static class Verification
             await DatabaseTool.Migrate(connection);
             await DatabaseTool.Migrate(connection);
             await DatabaseTool.Seed(connection, "VerificationOnly9!" + Guid.NewGuid().ToString("N"));
-            await Check(connection, "Seed", "SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.MenuItems)=60 AND (SELECT COUNT(*) FROM dbo.DiningTables)=25 AND (SELECT COUNT(*) FROM dbo.Reservations)=20 THEN 1 ELSE 0 END");
+            await Check(connection, "Seed", "SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.MenuItems)=60 AND (SELECT COUNT(*) FROM dbo.DiningTables)=60 AND (SELECT COUNT(*) FROM dbo.Reservations)=20 THEN 1 ELSE 0 END");
             await VerifyAreas(connection);
             await BookingConcurrency(connection);
             await DatabaseTool.Execute(connection, "EXEC dbo.usp_OpenShift @Name=N'Test',@OpeningCash=100000,@ActorUserId=4; EXEC dbo.usp_OpenSession @TableId=1,@GuestCount=2,@ActorUserId=2;");
@@ -43,7 +43,7 @@ internal static class Verification
             await Reject(connection, "Discount capped at 50%", "EXEC dbo.usp_Checkout @SessionId=1,@RequestId='03030303-0303-0303-0303-030303030303',@Method='Cash',@ActorUserId=4,@DiscountType='Percent',@DiscountValue=51,@DiscountReason=N'Test',@CashReceived=100000;", 51044);
             var payment = Guid.NewGuid();
             await Task.WhenAll(Enumerable.Range(0, 10).Select(_ => Call(connection, "usp_Checkout", ("SessionId", 1L), ("RequestId", payment), ("Method", "Cash"), ("ActorUserId", 4), ("DiscountType", "Percent"), ("DiscountValue", 10m), ("DiscountReason", "Test"), ("CashReceived", 100000m))));
-            await Check(connection, "10 simultaneous checkout retries, exact VND totals", "SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.Invoices)=1 AND (SELECT Total FROM dbo.Invoices)=45000 AND (SELECT COUNT(*) FROM dbo.InvoiceLines)=1 AND (SELECT ChangeAmount FROM dbo.Payments)=55000 AND (SELECT Status FROM dbo.DiningTables WHERE Id=1)='Cleaning' THEN 1 ELSE 0 END");
+            await Check(connection, "10 simultaneous checkout retries, exact VND totals and table status outbox", "SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.Invoices)=1 AND (SELECT Total FROM dbo.Invoices)=45000 AND (SELECT COUNT(*) FROM dbo.InvoiceLines)=1 AND (SELECT ChangeAmount FROM dbo.Payments)=55000 AND (SELECT Status FROM dbo.DiningTables WHERE Id=1)='Cleaning' AND EXISTS(SELECT 1 FROM dbo.TableStatusChangeEvents WHERE TableId=1 AND PreviousStatus='Serving' AND Status='Cleaning') THEN 1 ELSE 0 END");
             await Reject(connection, "Immutable invoice", "UPDATE dbo.Invoices SET Subtotal=40000 WHERE Id=1;", 51105);
             await Reject(connection, "Immutable payment", "UPDATE dbo.Payments SET Amount=1 WHERE Id=1;", 51103);
             await DatabaseTool.Execute(connection, "EXEC dbo.usp_CleanTable @TableId=1,@ActorUserId=2;");

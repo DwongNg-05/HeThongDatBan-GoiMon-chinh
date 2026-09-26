@@ -15,8 +15,14 @@ public sealed record TableStatusTransition(
     DateTimeOffset ChangedAtUtc)
 {
     public static TableStatusTransition From(DiningTableCard previous, DiningTableCard current)
+        => From(current.Code, current.Area, current.Capacity, previous.Status, current.Status, current.ChangedAtUtc);
+
+    public static TableStatusTransition From(string code, string area, int capacity,
+        string previousStatus, string status, DateTimeOffset changedAtUtc)
     {
-        var reason = (previous.Status, current.Status) switch
+        var previousDisplay = TableStatusDisplay.From(previousStatus);
+        var currentDisplay = TableStatusDisplay.From(status);
+        var reason = (previousStatus, status) switch
         {
             ("Available", "Reserved") => "ReservationConfirmed",
             ("Available" or "Reserved", "Serving") => "ServiceStarted",
@@ -26,9 +32,9 @@ public sealed record TableStatusTransition(
             _ => "StatusChanged"
         };
 
-        return new TableStatusTransition(current.Code, current.Area, current.Capacity,
-            previous.Status, previous.StatusLabel, current.Status, current.StatusLabel,
-            current.StatusClass, reason, current.ChangedAtUtc);
+        return new TableStatusTransition(code, area, capacity,
+            previousStatus, previousDisplay.Label, status, currentDisplay.Label,
+            currentDisplay.CssClass, reason, changedAtUtc);
     }
 }
 

@@ -74,6 +74,20 @@ public sealed class DemoTableCatalog
         return true;
     }
 
+    public void ApplyDatabaseStatus(string code, string status, DateTimeOffset changedAtUtc)
+    {
+        if (!_states.ContainsKey(code) || !TableStatusDisplay.TryNormalize(status, out var normalized))
+            return;
+
+        var info = _tableInfo.First(table => string.Equals(table.Code, code, StringComparison.OrdinalIgnoreCase));
+        lock (_stateLock)
+        {
+            var current = _states[info.Code];
+            if (current.ChangedAtUtc <= changedAtUtc)
+                _states[info.Code] = new TableState(normalized, changedAtUtc);
+        }
+    }
+
     private DiningTableCard ToCard(DiningTableCard info)
     {
         TableState state;

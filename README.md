@@ -4,10 +4,11 @@ Database SQL Server và bộ khung ASP.NET Core MVC .NET 10 cho nhóm phát tri�
 
 ## Trạng thái hiện tại
 
-- Đã có 8 migration SQL, bao gồm quản lý khu vực và tên khu vực lưu trên đặt bàn cũ.
+- Đã có 12 migration SQL, gồm sự kiện outbox ghi lại mọi lần trạng thái bàn thay đổi.
 - Đã kiểm thử bằng SQL Server: 50 yêu cầu đặt cùng bàn đồng thời, 10 lần gửi thanh toán đồng thời, giá món tại thời điểm gọi, quyền chuyển trạng thái bếp, giảm giá, chốt ca, gộp bàn và thu hồi phiên QR.
 - Database trên máy người tạo: `RestaurantManagement_Dev`, server `.\MSSQLSERVER07`.
 - Đã có màn hình quản lý khu vực (thêm, sửa, ngừng sử dụng, xóa có kiểm tra liên kết), tạo/danh sách/chi tiết đặt bàn. Luồng này dùng stored procedure/SqlClient; chưa có đăng nhập web. Tài khoản mẫu vẫn là dữ liệu cho chức năng đăng nhập sau này.
+- Trigger SQL ghi trạng thái cũ/mới sau mỗi cập nhật đã commit; worker web đọc outbox mỗi 500 ms và phát SSE tới các sơ đồ đang mở.
 
 GitHub lưu **mã nguồn tạo database**, không lưu database đang chạy hay dữ liệu thật. Mỗi thành viên chạy các bước dưới đây để tạo database riêng.
 

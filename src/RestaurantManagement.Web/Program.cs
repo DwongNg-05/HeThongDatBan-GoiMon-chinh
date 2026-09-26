@@ -7,6 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 builder.Services.AddSingleton<RestaurantManagement.Web.Services.DemoTableCatalog>();
 builder.Services.AddSingleton<RestaurantManagement.Web.Services.TableMapEventBroker>();
+builder.Services.AddHostedService<RestaurantManagement.Web.Services.TableStatusOutboxWorker>();
 
 builder.Services.AddDbContext<RestaurantDbContext>(options =>
     options.UseSqlServer(
