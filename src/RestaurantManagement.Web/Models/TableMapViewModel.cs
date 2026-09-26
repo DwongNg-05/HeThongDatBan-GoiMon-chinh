@@ -2,6 +2,36 @@ namespace RestaurantManagement.Web.Models;
 
 public sealed record DiningTableCard(string Code, string Area, int Capacity, string Status, string StatusLabel, string StatusClass, DateTimeOffset ChangedAtUtc);
 
+public sealed record TableStatusTransition(
+    string Code,
+    string Area,
+    int Capacity,
+    string PreviousStatus,
+    string PreviousStatusLabel,
+    string Status,
+    string StatusLabel,
+    string StatusClass,
+    string ChangeReason,
+    DateTimeOffset ChangedAtUtc)
+{
+    public static TableStatusTransition From(DiningTableCard previous, DiningTableCard current)
+    {
+        var reason = (previous.Status, current.Status) switch
+        {
+            ("Available", "Reserved") => "ReservationConfirmed",
+            ("Available" or "Reserved", "Serving") => "ServiceStarted",
+            ("Serving", "Cleaning") => "ServiceClosed",
+            ("Cleaning", "Available" or "Reserved") => "CleaningCompleted",
+            ("Reserved", "Available") => "ReservationReleased",
+            _ => "StatusChanged"
+        };
+
+        return new TableStatusTransition(current.Code, current.Area, current.Capacity,
+            previous.Status, previous.StatusLabel, current.Status, current.StatusLabel,
+            current.StatusClass, reason, current.ChangedAtUtc);
+    }
+}
+
 public sealed record TableStatusDisplay(string Label, string CssClass)
 {
     public static TableStatusDisplay From(string? status) => TryNormalize(status, out var normalized) ? normalized switch

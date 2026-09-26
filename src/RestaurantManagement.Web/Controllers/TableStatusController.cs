@@ -14,10 +14,11 @@ public sealed class TableStatusController(DemoTableCatalog catalog, TableMapEven
     [HttpPost("{code}")]
     public IActionResult Update(string code, [FromBody] UpdateTableStatusRequest request)
     {
-        if (!catalog.TryUpdateStatus(code, request.Status, out var table) || table is null)
+        if (!catalog.TryUpdateStatus(code, request.Status, out var table, out var transition) || table is null)
             return BadRequest(new { message = "Mã bàn hoặc trạng thái không hợp lệ." });
 
-        eventBroker.Publish(table);
+        if (transition is not null)
+            eventBroker.Publish(transition);
         return Ok(table);
     }
 

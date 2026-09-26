@@ -10,6 +10,7 @@ public sealed class DemoTableCatalog
     private static readonly string[] Statuses = ["Available", "Serving", "Reserved", "Cleaning"];
     private readonly ConcurrentDictionary<string, TableState> _states = new(StringComparer.OrdinalIgnoreCase);
     private readonly DiningTableCard[] _tableInfo;
+    private readonly object _stateLock = new();
 
     public DemoTableCatalog()
     {
@@ -49,23 +50,35 @@ public sealed class DemoTableCatalog
         };
     }
 
-    public bool TryUpdateStatus(string code, string? status, out DiningTableCard? table)
+    public bool TryUpdateStatus(string code, string? status, out DiningTableCard? table, out TableStatusTransition? transition)
     {
         table = null;
+        transition = null;
         if (!_states.ContainsKey(code) || !TableStatusDisplay.TryNormalize(status, out var normalized))
             return false;
 
-        var changedAt = DateTimeOffset.UtcNow;
-        var requestedState = new TableState(normalized, changedAt);
-        _states.AddOrUpdate(code, requestedState,
-            (_, current) => current.ChangedAtUtc <= changedAt ? requestedState : current);
-        table = ToCard(_tableInfo.First(info => string.Equals(info.Code, code, StringComparison.OrdinalIgnoreCase)));
+        var tableInfo = _tableInfo.First(info => string.Equals(info.Code, code, StringComparison.OrdinalIgnoreCase));
+        lock (_stateLock)
+        {
+            var previous = ToCard(tableInfo);
+            if (previous.Status == normalized)
+            {
+                table = previous;
+                return true;
+            }
+
+            _states[tableInfo.Code] = new TableState(normalized, DateTimeOffset.UtcNow);
+            table = ToCard(tableInfo);
+            transition = TableStatusTransition.From(previous, table);
+        }
         return true;
     }
 
     private DiningTableCard ToCard(DiningTableCard info)
     {
-        var state = _states[info.Code];
+        TableState state;
+        lock (_stateLock)
+            state = _states[info.Code];
         var display = TableStatusDisplay.From(state.Status);
         return info with { Status = state.Status, StatusLabel = display.Label, StatusClass = display.CssClass, ChangedAtUtc = state.ChangedAtUtc };
     }

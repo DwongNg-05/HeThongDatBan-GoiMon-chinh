@@ -47,21 +47,35 @@ var eventBroker = new TableMapEventBroker();
 using (var sourceSubscription = eventBroker.Subscribe())
 using (var receivingSubscription = eventBroker.Subscribe())
 {
-    foreach (var (code, status) in new[] { ("A01", "Available"), ("B03", "Reserved"), ("C10", "Serving"), ("A07", "Cleaning") })
+    foreach (var (status, reason) in new[]
     {
-        Check(sharedCatalog.TryUpdateStatus(code, status, out var changedTable) && changedTable is not null,
-            $"Status update accepted for {code}");
-        eventBroker.Publish(changedTable!);
+        ("Reserved", "ReservationConfirmed"),
+        ("Serving", "ServiceStarted"),
+        ("Cleaning", "ServiceClosed"),
+        ("Available", "CleaningCompleted")
+    })
+    {
+        Check(sharedCatalog.TryUpdateStatus("A01", status, out var changedTable, out var transition) && changedTable is not null && transition is not null,
+            $"A01 transition to {status} accepted");
+        eventBroker.Publish(transition!);
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         var received = await receivingSubscription.Reader.ReadAsync(timeout.Token);
-        Check(received.Code == code && received.Status == status && received.ChangedAtUtc.Offset == TimeSpan.Zero,
-            $"Connected map receives {code} {status} update with UTC timestamp");
-        Check((await sourceSubscription.Reader.ReadAsync(timeout.Token)).Code == code,
-            $"Source map also receives its {code} update");
+        Check(received.Code == "A01" && received.Status == status && received.ChangeReason == reason && received.ChangedAtUtc.Offset == TimeSpan.Zero,
+            $"Connected map receives A01 {status} event ({reason}) with UTC timestamp");
+        Check((await sourceSubscription.Reader.ReadAsync(timeout.Token)).Code == "A01",
+            $"Source map also receives its A01 update");
     }
+
+    Check(sharedCatalog.TryUpdateStatus("A01", "Available", out _, out var duplicate) && duplicate is null,
+        "Repeated status does not create a change event");
+
+    Check(sharedCatalog.TryUpdateStatus("A01", "Reserved", out _, out var reserved) && reserved?.ChangeReason == "ReservationConfirmed",
+        "Available to reserved identifies reservation confirmation");
+    Check(sharedCatalog.TryUpdateStatus("A01", "Available", out _, out var released) && released?.ChangeReason == "ReservationReleased",
+        "Reserved to available identifies reservation release");
 }
-Check(!sharedCatalog.TryUpdateStatus("X99", "Available", out _), "Unknown table code is rejected");
-Check(!sharedCatalog.TryUpdateStatus("A01", "Offline", out _), "Unknown status is rejected");
+Check(!sharedCatalog.TryUpdateStatus("X99", "Available", out _, out _), "Unknown table code is rejected");
+Check(!sharedCatalog.TryUpdateStatus("A01", "Offline", out _, out _), "Unknown status is rejected");
 Check(sharedCatalog.GetAll().Single(table => table.Code == "A01").Status == "Available",
     "Snapshot retains state after stream clients reconnect");
 var controller = new AreasController(new ConfigurationBuilder().Build());
