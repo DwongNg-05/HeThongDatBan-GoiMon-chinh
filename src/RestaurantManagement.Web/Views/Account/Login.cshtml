@@ -1,0 +1,34 @@
+@model LoginModel
+@{ ViewData["Title"] = "Đăng nhập"; }
+<div class="row justify-content-center mt-5">
+    <section class="col-md-6 col-lg-4">
+        <h1 class="h3 mb-3">Đăng nhập quản lý</h1>
+        @if (Model.SessionExpired)
+        {
+            <div class="alert alert-warning" role="alert">Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.</div>
+        }
+        <form asp-action="Login" method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+            @if (Model.RemainingSeconds > 0)
+            {
+                <div class="alert alert-warning" role="status">
+                    <span id="lockout-message">Đã có nhiều lần đăng nhập không thành công. Vui lòng thử lại sau</span>
+                    <strong id="lockout-countdown" data-seconds="@Model.RemainingSeconds">@(TimeSpan.FromSeconds(Model.RemainingSeconds).ToString(@"mm\:ss"))</strong>.
+                    <div class="small">Thời gian chờ tối đa 15 phút. Gửi lại yêu cầu trong thời gian chờ không kéo dài thời gian khóa.</div>
+                </div>
+            }
+            <div class="mb-3">
+                <label asp-for="Identifier" class="form-label">Tên đăng nhập hoặc số điện thoại</label>
+                <input asp-for="Identifier" class="form-control" autocomplete="username" maxlength="50" required autofocus />
+            </div>
+            <div class="mb-3">
+                <label asp-for="Password" class="form-label">Mật khẩu</label>
+                <input type="password" id="Password" name="Password" class="form-control" autocomplete="current-password" maxlength="72" required />
+            </div>
+            <button class="btn btn-primary w-100" type="submit">Đăng nhập</button>
+        </form>
+    </section>
+</div>
+@section Scripts {
+    <script src="~/js/login-lockout.js" asp-append-version="true"></script>
+}

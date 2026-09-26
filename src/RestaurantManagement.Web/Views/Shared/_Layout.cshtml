@@ -1,5 +1,5 @@
-﻿<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="vi">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -13,20 +13,24 @@
     <header>
         <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
             <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">RestaurantManagement.Web</a>
+                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">Quản lý nhà hàng</a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
                         aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-                        </li>
-                    </ul>
+                    @if (User.Identity?.IsAuthenticated == true)
+                    {
+                        <span class="navbar-text me-3">Đang đăng nhập: <strong>@User.Identity.Name</strong></span>
+                        @if (User.IsInRole("Manager"))
+                        {
+                            <a class="nav-link" asp-controller="Management" asp-action="Index">Thực đơn</a>
+                            <a class="nav-link" asp-controller="EmployeeAccounts" asp-action="Index">Tài khoản nhân viên</a>
+                        }
+                        <form asp-controller="Account" asp-action="Logout" method="post">
+                            <button class="btn btn-outline-secondary">Đăng xuất</button>
+                        </form>
+                    }
                 </div>
             </div>
         </nav>

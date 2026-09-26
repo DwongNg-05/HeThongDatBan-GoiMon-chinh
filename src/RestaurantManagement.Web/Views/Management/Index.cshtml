@@ -1,0 +1,42 @@
+@model RestaurantManagement.Web.Models.ManagementMenu
+@{ ViewData["Title"] = "Quản lý thực đơn"; }
+<h1 class="h3">Quản lý thực đơn</h1>
+@if (TempData["Success"] is string success) { <div class="alert alert-success" role="status">@success</div> }
+@if (TempData["Error"] is string error) { <div class="alert alert-danger" role="alert">@error</div> }
+<div class="table-responsive">
+<table class="table align-middle">
+    <thead><tr><th>Món ăn</th><th>Giá (đồng)</th><th>Trạng thái</th></tr></thead>
+    <tbody>
+    @if (Model.Items.Count == 0)
+    {
+        <tr><td colspan="3" class="text-muted">Chưa có món ăn để quản lý.</td></tr>
+    }
+    @foreach (var item in Model.Items)
+    {
+        <tr><td>@item.Name</td><td>
+            <form asp-action="Price" method="post" class="d-flex gap-2">
+                <input type="hidden" name="id" value="@item.Id" />
+                <input type="number" name="price" value="@item.Price.ToString("0", System.Globalization.CultureInfo.InvariantCulture)" min="1" max="50000000" step="1" required class="form-control" aria-label="Giá @item.Name" />
+                <button class="btn btn-outline-primary text-nowrap">Lưu giá</button>
+            </form>
+        </td><td>
+            <form asp-action="Availability" method="post">
+                <input type="hidden" name="id" value="@item.Id" />
+                <input type="hidden" name="soldOut" value="@((!item.IsSoldOut).ToString().ToLowerInvariant())" />
+                <span>@(item.IsSoldOut ? "Tạm hết" : "Còn món")</span>
+                <button class="btn btn-outline-secondary btn-sm">@(item.IsSoldOut ? "Mở bán lại" : "Đánh dấu hết")</button>
+            </form>
+        </td></tr>
+    }
+    </tbody>
+</table>
+</div>
+<h2 class="h4 mt-4">Thay đổi gần đây</h2>
+<table class="table"><thead><tr><th>Thời gian (UTC+7)</th><th>Tài khoản</th><th>Món</th><th>Thay đổi</th></tr></thead>
+<tbody>
+@if (Model.Changes.Count == 0) {
+    <tr><td colspan="4" class="text-muted">Chưa có thay đổi. Khi cập nhật giá hoặc trạng thái món, tài khoản thực hiện sẽ hiển thị tại đây.</td></tr>
+}
+@foreach (var change in Model.Changes) {
+    <tr><td>@change.ChangedAt.AddHours(7).ToString("dd/MM/yyyy HH:mm:ss")</td><td>@change.UserName</td><td>@change.Name</td><td>@change.Description</td></tr>
+}</tbody></table>
