@@ -50,8 +50,20 @@ public sealed class TableStatusController(DemoTableCatalog catalog, TableMapEven
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
-                await Response.WriteAsync(": keep-alive\n\n", cancellationToken);
-                await Response.Body.FlushAsync(cancellationToken);
+                try
+                {
+                    await Response.WriteAsync(": keep-alive\n\n", cancellationToken);
+                    await Response.Body.FlushAsync(cancellationToken);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    break;
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // EventSource closes and reconnects routinely; RequestAborted is the normal end of this stream.
+                break;
             }
         }
     }
