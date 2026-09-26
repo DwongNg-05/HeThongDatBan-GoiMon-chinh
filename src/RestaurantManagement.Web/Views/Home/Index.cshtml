@@ -5,7 +5,7 @@
     var freeCount = Model.Tables.Count(table => table.Status == "Available");
 }
 
-<section class="map-page">
+<section class="map-page" data-status-api="@Url.Content("~/api/table-status")">
     <div class="map-heading">
         <div>
             <div class="eyebrow">VẬN HÀNH NHÀ HÀNG <span>•</span> HÔM NAY</div>
@@ -24,7 +24,7 @@
                 <a class="area-tab @(Model.SelectedArea == area ? "active" : "")" asp-action="Index" asp-route-area="@area" aria-current="@(Model.SelectedArea == area ? "page" : null)">@area <span>@count</span></a>
             }
         </nav>
-        <div class="quick-count"><i></i>@freeCount bàn trống <span>·</span> @shownCount bàn đang xem</div>
+        <div class="quick-count"><i></i><span id="available-table-count">@freeCount</span> bàn trống <span>·</span> @shownCount bàn đang xem</div>
     </div>
 
     @if (Model.Tables.Count == 0)
@@ -40,15 +40,26 @@
                 <div class="table-grid">
                     @foreach (var table in group)
                     {
-                        <article class="table-card status-@table.StatusClass" aria-label="Bàn @table.Code, sức chứa @table.Capacity người, trạng thái @table.StatusLabel">
-                            <div class="table-card-top"><span class="table-glyph">♧</span><span class="table-status"><i></i>@table.StatusLabel</span></div>
+                        <article class="table-card status-@table.StatusClass" data-table-code="@table.Code" data-status="@table.Status" data-changed-at="@table.ChangedAtUtc.ToString("O")" aria-label="Bàn @table.Code, sức chứa @table.Capacity người, trạng thái @table.StatusLabel">
+                            <div class="table-card-top"><span class="table-glyph">♧</span><span class="table-status"><i></i><span class="table-status-label">@table.StatusLabel</span></span></div>
                             <strong class="table-code">@table.Code</strong>
                             <span class="table-capacity"><span class="person-icon">♙</span> @table.Capacity chỗ</span>
+                            <label class="visually-hidden" for="status-@table.Code">Cập nhật trạng thái bàn @table.Code</label>
+                            <select class="table-status-editor" id="status-@table.Code" data-status-editor aria-label="Cập nhật trạng thái bàn @table.Code">
+                                <option value="Available" selected="@(table.Status == "Available")">Trống</option>
+                                <option value="Reserved" selected="@(table.Status == "Reserved")">Đã đặt trước</option>
+                                <option value="Serving" selected="@(table.Status == "Serving")">Đang phục vụ</option>
+                                <option value="Cleaning" selected="@(table.Status == "Cleaning")">Đang dọn</option>
+                            </select>
                         </article>
                     }
                 </div>
             </section>
         }
     }
-    <div class="map-footnote"><span>ⓘ</span> Trạng thái bàn hiển thị theo dữ liệu mẫu phát triển.</div>
+    <div class="map-footnote"><span class="connection-indicator" id="table-map-connection" aria-hidden="true"></span><span id="table-map-connection-label" role="status" aria-live="polite">Đang kết nối sơ đồ trực tiếp…</span><span class="last-update" id="table-map-last-update">· Chưa có thay đổi mới</span></div>
 </section>
+
+@section Scripts {
+    <script src="~/js/table-map.js" asp-append-version="true"></script>
+}

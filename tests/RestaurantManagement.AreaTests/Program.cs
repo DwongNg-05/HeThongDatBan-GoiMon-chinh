@@ -42,6 +42,28 @@ Check(TableStatusDisplay.From("Unexpected").Label == "Không xác định" && Ta
 var demoTables = new DemoTableCatalog().Get(null).Tables;
 Check(demoTables.Count == 60 && expectedStatuses.Keys.All(status => demoTables.Any(table => table.Status == status)), "Demo map contains all four statuses across 60 tables");
 Check(demoTables.All(table => TableStatusDisplay.From(table.Status).Label == table.StatusLabel), "Every demo table displays the label resolved from its current status");
+var sharedCatalog = new DemoTableCatalog();
+var eventBroker = new TableMapEventBroker();
+using (var sourceSubscription = eventBroker.Subscribe())
+using (var receivingSubscription = eventBroker.Subscribe())
+{
+    foreach (var (code, status) in new[] { ("A01", "Available"), ("B03", "Reserved"), ("C10", "Serving"), ("A07", "Cleaning") })
+    {
+        Check(sharedCatalog.TryUpdateStatus(code, status, out var changedTable) && changedTable is not null,
+            $"Status update accepted for {code}");
+        eventBroker.Publish(changedTable!);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var received = await receivingSubscription.Reader.ReadAsync(timeout.Token);
+        Check(received.Code == code && received.Status == status && received.ChangedAtUtc.Offset == TimeSpan.Zero,
+            $"Connected map receives {code} {status} update with UTC timestamp");
+        Check((await sourceSubscription.Reader.ReadAsync(timeout.Token)).Code == code,
+            $"Source map also receives its {code} update");
+    }
+}
+Check(!sharedCatalog.TryUpdateStatus("X99", "Available", out _), "Unknown table code is rejected");
+Check(!sharedCatalog.TryUpdateStatus("A01", "Offline", out _), "Unknown status is rejected");
+Check(sharedCatalog.GetAll().Single(table => table.Code == "A01").Status == "Available",
+    "Snapshot retains state after stream clients reconnect");
 var controller = new AreasController(new ConfigurationBuilder().Build());
 Check(controller.Create() is ViewResult { Model: AreaFormViewModel }, "GET create form");
 var form = new AreaFormViewModel { Name = "Sân vườn", SortOrder = -1 };
@@ -58,4 +80,3 @@ Check(RestaurantManagement.Web.Models.Reservations.BookingTime.NextStart(day.Add
 Check(RestaurantManagement.Web.Models.Reservations.BookingTime.NextStart(day.AddHours(23).AddMinutes(50)) == day.AddDays(1).AddHours(8), "Midnight rollover");
 Console.WriteLine($"{count} tests passed.");
 if (args.Contains("--integration")) await AreaHttpTests.Run();
-

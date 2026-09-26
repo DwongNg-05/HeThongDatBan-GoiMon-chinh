@@ -55,7 +55,7 @@ try {
 
 Tạo 4 tài khoản `manager`, `waiter`, `kitchen`, `cashier`, mật khẩu được băm bcrypt; 3 khu vực (Tầng một, Tầng hai, Sân vườn), mỗi khu vực 20 bàn, 5 nhóm món, 60 món và 20 đặt bàn trong 7 ngày. Mã bàn theo khu vực A01–A20, B01–B20, C01–C20. Không ghi mật khẩu vào Git. Lệnh nạp lại không ghi đè dữ liệu mẫu đã có. Không chạy seed trên database sản xuất.
 
-Trạng thái bàn dùng các giá trị `Available`, `Reserved`, `Serving`, `Cleaning`; sơ đồ luôn kèm nhãn chữ tương ứng. Nghiệp vụ hiện có chuyển bàn sang `Reserved` khi xác nhận đặt bàn gần giờ đến, `Serving` khi mở phiên phục vụ, `Cleaning` khi thanh toán đóng phiên, rồi `Available` hoặc `Reserved` khi nhân viên hoàn tất dọn bàn. Tác vụ bảo trì đồng bộ bàn trống/đã đặt theo đặt bàn còn hiệu lực. Sơ đồ demo dùng trạng thái mẫu; cập nhật đồng bộ trực tiếp từ database/máy khác chưa được kết nối.
+Trạng thái bàn dùng các giá trị `Available`, `Reserved`, `Serving`, `Cleaning`; sơ đồ luôn kèm nhãn chữ tương ứng. Nghiệp vụ hiện có chuyển bàn sang `Reserved` khi xác nhận đặt bàn gần giờ đến, `Serving` khi mở phiên phục vụ, `Cleaning` khi thanh toán đóng phiên, rồi `Available` hoặc `Reserved` khi nhân viên hoàn tất dọn bàn. Tác vụ bảo trì đồng bộ bàn trống/đã đặt theo đặt bàn còn hiệu lực. Sơ đồ demo phát sự kiện Server-Sent Events tới các trình duyệt mở cùng máy chủ; khi kết nối lại, trình duyệt tải snapshot mới nhất. Bộ dữ liệu demo nằm trong bộ nhớ của một tiến trình, chưa phát trạng thái từ các thủ tục SQL hoặc chia sẻ giữa nhiều tiến trình web.
 
 ## Kiểm thử
 
