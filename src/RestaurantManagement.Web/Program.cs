@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using RestaurantManagement.Web.Models;
 using RestaurantManagement.Web.Authentication;
+using RestaurantManagement.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,6 +13,7 @@ string ConnectionString() => Environment.GetEnvironmentVariable("RM_CONNECTION_S
 builder.Services.AddScoped(_ => new ManagementStore(ConnectionString()));
 builder.Services.AddScoped(_ => new LoginSessionStore(ConnectionString()));
 builder.Services.AddScoped<IdleSessionEvents>();
+builder.Services.AddScoped<IEmployeeAccountStore>(_ => new SqlEmployeeAccountStore(ConnectionString()));
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(options =>
 {
     options.LoginPath = "/Account/Login";

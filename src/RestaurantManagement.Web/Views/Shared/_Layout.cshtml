@@ -22,6 +22,11 @@
                     @if (User.Identity?.IsAuthenticated == true)
                     {
                         <span class="navbar-text me-3">Đang đăng nhập: <strong>@User.Identity.Name</strong></span>
+                        @if (User.IsInRole("Manager"))
+                        {
+                            <a class="nav-link" asp-controller="Management" asp-action="Index">Thực đơn</a>
+                            <a class="nav-link" asp-controller="EmployeeAccounts" asp-action="Index">Tài khoản nhân viên</a>
+                        }
                         <form asp-controller="Account" asp-action="Logout" method="post">
                             <button class="btn btn-outline-secondary">Đăng xuất</button>
                         </form>

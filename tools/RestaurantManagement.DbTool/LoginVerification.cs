@@ -41,6 +41,7 @@ internal static partial class LoginVerification
             }
             Assert(ready, "Web starts");
             Assert((await client.GetAsync("/Management")).StatusCode == HttpStatusCode.Redirect, "Anonymous management access denied");
+            Assert((await client.GetAsync("/admin/employee-accounts")).StatusCode == HttpStatusCode.Redirect, "Anonymous employee account access denied");
 
             async Task<HttpResponseMessage> Login(string identifier, string secret)
             {
@@ -65,6 +66,8 @@ internal static partial class LoginVerification
                 var page = await client.GetStringAsync("/Management");
                 Assert(WebUtility.HtmlDecode(page).Contains("Đăng nhập thành công."), "Shows login success");
                 Assert(Regex.IsMatch(page, @"<strong[^>]*>manager</strong>"), "Session identifies manager");
+                Assert((await client.GetAsync("/admin/employee-accounts")).IsSuccessStatusCode, "Manager can open merged employee account list");
+                Assert((await client.GetAsync("/admin/employee-accounts/create")).IsSuccessStatusCode, "Manager can open merged employee creation form");
                 var token = Token(page);
                 Assert((await client.PostAsync("/Management/Price", Form(("id", "60"), ("price", "87654")))).StatusCode == HttpStatusCode.BadRequest, "Menu writes require CSRF token");
                 using var price = await client.PostAsync("/Management/Price", Form(("id", "60"), ("price", "87654"), ("ActorUserId", "4"), ("__RequestVerificationToken", token)));
