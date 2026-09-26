@@ -5,6 +5,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+builder.Services.AddSingleton<RestaurantManagement.Web.Services.DemoTableCatalog>();
 
 builder.Services.AddDbContext<RestaurantDbContext>(options =>
     options.UseSqlServer(

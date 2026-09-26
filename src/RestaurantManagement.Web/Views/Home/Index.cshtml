@@ -1,8 +1,54 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+@model RestaurantManagement.Web.Models.TableMapViewModel
+@{
+    ViewData["Title"] = "Sơ đồ bàn";
+    var shownCount = Model.Tables.Count;
+    var freeCount = Model.Tables.Count(table => table.Status == "Available");
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
-</div>
+<section class="map-page">
+    <div class="map-heading">
+        <div>
+            <div class="eyebrow">VẬN HÀNH NHÀ HÀNG <span>•</span> HÔM NAY</div>
+            <h1>Sơ đồ bàn</h1>
+            <p class="map-subtitle">Theo dõi nhanh tình trạng bàn tại các khu vực.</p>
+        </div>
+        <div class="map-summary"><span class="summary-icon">▦</span><span><strong>@Model.TotalCount</strong><small>bàn trong nhà hàng</small></span></div>
+    </div>
+
+    <div class="map-toolbar">
+        <nav class="area-tabs" aria-label="Lọc theo khu vực">
+            <a class="area-tab @(Model.SelectedArea is null ? "active" : "")" asp-action="Index" aria-current="@(Model.SelectedArea is null ? "page" : null)">Tất cả <span>@Model.TotalCount</span></a>
+            @foreach (var area in Model.Areas)
+            {
+                var count = Model.SelectedArea == area ? shownCount : 20;
+                <a class="area-tab @(Model.SelectedArea == area ? "active" : "")" asp-action="Index" asp-route-area="@area" aria-current="@(Model.SelectedArea == area ? "page" : null)">@area <span>@count</span></a>
+            }
+        </nav>
+        <div class="quick-count"><i></i>@freeCount bàn trống <span>·</span> @shownCount bàn đang xem</div>
+    </div>
+
+    @if (Model.Tables.Count == 0)
+    {
+        <div class="empty-state"><span>▦</span><h2>Chưa có dữ liệu bàn</h2><p>Khu vực này hiện chưa có bàn nào để hiển thị.</p></div>
+    }
+    else
+    {
+        @foreach (var group in Model.Tables.GroupBy(table => table.Area))
+        {
+            <section class="area-section" aria-labelledby="area-@group.Key.GetHashCode()">
+                <div class="area-heading"><div><span class="area-mark"></span><h2 id="area-@group.Key.GetHashCode()">@group.Key</h2></div><span class="area-count">@group.Count() bàn</span></div>
+                <div class="table-grid">
+                    @foreach (var table in group)
+                    {
+                        <article class="table-card status-@table.Status.ToLowerInvariant()" aria-label="Bàn @table.Code, sức chứa @table.Capacity người, @table.StatusLabel">
+                            <div class="table-card-top"><span class="table-glyph">♧</span><span class="table-status"><i></i>@table.StatusLabel</span></div>
+                            <strong class="table-code">@table.Code</strong>
+                            <span class="table-capacity"><span class="person-icon">♙</span> @table.Capacity chỗ</span>
+                        </article>
+                    }
+                </div>
+            </section>
+        }
+    }
+    <div class="map-footnote"><span>ⓘ</span> Trạng thái bàn hiển thị theo dữ liệu mẫu phát triển.</div>
+</section>
