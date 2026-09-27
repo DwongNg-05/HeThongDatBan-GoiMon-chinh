@@ -116,8 +116,11 @@ var day = new DateTime(2026,9,28);
 Check(RestaurantManagement.Web.Models.Reservations.BookingTime.NextStart(day.AddHours(20).AddMinutes(30).AddSeconds(5)) == day.AddHours(21), "Default slot is future at half-hour boundary");
 Check(RestaurantManagement.Web.Models.Reservations.BookingTime.NextStart(day.AddHours(21).AddMinutes(30)) == day.AddDays(1).AddHours(8), "Late default moves to next morning");
 Check(RestaurantManagement.Web.Models.Reservations.BookingTime.NextStart(day.AddHours(23).AddMinutes(50)) == day.AddDays(1).AddHours(8), "Midnight rollover");
+MenuTests.Run(Check);
+CategoryTests.Run(Check);
 Console.WriteLine($"{count} tests passed.");
 if (args.Contains("--integration")) await AreaHttpTests.Run();
+if (args.Contains("--menu-http")) await MenuHttpTests.Run();
 
 sealed class TestHostEnvironment : IHostEnvironment
 {

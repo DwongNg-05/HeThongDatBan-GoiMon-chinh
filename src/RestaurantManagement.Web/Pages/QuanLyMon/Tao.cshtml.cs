@@ -28,12 +28,21 @@ public class TaoModel : PageModel
         {
             DanhSachNhom = _store.LayTatCaNhomMon();
 
+            if (!DanhSachNhom.Any(n => n.Id == Mon.NhomMonId))
+                ModelState.AddModelError("Mon.NhomMonId", "Nhóm món không tồn tại.");
+
             if (!ModelState.IsValid)
             {
                 return Page();
             }
 
-            _store.ThemMonAn(Mon);
+            try { _store.ThemMonAn(Mon); }
+            catch (ArgumentException)
+            {
+                ModelState.AddModelError("Mon.NhomMonId", "Nhóm món không còn tồn tại. Vui lòng chọn nhóm khác.");
+                DanhSachNhom = _store.LayTatCaNhomMon();
+                return Page();
+            }
             return RedirectToPage("/QuanLyMon/Index");
         }
 }

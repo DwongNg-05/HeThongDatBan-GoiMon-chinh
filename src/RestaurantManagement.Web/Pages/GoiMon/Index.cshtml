@@ -1,37 +1,6 @@
 @page
 @model RestaurantManagement.Web.Pages.GoiMon.IndexModel
-@{
-    ViewData["Title"] = "Gọi món";
-}
+@{ ViewData["Title"] = "Gọi món"; }
 
 <h1>Gọi món</h1>
-
-<table class="table">
-    <thead>
-        <tr>
-            <th>#</th>
-            <th>Tên</th>
-            <th>Nhóm</th>
-            <th>Giá</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-        @{ var idx = 1; }
-        @foreach (var m in Model.MonDangBan)
-        {
-            <tr>
-                <td>@(idx++)</td>
-                <td>@m.Ten</td>
-                <td>@m.NhomMonId</td>
-                <td>@m.GiaBanVnd.ToString("N0")</td>
-                <td>
-                    <div class="d-flex align-items-center">
-                        <input type="number" min="1" value="1" class="form-control form-control-sm me-2 qty-input" style="width:80px" data-monid="@m.Id" />
-                        <button type="button" class="btn btn-sm btn-primary btn-add-to-cart" data-monid="@m.Id" data-ten="@m.Ten" data-gia="@m.GiaBanVnd" data-donvitinh="@m.DonViTinh">Thêm</button>
-                    </div>
-                </td>
-            </tr>
-        }
-    </tbody>
-</table>
+<partial name="_ThucDonTheoNhom" model="Model.NhomMon" />

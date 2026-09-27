@@ -11,13 +11,11 @@ builder.Configuration["ConnectionStrings:DefaultConnection"] = sqlConnectionStri
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
-<<<<<<< HEAD
 // Support Razor Pages
 builder.Services.AddRazorPages();
 
 // Register the in-memory store as the application's store implementation
 builder.Services.AddSingleton<RestaurantManagement.Web.Services.InMemoryQuanLyMonStore>();
-=======
 builder.Services.AddSingleton<RestaurantManagement.Web.Services.DemoTableCatalog>();
 builder.Services.AddSingleton<RestaurantManagement.Web.Services.TableMapEventBroker>();
 builder.Services.AddScoped<RestaurantManagement.Web.Services.TableDetailsService>();
@@ -25,7 +23,6 @@ builder.Services.AddHostedService<RestaurantManagement.Web.Services.TableStatusO
 
 builder.Services.AddDbContext<RestaurantDbContext>(options =>
     options.UseSqlServer(sqlConnectionString));
->>>>>>> 0556fdc36df9dca8eb79e22b99ae4ad50f24208c
 
 var app = builder.Build();
 
@@ -48,11 +45,8 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
 
-<<<<<<< HEAD
 // Map Razor Pages endpoints
 app.MapRazorPages();
-=======
 app.MapControllers();
->>>>>>> 0556fdc36df9dca8eb79e22b99ae4ad50f24208c
 
 app.Run();
