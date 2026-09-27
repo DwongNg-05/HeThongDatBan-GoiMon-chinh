@@ -13,6 +13,16 @@ public sealed class SessionActivityFilter(LoginSessionStore sessions) : IAsyncAc
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
         var executed = await next();
+
+        // A streaming response (for example the real-time table-status endpoint)
+        // may already have sent its headers by the time the action completes.
+        // Signing out at that point would try to modify the auth cookie and throws
+        // "Headers are read-only, response has already started".
+        if (context.HttpContext.Response.HasStarted)
+        {
+            return;
+        }
+
         var endpoint = context.HttpContext.GetEndpoint();
         var status = (executed.Result as IStatusCodeActionResult)?.StatusCode ?? context.HttpContext.Response.StatusCode;
         if (executed.Exception is null && !executed.Canceled && context.ModelState.IsValid && status < 400
