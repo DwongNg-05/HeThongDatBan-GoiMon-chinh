@@ -11,6 +11,7 @@ builder.Configuration["ConnectionStrings:DefaultConnection"] = sqlConnectionStri
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+builder.Services.AddResponseCompression(options => options.EnableForHttps = true);
 builder.Services.AddSingleton<RestaurantManagement.Web.Services.DemoTableCatalog>();
 builder.Services.AddSingleton<RestaurantManagement.Web.Services.TableMapEventBroker>();
 builder.Services.AddScoped<RestaurantManagement.Web.Services.TableDetailsService>();
@@ -30,6 +31,7 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseRouting();
+app.UseResponseCompression();
 
 app.UseAuthorization();
 

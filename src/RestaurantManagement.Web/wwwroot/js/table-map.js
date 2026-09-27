@@ -4,7 +4,9 @@
 
     const apiUrl = page.dataset.statusApi;
     const detailsUrl = page.dataset.detailsApi;
+    const expectedTableCount = Number(page.dataset.renderedTableCount || 0);
     const detailsDialog = document.querySelector('#table-details-dialog');
+    const detailsOverlay = document.querySelector('#table-details-overlay');
     const connectionLabel = document.querySelector('#table-map-connection-label');
     const connectionIndicator = document.querySelector('#table-map-connection');
     const lastUpdate = document.querySelector('#table-map-last-update');
@@ -17,6 +19,20 @@
         Unknown: 'Không xác định'
     };
     let selectedDetailCode = null;
+    let detailOpener = null;
+
+    // The map is server-rendered. Measure until two paint opportunities after its
+    // complete card grid is in the DOM so a console trace reflects visible readiness.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+        const renderedTableCount = document.querySelectorAll('[data-table-code]').length;
+        const navigation = performance.getEntriesByType('navigation')[0];
+        if (!navigation || renderedTableCount !== expectedTableCount) return;
+        const visibleAt = performance.now();
+        performance.measure('table-map-visible', { start: navigation.startTime, end: visibleAt });
+        const duration = Math.round(performance.getEntriesByName('table-map-visible').at(-1).duration);
+        document.documentElement.dataset.tableMapVisibleMs = String(duration);
+        console.info(`[table-map] ${renderedTableCount} tables visible in ${duration} ms`);
+    }));
 
     const byId = id => document.getElementById(id);
     const formattedTime = value => value
@@ -27,7 +43,7 @@
         const response = await fetch(`${detailsUrl}/${encodeURIComponent(code)}`, { cache: 'no-store' });
         if (!response.ok) throw new Error('Không tải được thông tin bàn.');
         const details = await response.json();
-        if (!detailsDialog.open || selectedDetailCode !== code) return;
+        if (detailsOverlay.hidden || selectedDetailCode !== code) return;
 
         byId('table-details-title').textContent = `Bàn ${details.code}`;
         byId('details-area').textContent = `${details.area} · ${details.capacity} chỗ`;
@@ -85,15 +101,24 @@
 
     async function openDetails(code) {
         selectedDetailCode = code;
+        detailOpener = [...document.querySelectorAll('[data-open-details]')]
+            .find(button => button.dataset.openDetails === code) ?? null;
         byId('table-details-title').textContent = `Bàn ${code}`;
         byId('details-context').textContent = 'Đang tải thông tin…';
         byId('details-reservation').hidden = true;
-        if (!detailsDialog.open) detailsDialog.showModal();
+        detailsOverlay.hidden = false;
+        byId('details-close-button').focus();
         try {
             await refreshDetails(code);
         } catch {
             byId('details-context').textContent = 'Không tải được thông tin. Vui lòng thử lại.';
         }
+    }
+
+    function closeDetails() {
+        detailsOverlay.hidden = true;
+        selectedDetailCode = null;
+        detailOpener?.focus();
     }
 
     function applyStatus(update) {
@@ -146,7 +171,7 @@
         try {
             const update = JSON.parse(event.data);
             applyStatus(update);
-            if (detailsDialog.open && selectedDetailCode === update.code)
+            if (!detailsOverlay.hidden && selectedDetailCode === update.code)
                 refreshDetails(update.code).catch(() => {});
         } catch {
             connectionLabel.textContent = 'Nhận được cập nhật không hợp lệ';
@@ -156,9 +181,22 @@
     document.querySelectorAll('[data-open-details]').forEach(button => {
         button.addEventListener('click', () => openDetails(button.dataset.openDetails));
     });
-    document.querySelector('[data-close-details]')?.addEventListener('click', () => detailsDialog.close());
-    detailsDialog.addEventListener('click', event => {
-        if (event.target === detailsDialog) detailsDialog.close();
+    document.querySelector('[data-close-details]')?.addEventListener('click', closeDetails);
+    detailsOverlay.addEventListener('click', event => {
+        if (event.target === detailsOverlay) closeDetails();
+    });
+    detailsOverlay.addEventListener('keydown', event => {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closeDetails();
+        }
+        if (event.key !== 'Tab') return;
+        const focusable = [...detailsDialog.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])')];
+        if (!focusable.length) { event.preventDefault(); detailsDialog.focus(); return; }
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
     });
     events.addEventListener('error', () => {
         connectionLabel.textContent = 'Mất kết nối, đang tự kết nối lại…';
