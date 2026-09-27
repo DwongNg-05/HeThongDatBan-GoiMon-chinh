@@ -9,9 +9,13 @@
   <PropertyGroup>
     <UserSecretsId>RestaurantManagement-Web-Team</UserSecretsId>
   </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="../RestaurantManagement.Data/RestaurantManagement.Data.csproj" />
-    <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.6" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.1.0" />
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Views\Dishes\" />
   </ItemGroup>
 </Project>

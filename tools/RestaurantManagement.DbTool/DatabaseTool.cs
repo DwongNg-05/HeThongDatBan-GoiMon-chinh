@@ -119,7 +119,7 @@ internal static partial class DatabaseTool
             await using var marker = new SqlCommand("INSERT dbo.SchemaVersions(Name,Sha256) VALUES('DEMO_DATA',REPLICATE('0',64));", cn, tx);
             await marker.ExecuteNonQueryAsync();
             await tx.CommitAsync();
-            Console.WriteLine("Demo seeded: 4 accounts, 3 areas, 25 tables, 60 menu items, 20 bookings. Password not logged.");
+            Console.WriteLine("Demo seeded: 4 accounts, 3 areas, 60 tables, 60 menu items, 20 bookings. Password not logged.");
         }
         catch { await tx.RollbackAsync(); throw; }
     }
@@ -148,4 +148,3 @@ internal static partial class DatabaseTool
     [GeneratedRegex(@"^[A-Za-z][A-Za-z0-9_]{0,100}$")] private static partial Regex DatabaseName();
     [GeneratedRegex(@"^\s*GO\s*(?:--[^\r\n]*)?$", RegexOptions.Multiline | RegexOptions.IgnoreCase)] private static partial Regex GoSeparator();
 }
-

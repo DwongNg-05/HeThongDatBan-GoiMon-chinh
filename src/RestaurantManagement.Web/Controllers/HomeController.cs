@@ -1,14 +1,17 @@
 using System.Diagnostics;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using RestaurantManagement.Web.Services;
 using RestaurantManagement.Web.Models;
 
 namespace RestaurantManagement.Web.Controllers;
 
-public class HomeController : Controller
+public class HomeController(DemoTableCatalog tableCatalog) : Controller
 {
+    [Authorize(Roles = "Manager,Waiter")]
     public IActionResult Index()
     {
-        return RedirectToAction("Index", "Management");
+        return View(tableCatalog.Get(Request.Query["area"]));
     }
 
     public IActionResult Privacy()

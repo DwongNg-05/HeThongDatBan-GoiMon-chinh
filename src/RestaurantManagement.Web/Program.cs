@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.EntityFrameworkCore;
 using RestaurantManagement.Web.Models;
 using RestaurantManagement.Web.Authentication;
 using RestaurantManagement.Data;
+using RestaurantManagement.Data.Data;
+using RestaurantManagement.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,7 +12,16 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews(options => options.Filters.Add<SessionActivityFilter>());
 string ConnectionString() => Environment.GetEnvironmentVariable("RM_CONNECTION_STRING")
     ?? builder.Configuration.GetConnectionString("RestaurantManagement")
+    ?? builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Configure RM_CONNECTION_STRING or ConnectionStrings:RestaurantManagement.");
+builder.Configuration["ConnectionStrings:DefaultConnection"] = ConnectionString();
+builder.Services.AddRazorPages();
+builder.Services.AddDbContext<RestaurantDbContext>(options => options.UseSqlServer(ConnectionString()));
+builder.Services.AddSingleton<DemoTableCatalog>();
+builder.Services.AddSingleton<TableMapEventBroker>();
+builder.Services.AddScoped<TableDetailsService>();
+builder.Services.AddHostedService<TableStatusOutboxWorker>();
+builder.Services.AddSingleton<InMemoryQuanLyMonStore>();
 builder.Services.AddScoped(_ => new ManagementStore(ConnectionString()));
 builder.Services.AddScoped(_ => new LoginSessionStore(ConnectionString()));
 builder.Services.AddScoped<IdleSessionEvents>();
@@ -26,6 +38,16 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     options.ExpireTimeSpan = TimeSpan.FromDays(14);
     options.SlidingExpiration = false;
     options.EventsType = typeof(IdleSessionEvents);
+    options.Events.OnRedirectToAccessDenied = context =>
+    {
+        if (context.Request.Path.StartsWithSegments("/api"))
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return Task.CompletedTask;
+        }
+        context.Response.Redirect(context.RedirectUri);
+        return Task.CompletedTask;
+    };
 });
 
 var app = builder.Build();
@@ -45,6 +67,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapStaticAssets();
+app.MapControllers();
+app.MapRazorPages();
 
 app.MapControllerRoute(
     name: "default",

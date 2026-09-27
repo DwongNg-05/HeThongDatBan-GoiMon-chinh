@@ -18,7 +18,7 @@ public class AccountController(ManagementStore store, LoginSessionStore sessions
     {
         var expiredNotice = TempData[IdleSessionEvents.ExpiredItem] is true;
         return User.Identity?.IsAuthenticated == true
-        ? RedirectToAction("Index", "Management") : View(new LoginModel
+        ? RedirectToAction("Index", User.IsInRole("Waiter") ? "Home" : "Management") : View(new LoginModel
         {
             SessionExpired = sessionExpired || expiredNotice || HttpContext.Items.ContainsKey(IdleSessionEvents.ExpiredItem)
         });
@@ -50,7 +50,9 @@ public class AccountController(ManagementStore store, LoginSessionStore sessions
             new ClaimsPrincipal(identity), new AuthenticationProperties { IsPersistent = false });
         TempData.Remove(IdleSessionEvents.ExpiredItem);
         TempData["Success"] = "Đăng nhập thành công.";
-        return RedirectToAction("Index", "Management");
+        return user.Role == "Waiter"
+            ? RedirectToAction("Index", "Home")
+            : RedirectToAction("Index", "Management");
     }
 
     [Authorize, HttpPost, ValidateAntiForgeryToken]
