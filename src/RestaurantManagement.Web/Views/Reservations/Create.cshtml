@@ -107,24 +107,26 @@
 
                             <label asp-for="StartsAt"
                                    class="form-label">
-                                Thời gian đặt bàn
+                                Thời gian đặt bàn (giờ Việt Nam)
                             </label>
 
                             <input asp-for="StartsAt"
                                    type="datetime-local"
-                                   step="1800"
+                                   step="60"
+                                   data-schedule-url="@Url.Action("CheckSchedule", "Reservations")"
                                    asp-format="{0:yyyy-MM-ddTHH:mm}"
                                    class="form-control" />
 
                             <div class="form-text">
-                                Chọn giờ từ <strong>08:00</strong>
-                                đến <strong>21:30</strong>.
-                                Thời gian phải theo mốc 30 phút.
+                                Asia/Ho_Chi_Minh (UTC+7): nhập giờ tại Việt Nam dù thiết bị đang ở múi giờ khác.
+                                Các lượt cách nhau 30 phút tính từ giờ mở cửa của ngày đã chọn.
+                                Giờ nhận bàn phải trước giờ đóng cửa.
                             </div>
 
                             <span asp-validation-for="StartsAt"
                                   class="text-danger">
                             </span>
+                            <div id="booking-schedule-feedback" aria-live="polite" class="mt-2"></div>
 
                         </div>
 
@@ -251,5 +253,6 @@
 @section Scripts {
 
     <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/booking-schedule.js" asp-append-version="true"></script>
 
 }

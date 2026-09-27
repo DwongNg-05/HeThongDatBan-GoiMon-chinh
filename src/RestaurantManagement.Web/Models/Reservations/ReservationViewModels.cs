@@ -25,8 +25,8 @@ public class ReservationCreateViewModel
 
     [Required(ErrorMessage = "Vui lòng chọn thời gian đặt bàn.")]
     [Display(Name = "Thời gian")]
-    public DateTime StartsAt { get; set; } =
-        DateTime.Now.AddHours(1);
+    [Microsoft.AspNetCore.Mvc.ModelBinder(BinderType = typeof(VietnamBookingTimeBinder))]
+    public DateTime StartsAt { get; set; }
 
     [Display(Name = "Khu vực")]
     public int? PreferredAreaId { get; set; }

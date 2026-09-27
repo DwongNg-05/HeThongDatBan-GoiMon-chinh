@@ -1,6 +1,7 @@
 @model RestaurantManagement.Web.Models.Reservations.ReservationListItemViewModel
 @{ ViewData["Title"] = "Chi tiết đặt bàn"; }
 <h2>Đặt bàn @Model.Code</h2>
+<p class="text-muted">Thời gian hiển thị theo giờ Việt Nam · Asia/Ho_Chi_Minh (UTC+7).</p>
 <dl class="row">
     <dt class="col-sm-3">Khách hàng</dt><dd class="col-sm-9">@Model.CustomerName</dd>
     <dt class="col-sm-3">Số điện thoại</dt><dd class="col-sm-9">@Model.Phone</dd>

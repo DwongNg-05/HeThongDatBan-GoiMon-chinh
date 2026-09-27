@@ -117,9 +117,11 @@ Check(RestaurantManagement.Web.Models.Reservations.BookingTime.NextStart(day.Add
 Check(RestaurantManagement.Web.Models.Reservations.BookingTime.NextStart(day.AddHours(21).AddMinutes(30)) == day.AddDays(1).AddHours(8), "Late default moves to next morning");
 Check(RestaurantManagement.Web.Models.Reservations.BookingTime.NextStart(day.AddHours(23).AddMinutes(50)) == day.AddDays(1).AddHours(8), "Midnight rollover");
 MenuTests.Run(Check);
+OpeningHoursTests.Run(Check);
 CategoryTests.Run(Check);
 Console.WriteLine($"{count} tests passed.");
 if (args.Contains("--integration")) await AreaHttpTests.Run();
+if (args.Contains("--opening-hours-http")) await AreaHttpTests.Run(openingHoursOnly: true);
 if (args.Contains("--menu-http")) await MenuHttpTests.Run();
 
 sealed class TestHostEnvironment : IHostEnvironment

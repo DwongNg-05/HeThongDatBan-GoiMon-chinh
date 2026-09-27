@@ -65,8 +65,8 @@ public class ReservationsController : Controller
         Phone = reader.GetString(reader.GetOrdinal("Phone")),
         GuestCount = reader.GetInt32(reader.GetOrdinal("GuestCount")),
         AreaName = reader.IsDBNull(reader.GetOrdinal("AreaName")) ? null : reader.GetString(reader.GetOrdinal("AreaName")),
-        StartsAt = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(reader.GetDateTime(reader.GetOrdinal("StartsAt")), DateTimeKind.Utc), GetVietnamTimeZone()),
-        EndsAt = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(reader.GetDateTime(reader.GetOrdinal("EndsAt")), DateTimeKind.Utc), GetVietnamTimeZone()),
+        StartsAt = VietnamTime.FromUtc(reader.GetDateTime(reader.GetOrdinal("StartsAt"))),
+        EndsAt = VietnamTime.FromUtc(reader.GetDateTime(reader.GetOrdinal("EndsAt"))),
         Status = reader.GetString(reader.GetOrdinal("Status"))
     };
     // HIỂN THỊ FORM ĐẶT BÀN
@@ -75,7 +75,7 @@ public class ReservationsController : Controller
     [HttpGet]
     public async Task<IActionResult> Create()
     {
-        var defaultTime = BookingTime.NextStart(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, GetVietnamTimeZone()));
+        var defaultTime = BookingTime.NextStart(VietnamTime.Now);
 
         var model = new ReservationCreateViewModel
         {
@@ -124,65 +124,6 @@ public class ReservationsController : Controller
         }
 
 
-        // =====================================================
-        // KIỂM TRA MỐC 30 PHÚT
-        // =====================================================
-
-        if (model.StartsAt.Ticks % TimeSpan.FromMinutes(30).Ticks != 0)
-        {
-            ModelState.AddModelError(
-                nameof(model.StartsAt),
-                "Thời gian đặt bàn phải theo mốc 30 phút."
-            );
-
-            return View(model);
-        }
-
-
-        // =====================================================
-        // KIỂM TRA KHÔNG ĐƯỢC ĐẶT TRONG QUÁ KHỨ
-        // =====================================================
-
-        if (model.StartsAt <= TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, GetVietnamTimeZone()))
-        {
-            ModelState.AddModelError(
-                nameof(model.StartsAt),
-                "Thời gian đặt bàn phải ở tương lai."
-            );
-
-            return View(model);
-        }
-
-
-        // =====================================================
-        // KIỂM TRA GIỜ HOẠT ĐỘNG
-        // =====================================================
-
-        var selectedTime =
-            model.StartsAt.TimeOfDay;
-
-        var openingTime =
-            new TimeSpan(8, 0, 0);
-
-        var latestStartTime =
-            new TimeSpan(21, 30, 0);
-
-        if (selectedTime < openingTime ||
-            selectedTime > latestStartTime)
-        {
-            ModelState.AddModelError(
-                nameof(model.StartsAt),
-                "Thời gian đặt bàn phải từ 08:00 đến 21:30."
-            );
-
-            return View(model);
-        }
-
-
-        // =====================================================
-        // KIỂM TRA KHU VỰC
-        // =====================================================
-
         if (model.PreferredAreaId.HasValue)
         {
             bool areaIsActive =
@@ -215,7 +156,7 @@ public class ReservationsController : Controller
         DateTime utcStartsAt =
             TimeZoneInfo.ConvertTimeToUtc(
                 vietnamTime,
-                GetVietnamTimeZone()
+                VietnamTime.Zone
             );
 
 
@@ -394,7 +335,7 @@ public class ReservationsController : Controller
         {
             // Refresh a stale selection when an area was deactivated during submission.
             await LoadActiveAreas(model);
-            ModelState.AddModelError(ex.Number switch { 51407 or 51408 => nameof(model.PreferredAreaId), 51409 => nameof(model.GuestCount), 51003 or 51004 => nameof(model.StartsAt), _ => string.Empty }, ex.Message);
+            ModelState.AddModelError(ex.Number switch { 51407 or 51408 => nameof(model.PreferredAreaId), 51409 => nameof(model.GuestCount), 51003 or 51004 or 51410 or 51411 or 51412 => nameof(model.StartsAt), _ => string.Empty }, ex.Message);
             return View(model);
         }
     }
@@ -405,6 +346,27 @@ public class ReservationsController : Controller
     public IActionResult Success()
     {
         return View();
+    }
+
+    [HttpGet]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public async Task<IActionResult> CheckSchedule([ModelBinder(BinderType = typeof(VietnamBookingTimeBinder))] DateTime? startsAt)
+    {
+        if (!ModelState.IsValid || startsAt is null)
+            return Json(new { allowed = false, message = "Vui lòng chọn ngày và giờ hợp lệ." });
+        try
+        {
+            var utc = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(startsAt.Value, DateTimeKind.Unspecified), VietnamTime.Zone);
+            await using var cn = new SqlConnection(ConnectionString);
+            await using var cmd = new SqlCommand("dbo.usp_ValidateBookingSchedule", cn) { CommandType = CommandType.StoredProcedure };
+            cmd.Parameters.Add("@StartsAt", SqlDbType.DateTime2).Value = utc;
+            await cn.OpenAsync(); await cmd.ExecuteNonQueryAsync();
+            return Json(new { allowed = true, message = "Thời gian hợp lệ. Bạn có thể tiếp tục đặt bàn." });
+        }
+        catch (SqlException ex) when (ex.Number is 51003 or 51004 or 51410 or 51411 or 51412)
+        {
+            return Json(new { allowed = false, message = ex.Message });
+        }
     }
 
 
@@ -470,22 +432,4 @@ public class ReservationsController : Controller
     // TIMEZONE VIỆT NAM
     // =========================================================
 
-    private static TimeZoneInfo GetVietnamTimeZone()
-    {
-        try
-        {
-            // Windows
-            return TimeZoneInfo.FindSystemTimeZoneById(
-                "SE Asia Standard Time"
-            );
-        }
-        catch (TimeZoneNotFoundException)
-        {
-            // Linux
-            return TimeZoneInfo.FindSystemTimeZoneById(
-                "Asia/Ho_Chi_Minh"
-            );
-        }
-    }
 }
-
