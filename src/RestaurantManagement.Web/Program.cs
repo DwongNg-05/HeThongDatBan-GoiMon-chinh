@@ -2,6 +2,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+// Support Razor Pages
+builder.Services.AddRazorPages();
+
+// Register the in-memory store as the application's store implementation
+builder.Services.AddSingleton<RestaurantManagement.Web.Services.InMemoryQuanLyMonStore>();
 
 var app = builder.Build();
 
@@ -25,5 +30,7 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
 
+// Map Razor Pages endpoints
+app.MapRazorPages();
 
 app.Run();

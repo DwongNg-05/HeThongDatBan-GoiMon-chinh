@@ -12,4 +12,7 @@
   <ItemGroup>
     <ProjectReference Include="../RestaurantManagement.Data/RestaurantManagement.Data.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Views\Dishes\" />
+  </ItemGroup>
 </Project>
