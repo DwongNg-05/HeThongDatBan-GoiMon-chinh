@@ -31,7 +31,10 @@
                         }
                         @if (User.IsInRole("Manager"))
                         {
-                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Management" asp-action="Index">Thực đơn</a></li>
+                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Management" asp-action="Index">Quản lý thực đơn</a></li>
+                            <li class="nav-item"><a class="nav-link text-dark" asp-page="/QuanLyNhomMon/Index">Quản lý nhóm món</a></li>
+                            <li class="nav-item"><a class="nav-link text-dark" asp-page="/QuanLyMon/Index">Quản lý món</a></li>
+                            <li class="nav-item"><a class="nav-link text-dark" asp-page="/ThucDon/Index">Thực đơn</a></li>
                             <li class="nav-item"><a class="nav-link text-dark" asp-controller="EmployeeAccounts" asp-action="Index">Tài khoản nhân viên</a></li>
                             <li class="nav-item"><a class="nav-link text-dark" asp-controller="Areas" asp-action="Index">Quản lý khu vực</a></li>
                         }

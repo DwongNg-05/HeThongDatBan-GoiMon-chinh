@@ -49,10 +49,10 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         return Task.CompletedTask;
     };
 });
+builder.Services.AddResponseCompression(options => options.EnableForHttps = true);
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
@@ -62,18 +62,15 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseRouting();
-
+app.UseResponseCompression();
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapStaticAssets();
 app.MapControllers();
 app.MapRazorPages();
-
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Management}/{action=Index}/{id?}")
     .WithStaticAssets();
-
 
 app.Run();

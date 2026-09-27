@@ -1,0 +1,28 @@
+@page
+@model RestaurantManagement.Web.Pages.QuanLyNhomMon.IndexModel
+@{ ViewData["Title"] = "Quản lý nhóm món"; }
+<h1>Quản lý nhóm món</h1>
+@if (!string.IsNullOrEmpty(Model.ThongBao))
+{
+    <div class="alert alert-success" role="status">@Model.ThongBao</div>
+}
+<a class="btn btn-primary mb-3" asp-page="Tao">Thêm nhóm món</a>
+<a class="btn btn-outline-primary mb-3" asp-page="SapXep">Sắp xếp nhóm món</a>
+<div class="table-responsive">
+<table class="table table-striped">
+    <thead><tr><th scope="col">Tên nhóm món</th><th scope="col">Trạng thái</th><th scope="col">Thứ tự hiển thị</th><th scope="col">Thao tác</th></tr></thead>
+    <tbody>
+    @foreach (var nhom in Model.NhomMon)
+    {
+        <tr>
+            <td>@nhom.Ten</td><td>@(nhom.DangSuDung ? "Đang sử dụng" : "Ngừng sử dụng")</td><td>@nhom.ThuTuHienThi</td>
+            <td><a asp-page="Sua" asp-route-id="@nhom.Id" aria-label="Sửa tên @nhom.Ten">Sửa tên</a>
+                <a class="ms-3" asp-page="TrangThai" asp-route-id="@nhom.Id">@(nhom.DangSuDung ? "Ngừng sử dụng" : "Bật lại")</a>
+                <a class="ms-3 text-danger" asp-page="Xoa" asp-route-id="@nhom.Id" aria-label="Xóa nhóm @nhom.Ten">Xóa</a>
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>
+</div>
+@if (Model.NhomMon.Count == 0) { <p>Chưa có nhóm món.</p> }

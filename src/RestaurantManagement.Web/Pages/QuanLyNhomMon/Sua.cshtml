@@ -1,0 +1,15 @@
+@page "{id:int}"
+@model RestaurantManagement.Web.Pages.QuanLyNhomMon.SuaModel
+@{ ViewData["Title"] = "Sửa tên nhóm món"; }
+<h1>Sửa tên nhóm món</h1>
+<form method="post" class="col-lg-6">
+    <div asp-validation-summary="All" class="text-danger" role="alert"></div>
+    <div class="mb-3">
+        <label asp-for="Ten" class="form-label">Tên nhóm món</label>
+        <input asp-for="Ten" class="form-control" aria-describedby="ten-help" />
+        <div id="ten-help" class="form-text">Tối đa 50 ký tự. Tên không phân biệt chữ hoa/thường; bỏ khoảng trắng thừa, có phân biệt dấu tiếng Việt.</div>
+        <span asp-validation-for="Ten" class="text-danger"></span>
+    </div>
+    <button type="submit" class="btn btn-primary">Lưu</button>
+    <a asp-page="Index" class="btn btn-secondary">Hủy</a>
+</form>

@@ -5,7 +5,7 @@
     var freeCount = Model.Tables.Count(table => table.Status == "Available");
 }
 
-<section class="map-page" data-status-api="@Url.Content("~/api/table-status")" data-details-api="@Url.Content("~/api/table-map")">
+<section class="map-page" data-status-api="@Url.Content("~/api/table-status")" data-details-api="@Url.Content("~/api/table-map")" data-rendered-table-count="@shownCount">
     <div class="map-heading">
         <div>
             <div class="eyebrow">VẬN HÀNH NHÀ HÀNG <span>•</span> HÔM NAY</div>
@@ -62,10 +62,11 @@
     <div class="map-footnote"><span class="connection-indicator" id="table-map-connection" aria-hidden="true"></span><span id="table-map-connection-label" role="status" aria-live="polite">Đang kết nối sơ đồ trực tiếp…</span><span class="last-update" id="table-map-last-update">· Chưa có thay đổi mới</span></div>
 </section>
 
-<dialog class="table-details-dialog" id="table-details-dialog" aria-labelledby="table-details-title">
+<div class="table-details-overlay" id="table-details-overlay" hidden>
+<section class="table-details-dialog" id="table-details-dialog" role="dialog" aria-modal="true" aria-labelledby="table-details-title" tabindex="-1">
     <header class="details-header">
         <div><span class="details-kicker">THÔNG TIN BÀN</span><h2 id="table-details-title">Chi tiết bàn</h2></div>
-        <button class="details-close" type="button" data-close-details aria-label="Đóng chi tiết">×</button>
+        <button class="details-close" id="details-close-button" type="button" data-close-details aria-label="Đóng chi tiết">×</button>
     </header>
     <div class="details-status-row"><span class="table-status" id="details-status"><i></i><span id="details-status-label"></span></span><span id="details-area"></span></div>
     <p class="details-context" id="details-context" aria-live="polite">Đang tải thông tin…</p>
@@ -82,7 +83,8 @@
         <time id="details-reservation-time"></time>
     </section>
     <p class="details-source" id="details-source" hidden>Dữ liệu mẫu phát triển</p>
-</dialog>
+</section>
+</div>
 
 @section Scripts {
     <script src="~/js/table-map.js" asp-append-version="true"></script>

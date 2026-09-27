@@ -1,27 +1,13 @@
-using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using RestaurantManagement.Web.Services;
-using RestaurantManagement.Data.Models;
-using System.Linq;
 
-namespace RestaurantManagement.Web.Pages.GoiMon
+namespace RestaurantManagement.Web.Pages.GoiMon;
+
+[Authorize(Roles = "Manager,Waiter")]
+public class IndexModel(InMemoryQuanLyMonStore store) : PageModel
 {
-    [Authorize(Roles = "Manager,Waiter")]
-    public class IndexModel : PageModel
-    {
-        private readonly InMemoryQuanLyMonStore _store;
+    public IReadOnlyList<NhomMonThucDon> NhomMon { get; private set; } = [];
 
-        public IndexModel(InMemoryQuanLyMonStore store)
-        {
-            _store = store;
-        }
-
-        public IEnumerable<MonAn> MonDangBan { get; set; } = Enumerable.Empty<MonAn>();
-
-        public void OnGet()
-        {
-            MonDangBan = _store.LayTatCaMonAn().Where(m => m.TrangThai == TrangThaiMon.DangBan);
-        }
-    }
+    public void OnGet() => NhomMon = store.LayThucDonTheoNhom();
 }
