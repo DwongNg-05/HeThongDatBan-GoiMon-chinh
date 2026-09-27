@@ -1,0 +1,85 @@
+﻿@model RestaurantManagement.Web.Models.Areas.AreaFormViewModel
+
+@{
+    ViewData["Title"] = "Sửa khu vực";
+}
+
+<div class="container mt-4">
+
+    <h2>Sửa khu vực</h2>
+
+    <form asp-action="Edit" method="post">
+
+        @Html.AntiForgeryToken()
+
+        <input asp-for="Id" type="hidden" />
+
+        <div asp-validation-summary="ModelOnly"
+             class="text-danger mb-3">
+        </div>
+
+        <div class="mb-3">
+
+            <label asp-for="Name"
+                   class="form-label">
+            </label>
+
+            <input asp-for="Name"
+                   class="form-control" />
+
+            <span asp-validation-for="Name"
+                  class="text-danger">
+            </span>
+
+        </div>
+
+        <div class="mb-3">
+
+            <label asp-for="SortOrder"
+                   class="form-label">
+            </label>
+
+            <input asp-for="SortOrder"
+                   type="number"
+                   class="form-control" />
+
+            <span asp-validation-for="SortOrder"
+                  class="text-danger">
+            </span>
+
+        </div>
+
+        <div class="mb-3">
+
+            <label asp-for="Notes"
+                   class="form-label">
+            </label>
+
+            <textarea asp-for="Notes"
+                      class="form-control"
+                      rows="4">
+            </textarea>
+
+            <span asp-validation-for="Notes"
+                  class="text-danger">
+            </span>
+
+        </div>
+
+        <button type="submit"
+                class="btn btn-primary">
+            Lưu thay đổi
+        </button>
+
+        <a asp-action="Index"
+           class="btn btn-secondary">
+            Quay lại
+        </a>
+
+    </form>
+
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

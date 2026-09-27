@@ -9,6 +9,10 @@
   <PropertyGroup>
     <UserSecretsId>RestaurantManagement-Web-Team</UserSecretsId>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.1.0" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../RestaurantManagement.Data/RestaurantManagement.Data.csproj" />
   </ItemGroup>

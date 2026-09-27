@@ -18,7 +18,8 @@ internal static class Verification
             await DatabaseTool.Migrate(connection);
             await DatabaseTool.Migrate(connection);
             await DatabaseTool.Seed(connection, "VerificationOnly9!" + Guid.NewGuid().ToString("N"));
-            await Check(connection, "Seed", "SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.MenuItems)=60 AND (SELECT COUNT(*) FROM dbo.DiningTables)=25 AND (SELECT COUNT(*) FROM dbo.Reservations)=20 THEN 1 ELSE 0 END");
+            await Check(connection, "Seed", "SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.MenuItems)=60 AND (SELECT COUNT(*) FROM dbo.DiningTables)=60 AND (SELECT COUNT(*) FROM dbo.Reservations)=20 THEN 1 ELSE 0 END");
+            await VerifyAreas(connection);
             await BookingConcurrency(connection);
             await DatabaseTool.Execute(connection, "EXEC dbo.usp_OpenShift @Name=N'Test',@OpeningCash=100000,@ActorUserId=4; EXEC dbo.usp_OpenSession @TableId=1,@GuestCount=2,@ActorUserId=2;");
             const string items = """[{"MenuItemId":1,"Quantity":2,"Notes":"ít cay"},{"MenuItemId":1,"Quantity":1,"Notes":"không hành"}]""";
@@ -42,7 +43,7 @@ internal static class Verification
             await Reject(connection, "Discount capped at 50%", "EXEC dbo.usp_Checkout @SessionId=1,@RequestId='03030303-0303-0303-0303-030303030303',@Method='Cash',@ActorUserId=4,@DiscountType='Percent',@DiscountValue=51,@DiscountReason=N'Test',@CashReceived=100000;", 51044);
             var payment = Guid.NewGuid();
             await Task.WhenAll(Enumerable.Range(0, 10).Select(_ => Call(connection, "usp_Checkout", ("SessionId", 1L), ("RequestId", payment), ("Method", "Cash"), ("ActorUserId", 4), ("DiscountType", "Percent"), ("DiscountValue", 10m), ("DiscountReason", "Test"), ("CashReceived", 100000m))));
-            await Check(connection, "10 simultaneous checkout retries, exact VND totals", "SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.Invoices)=1 AND (SELECT Total FROM dbo.Invoices)=45000 AND (SELECT COUNT(*) FROM dbo.InvoiceLines)=1 AND (SELECT ChangeAmount FROM dbo.Payments)=55000 AND (SELECT Status FROM dbo.DiningTables WHERE Id=1)='Cleaning' THEN 1 ELSE 0 END");
+            await Check(connection, "10 simultaneous checkout retries, exact VND totals and table status outbox", "SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.Invoices)=1 AND (SELECT Total FROM dbo.Invoices)=45000 AND (SELECT COUNT(*) FROM dbo.InvoiceLines)=1 AND (SELECT ChangeAmount FROM dbo.Payments)=55000 AND (SELECT Status FROM dbo.DiningTables WHERE Id=1)='Cleaning' AND EXISTS(SELECT 1 FROM dbo.TableStatusChangeEvents WHERE TableId=1 AND PreviousStatus='Serving' AND Status='Cleaning') THEN 1 ELSE 0 END");
             await Reject(connection, "Immutable invoice", "UPDATE dbo.Invoices SET Subtotal=40000 WHERE Id=1;", 51105);
             await Reject(connection, "Immutable payment", "UPDATE dbo.Payments SET Amount=1 WHERE Id=1;", 51103);
             await DatabaseTool.Execute(connection, "EXEC dbo.usp_CleanTable @TableId=1,@ActorUserId=2;");
@@ -53,6 +54,7 @@ internal static class Verification
             await DatabaseTool.Execute(connection, "EXEC dbo.usp_ReopenShift @ShiftId=1,@Reason=N'Test',@ActorUserId=1; EXEC dbo.usp_VoidInvoice @InvoiceId=1,@Reason=N'Test',@ActorUserId=1;");
             await Check(connection, "Void retains records, excludes revenue", "SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.vw_DailyRevenue)=0 AND (SELECT COUNT(*) FROM dbo.InvoiceLines)=1 THEN 1 ELSE 0 END");
             await MergeAndQr(connection);
+            await VerifyAreaLifecycle(connection);
             await DatabaseTool.Execute(connection, "EXEC dbo.usp_RunMaintenance; EXEC dbo.usp_RunMaintenance;");
             Console.WriteLine("PASS: all SQL Server integration checks.");
         }
@@ -66,6 +68,69 @@ internal static class Verification
             drop.Parameters.AddWithValue("@name", name);
             await drop.ExecuteNonQueryAsync();
         }
+    }
+
+    private static async Task VerifyAreas(string connection)
+    {
+        await Call(connection, "usp_CreateArea", ("ActorUserId", 1), ("Name", "Task1 sân"), ("SortOrder", 7));
+        await Check(connection, "Area saved active", "SELECT CASE WHEN COUNT(*)=1 THEN 1 ELSE 0 END FROM dbo.Areas WHERE Name=N'Task1 sân' AND SortOrder=7 AND IsActive=1");
+        await Reject(connection, "Duplicate case-insensitive", "EXEC dbo.usp_CreateArea 1,N'TASK1 SÂN',8", 51402);
+        await Reject(connection, "Negative order", "EXEC dbo.usp_CreateArea 1,N'Bad',-1", 51403);
+        await Reject(connection, "Missing order", "EXEC dbo.usp_CreateArea 1,N'Bad',NULL", 51403);
+        await Reject(connection, "Blank name", "EXEC dbo.usp_CreateArea 1,N'   ',1", 51401);
+        await Reject(connection, "No catalog permission", "EXEC dbo.usp_CreateArea 2,N'Bad',1", 51001);
+        await Reject(connection, "Create normalizes whitespace", "EXEC dbo.usp_CreateArea 1,N'  Task1   sân  ',0", 51402);
+        await Call(connection, "usp_CreateArea", ("ActorUserId", 1), ("Name", "Task1 san"), ("SortOrder", 0));
+        var results = await Task.WhenAll(Enumerable.Range(0, 8).Select(async _ => {
+            try { await Call(connection,"usp_CreateArea",("ActorUserId",1),("Name","Task1 race"),("SortOrder",1)); return true; }
+            catch (SqlException ex) when (ex.Number == 51402) { return false; }
+        }));
+        if (results.Count(x => x) != 1) throw new Exception("Concurrent area creation failed");
+        Console.WriteLine("PASS: Concurrent duplicate area creation");
+        await DatabaseTool.Execute(connection, "UPDATE dbo.Areas SET IsActive=0 WHERE Name=N'Task1 san'");
+        await Check(connection, "Management list includes inactive areas and is sorted", """
+            DECLARE @list TABLE(Position int IDENTITY,Id int,Name nvarchar(80),SortOrder int,Notes nvarchar(500),IsActive bit);
+            INSERT @list(Id,Name,SortOrder,Notes,IsActive) EXEC dbo.usp_ListAreas;
+            SELECT CASE WHEN EXISTS(SELECT 1 FROM @list WHERE Name=N'Task1 sân' AND SortOrder=7)
+             AND EXISTS(SELECT 1 FROM @list WHERE IsActive=0)
+             AND NOT EXISTS(SELECT 1 FROM @list a JOIN @list b ON a.Position<b.Position WHERE a.SortOrder>b.SortOrder)
+             AND (SELECT COUNT(*) FROM @list)=(SELECT COUNT(*) FROM dbo.Areas)
+             THEN 1 ELSE 0 END;
+            """);
+        await Reject(connection, "Inactive name still reserved", "EXEC dbo.usp_CreateArea 1,N'Task1 san',0", 51402);
+    }
+    private static async Task VerifyAreaLifecycle(string connection)
+    {
+        await DatabaseTool.Execute(connection, "EXEC dbo.usp_CreateArea 1,N'Lifecycle sân',4;");
+        const string areaId = "DECLARE @id int=(SELECT Id FROM dbo.Areas WHERE Name=N'Lifecycle sân'); ";
+        await DatabaseTool.Execute(connection, areaId + "EXEC dbo.usp_UpdateArea 1,@id,N'Lifecycle sân',4,N'Gần cửa sổ';");
+        await Check(connection, "Edit notes with unchanged name", "SELECT CASE WHEN Notes=N'Gần cửa sổ' AND SortOrder=4 THEN 1 ELSE 0 END FROM dbo.Areas WHERE Name=N'Lifecycle sân'");
+        await DatabaseTool.Execute(connection, areaId + "EXEC dbo.usp_UpdateArea 1,@id,N'Lifecycle sân',0,N'Gần cửa sổ';");
+        await Check(connection, "Edit sort order", "SELECT CASE WHEN SortOrder=0 THEN 1 ELSE 0 END FROM dbo.Areas WHERE Name=N'Lifecycle sân'");
+        await Reject(connection, "Rename duplicate", areaId + "EXEC dbo.usp_UpdateArea 1,@id,N'Tầng một',0;", 51402);
+        await Reject(connection, "Rename case and extra whitespace duplicate", areaId + "EXEC dbo.usp_UpdateArea 1,@id,N'  TẦNG    MỘT ',0;", 51402);
+        await Reject(connection, "Rename tab duplicate", areaId + "DECLARE @n nvarchar(80)=N'Tầng'+NCHAR(9)+N'một'; EXEC dbo.usp_UpdateArea 1,@id,@n,0;", 51402);
+        await Reject(connection, "Edit negative order", areaId + "EXEC dbo.usp_UpdateArea 1,@id,N'Lifecycle sân',-1;", 51403);
+        await Reject(connection, "Edit missing area", "EXEC dbo.usp_UpdateArea 1,2147483647,N'Missing',0;", 51404);
+        await Check(connection, "Rejected edits unchanged", "SELECT CASE WHEN SortOrder=0 AND Notes=N'Gần cửa sổ' THEN 1 ELSE 0 END FROM dbo.Areas WHERE Name=N'Lifecycle sân'");
+        await DatabaseTool.Execute(connection, areaId + "DECLARE @before int=(SELECT COUNT(*) FROM dbo.Areas); EXEC dbo.usp_UpdateArea 1,@id,N'  Lifecycle   renamed ',2,N'Mới'; IF (SELECT COUNT(*) FROM dbo.Areas)<>@before OR NOT EXISTS(SELECT 1 FROM dbo.Areas WHERE Id=@id AND Name=N'Lifecycle renamed') THROW 51900,'Edit created a new area or failed to normalize',1;");
+        Console.WriteLine("PASS: Rename normalizes without creating a new row");
+        await DatabaseTool.Execute(connection, """
+            DECLARE @id int=(SELECT Id FROM dbo.Areas WHERE Name=N'Lifecycle renamed');
+            INSERT dbo.DiningTables(AreaId,Code,MinCapacity,MaxCapacity,SortOrder) VALUES(@id,'LIFE01',1,4,0);
+            DECLARE @start datetime2(3)=DATEADD(hour,3,CONVERT(datetime2(3),CONVERT(date,DATEADD(day,20,SYSUTCDATETIME()))));
+            EXEC dbo.usp_CreateReservation @CustomerName=N'Lifecycle 1',@Phone='0981111111',@GuestCount=2,@StartsAt=@start,@PreferredAreaId=@id;
+            EXEC dbo.usp_CreateReservation @CustomerName=N'Lifecycle 2',@Phone='0982222222',@GuestCount=2,@StartsAt=@start,@PreferredAreaId=@id;
+            """);
+        await Reject(connection, "Area with tables cannot be deleted", "DECLARE @id int=(SELECT Id FROM dbo.Areas WHERE Name=N'Lifecycle renamed'); EXEC dbo.usp_DeleteArea 1,@id;", 51007);
+        await DatabaseTool.Execute(connection, "DECLARE @id int=(SELECT Id FROM dbo.Areas WHERE Name=N'Lifecycle renamed'); EXEC dbo.usp_DeactivateArea 1,@id; EXEC dbo.usp_UpdateArea 1,@id,N'Lifecycle archived',2,N'Mới';");
+        await Check(connection, "Deactivation keeps area and tables", "SELECT CASE WHEN a.IsActive=0 AND EXISTS(SELECT 1 FROM dbo.DiningTables t WHERE t.AreaId=a.Id) THEN 1 ELSE 0 END FROM dbo.Areas a WHERE a.Name=N'Lifecycle archived'");
+        await Check(connection, "Multiple historical bookings keep original name after rename and deactivation", "SELECT CASE WHEN COUNT(*)=2 AND MIN(AreaNameSnapshot)=N'Lifecycle renamed' AND MAX(AreaNameSnapshot)=N'Lifecycle renamed' THEN 1 ELSE 0 END FROM dbo.Reservations WHERE CustomerName IN (N'Lifecycle 1',N'Lifecycle 2')");
+        await Reject(connection, "Inactive area rejects new booking", "DECLARE @id int=(SELECT Id FROM dbo.Areas WHERE Name=N'Lifecycle archived'),@start datetime2(3)=DATEADD(day,20,SYSUTCDATETIME()); EXEC dbo.usp_CreateReservation @CustomerName=N'Bad',@Phone='0983333333',@GuestCount=2,@StartsAt=@start,@PreferredAreaId=@id;", 51407);
+        await DatabaseTool.Execute(connection, "EXEC dbo.usp_CreateArea 1,N'Lifecycle empty',0; DECLARE @id int=(SELECT Id FROM dbo.Areas WHERE Name=N'Lifecycle empty'); EXEC dbo.usp_DeactivateArea 1,@id;");
+        await Check(connection, "Deactivate without tables", "SELECT CASE WHEN IsActive=0 THEN 1 ELSE 0 END FROM dbo.Areas WHERE Name=N'Lifecycle empty'");
+        await Reject(connection, "Inactive canonical name remains reserved", "EXEC dbo.usp_CreateArea 1,N'  LIFECYCLE   EMPTY ',0;", 51402);
+        await Reject(connection, "Missing area cannot be deleted", "EXEC dbo.usp_DeleteArea 1,2147483647;", 51404);
     }
 
     private static async Task BookingConcurrency(string connection)
@@ -117,4 +182,3 @@ internal static class Verification
         await cmd.ExecuteNonQueryAsync();
     }
 }
-
