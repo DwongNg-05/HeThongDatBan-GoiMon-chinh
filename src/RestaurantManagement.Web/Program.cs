@@ -1,31 +1,35 @@
 using Microsoft.EntityFrameworkCore;
 using RestaurantManagement.Data.Data;
+using RestaurantManagement.Data.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 var sqlConnectionString = Environment.GetEnvironmentVariable("RM_CONNECTION_STRING");
 if (string.IsNullOrWhiteSpace(sqlConnectionString))
     sqlConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 if (string.IsNullOrWhiteSpace(sqlConnectionString))
-    throw new InvalidOperationException("Set RM_CONNECTION_STRING or ConnectionStrings:DefaultConnection before starting the web app.");
+    sqlConnectionString = "Data Source=restaurant.db";
 builder.Configuration["ConnectionStrings:DefaultConnection"] = sqlConnectionString;
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
-<<<<<<< HEAD
 // Support Razor Pages
 builder.Services.AddRazorPages();
 
-// Register the in-memory store as the application's store implementation
-builder.Services.AddSingleton<RestaurantManagement.Web.Services.InMemoryQuanLyMonStore>();
-=======
+// register existing demo services
 builder.Services.AddSingleton<RestaurantManagement.Web.Services.DemoTableCatalog>();
 builder.Services.AddSingleton<RestaurantManagement.Web.Services.TableMapEventBroker>();
 builder.Services.AddScoped<RestaurantManagement.Web.Services.TableDetailsService>();
 builder.Services.AddHostedService<RestaurantManagement.Web.Services.TableStatusOutboxWorker>();
 
-builder.Services.AddDbContext<RestaurantDbContext>(options =>
-    options.UseSqlServer(sqlConnectionString));
->>>>>>> 0556fdc36df9dca8eb79e22b99ae4ad50f24208c
+// Register DbContext for SQLite and Sql store
+builder.Services.AddDbContext<RestaurantManagement.Data.Data.RestaurantDbContext>(options =>
+    options.UseSqlite(sqlConnectionString));
+
+// Register IHttpContextAccessor to capture current user in the SQL store
+builder.Services.AddHttpContextAccessor();
+
+// Register SQL-backed store as the IQuanLyMonStore implementation
+builder.Services.AddScoped<RestaurantManagement.Web.Services.IQuanLyMonStore, RestaurantManagement.Web.Services.SqlQuanLyMonStore>();
 
 var app = builder.Build();
 
@@ -48,11 +52,7 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
 
-<<<<<<< HEAD
 // Map Razor Pages endpoints
 app.MapRazorPages();
-=======
-app.MapControllers();
->>>>>>> 0556fdc36df9dca8eb79e22b99ae4ad50f24208c
 
 app.Run();

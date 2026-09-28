@@ -7,9 +7,9 @@ namespace RestaurantManagement.Web.Pages.GoiMon
 {
     public class ThemDongModel : PageModel
     {
-        private readonly InMemoryQuanLyMonStore _store;
+        private readonly IQuanLyMonStore _store;
 
-        public ThemDongModel(InMemoryQuanLyMonStore store)
+        public ThemDongModel(IQuanLyMonStore store)
         {
             _store = store;
         }

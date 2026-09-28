@@ -2,7 +2,6 @@ using System;
 
 namespace RestaurantManagement.Data.Models
 {
-    // Nhập lại tên lớp: Ghi nhận thay đổi giá cho MonAn
     public class GhiNhanThayDoiGia
     {
         public int Id { get; set; }

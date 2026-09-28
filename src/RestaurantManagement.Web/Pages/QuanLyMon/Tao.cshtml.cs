@@ -7,9 +7,9 @@ namespace RestaurantManagement.Web.Pages.QuanLyMon;
 
 public class TaoModel : PageModel
 {
-    private readonly InMemoryQuanLyMonStore _store;
+    private readonly IQuanLyMonStore _store;
 
-    public TaoModel(InMemoryQuanLyMonStore store)
+    public TaoModel(IQuanLyMonStore store)
     {
         _store = store;
     }

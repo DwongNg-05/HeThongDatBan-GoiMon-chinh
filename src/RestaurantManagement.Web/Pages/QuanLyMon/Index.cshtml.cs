@@ -8,9 +8,9 @@ namespace RestaurantManagement.Web.Pages.QuanLyMon;
 
 public class IndexModel : PageModel
 {
-    private readonly InMemoryQuanLyMonStore _store;
+    private readonly IQuanLyMonStore _store;
 
-    public IndexModel(InMemoryQuanLyMonStore store)
+    public IndexModel(IQuanLyMonStore store)
     {
         _store = store;
     }

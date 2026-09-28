@@ -3,7 +3,7 @@ using RestaurantManagement.Data.Models;
 
 namespace RestaurantManagement.Web.Services
 {
-    public class InMemoryQuanLyMonStore
+    public class InMemoryQuanLyMonStore : IQuanLyMonStore
     {
 
         private readonly ConcurrentDictionary<int, MonAn> _monans = new();

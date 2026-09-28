@@ -16,3 +16,4 @@ TestResults/
 **/wwwroot/uploads/*
 !**/wwwroot/uploads/.gitkeep
 *.log
+*.db

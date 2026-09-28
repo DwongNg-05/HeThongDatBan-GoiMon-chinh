@@ -10,7 +10,7 @@ namespace RestaurantManagement.Data.Models
         public int DonHangId { get; set; }
 
         
-        public string TenMonTaiThoiDiem { get; set; } = string.Empty;
+        public string TenMonTaiThoiDiem { get; set; } = string.Empty; // alignment
 
         
         public int GiaBanTaiThoiDiemVnd { get; set; }

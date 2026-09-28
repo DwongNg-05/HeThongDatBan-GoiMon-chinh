@@ -8,9 +8,9 @@ namespace RestaurantManagement.Web.Pages.DonHang
 {
     public class DetailsModel : PageModel
     {
-        private readonly InMemoryQuanLyMonStore _store;
+        private readonly IQuanLyMonStore _store;
 
-        public DetailsModel(InMemoryQuanLyMonStore store)
+        public DetailsModel(IQuanLyMonStore store)
         {
             _store = store;
         }

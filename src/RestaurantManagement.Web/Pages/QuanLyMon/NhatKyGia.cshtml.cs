@@ -7,9 +7,9 @@ namespace RestaurantManagement.Web.Pages.QuanLyMon;
 
 public class NhatKyGiaModel : PageModel
 {
-    private readonly InMemoryQuanLyMonStore _store;
+    private readonly IQuanLyMonStore _store;
 
-    public NhatKyGiaModel(InMemoryQuanLyMonStore store)
+    public NhatKyGiaModel(IQuanLyMonStore store)
     {
         _store = store;
     }

@@ -8,9 +8,9 @@ namespace RestaurantManagement.Web.Pages.GoiMon
 {
     public class CheckoutModel : PageModel
     {
-        private readonly InMemoryQuanLyMonStore _store;
+        private readonly IQuanLyMonStore _store;
 
-        public CheckoutModel(InMemoryQuanLyMonStore store)
+        public CheckoutModel(IQuanLyMonStore store)
         {
             _store = store;
         }
