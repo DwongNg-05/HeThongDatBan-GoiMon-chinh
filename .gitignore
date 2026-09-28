@@ -17,3 +17,4 @@ TestResults/
 !**/wwwroot/uploads/.gitkeep
 *.log
 *.db
+build-output.txt
