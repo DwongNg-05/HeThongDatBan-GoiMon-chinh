@@ -1,10 +1,17 @@
 @model System.Collections.Generic.IReadOnlyList<RestaurantManagement.Web.Services.NhomMonThucDon>
-<nav class="d-flex flex-wrap gap-2 mb-4" aria-label="Nhóm món">
+<div class="menu-intro"><div><span class="menu-eyebrow">BẾP NHÀ · THỰC ĐƠN</span><h2>Món ngon, trọn vị nhà.</h2><p>Chọn món yêu thích và thêm vào giỏ để bắt đầu gọi món.</p></div><a class="btn btn-outline-primary" href="#cart">Xem giỏ món ↓</a></div>
+<div class="menu-workspace">
+<nav class="menu-categories" aria-label="Nhóm món">
+    <h2>Danh mục món</h2>
     @foreach (var nhom in Model)
     {
         <a class="btn btn-outline-primary" href="#nhom-@nhom.Id">@nhom.Ten</a>
     }
 </nav>
+<div class="menu-catalog">
+<label for="menu-search" class="menu-search-label">Bạn muốn ăn gì hôm nay?</label>
+<input id="menu-search" class="form-control mb-4" type="search" placeholder="Tìm tên món ăn…" />
+<p id="menu-no-results" class="text-muted" hidden>Không tìm thấy món phù hợp. Hãy thử tên khác.</p>
 @if (Model.Count == 0)
 {
     <p class="text-muted">Thực đơn hiện chưa có nhóm món đang sử dụng.</p>
@@ -20,7 +27,7 @@
 <div class="row">
     @foreach (var item in nhom.MonAn)
     {
-        <div class="col-md-4 mb-3">
+        <div class="col-md-4 mb-3 menu-item" data-search="@item.Ten">
             <div class="card">
                 <div class="card-body">
                     <h3 class="card-title h5">@item.Ten</h3>
@@ -41,9 +48,11 @@
 </section>
 }
 
-<h2>Giỏ gọi món</h2>
-<div id="cart" class="mb-3">
-    <p class="text-muted">(Chưa có món nào)</p>
+ </div>
+<aside id="cart" class="mb-3 menu-cart" aria-label="Giỏ gọi món">
+    <span class="menu-eyebrow">MÓN BẠN ĐÃ CHỌN</span>
+    <h2>Giỏ gọi món</h2>
+    <p class="text-muted">Giỏ món đang trống.<br />Thêm món bạn thích từ thực đơn bên cạnh.</p>
     <table class="table d-none" id="cartTable">
         <thead>
             <tr><th>Tên</th><th>SL</th><th>Giá</th><th>Thành tiền</th><th></th></tr>
@@ -57,10 +66,21 @@
         <input type="hidden" name="CartJson" id="CartJson" />
         <button id="btnCheckout" type="submit" class="btn btn-success d-none">Gọi món</button>
     </form>
+</aside>
 </div>
 
 <script>
     (function(){
+        const normalize = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
+        document.getElementById('menu-search').addEventListener('input', event => {
+            const query = normalize(event.target.value.trim());
+            let visible = 0;
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.hidden = !normalize(item.dataset.search).includes(query);
+                if (!item.hidden) visible++;
+            });
+            document.getElementById('menu-no-results').hidden = !query || visible > 0;
+        });
         const cart = [];
         function updateCartUI(){
             const table = document.getElementById('cartTable');
