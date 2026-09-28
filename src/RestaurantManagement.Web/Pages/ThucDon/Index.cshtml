@@ -1,106 +1,11 @@
-@page
-@model RestaurantManagement.Web.Pages.ThucDon.IndexModel
-@{
-    ViewData["Title"] = "Thực đơn";
+public IEnumerable<IGrouping<string, MonAn>> NhomMon { get; set; }
+= Enumerable.Empty<IGrouping<string, MonAn>>();
+
+public void OnGet()
+{
+var mon = _store.LayTatCaMonAn()
+.Where(m => m.TrangThai == TrangThaiMon.DangBan);
+var lookup = _store.LayTatCaNhomMon().ToDictionary(n => n.Id, n => n.Ten);
+
+NhomMon = mon.GroupBy(m => lookup.TryGetValue(m.NhomId, out var ten) ? ten : "Khác");
 }
-
-<h1>Thực đơn</h1>
-
-<div class="row">
-    @foreach (var item in Model.MonDangBan)
-    {
-        <div class="col-md-4 mb-3">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">@item.Ten</h5>
-                    <h6 class="card-subtitle mb-2 text-muted">@Model.LookupNhom.GetValueOrDefault(item.NhomMonId)</h6>
-                    <p class="card-text">@item.MoTaNgan</p>
-                    <p class="card-text"><strong>@item.GiaBanVnd.ToString("N0")</strong> VND / @item.DonViTinh</p>
-                    <p class="card-text"><small class="text-muted">Thời gian chế biến: @item.ThoiGianCheBienPhut phút</small></p>
-                    <div class="d-flex align-items-center">
-                        <input type="number" min="1" value="1" class="form-control form-control-sm me-2 qty-input" style="width:80px" data-monid="@item.Id" />
-                        <button type="button" class="btn btn-primary btn-add-to-cart" data-monid="@item.Id" data-ten="@item.Ten" data-gia="@item.GiaBanVnd" data-donvitinh="@item.DonViTinh">Thêm vào giỏ</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    }
-</div>
-
-<h3>Giỏ gọi món</h3>
-<div id="cart" class="mb-3">
-    <p class="text-muted">(Chưa có món nào)</p>
-    <table class="table d-none" id="cartTable">
-        <thead>
-            <tr><th>Tên</th><th>SL</th><th>Giá</th><th>Thành tiền</th><th></th></tr>
-        </thead>
-        <tbody></tbody>
-        <tfoot>
-            <tr><td colspan="3" class="text-end"><strong>Tổng</strong></td><td id="cartTotal">0</td><td></td></tr>
-        </tfoot>
-    </table>
-    <form id="checkoutForm" method="post" asp-page="/GoiMon/Checkout">
-        <input type="hidden" name="CartJson" id="CartJson" />
-        <button id="btnCheckout" type="submit" class="btn btn-success d-none">Gọi món</button>
-    </form>
-</div>
-
-<script>
-    (function(){
-        const cart = [];
-        function updateCartUI(){
-            const table = document.getElementById('cartTable');
-            const tbody = table.querySelector('tbody');
-            tbody.innerHTML = '';
-            if(cart.length === 0){
-                document.querySelector('#cart p')?.classList.remove('d-none');
-                table.classList.add('d-none');
-                document.getElementById('btnCheckout').classList.add('d-none');
-                return;
-            }
-            document.querySelector('#cart p')?.classList.add('d-none');
-            table.classList.remove('d-none');
-            document.getElementById('btnCheckout').classList.remove('d-none');
-            let total = 0;
-            cart.forEach((it, idx) => {
-                const row = document.createElement('tr');
-                const thanh = it.soLuong * it.gia;
-                total += thanh;
-                row.innerHTML = `<td>${it.ten}</td><td>${it.soLuong}</td><td>${it.gia.toLocaleString()}</td><td>${thanh.toLocaleString()}</td><td><button type="button" class="btn btn-sm btn-danger" data-idx="${idx}">X</button></td>`;
-                tbody.appendChild(row);
-            });
-            document.getElementById('cartTotal').innerText = total.toLocaleString();
-            // wire up remove buttons
-            tbody.querySelectorAll('button[data-idx]').forEach(b => b.addEventListener('click', (e)=>{
-                const idx = parseInt(e.currentTarget.getAttribute('data-idx'));
-                cart.splice(idx,1);
-                updateCartUI();
-            }));
-            // set hidden json
-            document.getElementById('CartJson').value = JSON.stringify(cart);
-        }
-
-        document.querySelectorAll('.btn-add-to-cart').forEach(btn=>{
-            btn.addEventListener('click', ()=>{
-                const monId = parseInt(btn.getAttribute('data-monid'));
-                const ten = btn.getAttribute('data-ten');
-                const gia = parseInt(btn.getAttribute('data-gia'));
-                const donvitinh = btn.getAttribute('data-donvitinh');
-                const input = document.querySelector(`.qty-input[data-monid="${monId}"]`);
-                const soLuong = Math.max(1, parseInt(input.value)||1);
-                // if exists, increase
-                const existing = cart.find(c=>c.monId===monId);
-                if(existing){ existing.soLuong += soLuong; }
-                else { cart.push({ monId, ten, soLuong, gia, donvitinh }); }
-                updateCartUI();
-            });
-        });
-
-        // ensure checkout form posts the cart json
-        document.getElementById('checkoutForm').addEventListener('submit', function(e){
-            if(cart.length===0){ e.preventDefault(); return false; }
-            document.getElementById('CartJson').value = JSON.stringify(cart);
-            return true;
-        });
-    })();
-</script>

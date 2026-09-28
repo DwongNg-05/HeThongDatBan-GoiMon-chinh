@@ -8,7 +8,7 @@ using RestaurantManagement.Web.Controllers;
 
 internal static class AreaHttpTests
 {
-    internal static async Task Run()
+    internal static async Task Run(bool openingHoursOnly = false)
     {
         var baseConnection = Environment.GetEnvironmentVariable("RM_CONNECTION_STRING")
             ?? throw new InvalidOperationException("Set RM_CONNECTION_STRING to the test SQL Server instance.");
@@ -33,6 +33,8 @@ internal static class AreaHttpTests
             start.ArgumentList.Add(typeof(AreasController).Assembly.Location);
             start.ArgumentList.Add("--urls"); start.ArgumentList.Add($"http://127.0.0.1:{port}");
             start.Environment["ConnectionStrings__DefaultConnection"] = connection;
+            start.Environment["RM_CONNECTION_STRING"] = connection;
+            start.Environment["OpeningHours__ActorUserId"] = "1";
             start.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
             start.Environment["AreaManagement__ActorUserId"] = "1";
             web = new Process { StartInfo = start };
@@ -50,6 +52,15 @@ internal static class AreaHttpTests
                 await Task.Delay(250);
             }
             if (!ready) throw new Exception("Web did not start: " + string.Join(Environment.NewLine, output.TakeLast(25)));
+            if (openingHoursOnly)
+            {
+                await OpeningHoursTests.RunHttp(client, connection);
+                await SpecialHolidayTests.Run(client, connection);
+                await BookingScheduleTests.Run(client, connection);
+                await VietnamTimeTests.Run(client, connection);
+                await ManagementFlowTests.Run(client, connection);
+                return;
+            }
             async Task<string> Get(string path)
             {
                 using var response = await client.GetAsync(path);
@@ -180,6 +191,7 @@ internal static class AreaHttpTests
                 Check(result.StatusCode==HttpStatusCode.Redirect, "Reactivated area accepts new bookings");
             using (var result=await Post("/Areas", "/Areas/Reactivate/2147483647", new()))
                 Check(result.StatusCode==HttpStatusCode.NotFound, "Missing reactivation target returns 404");
+            await OpeningHoursTests.RunHttp(client, connection);
             await DatabaseTool.Execute(connection, "UPDATE dbo.Users SET IsActive=0 WHERE Id=1;");
             using (var result=await Post("/Areas", "/Areas/Delete/2", new()))
                 Check(result.StatusCode==HttpStatusCode.Redirect, "Denied delete redirects to readable error");

@@ -42,6 +42,9 @@ public class SuaModel : PageModel
     {
         DanhSachNhom = _store.LayTatCaNhomMon();
 
+        if (!DanhSachNhom.Any(n => n.Id == Mon.NhomMonId))
+            ModelState.AddModelError("Mon.NhomMonId", "Nhóm món không tồn tại.");
+
         if (!ModelState.IsValid)
         {
             return Page();
@@ -51,7 +54,13 @@ public class SuaModel : PageModel
         if (existing == null) return NotFound();
 
         // apply validation already enforced by data annotations on Mon
-        _store.CapNhatMonAn(Mon);
+        try { _store.CapNhatMonAn(Mon); }
+            catch (ArgumentException)
+            {
+                ModelState.AddModelError("Mon.NhomMonId", "Nhóm món không còn tồn tại. Vui lòng chọn nhóm khác.");
+                DanhSachNhom = _store.LayTatCaNhomMon();
+                return Page();
+            }
 
         return RedirectToPage("/QuanLyMon/Index");
     }

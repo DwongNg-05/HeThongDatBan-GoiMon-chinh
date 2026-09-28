@@ -1,0 +1,20 @@
+@model RestaurantManagement.Web.Models.Tables.TableQrScanViewModel
+@{ ViewData["Title"] = "Xác nhận bàn"; }
+
+<div class="row justify-content-center mt-5">
+    <div class="col-md-8 col-lg-6">
+        <div class="card border-success shadow-sm">
+            <div class="card-body p-4 text-center">
+                <p class="text-success fw-semibold mb-2">✓ Mã QR hợp lệ</p>
+                <h1 class="h2">Bạn đang ở bàn @Model.TableCode</h1>
+                <p class="lead text-muted">@Model.AreaName</p>
+                <hr />
+                <dl class="row text-start mb-0">
+                    <dt class="col-6">Sức chứa</dt><dd class="col-6">@Model.CapacityLabel</dd>
+                    <dt class="col-6">Loại bàn</dt><dd class="col-6">@Model.TableTypeLabel</dd>
+                </dl>
+                <p class="small text-muted mt-4 mb-0">Vui lòng gọi phục vụ nếu thông tin bàn không đúng.</p>
+            </div>
+        </div>
+    </div>
+</div>

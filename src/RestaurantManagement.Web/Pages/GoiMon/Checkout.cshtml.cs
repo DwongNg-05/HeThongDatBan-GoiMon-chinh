@@ -29,9 +29,9 @@ namespace RestaurantManagement.Web.Pages.GoiMon
             var mons = _store.LayTatCaMonAn().ToDictionary(m => m.Id);
             foreach (var it in items)
             {
-                if (!mons.TryGetValue(it.monId, out var mon) || mon.TrangThai != TrangThaiMon.DangBan)
+                if (!mons.TryGetValue(it.monId, out var mon) || mon.TrangThai != TrangThaiMon.DangBan || _store.LayNhomMon(mon.NhomMonId)?.DangSuDung != true)
                 {
-                    return BadRequest("Giỏ hàng chứa món không tồn tại hoặc đã ngưng bán");
+                    return BadRequest("Giỏ hàng chứa món không tồn tại, đã ngưng bán hoặc thuộc nhóm ngừng sử dụng");
                 }
             }
 

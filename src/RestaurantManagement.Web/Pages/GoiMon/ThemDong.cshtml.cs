@@ -25,7 +25,7 @@ namespace RestaurantManagement.Web.Pages.GoiMon
         {
             // Find the MonAn and ensure it is currently being sold
             var mon = _store.LayMonAn(monId);
-            if (mon == null || mon.TrangThai != TrangThaiMon.DangBan)
+            if (mon == null || mon.TrangThai != TrangThaiMon.DangBan || _store.LayNhomMon(mon.NhomMonId)?.DangSuDung != true)
             {
                 return BadRequest("Món không tồn tại hoặc không đang bán");
             }

@@ -258,6 +258,11 @@
         "resolved": "1.0.0",
         "contentHash": "N4KeF3cpcm1PUHym1RmakkzfkEv3GRMyofVv40uXsQhCQeglr2OHNcUk2WOG51AKpGO8ynGpo9M/kFXSzghwug=="
       },
+      "QRCoder": {
+        "type": "Transitive",
+        "resolved": "1.6.0",
+        "contentHash": "XmPA81eo+oRxBuyVdswsSkTGTE1d3thfF11Z1PdD7oB56A6HU4G4AAOdySmGRMb/cljwlFTMWUtosGEnwpS6GA=="
+      },
       "SQLitePCLRaw.bundle_e_sqlite3": {
         "type": "Transitive",
         "resolved": "2.1.12",
@@ -342,8 +347,8 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Data.SqlClient": "[7.1.0, )",
-          "Microsoft.EntityFrameworkCore": "[10.0.12, )",
           "Microsoft.EntityFrameworkCore.Sqlite": "[10.0.12, )",
+          "QRCoder": "[1.6.0, )",
           "RestaurantManagement.Data": "[1.0.0, )"
         }
       }

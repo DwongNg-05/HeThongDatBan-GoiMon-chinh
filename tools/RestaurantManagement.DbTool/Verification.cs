@@ -1,5 +1,6 @@
 using System.Data;
 using System.Security.Cryptography;
+using System.Text;
 using Microsoft.Data.SqlClient;
 
 namespace RestaurantManagement.DbTool;
@@ -157,7 +158,24 @@ internal static class Verification
         await Call(connection, "usp_SubmitOrder", ("SessionId", 2L), ("RequestId", Guid.NewGuid()), ("ItemsJson", """[{"MenuItemId":3,"Quantity":1}]"""), ("GuestTokenHash", guest));
         await Call(connection, "usp_RotateTableQr", ("TableId", 2), ("TokenHash", RandomNumberGenerator.GetBytes(32)), ("ActorUserId", 1));
         await Check(connection, "QR rotation revokes sessions", "SELECT CASE WHEN COUNT(*)=0 THEN 1 ELSE 0 END FROM dbo.GuestSessions WHERE RevokedAt IS NULL");
+
+        var publicToken = CreatePublicQrToken();
+        await Call(connection, "usp_RotateTableQr",
+            ("TableId", 4), ("TokenHash", SHA256.HashData(Encoding.UTF8.GetBytes(publicToken))),
+            ("ActorUserId", 1), ("PublicToken", publicToken));
+        await Check(connection, "Public QR token stored with matching hash",
+            $"SELECT CASE WHEN EXISTS(SELECT 1 FROM dbo.TableQrCodes WHERE TableId=4 AND PublicToken='{publicToken}' AND RevokedAt IS NULL AND TokenHash=HASHBYTES('SHA2_256',CONVERT(varbinary(64),'{publicToken}'))) THEN 1 ELSE 0 END");
+
+        var replacementToken = CreatePublicQrToken();
+        await Call(connection, "usp_RotateTableQr",
+            ("TableId", 4), ("TokenHash", SHA256.HashData(Encoding.UTF8.GetBytes(replacementToken))),
+            ("ActorUserId", 1), ("PublicToken", replacementToken));
+        await Check(connection, "Public QR rotation revokes old token",
+            $"SELECT CASE WHEN EXISTS(SELECT 1 FROM dbo.TableQrCodes WHERE TableId=4 AND PublicToken='{publicToken}' AND RevokedAt IS NOT NULL) AND EXISTS(SELECT 1 FROM dbo.TableQrCodes WHERE TableId=4 AND PublicToken='{replacementToken}' AND RevokedAt IS NULL) THEN 1 ELSE 0 END");
     }
+
+    private static string CreatePublicQrToken()
+        => Convert.ToBase64String(RandomNumberGenerator.GetBytes(24)).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 
     private static async Task Check(string connection, string label, string sql)
     {

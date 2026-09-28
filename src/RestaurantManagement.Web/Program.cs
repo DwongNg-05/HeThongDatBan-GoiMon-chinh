@@ -31,6 +31,9 @@ builder.Services.AddHttpContextAccessor();
 // Register SQL-backed store as the IQuanLyMonStore implementation
 builder.Services.AddScoped<RestaurantManagement.Web.Services.IQuanLyMonStore, RestaurantManagement.Web.Services.SqlQuanLyMonStore>();
 
+// In-memory store used by the ThucDon and GoiMon Razor Pages
+builder.Services.AddSingleton<RestaurantManagement.Web.Services.InMemoryQuanLyMonStore>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -52,7 +55,6 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
 
-// Map Razor Pages endpoints
 app.MapRazorPages();
 
 app.Run();

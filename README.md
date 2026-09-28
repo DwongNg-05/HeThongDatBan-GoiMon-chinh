@@ -111,3 +111,13 @@ Không commit mật khẩu, chuỗi kết nối có thông tin đăng nhập, d�
 ## S1-06: quản lý khu vực
 
 Xem [báo cáo Lát 2–4](docs/S1-06-Task2-4-review.md) để biết quy tắc tên, nâng cấp migration 008, kiểm thử HTTP và kịch bản demo. Migration dừng nếu các tên cũ trùng sau chuẩn hóa, không tự gộp hoặc xóa dữ liệu.
+
+## S1-07: quản lý bàn và mã QR
+
+Chạy `migrate` để áp dụng `013_TableQrManagement.sql` trước khi khởi động website. Migration chỉ bổ sung token QR công khai và thủ tục xoay QR; không tạo dữ liệu bàn mới.
+
+Mở **Quản lý bàn** để thêm/sửa bàn, xem chi tiết QR, tải PNG hoặc tải PDF QR theo khu vực. Bàn cũ chưa có QR có nút **Tạo mã QR**; xuất PDF chỉ tự tạo QR cho các bàn trong khu vực vừa chọn.
+
+Trong EP-02, S1-07 chưa phụ thuộc đăng nhập. Các thao tác tạo hoặc xoay QR dùng `AreaManagement:ActorUserId` đã có trong cấu hình phát triển. Khi S1-04 được hợp nhất, giá trị này sẽ được thay bằng tài khoản đang đăng nhập.
+
+Kiểm thử thủ công: chọn một bàn → **Mở thử QR** phải hiển thị đúng mã bàn/khu vực/sức chứa; tải PDF khu vực phải chứa QR kèm mã bàn; **Sinh lại QR** rồi mở URL cũ phải thấy `Mã QR đã thay đổi. Vui lòng gọi phục vụ.` Nếu quét bằng điện thoại, đặt `TableQr__PublicBaseUrl` thành địa chỉ HTTPS mà điện thoại truy cập được; không commit địa chỉ IP hoặc mật khẩu máy cá nhân.

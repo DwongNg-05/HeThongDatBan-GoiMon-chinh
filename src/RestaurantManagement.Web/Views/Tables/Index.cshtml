@@ -1,0 +1,52 @@
+@model RestaurantManagement.Web.Models.Tables.DiningTableListViewModel
+@{ ViewData["Title"] = "Quản lý bàn"; }
+
+<div class="d-flex justify-content-between align-items-center mt-4 mb-3">
+    <div><h2 class="mb-1">Quản lý bàn</h2><p class="text-muted mb-0">Khai báo mã bàn, khu vực, sức chứa, trạng thái và mã QR.</p></div>
+    <a asp-action="Create" class="btn btn-primary">+ Thêm bàn</a>
+</div>
+
+@if (TempData["Success"] is not null) { <div class="alert alert-success" role="status">@TempData["Success"]</div> }
+@if (TempData["Error"] is not null) { <div class="alert alert-danger" role="alert">@TempData["Error"]</div> }
+
+<form asp-action="DownloadQrPdf" method="post" class="card card-body bg-light border-0 mb-3">
+    @Html.AntiForgeryToken()
+    <div class="row g-2 align-items-end">
+        <div class="col-md-6">
+            <label for="areaId" class="form-label mb-1">Xuất QR theo khu vực</label>
+            <select id="areaId" name="areaId" class="form-select" required>
+                <option value="">-- Chọn khu vực --</option>
+                @foreach (var area in Model.Areas)
+                {
+                    <option value="@area.Value">@area.Text</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-auto"><button type="submit" class="btn btn-outline-primary">Tải PDF QR khu vực</button></div>
+    </div>
+    <small class="text-muted mt-2">PDF gồm tối đa 4 mã QR mỗi trang, kèm mã bàn để in dán.</small>
+</form>
+
+<div class="table-responsive">
+    <table class="table table-bordered table-hover align-middle">
+        <thead><tr><th>Mã bàn</th><th>Khu vực</th><th>Sức chứa</th><th>Loại bàn</th><th>Trạng thái</th><th>Hoạt động</th><th></th></tr></thead>
+        <tbody>
+        @if (Model.Tables.Count == 0)
+        {
+            <tr><td colspan="7" class="text-center text-muted">Chưa có bàn nào. Hãy thêm bàn đầu tiên.</td></tr>
+        }
+        @foreach (var table in Model.Tables)
+        {
+            <tr>
+                <td><strong>@table.Code</strong></td><td>@table.AreaName</td><td>@table.MinCapacity – @table.MaxCapacity chỗ</td>
+                <td>@table.TableTypeLabel</td><td>@table.StatusLabel</td>
+                <td><span class="badge @(table.IsActive ? "bg-success" : "bg-secondary")">@(table.IsActive ? "Đang dùng" : "Ngừng dùng")</span></td>
+                <td>
+                    <a asp-action="Details" asp-route-id="@table.Id" class="btn btn-sm btn-outline-success">QR</a>
+                    <a asp-action="Edit" asp-route-id="@table.Id" class="btn btn-sm btn-outline-primary">Sửa</a>
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>
