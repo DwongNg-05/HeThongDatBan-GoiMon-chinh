@@ -1,0 +1,31 @@
+@{
+    ViewData["Title"] = "Đặt bàn thành công";
+}
+
+<div class="container mt-5">
+
+    <div class="alert alert-success">
+
+        <h3>
+            Đặt bàn thành công!
+        </h3>
+
+        <p>
+            Yêu cầu đặt bàn đã được ghi nhận và đang chờ nhà hàng xác nhận, sắp xếp bàn.
+        </p>
+
+        <a asp-controller="Reservations"
+           asp-action="Create"
+           class="btn btn-primary">
+            Đặt bàn tiếp
+        </a>
+
+        <a asp-controller="Reservations"
+           asp-action="Index"
+           class="btn btn-secondary">
+            Xem danh sách đặt bàn
+        </a>
+
+    </div>
+
+</div>

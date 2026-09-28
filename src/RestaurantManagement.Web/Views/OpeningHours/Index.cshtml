@@ -1,0 +1,74 @@
+@model RestaurantManagement.Web.Models.OpeningHoursViewModel
+@{ ViewData["Title"] = "Giờ hoạt động"; }
+<h1>Giờ hoạt động</h1>
+<p class="text-muted">Giờ Việt Nam · Asia/Ho_Chi_Minh (UTC+7). Lịch tuần và ngày nghỉ đều tính theo ngày tại Việt Nam.</p>
+<nav class="mb-3" aria-label="Cấu hình lịch"><a href="#weekly-settings">Lịch tuần</a> · <a href="#holiday-panel">Ngày nghỉ đặc biệt</a> · <a href="#calendar-panel">Kiểm tra lịch</a> · <a asp-controller="Reservations" asp-action="Create" target="_blank" rel="noopener">Thử đặt bàn ↗</a></nav>
+<p>Mỗi ngày có một khoảng giờ mở cửa. Giờ đóng phải sau giờ mở trong cùng ngày. Ngày nghỉ không cần nhập giờ.</p>
+@if (TempData["Success"] is string success)
+{
+    <div class="alert alert-success" role="status">@success</div>
+}
+<form asp-action="Index" method="post" id="weekly-settings">
+    <h2>Lịch tuần và thời lượng giữ bàn</h2>
+    <p id="weekly-save-state" class="text-muted" role="status">Khung giờ bên dưới phản ánh dữ liệu trong biểu mẫu. Lưu cấu hình trước khi thử đặt bàn.</p>
+    <div asp-validation-summary="All" class="text-danger" role="alert"></div>
+    <div class="mb-4">
+        <label asp-for="DefaultBookingMinutes" class="form-label"></label>
+        <input asp-for="DefaultBookingMinutes" type="number" min="30" max="360" step="1" required class="form-control" style="max-width:240px" aria-describedby="duration-help" />
+        <span asp-validation-for="DefaultBookingMinutes" class="text-danger"></span>
+        <p id="duration-help" class="form-text">Mặc định 90 phút. Có thể nhập từ 30 đến 360 phút.</p>
+    </div>
+    <p>Các lượt cách nhau 30 phút, bắt đầu từ giờ mở cửa. Giờ nhận bàn phải trước giờ đóng cửa; thời lượng giữ bàn không giới hạn lượt cuối.</p>
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead><tr><th>Ngày</th><th>Giờ mở cửa</th><th>Giờ đóng cửa</th><th>Ngày nghỉ</th><th>Khung giờ nhận đặt bàn</th></tr></thead>
+            <tbody>
+            @for (var i = 0; i < Model.Days.Count; i++)
+            {
+                <tr>
+                    <th scope="row">@Model.Days[i].DayName<input type="hidden" asp-for="Days[i].DayOfWeek" /></th>
+                    <td><input asp-for="Days[i].OpensAt" type="time" step="60" class="form-control" aria-label="Giờ mở cửa @Model.Days[i].DayName" /><span asp-validation-for="Days[i].OpensAt" class="text-danger"></span></td>
+                    <td><input asp-for="Days[i].ClosesAt" type="time" step="60" class="form-control" aria-label="Giờ đóng cửa @Model.Days[i].DayName" /><span asp-validation-for="Days[i].ClosesAt" class="text-danger"></span></td>
+                    <td><input asp-for="Days[i].IsClosed" class="form-check-input closed-day" /><label asp-for="Days[i].IsClosed" class="ms-2">Nghỉ @Model.Days[i].DayName</label></td>
+                    <td class="booking-slots" aria-live="polite" style="min-width:240px;max-width:480px">
+                        @if (Model.Days[i].IsClosed)
+                        {
+                            <span>Ngày nghỉ — không nhận đặt bàn.</span>
+                        }
+                        else if (Model.Days[i].BookingSlots.Count == 0)
+                        {
+                            <span>Nhập giờ mở và đóng hợp lệ để xem khung giờ.</span>
+                        }
+                        else
+                        {
+                            @foreach (var slot in Model.Days[i].BookingSlots)
+                            {
+                                <span class="badge bg-light text-dark border me-1 mb-1">@slot</span>
+                            }
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <p class="text-muted">Danh sách cập nhật theo giờ đang nhập. Nhấn Lưu để lưu toàn bộ cấu hình.</p>
+    <button type="submit" class="btn btn-primary">Lưu cấu hình hoạt động</button>
+</form>
+<section id="holiday-panel" class="mt-5 border-top pt-4" data-management-panel>
+    <partial name="~/Views/SpecialHolidays/_Management.cshtml" model="Model.Holidays" />
+</section>
+<section id="calendar-panel" class="mt-5 border-top pt-4" data-management-panel>
+    <h2>Kiểm tra lịch theo ngày</h2>
+    <p>Dùng cấu hình đã lưu. Ngày nghỉ đặc biệt được ưu tiên hơn lịch tuần.</p>
+    <form asp-action="Calendar" method="get">
+        <label for="calendar-date" class="form-label">Ngày tại Việt Nam</label>
+        <input id="calendar-date" name="date" type="date" required class="form-control mb-2" style="max-width:240px" />
+        <button type="submit" class="btn btn-outline-primary">Xem khung giờ</button>
+    </form>
+</section>
+<p class="mt-4"><a asp-controller="Reservations" asp-action="Create" target="_blank" rel="noopener" class="btn btn-primary">Thử đặt bàn trong tab mới</a></p>
+@section Scripts {
+    <script src="~/js/opening-hours.js" asp-append-version="true"></script>
+    <script src="~/js/operating-management.js" asp-append-version="true"></script>
+}

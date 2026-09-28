@@ -1,0 +1,55 @@
+@page
+@model RestaurantManagement.Web.Pages.QuanLyMon.IndexModel
+@{
+    ViewData["Title"] = "Danh sách món";
+}
+
+<h2>Danh sách món</h2>
+
+<p>
+    <a asp-page="/QuanLyMon/Tao" class="btn btn-primary">Tạo món mới</a>
+</p>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Tên món</th>
+            <th>Giá bán</th>
+            <th>Đơn vị</th>
+            <th>Thời gian (phút)</th>
+            <th>Trạng thái</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+    @{
+        int idx = 1;
+    }
+    @foreach(var item in Model.DanhSachMonAn)
+    {
+        <tr>
+            <td>@idx</td>
+            <td>@item.Ten</td>
+            <td>@(item.GiaBanVnd.ToString("N0")) VND</td>
+            <td>@item.DonViTinh</td>
+            <td>@item.ThoiGianCheBienPhut</td>
+            <td>
+                @if(item.TrangThai == RestaurantManagement.Data.Models.TrangThaiMon.DangBan)
+                {
+                    <span class="badge bg-success">Đang bán</span>
+                }
+                else
+                {
+                    <span class="badge bg-secondary">Ngưng bán</span>
+                }
+            </td>
+            <td>
+                <a asp-page="/QuanLyMon/Sua" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary">Sửa</a>
+                <a asp-page="/QuanLyMon/NhatKyGia" asp-route-id="@item.Id" class="btn btn-sm btn-outline-secondary ms-1">Lịch sử giá</a>
+            </td>
+        </tr>
+        idx++;
+    }
+    </tbody>
+</table>

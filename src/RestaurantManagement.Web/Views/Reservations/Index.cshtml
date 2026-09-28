@@ -1,0 +1,99 @@
+@model List<RestaurantManagement.Web.Models.Reservations.ReservationListItemViewModel>
+
+@{
+    ViewData["Title"] = "Danh sách đặt bàn";
+}
+
+<div class="container mt-4">
+    <p class="text-muted">Thời gian hiển thị theo giờ Việt Nam · Asia/Ho_Chi_Minh (UTC+7).</p>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+
+        <h2>
+            Danh sách đặt bàn
+        </h2>
+
+        <a asp-action="Create"
+           class="btn btn-primary">
+            + Đặt bàn mới
+        </a>
+
+    </div>
+
+    <table class="table table-bordered table-hover">
+
+        <thead>
+
+            <tr>
+
+                <th>Mã đặt bàn</th>
+
+                <th>Khách hàng</th>
+
+                <th>Số khách</th>
+
+                <th>Khu vực</th>
+
+                <th>Thời gian</th>
+
+                <th>Trạng thái</th>
+
+            </tr>
+
+        </thead>
+
+        <tbody>
+
+        @if (Model.Count == 0)
+        {
+            <tr>
+
+                <td colspan="6"
+                    class="text-center">
+
+                    Chưa có đặt bàn.
+
+                </td>
+
+            </tr>
+        }
+        else
+        {
+            foreach (var reservation in Model)
+            {
+                <tr>
+
+                    <td>
+                        <a asp-action="Details" asp-route-id="@reservation.Id">@reservation.Code</a>
+                    </td>
+
+                    <td>
+                        @reservation.CustomerName
+                    </td>
+
+                    <td>
+                        @reservation.GuestCount
+                    </td>
+
+                    <td>
+                        @(reservation.AreaName ?? "Không yêu cầu")
+                    </td>
+
+                    <td>
+                        @reservation.StartsAt.ToString(
+                            "dd/MM/yyyy HH:mm")
+                    </td>
+
+                    <td>
+                        @reservation.Status
+                    </td>
+
+                </tr>
+            }
+        }
+
+        </tbody>
+
+    </table>
+
+</div>

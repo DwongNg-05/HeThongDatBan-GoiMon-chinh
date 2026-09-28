@@ -1,0 +1,24 @@
+@page "{id:int}"
+@model RestaurantManagement.Web.Pages.QuanLyNhomMon.XoaModel
+@{ ViewData["Title"] = "Xóa nhóm món"; }
+<h1>Xóa nhóm món “@Model.Nhom.Ten”</h1>
+<div asp-validation-summary="All" class="text-danger" role="alert"></div>
+@if (Model.MonAn.Count > 0)
+{
+    <div class="alert alert-warning" role="alert">Không thể xóa nhóm đang chứa @Model.MonAn.Count món ăn. Vui lòng chuyển toàn bộ món sang nhóm khác trước khi xóa, kể cả món ngừng bán.</div>
+    <ul>
+    @foreach (var mon in Model.MonAn)
+    {
+        <li>@mon.Ten — <a asp-page="/QuanLyMon/Sua" asp-route-id="@mon.Id">Chuyển sang nhóm khác</a></li>
+    }
+    </ul>
+    <a asp-page="Index" class="btn btn-secondary">Quay lại</a>
+}
+else
+{
+    <p>Nhóm không còn món ăn. Bạn có chắc muốn xóa vĩnh viễn nhóm “@Model.Nhom.Ten”? Thao tác này không thể hoàn tác trên giao diện. Nếu muốn giữ nhóm để dùng lại, hãy chọn ngừng sử dụng.</p>
+    <form method="post">
+        <button type="submit" class="btn btn-danger">Xác nhận xóa vĩnh viễn</button>
+        <a asp-page="Index" class="btn btn-secondary">Hủy</a>
+    </form>
+}
