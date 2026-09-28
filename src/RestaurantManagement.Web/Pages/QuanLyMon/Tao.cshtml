@@ -1,0 +1,62 @@
+@page
+@model RestaurantManagement.Web.Pages.QuanLyMon.TaoModel
+@{
+    ViewData["Title"] = "Tạo món mới";
+}
+
+<h2>Tạo món mới</h2>
+
+<form method="post">
+    <div class="mb-3">
+        <label asp-for="Mon.Ten" class="form-label">Tên món</label>
+        <input asp-for="Mon.Ten" class="form-control" />
+        <span asp-validation-for="Mon.Ten" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Nhóm món</label>
+        <select asp-for="Mon.NhomMonId" class="form-select" asp-items="@(new Microsoft.AspNetCore.Mvc.Rendering.SelectList(Model.DanhSachNhom, "Id", "Ten"))">
+            <option value="">-- Chọn nhóm --</option>
+        </select>
+        <span asp-validation-for="Mon.NhomMonId" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Mon.GiaBanVnd" class="form-label">Giá bán (VND)</label>
+        <input asp-for="Mon.GiaBanVnd" class="form-control" />
+        <span asp-validation-for="Mon.GiaBanVnd" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Mon.DonViTinh" class="form-label">Đơn vị tính</label>
+        <input asp-for="Mon.DonViTinh" class="form-control" placeholder="ví dụ: cái, phần, tô" />
+        <span asp-validation-for="Mon.DonViTinh" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Mon.MoTaNgan" class="form-label">Mô tả ngắn</label>
+        <input asp-for="Mon.MoTaNgan" class="form-control" />
+        <span asp-validation-for="Mon.MoTaNgan" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Mon.ThoiGianCheBienPhut" class="form-label">Thời gian chế biến (phút)</label>
+        <input asp-for="Mon.ThoiGianCheBienPhut" class="form-control" />
+        <span asp-validation-for="Mon.ThoiGianCheBienPhut" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Mon.TrangThai" class="form-label">Trạng thái</label>
+        <select asp-for="Mon.TrangThai" class="form-select">
+            <option value="0">Đang bán</option>
+            <option value="1">Ngưng bán</option>
+        </select>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Lưu</button>
+    <a asp-page="/QuanLyMon/Index" class="btn btn-secondary">Hủy</a>
+</form>
+
+@section Scripts{
+    <partial name="_ValidationScriptsPartial" />
+}

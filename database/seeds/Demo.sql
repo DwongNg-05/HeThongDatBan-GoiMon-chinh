@@ -7,10 +7,13 @@ INSERT dbo.Users(RoleId,FullName,UserName,Phone,IsActive) VALUES
 -- The DbTool hashes a password supplied through RM_DEMO_PASSWORD and activates these accounts.
 INSERT dbo.Areas(Name,SortOrder) VALUES(N'Tầng một',1),(N'Tầng hai',2),(N'Sân vườn',3);
 DECLARE @n int=1;
-WHILE @n<=25
+WHILE @n<=60
 BEGIN
  INSERT dbo.DiningTables(AreaId,Code,MinCapacity,MaxCapacity,SortOrder)
- VALUES(CASE WHEN @n<=10 THEN 1 WHEN @n<=20 THEN 2 ELSE 3 END,CONCAT('A',RIGHT(CONCAT('0',@n),2)),1,CASE WHEN @n%5=0 THEN 12 ELSE 4 END,@n);
+ VALUES(CASE WHEN @n<=20 THEN 1 WHEN @n<=40 THEN 2 ELSE 3 END,
+  CONCAT(CASE WHEN @n<=20 THEN 'A' WHEN @n<=40 THEN 'B' ELSE 'C' END,
+   RIGHT(CONCAT('0',CASE WHEN @n<=20 THEN @n WHEN @n<=40 THEN @n-20 ELSE @n-40 END),2)),
+  1,CASE WHEN @n%10=0 THEN 8 WHEN @n%3=0 THEN 6 ELSE 4 END,@n);
  SET @n+=1;
 END;
 INSERT dbo.MenuCategories(Name,SortOrder) VALUES(N'Khai vị',1),(N'Món chính',2),(N'Lẩu',3),(N'Tráng miệng',4),(N'Đồ uống',5);

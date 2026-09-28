@@ -1,0 +1,41 @@
+@page "{id:int}"
+@model RestaurantManagement.Web.Pages.QuanLyMon.NhatKyGiaModel
+@{
+    ViewData["Title"] = "Nhật ký thay đổi giá";
+}
+
+<h2>Nhật ký thay đổi giá cho: @Model.Mon?.Ten</h2>
+
+@if (Model.NhatKy == null || !Model.NhatKy.Any())
+{
+    <div class="alert alert-info">Chưa có lần thay đổi giá nào cho món này.</div>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Thời điểm</th>
+                <th>Người sửa</th>
+                <th>Giá cũ (VND)</th>
+                <th>Giá mới (VND)</th>
+            </tr>
+        </thead>
+        <tbody>
+            @{ var idx = 1; }
+            @foreach (var e in Model.NhatKy)
+            {
+                <tr>
+                    <td>@(idx++)</td>
+                    <td>@e.ThoiDiem.ToLocalTime()</td>
+                    <td>@e.NguoiSua</td>
+                    <td>@e.GiaCuVnd.ToString("N0")</td>
+                    <td>@e.GiaMoiVnd.ToString("N0")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<a asp-page="/QuanLyMon/Index" class="btn btn-secondary">Quay lại</a>

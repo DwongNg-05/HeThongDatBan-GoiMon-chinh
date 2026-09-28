@@ -1,0 +1,36 @@
+@model RestaurantManagement.Web.Models.Tables.DiningTableFormViewModel
+
+<div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+<div class="row g-3">
+    <div class="col-md-4">
+        <label asp-for="Code" class="form-label"></label>
+        <input asp-for="Code" class="form-control" autocomplete="off" data-code-check="true" />
+        <span asp-validation-for="Code" class="text-danger"></span>
+        <div id="code-availability" class="form-text"></div>
+    </div>
+    <div class="col-md-8">
+        <label asp-for="AreaId" class="form-label"></label>
+        <select asp-for="AreaId" asp-items="Model.Areas" class="form-select"><option value="">-- Chọn khu vực --</option></select>
+        <span asp-validation-for="AreaId" class="text-danger"></span>
+    </div>
+    <div class="col-md-3">
+        <label asp-for="MinCapacity" class="form-label"></label>
+        <input asp-for="MinCapacity" type="number" min="1" max="60" class="form-control" />
+        <span asp-validation-for="MinCapacity" class="text-danger"></span>
+    </div>
+    <div class="col-md-3">
+        <label asp-for="MaxCapacity" class="form-label"></label>
+        <input asp-for="MaxCapacity" type="number" min="1" max="60" class="form-control" />
+        <span asp-validation-for="MaxCapacity" class="text-danger"></span>
+    </div>
+    <div class="col-md-3">
+        <label asp-for="TableType" class="form-label"></label>
+        <select asp-for="TableType" class="form-select"><option value="Standard">Bàn thường</option><option value="PrivateRoom">Phòng riêng</option></select>
+        <span asp-validation-for="TableType" class="text-danger"></span>
+    </div>
+    <div class="col-md-3">
+        <label asp-for="Status" class="form-label"></label>
+        <select asp-for="Status" class="form-select"><option value="Available">Trống</option><option value="Reserved">Đã đặt trước</option><option value="Serving">Đang phục vụ</option><option value="Cleaning">Đang dọn</option></select>
+        <span asp-validation-for="Status" class="text-danger"></span>
+    </div>
+</div>

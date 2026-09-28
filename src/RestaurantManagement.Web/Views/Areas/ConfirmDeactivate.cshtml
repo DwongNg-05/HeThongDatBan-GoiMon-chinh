@@ -1,0 +1,17 @@
+@model RestaurantManagement.Web.Models.Areas.AreaViewModel
+@{ ViewData["Title"] = "Ngừng sử dụng khu vực"; }
+<h2>Ngừng sử dụng khu vực</h2>
+@if (Model.IsActive)
+{
+    <p>Bạn có chắc muốn ngừng sử dụng khu vực <strong>@Model.Name</strong>?</p>
+    <p>Khu vực sẽ không còn được chọn cho đặt bàn mới. Dữ liệu bàn và các đặt bàn đã có vẫn được giữ lại.</p>
+    <form asp-action="Deactivate" asp-route-id="@Model.Id" method="post">
+        <button type="submit" class="btn btn-warning">Xác nhận ngừng sử dụng</button>
+        <a asp-action="Index" class="btn btn-secondary">Hủy</a>
+    </form>
+}
+else
+{
+    <p>Khu vực <strong>@Model.Name</strong> đã ngừng sử dụng.</p>
+    <a asp-action="Index" class="btn btn-secondary">Quay lại</a>
+}
