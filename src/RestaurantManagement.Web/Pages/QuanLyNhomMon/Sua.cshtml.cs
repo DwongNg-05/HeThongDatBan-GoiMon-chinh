@@ -5,7 +5,7 @@ using RestaurantManagement.Web.Services;
 
 namespace RestaurantManagement.Web.Pages.QuanLyNhomMon;
 
-public class SuaModel(InMemoryQuanLyMonStore store) : PageModel
+public class SuaModel(IQuanLyMonStore store) : PageModel
 {
     [BindProperty] public string? Ten { get; set; }
     [TempData] public string? ThongBao { get; set; }

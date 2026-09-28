@@ -6,7 +6,7 @@ using RestaurantManagement.Web.Services;
 
 namespace RestaurantManagement.Web.Pages.QuanLyNhomMon;
 
-public class TaoModel(InMemoryQuanLyMonStore store) : PageModel
+public class TaoModel(IQuanLyMonStore store) : PageModel
 {
     [BindProperty] public string? Ten { get; set; }
     [BindProperty] public bool DangSuDung { get; set; } = true;

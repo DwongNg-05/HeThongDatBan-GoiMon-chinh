@@ -7,7 +7,7 @@ var sqlConnectionString = Environment.GetEnvironmentVariable("RM_CONNECTION_STRI
 if (string.IsNullOrWhiteSpace(sqlConnectionString))
     sqlConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 if (string.IsNullOrWhiteSpace(sqlConnectionString))
-    sqlConnectionString = "Data Source=restaurant.db";
+    throw new InvalidOperationException("Set RM_CONNECTION_STRING or ConnectionStrings:DefaultConnection to a SQL Server connection string before starting the web app.");
 builder.Configuration["ConnectionStrings:DefaultConnection"] = sqlConnectionString;
 
 // Add services to the container.
@@ -19,14 +19,19 @@ builder.Services.AddRazorPages();
 builder.Services.AddSingleton<RestaurantManagement.Web.Services.DemoTableCatalog>();
 builder.Services.AddSingleton<RestaurantManagement.Web.Services.TableMapEventBroker>();
 builder.Services.AddScoped<RestaurantManagement.Web.Services.TableDetailsService>();
+builder.Services.AddScoped<RestaurantManagement.Web.Services.TableQrService>();
+builder.Services.AddSingleton<RestaurantManagement.Web.Services.TableQrPdfBuilder>();
 builder.Services.AddHostedService<RestaurantManagement.Web.Services.TableStatusOutboxWorker>();
 
-// Register DbContext for SQLite and Sql store
+// Use the same SQL Server database as the controllers and background worker.
 builder.Services.AddDbContext<RestaurantManagement.Data.Data.RestaurantDbContext>(options =>
-    options.UseSqlite(sqlConnectionString));
+    options.UseSqlServer(sqlConnectionString));
 
 // Register IHttpContextAccessor to capture current user in the SQL store
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession();
+builder.Services.AddScoped<RestaurantManagement.Web.Security.ICurrentUser, RestaurantManagement.Web.Security.SessionCurrentUser>();
 
 // Register SQL-backed store as the IQuanLyMonStore implementation
 builder.Services.AddScoped<RestaurantManagement.Web.Services.IQuanLyMonStore, RestaurantManagement.Web.Services.SqlQuanLyMonStore>();
@@ -45,6 +50,7 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseRouting();
+app.UseSession();
 
 app.UseAuthorization();
 

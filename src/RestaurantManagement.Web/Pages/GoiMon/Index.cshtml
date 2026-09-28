@@ -1,6 +1,8 @@
-   public IEnumerable<NhomMon> NhomMon { get; set; } = Enumerable.Empty<NhomMon>();
+@page
+@model RestaurantManagement.Web.Pages.GoiMon.IndexModel
+@{
+    ViewData["Title"] = "Gọi món";
+}
 
-   public void OnGet()
-   {
-       NhomMon = _store.LayTatCaNhomMon();
-   }
+<h1>Gọi món</h1>
+<partial name="_ThucDonTheoNhom" model="Model.NhomMon" />

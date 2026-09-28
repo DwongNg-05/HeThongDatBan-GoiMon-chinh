@@ -1,11 +1,8 @@
-public IEnumerable<IGrouping<string, MonAn>> NhomMon { get; set; }
-= Enumerable.Empty<IGrouping<string, MonAn>>();
-
-public void OnGet()
-{
-var mon = _store.LayTatCaMonAn()
-.Where(m => m.TrangThai == TrangThaiMon.DangBan);
-var lookup = _store.LayTatCaNhomMon().ToDictionary(n => n.Id, n => n.Ten);
-
-NhomMon = mon.GroupBy(m => lookup.TryGetValue(m.NhomId, out var ten) ? ten : "Khác");
+@page
+@model RestaurantManagement.Web.Pages.ThucDon.IndexModel
+@{
+    ViewData["Title"] = "Thực đơn";
 }
+
+<h1>Thực đơn</h1>
+<partial name="_ThucDonTheoNhom" model="Model.NhomMon" />

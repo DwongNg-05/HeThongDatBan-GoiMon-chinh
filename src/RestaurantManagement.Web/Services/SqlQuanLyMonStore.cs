@@ -101,8 +101,9 @@ namespace RestaurantManagement.Web.Services
             var normalized = QuyTacTenNhomMon.ChuanHoa(ten);
             if (normalized.Length == 0) throw new ValidationException(QuyTacTenNhomMon.TenRong);
             if (normalized.Length > 50) throw new ValidationException(QuyTacTenNhomMon.TenQuaDai);
-            if (_db.NhomMons.AsNoTracking().Any(n => n.Id != exceptId &&
-                string.Equals(QuyTacTenNhomMon.ChuanHoa(n.Ten), normalized, StringComparison.OrdinalIgnoreCase)))
+            if (_db.NhomMons.AsNoTracking().Where(n => !exceptId.HasValue || n.Id != exceptId.Value)
+                .Select(n => n.Ten).AsEnumerable().Any(ten =>
+                    string.Equals(QuyTacTenNhomMon.ChuanHoa(ten), normalized, StringComparison.OrdinalIgnoreCase)))
                 throw new ValidationException(QuyTacTenNhomMon.TenTrung);
             return normalized;
         }
@@ -150,12 +151,20 @@ namespace RestaurantManagement.Web.Services
             if (!_user.IsAuthenticated)
                 throw new UnauthorizedAccessException("Chưa đăng nhập.");
 
+            var userName = _user.UserName;
+            var actorUserId = _db.Database.SqlQuery<int>($"SELECT Id AS Value FROM dbo.Users WHERE UserName = {userName} AND IsActive = 1")
+                .SingleOrDefault();
+            if (actorUserId == 0)
+                throw new UnauthorizedAccessException("Tài khoản không tồn tại hoặc đã ngừng hoạt động.");
+            KiemTraNhomMon(updated.NhomMonId);
+            using var transaction = _db.Database.BeginTransaction();
+            _db.Database.ExecuteSqlInterpolated($"EXEC dbo.usp_RequirePermission {actorUserId}, 'Catalog.Manage'");
+
             var oldPrice = existing.GiaBanVnd;
             var newPrice = updated.GiaBanVnd;
 
             existing.Ten = updated.Ten;
             existing.NhomMonId = updated.NhomMonId;
-            existing.GiaBanVnd = updated.GiaBanVnd;
             existing.DonViTinh = updated.DonViTinh;
             existing.MoTaNgan = updated.MoTaNgan;
             existing.ThoiGianCheBienPhut = updated.ThoiGianCheBienPhut;
@@ -163,18 +172,12 @@ namespace RestaurantManagement.Web.Services
 
             if (oldPrice != newPrice)
             {
-                _db.GhiNhanThayDoiGias.Add(new GhiNhanThayDoiGia
-                {
-                    MonAnId = existing.Id,
-                    TenMon = existing.Ten,
-                    GiaCuVnd = oldPrice,
-                    GiaMoiVnd = newPrice,
-                    ThoiDiem = DateTime.UtcNow,
-                    NguoiSua = _user.UserName!
-                });
+                _db.Database.ExecuteSqlInterpolated($"EXEC dbo.usp_UpdateMenuPrice {existing.Id}, {newPrice}, {actorUserId}");
             }
 
             _db.SaveChanges();
+            transaction.Commit();
+            _db.Entry(existing).Reload();
             return existing;
         }
 
@@ -204,6 +207,14 @@ namespace RestaurantManagement.Web.Services
             _db.DonHangs.OrderBy(d => d.Id).AsNoTracking().ToList();
 
         public IEnumerable<GhiNhanThayDoiGia> LayNhatKyGiaChoMon(int monAnId) =>
-            _db.GhiNhanThayDoiGias.Where(e => e.MonAnId == monAnId).OrderByDescending(e => e.ThoiDiem).AsNoTracking().ToList();
+            _db.Database.SqlQuery<GhiNhanThayDoiGia>($"""
+                SELECT CAST(h.Id AS int) AS Id, h.MenuItemId AS MonAnId, m.Name AS TenMon,
+                       CAST(h.OldPrice AS int) AS GiaCuVnd, CAST(h.NewPrice AS int) AS GiaMoiVnd,
+                       h.ChangedAt AS ThoiDiem, u.UserName AS NguoiSua
+                FROM dbo.MenuPriceHistory h
+                JOIN dbo.MenuItems m ON m.Id = h.MenuItemId
+                JOIN dbo.Users u ON u.Id = h.ChangedBy
+                WHERE h.MenuItemId = {monAnId}
+                """).OrderByDescending(e => e.ThoiDiem).ToList();
     }
 }

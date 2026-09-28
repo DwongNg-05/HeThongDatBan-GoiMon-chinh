@@ -42,6 +42,14 @@ public class SuaModel : PageModel
     {
         DanhSachNhom = _store.LayTatCaNhomMon();
 
+        // Reject unauthenticated saves before the store throws an exception.
+        var currentUser = HttpContext.RequestServices.GetRequiredService<RestaurantManagement.Web.Security.ICurrentUser>();
+        if (!currentUser.IsAuthenticated)
+        {
+            ModelState.AddModelError(string.Empty, "Chưa đăng nhập nên không thể lưu thay đổi. Vui lòng đăng nhập bằng tài khoản có quyền sửa món.");
+            return Page();
+        }
+
         if (!DanhSachNhom.Any(n => n.Id == Mon.NhomMonId))
             ModelState.AddModelError("Mon.NhomMonId", "Nhóm món không tồn tại.");
 
@@ -55,6 +63,11 @@ public class SuaModel : PageModel
 
         // apply validation already enforced by data annotations on Mon
         try { _store.CapNhatMonAn(Mon); }
+            catch (UnauthorizedAccessException)
+            {
+                ModelState.AddModelError(string.Empty, "Phiên đăng nhập không còn hợp lệ. Vui lòng đăng nhập lại trước khi lưu.");
+                return Page();
+            }
             catch (ArgumentException)
             {
                 ModelState.AddModelError("Mon.NhomMonId", "Nhóm món không còn tồn tại. Vui lòng chọn nhóm khác.");

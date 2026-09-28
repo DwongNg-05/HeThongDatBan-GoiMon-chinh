@@ -6,7 +6,7 @@ using RestaurantManagement.Web.Services;
 
 namespace RestaurantManagement.Web.Pages.QuanLyNhomMon;
 
-public class SapXepModel(InMemoryQuanLyMonStore store) : PageModel
+public class SapXepModel(IQuanLyMonStore store) : PageModel
 {
     [BindProperty] public List<int> ThuTu { get; set; } = [];
     [BindProperty] public List<int> BanDau { get; set; } = [];

@@ -5,7 +5,7 @@ using RestaurantManagement.Web.Services;
 
 namespace RestaurantManagement.Web.Pages.QuanLyNhomMon;
 
-public class TrangThaiModel(InMemoryQuanLyMonStore store) : PageModel
+public class TrangThaiModel(IQuanLyMonStore store) : PageModel
 {
     public NhomMon Nhom { get; private set; } = new();
     public int SoMon { get; private set; }

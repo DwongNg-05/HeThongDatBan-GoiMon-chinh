@@ -6,7 +6,7 @@ using RestaurantManagement.Web.Services;
 
 namespace RestaurantManagement.Web.Pages.QuanLyNhomMon;
 
-public class XoaModel(InMemoryQuanLyMonStore store) : PageModel
+public class XoaModel(IQuanLyMonStore store) : PageModel
 {
     public NhomMon Nhom { get; private set; } = new();
     public IReadOnlyList<MonAn> MonAn { get; private set; } = [];
