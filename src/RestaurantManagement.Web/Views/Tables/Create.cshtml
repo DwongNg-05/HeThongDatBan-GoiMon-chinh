@@ -1,0 +1,4 @@
+@model RestaurantManagement.Web.Models.Tables.DiningTableFormViewModel
+@{ ViewData["Title"] = "Thêm bàn"; }
+<div class="mt-4"><h2>Thêm bàn</h2><form asp-action="Create" method="post" class="mt-3">@Html.AntiForgeryToken()<partial name="_Form" model="Model" /><div class="mt-4"><button class="btn btn-primary" type="submit">Lưu bàn</button> <a asp-action="Index" class="btn btn-secondary">Quay lại</a></div></form></div>
+@section Scripts { <partial name="_ValidationScriptsPartial" /><script src="~/js/table-form.js" asp-append-version="true"></script> }

@@ -16,6 +16,8 @@ builder.Services.AddSingleton<RestaurantManagement.Web.Services.InMemoryQuanLyMo
 builder.Services.AddSingleton<RestaurantManagement.Web.Services.DemoTableCatalog>();
 builder.Services.AddSingleton<RestaurantManagement.Web.Services.TableMapEventBroker>();
 builder.Services.AddScoped<RestaurantManagement.Web.Services.TableDetailsService>();
+builder.Services.AddScoped<RestaurantManagement.Web.Services.TableQrService>();
+builder.Services.AddSingleton<RestaurantManagement.Web.Services.TableQrPdfBuilder>();
 builder.Services.AddHostedService<RestaurantManagement.Web.Services.TableStatusOutboxWorker>();
 builder.Services.AddDbContext<RestaurantDbContext>(options => options.UseSqlServer(sqlConnectionString));
 
