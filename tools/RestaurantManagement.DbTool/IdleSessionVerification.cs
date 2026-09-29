@@ -48,8 +48,8 @@ internal static partial class LoginVerification
         before = await Last(id);
         using (var assets = await client.GetAsync("/css/site.css"))
             Assert(assets.IsSuccessStatusCode, "Static asset request succeeds");
-        using (var publicPage = await client.GetAsync("/Home/Privacy"))
-            Assert(publicPage.IsSuccessStatusCode, "Public page request succeeds");
+        using (var publicPage = await client.GetAsync("/Account/AccessDenied"))
+            Assert(publicPage.StatusCode == HttpStatusCode.Forbidden, "Public page request succeeds");
         Assert(await Last(id) == before, "Static assets and public pages do not refresh activity");
         using (var invalid = await client.PostAsync("/Management/Price", Form(("id", "60"), ("price", "-1"), ("__RequestVerificationToken", token))))
             Assert(invalid.StatusCode == HttpStatusCode.Redirect, "Invalid price is rejected with feedback");
@@ -90,8 +90,8 @@ internal static partial class LoginVerification
         using (var publicExpiryLogin = await login("manager", password))
             Assert(publicExpiryLogin.StatusCode == HttpStatusCode.Redirect, "Create session for public-page expiration check");
         await Age(await CurrentSession(), 31 * 60);
-        using (var publicExpired = await client.GetAsync("/Home/Privacy"))
-            Assert(publicExpired.IsSuccessStatusCode, "Public page remains available after session expiration");
+        using (var publicExpired = await client.GetAsync("/Account/AccessDenied"))
+            Assert(publicExpired.StatusCode == HttpStatusCode.Forbidden, "Public page remains available after session expiration");
         using (var management = await client.GetAsync("/Management"))
         {
             Assert(management.StatusCode == HttpStatusCode.Redirect, "Access after public-page expiry still requires login");

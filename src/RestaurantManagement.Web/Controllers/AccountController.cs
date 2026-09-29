@@ -1,125 +1,73 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.EntityFrameworkCore;
-using RestaurantManagement.Data;
-using RestaurantManagement.Web.Services;
-using System.Security.Claims;
+using Microsoft.AspNetCore.Mvc;
+using RestaurantManagement.Web.Models;
+using RestaurantManagement.Web.Authentication;
 
-namespace RestaurantManagement.Web.Controllers
+namespace RestaurantManagement.Web.Controllers;
+
+[ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
+public class AccountController(ManagementStore store, LoginSessionStore sessions) : Controller
 {
-    public class AccountController : Controller
+    public const string InvalidCredentials = "Tên đăng nhập, số điện thoại hoặc mật khẩu không hợp lệ.";
+
+    [AllowAnonymous, HttpGet]
+    public IActionResult Login(bool sessionExpired = false, string? returnUrl = null)
     {
-        private readonly ApplicationDbContext _context;
-        private readonly AuditLogService _auditLogService;
-
-        public AccountController(
-            ApplicationDbContext context,
-            AuditLogService auditLogService)
+        ViewData["ReturnUrl"] = returnUrl;
+        var expiredNotice = TempData[IdleSessionEvents.ExpiredItem] is true;
+        return User.Identity?.IsAuthenticated == true
+        ? RedirectAfterLogin(returnUrl) : View(new LoginModel
         {
-            _context = context;
-            _auditLogService = auditLogService;
-        }
-
-        [AllowAnonymous, HttpGet]
-        public IActionResult Login(string? returnUrl = null)
-        {
-            if (User.Identity?.IsAuthenticated == true)
-                return RedirectAfterLogin(returnUrl);
-            ViewData["ReturnUrl"] = returnUrl;
-            return View();
-        }
-
-        [AllowAnonymous, HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> Login(string username, string password, string? returnUrl = null)
-        {
-            ViewData["ReturnUrl"] = returnUrl;
-            var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
-            username = (username ?? "").Trim();
-            password ??= "";
-
-            var user = await _context.Users
-                .FirstOrDefaultAsync(x => x.Username == username && x.IsActive);
-
-            if (user == null || !VerifyPassword(password, user.Password))
-            {
-                // Đăng nhập thất bại: nếu tồn tại tài khoản thì ghi đúng vai trò của nó
-                await _auditLogService.LogAsync(
-                    username,
-                    user?.Role ?? "Unknown",
-                    "Đăng nhập thất bại",
-                    ipAddress);
-
-                ModelState.AddModelError("", "Sai tài khoản hoặc mật khẩu.");
-                return View();
-            }
-
-            // Đăng nhập thành công
-            await _auditLogService.LogAsync(
-                user.Username,
-                user.Role,
-                "Đăng nhập thành công",
-                ipAddress);
-
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Name, user.Username),
-                new Claim(ClaimTypes.Role, user.Role)
-            };
-
-            var claimsIdentity = new ClaimsIdentity(
-                claims, CookieAuthenticationDefaults.AuthenticationScheme);
-
-            await HttpContext.SignInAsync(
-                CookieAuthenticationDefaults.AuthenticationScheme,
-                new ClaimsPrincipal(claimsIdentity));
-
-            return RedirectAfterLogin(returnUrl);
-        }
-
-        private IActionResult RedirectAfterLogin(string? returnUrl) =>
-            Url.IsLocalUrl(returnUrl) ? LocalRedirect(returnUrl!) : RedirectToAction("Index", "Home");
-
-        [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> Logout()
-        {
-            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            HttpContext.Session.Clear();
-            return RedirectToAction("Login");
-        }
-
-        // Trang hiển thị khi đã đăng nhập nhưng không đủ quyền
-        [HttpGet]
-        public IActionResult AccessDenied()
-        {
-            Response.StatusCode = 403;
-            return View();
-        }
-
-        // Mật khẩu băm bcrypt (DbTool dùng BCrypt.Net-Next).
-        // Nhánh so sánh chuỗi thường chỉ để tương thích tạm với dữ liệu cũ chưa băm.
-        private static bool VerifyPassword(string input, string? stored)
-        {
-            if (string.IsNullOrEmpty(stored))
-            {
-                return false;
-            }
-
-            if (stored.StartsWith("$2"))
-            {
-                try
-                {
-                    return BCrypt.Net.BCrypt.Verify(input, stored);
-                }
-                catch
-                {
-                    return false;
-                }
-            }
-
-            return input == stored;
-        }
+            SessionExpired = sessionExpired || expiredNotice || HttpContext.Items.ContainsKey(IdleSessionEvents.ExpiredItem)
+        });
     }
+
+    [AllowAnonymous, HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Login(LoginModel model, string? returnUrl = null)
+    {
+        ViewData["ReturnUrl"] = returnUrl;
+        var result = ModelState.IsValid ? await store.Authenticate(model.Identifier, model.Password) : new LoginResult(null);
+        var user = result.User;
+        if (user is null)
+        {
+            ModelState.Clear();
+            ModelState.AddModelError("", InvalidCredentials);
+            model.Password = "";
+            model.RemainingSeconds = result.RemainingSeconds;
+            return View(model);
+        }
+        await sessions.Revoke(User);
+        var sessionId = await sessions.Create(user.Id);
+        var identity = new ClaimsIdentity(new[] {
+            new Claim(LoginSessionStore.SessionClaim, sessionId.ToString()),
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new Claim(ClaimTypes.Name, user.UserName),
+            new Claim("FullName", user.FullName),
+            new Claim(ClaimTypes.Role, user.Role)
+        }, CookieAuthenticationDefaults.AuthenticationScheme);
+        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
+            new ClaimsPrincipal(identity), new AuthenticationProperties { IsPersistent = false });
+        TempData.Remove(IdleSessionEvents.ExpiredItem);
+        TempData["Success"] = "Đăng nhập thành công.";
+        return RedirectAfterLogin(returnUrl);
+    }
+
+    private IActionResult RedirectAfterLogin(string? returnUrl) =>
+        Url.IsLocalUrl(returnUrl) ? LocalRedirect(returnUrl!) : RedirectToAction("Index", "Home");
+
+    [Authorize, HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Logout()
+    {
+        await sessions.Revoke(User);
+        await HttpContext.SignOutAsync();
+        HttpContext.Session.Clear();
+        HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity());
+        return RedirectToAction(nameof(Login));
+    }
+
+    [AllowAnonymous]
+    public IActionResult AccessDenied() => StatusCode(403, "Bạn không có quyền truy cập chức năng này.");
 }

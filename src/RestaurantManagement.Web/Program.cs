@@ -1,3 +1,5 @@
+using RestaurantManagement.Web.Models;
+using RestaurantManagement.Web.Authentication;
 using Microsoft.EntityFrameworkCore;
 using RestaurantManagement.Data.Data;
 using RestaurantManagement.Data.Models;
@@ -24,7 +26,11 @@ builder.Services.AddAuthorization(options =>
         .RequireAuthenticatedUser()
         .Build();
 });
-builder.Services.AddControllersWithViews();
+builder.Services.AddScoped(_ => new ManagementStore(sqlConnectionString));
+builder.Services.AddScoped(_ => new LoginSessionStore(sqlConnectionString));
+builder.Services.AddScoped<IdleSessionEvents>();
+builder.Services.AddScoped<IEmployeeAccountStore>(_ => new SqlEmployeeAccountStore(sqlConnectionString));
+builder.Services.AddControllersWithViews(options => options.Filters.Add<SessionActivityFilter>());
 // Support Razor Pages
 builder.Services.AddRazorPages();
 
@@ -57,6 +63,13 @@ builder.Services.AddAuthentication("Cookies")
     {
         options.LoginPath = "/Account/Login";
         options.AccessDeniedPath = "/Account/AccessDenied";
+        options.Cookie.Name = "RestaurantManagement.Auth";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
+        options.ExpireTimeSpan = TimeSpan.FromDays(14);
+        options.SlidingExpiration = false;
+        options.EventsType = typeof(IdleSessionEvents);
     });
 
 var app = builder.Build();

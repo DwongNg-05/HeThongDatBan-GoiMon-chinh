@@ -65,7 +65,7 @@ internal static partial class LoginVerification
                 Assert(cookies.Any(c => c.Contains("httponly", StringComparison.OrdinalIgnoreCase) && !c.Contains("expires=", StringComparison.OrdinalIgnoreCase)), "Protected browser-session cookie");
                 var page = await client.GetStringAsync("/Management");
                 Assert(WebUtility.HtmlDecode(page).Contains("Đăng nhập thành công."), "Shows login success");
-                Assert(Regex.IsMatch(page, @"<strong[^>]*>manager</strong>"), "Session identifies manager");
+                Assert(WebUtility.HtmlDecode(page).Contains("Xin chào, manager"), "Session identifies manager");
                 Assert((await client.GetAsync("/admin/employee-accounts")).IsSuccessStatusCode, "Manager can open merged employee account list");
                 Assert((await client.GetAsync("/admin/employee-accounts/create")).IsSuccessStatusCode, "Manager can open merged employee creation form");
                 var token = Token(page);
@@ -86,7 +86,7 @@ internal static partial class LoginVerification
                 using var success = await Login(identifier, password);
                 Assert(success.StatusCode == HttpStatusCode.Redirect, "Second manager login: " + identifier);
                 var page = await client.GetStringAsync("/Management");
-                Assert(Regex.IsMatch(page, @"<strong[^>]*>demo-manager</strong>"), "Session switches to the second manager");
+                Assert(WebUtility.HtmlDecode(page).Contains("Xin chào, demo-manager"), "Session switches to the second manager");
                 var token = Token(page);
                 using var price = await client.PostAsync("/Management/Price", Form(("id", "60"), ("price", "87655"), ("ActorUserId", "1"), ("__RequestVerificationToken", token)));
                 using var availability = await client.PostAsync("/Management/Availability", Form(("id", "60"), ("soldOut", "false"), ("ActorUserId", "1"), ("__RequestVerificationToken", token)));
