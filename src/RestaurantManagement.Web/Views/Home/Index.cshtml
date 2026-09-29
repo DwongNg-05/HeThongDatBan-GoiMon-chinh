@@ -1,8 +1,91 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+@model RestaurantManagement.Web.Models.TableMapViewModel
+@{
+    ViewData["Title"] = "Sơ đồ bàn";
+    var shownCount = Model.Tables.Count;
+    var freeCount = Model.Tables.Count(table => table.Status == "Available");
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<section class="map-page" data-status-api="@Url.Content("~/api/table-status")" data-details-api="@Url.Content("~/api/table-map")" data-rendered-table-count="@shownCount">
+    <div class="map-heading">
+        <div>
+            <div class="eyebrow">VẬN HÀNH NHÀ HÀNG <span>•</span> HÔM NAY</div>
+            <h1>Sơ đồ bàn</h1>
+            <p class="map-subtitle">Theo dõi nhanh tình trạng bàn tại các khu vực.</p>
+        </div>
+        <div class="map-summary"><span class="summary-icon">▦</span><span><strong>@Model.TotalCount</strong><small>bàn trong nhà hàng</small></span></div>
+    </div>
+
+    <div class="map-toolbar">
+        <nav class="area-tabs" aria-label="Lọc theo khu vực">
+            <a class="area-tab @(Model.SelectedArea is null ? "active" : "")" asp-action="Index" aria-current="@(Model.SelectedArea is null ? "page" : null)">Tất cả <span>@Model.TotalCount</span></a>
+            @foreach (var area in Model.Areas)
+            {
+                var count = Model.SelectedArea == area ? shownCount : 20;
+                <a class="area-tab @(Model.SelectedArea == area ? "active" : "")" asp-action="Index" asp-route-area="@area" aria-current="@(Model.SelectedArea == area ? "page" : null)">@area <span>@count</span></a>
+            }
+        </nav>
+        <div class="quick-count"><i></i><span id="available-table-count">@freeCount</span> bàn trống <span>·</span> @shownCount bàn đang xem</div>
+    </div>
+
+    @if (Model.Tables.Count == 0)
+    {
+        <div class="empty-state"><span>▦</span><h2>Chưa có dữ liệu bàn</h2><p>Khu vực này hiện chưa có bàn nào để hiển thị.</p></div>
+    }
+    else
+    {
+        @foreach (var group in Model.Tables.GroupBy(table => table.Area))
+        {
+            <section class="area-section" aria-labelledby="area-@group.Key.GetHashCode()">
+                <div class="area-heading"><div><span class="area-mark"></span><h2 id="area-@group.Key.GetHashCode()">@group.Key</h2></div><span class="area-count">@group.Count() bàn</span></div>
+                <div class="table-grid">
+                    @foreach (var table in group)
+                    {
+                        <article class="table-card status-@table.StatusClass" data-table-code="@table.Code" data-status="@table.Status" data-changed-at="@table.ChangedAtUtc.ToString("O")" aria-label="Bàn @table.Code, sức chứa @table.Capacity người, trạng thái @table.StatusLabel">
+                            <button class="table-detail-trigger" type="button" data-open-details="@table.Code" aria-label="Xem chi tiết bàn @table.Code">
+                                <span class="table-card-top"><span class="table-glyph">♧</span><span class="table-status"><i></i><span class="table-status-label">@table.StatusLabel</span></span></span>
+                                <strong class="table-code">@table.Code</strong>
+                                <span class="table-capacity"><span class="person-icon">♙</span> @table.Capacity chỗ</span>
+                            </button>
+                            <label class="visually-hidden" for="status-@table.Code">Cập nhật trạng thái bàn @table.Code</label>
+                            <select class="table-status-editor" id="status-@table.Code" data-status-editor aria-label="Cập nhật trạng thái bàn @table.Code">
+                                <option value="Available" selected="@(table.Status == "Available")">Trống</option>
+                                <option value="Reserved" selected="@(table.Status == "Reserved")">Đã đặt trước</option>
+                                <option value="Serving" selected="@(table.Status == "Serving")">Đang phục vụ</option>
+                                <option value="Cleaning" selected="@(table.Status == "Cleaning")">Đang dọn</option>
+                            </select>
+                        </article>
+                    }
+                </div>
+            </section>
+        }
+    }
+    <div class="map-footnote"><span class="connection-indicator" id="table-map-connection" aria-hidden="true"></span><span id="table-map-connection-label" role="status" aria-live="polite">Đang kết nối sơ đồ trực tiếp…</span><span class="last-update" id="table-map-last-update">· Chưa có thay đổi mới</span></div>
+</section>
+
+<div class="table-details-overlay" id="table-details-overlay" hidden>
+<section class="table-details-dialog" id="table-details-dialog" role="dialog" aria-modal="true" aria-labelledby="table-details-title" tabindex="-1">
+    <header class="details-header">
+        <div><span class="details-kicker">THÔNG TIN BÀN</span><h2 id="table-details-title">Chi tiết bàn</h2></div>
+        <button class="details-close" id="details-close-button" type="button" data-close-details aria-label="Đóng chi tiết">×</button>
+    </header>
+    <div class="details-status-row"><span class="table-status" id="details-status"><i></i><span id="details-status-label"></span></span><span id="details-area"></span></div>
+    <p class="details-context" id="details-context" aria-live="polite">Đang tải thông tin…</p>
+    <div class="details-metrics">
+        <section class="details-metric"><span id="details-person-heading">Khách đang ngồi</span><strong id="details-person">—</strong><small id="details-person-note"></small></section>
+        <section class="details-metric"><span>Thời gian phục vụ</span><strong id="details-started">—</strong><small id="details-duration"></small></section>
+        <section class="details-metric"><span>Tạm tính hiện tại</span><strong id="details-subtotal">—</strong><small id="details-subtotal-note"></small></section>
+    </div>
+    <section class="details-reservation" id="details-reservation" hidden>
+        <div class="details-section-title">Đặt bàn sắp tới</div>
+        <strong id="details-reservation-name"></strong>
+        <span id="details-reservation-phone"></span>
+        <span id="details-reservation-guests"></span>
+        <time id="details-reservation-time"></time>
+    </section>
+    <p class="details-source" id="details-source" hidden>Dữ liệu mẫu phát triển</p>
+</section>
 </div>
+
+@section Scripts {
+    <script src="~/js/table-map.js" asp-append-version="true"></script>
+}

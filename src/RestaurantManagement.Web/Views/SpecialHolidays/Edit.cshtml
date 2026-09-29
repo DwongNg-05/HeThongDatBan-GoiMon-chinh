@@ -1,0 +1,12 @@
+@model RestaurantManagement.Web.Models.SpecialHolidayViewModel
+@{ ViewData["Title"] = Model.Id is null ? "Thêm ngày nghỉ" : "Sửa ngày nghỉ"; }
+<h1>@ViewData["Title"]</h1>
+<p class="text-muted">Chọn ngày theo lịch Việt Nam · Asia/Ho_Chi_Minh (UTC+7).</p>
+<form asp-action="@(Model.Id is null ? "Create" : "Edit")" asp-route-id="@Model.Id" method="post" style="max-width:560px">
+    <div asp-validation-summary="All" class="text-danger" role="alert"></div>
+    <div class="mb-3"><label asp-for="HolidayDate" class="form-label"></label><input asp-for="HolidayDate" type="date" class="form-control" required /><span asp-validation-for="HolidayDate" class="text-danger"></span></div>
+    <div class="mb-3"><label asp-for="Name" class="form-label"></label><input asp-for="Name" class="form-control" maxlength="150" required /><span asp-validation-for="Name" class="text-danger"></span></div>
+    <div class="form-check mb-3"><input asp-for="IsActive" class="form-check-input" /><label asp-for="IsActive" class="form-check-label"></label></div>
+    <p class="text-muted">Bỏ chọn Áp dụng để ngày này dùng lại lịch tuần.</p>
+    <button class="btn btn-primary" type="submit">Lưu ngày nghỉ</button> <a asp-action="Index" class="btn btn-outline-secondary">Hủy</a>
+</form>
