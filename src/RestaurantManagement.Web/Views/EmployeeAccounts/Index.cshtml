@@ -1,0 +1,67 @@
+@model IReadOnlyList<RestaurantManagement.Data.EmployeeAccountListItem>
+@{
+    ViewData["Title"] = "Danh sách nhân viên";
+    var statusMessage = TempData["StatusMessage"] as string;
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h1 class="mb-0">Danh sách nhân viên</h1>
+    <a asp-action="Create" class="btn btn-primary">Tạo tài khoản nhân viên</a>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(statusMessage))
+{
+    <div class="alert alert-info" role="alert">@statusMessage</div>
+}
+
+@if (Model.Count == 0)
+{
+    <div class="alert alert-secondary" role="alert">Chưa có tài khoản nhân viên nào.</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Họ tên</th>
+                    <th>Số điện thoại</th>
+                    <th>Tên đăng nhập</th>
+                    <th>Vai trò</th>
+                    <th>Trạng thái</th>
+                    <th><span class="visually-hidden">Thao tác</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var account in Model)
+                {
+                    <tr>
+                        <td>@account.FullName</td>
+                        <td>@account.PhoneNumber</td>
+                        <td>@account.UserName</td>
+                        <td>@account.RoleName</td>
+                        <td>
+                            @if (account.IsActive)
+                            {
+                                <span class="badge text-bg-success">Đang làm việc</span>
+                            }
+                            else
+                            {
+                                <span class="badge text-bg-secondary">Đã nghỉ</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            @if (account.IsActive)
+                            {
+                                <form asp-action="Deactivate" asp-route-accountId="@account.Id" method="post" class="d-inline"
+                                      onsubmit="return confirm('Đặt tài khoản này sang trạng thái đã nghỉ? Tài khoản sẽ không thể đăng nhập.');">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm">Đặt đã nghỉ</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

@@ -18,7 +18,9 @@ internal static class Verification
         {
             await DatabaseTool.Migrate(connection);
             await DatabaseTool.Migrate(connection);
-            await DatabaseTool.Seed(connection, "VerificationOnly9!" + Guid.NewGuid().ToString("N"));
+            var password = "VerificationOnly9!" + Guid.NewGuid().ToString("N");
+            await DatabaseTool.Seed(connection, password);
+            await LoginVerification.Run(connection, password);
             await Check(connection, "Seed", "SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.MenuItems)=60 AND (SELECT COUNT(*) FROM dbo.DiningTables)=60 AND (SELECT COUNT(*) FROM dbo.Reservations)=20 THEN 1 ELSE 0 END");
             await VerifyAreas(connection);
             await BookingConcurrency(connection);

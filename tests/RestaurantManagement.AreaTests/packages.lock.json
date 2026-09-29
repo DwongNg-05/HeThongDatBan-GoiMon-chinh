@@ -346,6 +346,7 @@
       "restaurantmanagement.web": {
         "type": "Project",
         "dependencies": {
+          "BCrypt.Net-Next": "[4.0.3, )",
           "Microsoft.Data.SqlClient": "[7.1.0, )",
           "Microsoft.EntityFrameworkCore.Sqlite": "[10.0.12, )",
           "QRCoder": "[1.6.0, )",
