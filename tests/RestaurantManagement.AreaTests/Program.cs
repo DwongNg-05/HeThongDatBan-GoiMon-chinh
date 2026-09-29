@@ -120,6 +120,7 @@ MenuTests.Run(Check);
 OpeningHoursTests.Run(Check);
 CategoryTests.Run(Check);
 Console.WriteLine($"{count} tests passed.");
+if (args.Contains("--authentication-http")) await AuthenticationHttpTests.Run();
 if (args.Contains("--integration")) await AreaHttpTests.Run();
 if (args.Contains("--opening-hours-http")) await AreaHttpTests.Run(openingHoursOnly: true);
 if (args.Contains("--menu-http")) await MenuHttpTests.Run();

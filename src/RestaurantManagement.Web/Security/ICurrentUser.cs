@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 
 namespace RestaurantManagement.Web.Security
 {
@@ -15,18 +15,11 @@ namespace RestaurantManagement.Web.Security
         public const string KeyRole = "Role";
 
         private readonly IHttpContextAccessor _http;
-        private readonly string? _developmentUser;
-        public SessionCurrentUser(IHttpContextAccessor http, IWebHostEnvironment environment, IConfiguration configuration)
-        {
-            _http = http;
-            if (environment.IsDevelopment() && configuration.GetValue<bool>("DevelopmentUser:Enabled"))
-                _developmentUser = configuration["DevelopmentUser:UserName"];
-        }
+        public SessionCurrentUser(IHttpContextAccessor http) => _http = http;
 
-        private ISession? Session => _http.HttpContext?.Session;
-
-        public string? UserName => Session?.GetString(KeyUserName) ?? _developmentUser;
-        public string? Role => Session?.GetString(KeyRole);
-        public bool IsAuthenticated => !string.IsNullOrEmpty(UserName);
+        private System.Security.Claims.ClaimsPrincipal? User => _http.HttpContext?.User;
+        public bool IsAuthenticated => User?.Identity?.IsAuthenticated == true;
+        public string? UserName => IsAuthenticated ? User?.Identity?.Name : null;
+        public string? Role => IsAuthenticated ? User?.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value : null;
     }
 }

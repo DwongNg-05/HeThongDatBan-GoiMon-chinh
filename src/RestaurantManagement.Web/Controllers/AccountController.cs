@@ -1,6 +1,7 @@
-﻿using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using RestaurantManagement.Data;
 using RestaurantManagement.Web.Services;
@@ -21,15 +22,19 @@ namespace RestaurantManagement.Web.Controllers
             _auditLogService = auditLogService;
         }
 
-        [HttpGet]
-        public IActionResult Login()
+        [AllowAnonymous, HttpGet]
+        public IActionResult Login(string? returnUrl = null)
         {
+            if (User.Identity?.IsAuthenticated == true)
+                return RedirectAfterLogin(returnUrl);
+            ViewData["ReturnUrl"] = returnUrl;
             return View();
         }
 
-        [HttpPost]
-        public async Task<IActionResult> Login(string username, string password)
+        [AllowAnonymous, HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> Login(string username, string password, string? returnUrl = null)
         {
+            ViewData["ReturnUrl"] = returnUrl;
             var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
             username = (username ?? "").Trim();
             password ??= "";
@@ -59,6 +64,7 @@ namespace RestaurantManagement.Web.Controllers
 
             var claims = new List<Claim>
             {
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Name, user.Username),
                 new Claim(ClaimTypes.Role, user.Role)
             };
@@ -70,13 +76,17 @@ namespace RestaurantManagement.Web.Controllers
                 CookieAuthenticationDefaults.AuthenticationScheme,
                 new ClaimsPrincipal(claimsIdentity));
 
-            return RedirectToAction("Index", "Home");
+            return RedirectAfterLogin(returnUrl);
         }
 
-        [HttpPost]
+        private IActionResult RedirectAfterLogin(string? returnUrl) =>
+            Url.IsLocalUrl(returnUrl) ? LocalRedirect(returnUrl!) : RedirectToAction("Index", "Home");
+
+        [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Logout()
         {
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            HttpContext.Session.Clear();
             return RedirectToAction("Login");
         }
 
