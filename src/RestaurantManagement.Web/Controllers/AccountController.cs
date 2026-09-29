@@ -9,7 +9,7 @@ using RestaurantManagement.Web.Authentication;
 namespace RestaurantManagement.Web.Controllers;
 
 [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
-public class AccountController(ManagementStore store, LoginSessionStore sessions) : Controller
+public class AccountController(ManagementStore store, LoginSessionStore sessions, PasswordChangeStore passwords) : Controller
 {
     public const string InvalidCredentials = "Tên đăng nhập, số điện thoại hoặc mật khẩu không hợp lệ.";
 
@@ -52,7 +52,39 @@ public class AccountController(ManagementStore store, LoginSessionStore sessions
             new ClaimsPrincipal(identity), new AuthenticationProperties { IsPersistent = false });
         TempData.Remove(IdleSessionEvents.ExpiredItem);
         TempData["Success"] = "Đăng nhập thành công.";
-        return RedirectAfterLogin(returnUrl);
+        return await passwords.IsRequired(user.Id)
+            ? RedirectToAction(nameof(DoiMatKhau)) : RedirectAfterLogin(returnUrl);
+    }
+
+    [Authorize, HttpGet]
+    public IActionResult DoiMatKhau() => View();
+
+    [Authorize, HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DoiMatKhau(string? matKhauHienTai, string? matKhauMoi, string? xacNhanMatKhau)
+    {
+        string? error = null;
+        if (string.IsNullOrWhiteSpace(matKhauHienTai)) error = "Vui lòng nhập mật khẩu hiện tại.";
+        else if (string.IsNullOrWhiteSpace(matKhauMoi) || matKhauMoi.Length < 8
+            || System.Text.Encoding.UTF8.GetByteCount(matKhauMoi) > 72
+            || !matKhauMoi.Any(char.IsLetter) || !matKhauMoi.Any(char.IsDigit))
+            error = "Mật khẩu mới phải có ít nhất 8 ký tự, gồm chữ và số, tối đa 72 byte UTF-8.";
+        else if (matKhauMoi != xacNhanMatKhau) error = "Mật khẩu xác nhận không khớp.";
+        else if (matKhauMoi == matKhauHienTai) error = "Mật khẩu mới không được trùng mật khẩu hiện tại.";
+        if (error is null)
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var sessionId = Guid.Parse(User.FindFirstValue(LoginSessionStore.SessionClaim)!);
+            if (await passwords.Change(userId, sessionId, matKhauHienTai!, matKhauMoi!))
+            {
+                TempData["Success"] = "Đổi mật khẩu thành công!";
+                return RedirectToAction("Index", "Home");
+            }
+            error = "Mật khẩu hiện tại không đúng hoặc phiên đăng nhập không còn hợp lệ.";
+        }
+        // A wrong current password must not increment the login lockout counter.
+        ModelState.AddModelError("", error);
+        ViewBag.Loi = error;
+        return View();
     }
 
     private IActionResult RedirectAfterLogin(string? returnUrl) =>

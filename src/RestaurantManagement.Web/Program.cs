@@ -29,6 +29,7 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddScoped(_ => new ManagementStore(sqlConnectionString));
 builder.Services.AddScoped(_ => new LoginSessionStore(sqlConnectionString));
 builder.Services.AddScoped<IdleSessionEvents>();
+builder.Services.AddScoped(_ => new PasswordChangeStore(sqlConnectionString));
 builder.Services.AddScoped<IEmployeeAccountStore>(_ => new SqlEmployeeAccountStore(sqlConnectionString));
 builder.Services.AddControllersWithViews(options => options.Filters.Add<SessionActivityFilter>());
 // Support Razor Pages
@@ -86,6 +87,7 @@ app.UseSession();
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<RequiredPasswordChangeMiddleware>();
 
 app.MapStaticAssets().AllowAnonymous();
 

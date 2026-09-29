@@ -10,6 +10,8 @@ internal static partial class LoginVerification
 {
     internal static async Task Run(string connection, string password)
     {
+        // S1-01 fixtures represent accounts that already completed first-login setup.
+        await DatabaseTool.Execute(connection, "UPDATE dbo.Users SET MustChangePassword=0;");
         var listener = new TcpListener(IPAddress.Loopback, 0);
         listener.Start();
         var port = ((IPEndPoint)listener.LocalEndpoint).Port;
@@ -109,6 +111,7 @@ internal static partial class LoginVerification
             Assert(hash != password && hash.StartsWith("$2") && BCrypt.Net.BCrypt.Verify(password, hash), "Database stores valid bcrypt hash, never plaintext");
             await VerifyLockout(connection, password, client, Login);
             await VerifyIdleSessions(connection, password, client, Login);
+            await VerifyRequiredPasswordChange(connection, password, client, Login);
             Console.WriteLine("PASS: S1-01 HTTP authentication, session and audit checks.");
         }
         finally
