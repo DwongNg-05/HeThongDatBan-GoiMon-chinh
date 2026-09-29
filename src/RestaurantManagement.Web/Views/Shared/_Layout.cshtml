@@ -33,6 +33,12 @@
                         <li class="nav-item"><a class="nav-link text-dark" asp-page="/QuanLyMon/Index">Quản lý món</a></li>
                         <li class="nav-item"><a class="nav-link text-dark" asp-page="/ThucDon/Index">Thực đơn</a></li>
                         <li class="nav-item"><a class="nav-link text-dark" asp-page="/GoiMon/Index">Gọi món</a></li>
+                        @if (User.IsInRole("Manager"))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="EmployeeAccounts" asp-action="Index">Quản lý tài khoản</a>
+                            </li>
+                        }
                         @if (User.Identity?.IsAuthenticated == true && User.IsInRole("QuanLy"))
                         {
                             <li class="nav-item">
