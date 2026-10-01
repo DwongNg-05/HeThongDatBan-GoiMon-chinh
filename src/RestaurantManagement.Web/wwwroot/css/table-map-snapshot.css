@@ -1,0 +1,13 @@
+.snapshot-map .status-available{background:#e8f5ec;color:#205c36;--status-color:#25834f}
+.snapshot-map .status-reserved{background:#eeedfc;color:#443b82;--status-color:#7161bd}
+.snapshot-map .status-serving{background:#fff1d8;color:#754600;--status-color:#b57413}
+.snapshot-map .status-cleaning{background:#e2f3f6;color:#215f69;--status-color:#318596}
+.snapshot-map .table-card{border:2px solid var(--status-color);min-height:140px;box-shadow:none}
+.snapshot-map .table-card:hover{transform:none}
+.snapshot-map .table-code,.snapshot-map .table-capacity{color:inherit}
+.snapshot-map .table-status{font-size:12px;background:transparent;color:inherit;white-space:normal}
+.snapshot-map .table-status i{background:var(--status-color);flex-shrink:0}
+.snapshot-legend{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px}
+.snapshot-key{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;font-weight:700}
+.snapshot-key i{width:12px;height:12px;border-radius:50%;background:var(--status-color)}
+.snapshot-map .area-heading{gap:12px;flex-wrap:wrap}

@@ -11,9 +11,10 @@ public class HomeController : Controller
 
     public HomeController(DemoTableCatalog tableCatalog) => _tableCatalog = tableCatalog;
 
+    [Microsoft.AspNetCore.Authorization.Authorize]
     public IActionResult Index()
     {
-        return View(_tableCatalog.Get(Request.Query["area"]));
+        return RedirectToAction("Index", User.IsInRole("Waiter") ? "TableMap" : User.IsInRole("Manager") ? "Management" : "ThucDon");
     }
 
     public IActionResult Privacy()

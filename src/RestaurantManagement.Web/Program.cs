@@ -39,6 +39,7 @@ builder.Services.AddRazorPages();
 
 // register existing demo services
 builder.Services.AddSingleton<RestaurantManagement.Web.Services.DemoTableCatalog>();
+builder.Services.AddScoped<ITableMapReader, SqlTableMapReader>();
 builder.Services.AddSingleton<RestaurantManagement.Web.Services.TableMapEventBroker>();
 builder.Services.AddScoped<RestaurantManagement.Web.Services.TableDetailsService>();
 builder.Services.AddScoped<RestaurantManagement.Web.Services.TableQrService>();

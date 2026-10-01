@@ -4,6 +4,7 @@ using RestaurantManagement.Web.Services;
 namespace RestaurantManagement.Web.Controllers;
 
 [ApiController]
+[Microsoft.AspNetCore.Authorization.Authorize(Roles = "Waiter")]
 [Route("api/table-map")]
 public sealed class TableDetailsController(TableDetailsService detailsService) : ControllerBase
 {
