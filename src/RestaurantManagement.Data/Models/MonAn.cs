@@ -38,6 +38,9 @@ namespace RestaurantManagement.Data.Models
         public int ThoiGianCheBienPhut { get; set; }
 
         public TrangThaiMon TrangThai { get; set; } = TrangThaiMon.DangBan;
+
+        // Đường dẫn ảnh món (cột MenuItems.ImagePath). Để trống thì dùng ảnh mặc định của nhóm món.
+        [StringLength(500, ErrorMessage = "Đường dẫn ảnh không quá 500 ký tự")]
+        public string? DuongDanAnh { get; set; }
     }
-    // No-op placeholder: file updated by patch to refresh timestamp.
 }

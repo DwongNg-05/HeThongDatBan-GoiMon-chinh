@@ -1,3 +1,13 @@
+@{
+    var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
+    var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
+    var currentPage = ViewContext.RouteData.Values["page"]?.ToString();
+    bool IsCurrent(string controller, string action) =>
+        string.Equals(currentController, controller, StringComparison.OrdinalIgnoreCase) &&
+        (controller != "Home" || string.Equals(currentAction, action, StringComparison.OrdinalIgnoreCase));
+    bool IsCurrentPage(string page) => currentPage?.StartsWith(page[..page.LastIndexOf('/') ] + "/", StringComparison.OrdinalIgnoreCase) == true;
+    var signedIn = User.Identity?.IsAuthenticated == true;
+}
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -9,73 +19,83 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/RestaurantManagement.Web.styles.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/red-white.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin-shell.css" asp-append-version="true" />
+    @await RenderSectionAsync("Styles", required: false)
 </head>
-<body>
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">Bếp Nhà</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
+<body class="@(signedIn ? "admin-shell" : "guest-shell")">
+    <a class="skip-navigation" href="#main-content">Đi đến nội dung chính</a>
+    @if (signedIn)
+    {
+        <aside class="offcanvas-lg offcanvas-start admin-sidebar" tabindex="-1" id="adminSidebar" aria-labelledby="sidebar-title">
+            <div class="sidebar-brand-row">
+                <a class="sidebar-brand" asp-area="" asp-controller="Home" asp-action="Index">
+                    <span class="brand-mark" aria-hidden="true">B</span>
+                    <span><strong id="sidebar-title">Bếp Nhà</strong><small>Hệ thống nhà hàng</small></span>
+                </a>
+                <button type="button" class="btn-close d-lg-none" data-bs-dismiss="offcanvas" data-bs-target="#adminSidebar" aria-label="Đóng menu"></button>
+            </div>
+            <nav class="sidebar-navigation" aria-label="Điều hướng chính">
+                <ul class="sidebar-links">
                         @if (User.Identity?.IsAuthenticated == true)
                         {
-                        <li class="nav-item"><a class="nav-link text-dark" asp-controller="Reservations" asp-action="Index">Đặt bàn</a></li>
-                        <li class="nav-item"><a class="nav-link text-dark" asp-controller="Areas" asp-action="Index">Quản lý khu vực</a></li>
-                        <li class="nav-item"><a class="nav-link text-dark" asp-controller="Tables" asp-action="Index">Quản lý bàn</a></li>
-                        <li class="nav-item"><a class="nav-link text-dark" asp-controller="Home" asp-action="Index">Sơ đồ bàn</a></li>
-                        <li class="nav-item"><a class="nav-link text-dark" asp-controller="OpeningHours" asp-action="Index">Giờ hoạt động</a></li>
-                        <li class="nav-item"><a class="nav-link text-dark" asp-controller="Home" asp-action="Privacy">Thông tin</a></li>
-                        <li class="nav-item"><a class="nav-link text-dark" asp-page="/QuanLyNhomMon/Index">Quản lý nhóm món</a></li>
-                        <li class="nav-item"><a class="nav-link text-dark" asp-page="/QuanLyMon/Index">Quản lý món</a></li>
-                        <li class="nav-item"><a class="nav-link text-dark" asp-page="/ThucDon/Index">Thực đơn</a></li>
-                        <li class="nav-item"><a class="nav-link text-dark" asp-page="/GoiMon/Index">Gọi món</a></li>
+                        <li class="nav-item"><a class="sidebar-link @(IsCurrent("Reservations", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("Reservations", "Index") ? "page" : null)" asp-controller="Reservations" asp-action="Index">Đặt bàn</a></li>
+                        <li class="nav-item"><a class="sidebar-link @(IsCurrent("Areas", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("Areas", "Index") ? "page" : null)" asp-controller="Areas" asp-action="Index">Quản lý khu vực</a></li>
+                        <li class="nav-item"><a class="sidebar-link @(IsCurrent("Tables", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("Tables", "Index") ? "page" : null)" asp-controller="Tables" asp-action="Index">Quản lý bàn</a></li>
+                        <li class="nav-item"><a class="sidebar-link @(IsCurrent("Home", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("Home", "Index") ? "page" : null)" asp-controller="Home" asp-action="Index">Sơ đồ bàn</a></li>
+                        <li class="nav-item"><a class="sidebar-link @(IsCurrent("OpeningHours", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("OpeningHours", "Index") ? "page" : null)" asp-controller="OpeningHours" asp-action="Index">Giờ hoạt động</a></li>
+                        <li class="nav-item"><a class="sidebar-link @(IsCurrent("Home", "Privacy") ? "is-active" : "")" aria-current="@(IsCurrent("Home", "Privacy") ? "page" : null)" asp-controller="Home" asp-action="Privacy">Thông tin</a></li>
+                        <li class="nav-item"><a class="sidebar-link @(IsCurrentPage("/QuanLyNhomMon/Index") ? "is-active" : "")" aria-current="@(IsCurrentPage("/QuanLyNhomMon/Index") ? "page" : null)" asp-page="/QuanLyNhomMon/Index">Quản lý nhóm món</a></li>
+                        <li class="nav-item"><a class="sidebar-link @(IsCurrentPage("/QuanLyMon/Index") ? "is-active" : "")" aria-current="@(IsCurrentPage("/QuanLyMon/Index") ? "page" : null)" asp-page="/QuanLyMon/Index">Quản lý món</a></li>
+                        <li class="nav-item"><a class="sidebar-link @(IsCurrent("ThucDon", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("ThucDon", "Index") ? "page" : null)" asp-controller="ThucDon" asp-action="Index">Thực đơn</a></li>
+                        <li class="nav-item"><a class="sidebar-link @(IsCurrentPage("/GoiMon/Index") ? "is-active" : "")" aria-current="@(IsCurrentPage("/GoiMon/Index") ? "page" : null)" asp-page="/GoiMon/Index">Gọi món</a></li>
                         @if (User.IsInRole("Manager"))
                         {
                             <li class="nav-item">
-                                <a class="nav-link text-dark" asp-controller="EmployeeAccounts" asp-action="Index">Quản lý tài khoản</a>
+                                <a class="sidebar-link @(IsCurrent("EmployeeAccounts", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("EmployeeAccounts", "Index") ? "page" : null)" asp-controller="EmployeeAccounts" asp-action="Index">Quản lý tài khoản</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="sidebar-link @(IsCurrent("Management", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("Management", "Index") ? "page" : null)" asp-area="" asp-controller="Management" asp-action="Index">Sửa giá món</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="sidebar-link @(IsCurrent("AuditLogs", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("AuditLogs", "Index") ? "page" : null)" asp-area="" asp-controller="AuditLogs" asp-action="Index">Nhật ký hệ thống</a>
                             </li>
                         }
                         @if (User.Identity?.IsAuthenticated == true && User.IsInRole("QuanLy"))
                         {
                             <li class="nav-item">
-                                <a class="nav-link text-dark" asp-area="" asp-controller="MenuItem" asp-action="Index">Món ăn</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link text-dark" asp-area="" asp-controller="AuditLogs" asp-action="Index">Nhật ký hệ thống</a>
+                                <a class="sidebar-link @(IsCurrent("MenuItem", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("MenuItem", "Index") ? "page" : null)" asp-area="" asp-controller="MenuItem" asp-action="Index">Món ăn</a>
                             </li>
                         }
                         }
-                    </ul>
 
-                    <ul class="navbar-nav">
-                        @if (User.Identity?.IsAuthenticated == true)
-                        {
-                            <li class="nav-item d-flex align-items-center me-2">
-                                <span class="navbar-text">Xin chào, @User.Identity.Name</span>
-                            </li>
-                            <li class="nav-item">
-                                <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
-                                    <button type="submit" class="btn btn-outline-secondary btn-sm">Đăng xuất</button>
-                                </form>
-                            </li>
-                        }
-                        else
-                        {
-                            <li class="nav-item">
-                                <a class="nav-link text-dark" asp-area="" asp-controller="Account" asp-action="Login">Đăng nhập</a>
-                            </li>
-                        }
-                    </ul>
-                </div>
+                </ul>
+            </nav>
+            <div class="sidebar-account">
+                <span class="account-avatar" aria-hidden="true">@(User.Identity?.Name?.FirstOrDefault().ToString().ToUpperInvariant())</span>
+                <div class="account-details"><small>Tài khoản hiện tại</small><strong>@User.Identity?.Name</strong></div>
+                <form asp-area="" asp-controller="Account" asp-action="Logout" method="post">
+                    <button type="submit" class="sidebar-logout">Đăng xuất</button>
+                </form>
             </div>
-        </nav>
-    </header>
-    <div class="container">
-        <main role="main" class="pb-3">
+        </aside>
+    }
+    <div class="admin-workspace">
+        <header class="workspace-header">
+            @if (signedIn)
+            {
+                <button class="menu-toggle d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#adminSidebar" aria-controls="adminSidebar" aria-label="Mở menu điều hướng">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+                </button>
+                <div class="workspace-location"><span>Bếp Nhà</span><span aria-hidden="true">/</span><strong>@ViewData["Title"]</strong></div>
+                <span class="workspace-caption">Hệ thống nhà hàng</span>
+            }
+            else
+            {
+                <a class="sidebar-brand" asp-area="" asp-controller="Home" asp-action="Index"><span class="brand-mark" aria-hidden="true">B</span><strong>Bếp Nhà</strong></a>
+                <a asp-area="" asp-controller="Account" asp-action="Login">Đăng nhập</a>
+            }
+        </header>
+        <main id="main-content" class="workspace-content" tabindex="-1">
             @RenderBody()
         </main>
     </div>

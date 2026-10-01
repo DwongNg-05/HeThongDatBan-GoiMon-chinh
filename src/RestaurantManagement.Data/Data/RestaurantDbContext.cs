@@ -16,6 +16,19 @@ namespace RestaurantManagement.Data.Data
         public DbSet<DongHang> DongHangs { get; set; } = null!;
         public DbSet<GhiNhanThayDoiGia> GhiNhanThayDoiGias { get; set; } = null!;
 
+        // S1-05 Task 3: nhật ký thay đổi giá chỉ được thêm, không được sửa hoặc xoá qua EF.
+        public override int SaveChanges(bool acceptAllChangesOnSuccess)
+        {
+            AppendOnlyGuard.Ensure<GhiNhanThayDoiGia>(ChangeTracker);
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+
+        public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+        {
+            AppendOnlyGuard.Ensure<GhiNhanThayDoiGia>(ChangeTracker);
+            return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -37,6 +50,7 @@ namespace RestaurantManagement.Data.Data
                 entity.Property(m => m.DonViTinh).HasColumnName("Unit").HasMaxLength(30);
                 entity.Property(m => m.MoTaNgan).HasColumnName("Description").HasMaxLength(1000).IsRequired(false);
                 entity.Property(m => m.ThoiGianCheBienPhut).HasColumnName("EstimatedPrepMinutes");
+                entity.Property(m => m.DuongDanAnh).HasColumnName("ImagePath").HasMaxLength(500).IsRequired(false);
                 entity.Property(m => m.TrangThai).HasColumnName("IsActive")
                     .HasConversion(value => value == TrangThaiMon.DangBan,
                         value => value ? TrangThaiMon.DangBan : TrangThaiMon.NgungBan);

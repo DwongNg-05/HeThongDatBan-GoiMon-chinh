@@ -205,3 +205,19 @@ Chạy `migrate` để áp dụng `008_IdleSessions.sql` trước khi khởi đ�
 Demo: đăng nhập → mở quản lý hoặc cập nhật món → không gửi thao tác trong 30 phút → tải lại quản lý để thấy thông báo hết phiên → đăng nhập lại và sử dụng bình thường.
 
 Lệnh `verify` bao gồm kiểm tra phiên ở phút 29, làm mới thời gian bằng truy cập và cập nhật hợp lệ, không gia hạn bằng tải tài nguyên/yêu cầu lỗi, hết hạn từ phút 30, thông báo trên trang đăng nhập, chặn POST đổi giá sau hết hạn, phát lại cookie cũ, đăng nhập lại tạo phiên mới và thu hồi phiên khi đăng xuất. Mốc 30 phút được mô phỏng bằng dữ liệu thời gian trong database kiểm thử riêng; không có đường tắt thay đổi hạn phiên trên ứng dụng thật.
+
+## S2-01 Task 1 — thực đơn công khai
+
+Khách mở `/ThucDon` trên điện thoại mà không cần đăng nhập, xem món theo nhóm với ảnh, tên, mô tả ngắn và giá VND (`45.000 ₫`). API công khai: `GET /api/thuc-don`. Nạp dữ liệu mẫu bằng `dotnet run --project tools/RestaurantManagement.DbTool -- seed-menu-demo` (chạy lại an toàn, không cần mật khẩu). Quy tắc món đang bán / hết trong ngày / ngừng bán, kịch bản demo và kiểm thử: xem [docs/S2-01-Task1.md](docs/S2-01-Task1.md).
+
+## S1-05 Task 1 — nhật ký đăng nhập và sửa giá món
+
+Chạy `migrate` để áp dụng `020_SecurityAuditLog.sql`. Đăng nhập thành công, đăng nhập thất bại và sửa giá món được ghi vào kho riêng `dbo.SecurityAuditLogs` (chỉ thêm, không sửa/xoá) kèm thời điểm, tài khoản, vai trò, IP. Quản lý xem tại **Nhật ký hệ thống** (`/AuditLogs`), mới nhất lên đầu; vai trò khác bị từ chối. Chi tiết, demo và kiểm thử: [docs/S1-05-Task1.md](docs/S1-05-Task1.md).
+
+## S1-05 Task 2 — lọc nhật ký
+
+Chạy `migrate` để áp dụng `021_SecurityAuditFilter.sql`. Màn hình **Nhật ký hệ thống** có bộ lọc khoảng ngày (giờ Việt Nam, tối đa 90 ngày) và tài khoản (chọn từ danh sách); mặc định 7 ngày gần nhất. Quy tắc cần chốt với PO, demo và kiểm thử: [docs/S1-05-Task2.md](docs/S1-05-Task2.md).
+
+## S1-05 Task 3 — nhật ký chỉ đọc, kiểm soát truy cập
+
+Chạy `migrate` để áp dụng `022_AuditReadOnlyHardening.sql`. Nhật ký bảo mật, nhật ký nghiệp vụ và lịch sử giá chỉ được thêm: trigger chặn sửa/xoá, bảng chặn khoá ngoại ngăn `TRUNCATE`, tài khoản ứng dụng `restaurant_app` bị `DENY` thao tác trực tiếp, EF từ chối sửa/xoá. Màn hình **Nhật ký hệ thống** và **Lịch sử giá** chỉ dành cho Quản lý, kể cả khi gõ đường dẫn trực tiếp; quyền bị thu hồi khi đang đăng nhập cũng bị chặn. Kết quả rà soát, demo và kiểm thử: [docs/S1-05-Task3.md](docs/S1-05-Task3.md).

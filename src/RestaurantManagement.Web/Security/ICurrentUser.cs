@@ -7,6 +7,8 @@ namespace RestaurantManagement.Web.Security
         bool IsAuthenticated { get; }
         string? UserName { get; }
         string? Role { get; }
+        /// <summary>Địa chỉ IP của yêu cầu hiện tại (dùng cho nhật ký bảo mật).</summary>
+        string IpAddress { get; }
     }
 
     public class SessionCurrentUser : ICurrentUser
@@ -21,5 +23,6 @@ namespace RestaurantManagement.Web.Security
         public bool IsAuthenticated => User?.Identity?.IsAuthenticated == true;
         public string? UserName => IsAuthenticated ? User?.Identity?.Name : null;
         public string? Role => IsAuthenticated ? User?.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value : null;
+        public string IpAddress => RestaurantManagement.Web.Models.ClientIp.From(_http.HttpContext);
     }
 }

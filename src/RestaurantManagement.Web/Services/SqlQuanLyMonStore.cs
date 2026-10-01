@@ -137,6 +137,36 @@ namespace RestaurantManagement.Web.Services
                 .ToList();
         }
 
+        // Đọc qua view dbo.vw_PublicMenu (migration 004): chỉ món IsActive=1 thuộc nhóm IsActive=1,
+        // ảnh = ảnh món hoặc ảnh mặc định của nhóm, IsSoldOut chỉ đúng trong ngày nghiệp vụ UTC+7 hiện tại.
+        public IReadOnlyList<NhomThucDonCongKhai> LayThucDonCongKhai()
+        {
+            var nhom = LayNhomMonDangSuDung().Select(n => (n.Id, n.Ten)).ToList();
+            var mon = _db.Database.SqlQuery<DongThucDonCongKhai>($"""
+                SELECT Id, CategoryId, Name, CAST(Price AS int) AS Price, Unit, Description,
+                       ImagePath, SortOrder, IsSoldOut
+                FROM dbo.vw_PublicMenu
+                """)
+                .AsEnumerable()
+                .Select(m => new MonDangBanTho(m.Id, m.CategoryId, m.Name, m.Description, m.Price,
+                    m.Unit, m.ImagePath, m.SortOrder, m.IsSoldOut))
+                .ToList();
+            return ThucDonCongKhaiBuilder.Tao(nhom, mon);
+        }
+
+        internal sealed class DongThucDonCongKhai
+        {
+            public int Id { get; set; }
+            public int CategoryId { get; set; }
+            public string Name { get; set; } = string.Empty;
+            public int Price { get; set; }
+            public string Unit { get; set; } = string.Empty;
+            public string? Description { get; set; }
+            public string? ImagePath { get; set; }
+            public int SortOrder { get; set; }
+            public bool IsSoldOut { get; set; }
+        }
+
         private void KiemTraNhomMon(int nhomMonId)
         {
             if (!_db.NhomMons.AsNoTracking().Any(n => n.Id == nhomMonId))
@@ -169,10 +199,11 @@ namespace RestaurantManagement.Web.Services
             existing.MoTaNgan = updated.MoTaNgan;
             existing.ThoiGianCheBienPhut = updated.ThoiGianCheBienPhut;
             existing.TrangThai = updated.TrangThai;
+            existing.DuongDanAnh = updated.DuongDanAnh;
 
             if (oldPrice != newPrice)
             {
-                _db.Database.ExecuteSqlInterpolated($"EXEC dbo.usp_UpdateMenuPrice {existing.Id}, {newPrice}, {actorUserId}");
+                _db.Database.ExecuteSqlInterpolated($"EXEC dbo.usp_UpdateMenuPrice {existing.Id}, {newPrice}, {actorUserId}, {_user.IpAddress}");
             }
 
             _db.SaveChanges();

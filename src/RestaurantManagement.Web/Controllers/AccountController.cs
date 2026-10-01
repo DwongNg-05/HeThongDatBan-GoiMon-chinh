@@ -9,7 +9,7 @@ using RestaurantManagement.Web.Authentication;
 namespace RestaurantManagement.Web.Controllers;
 
 [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
-public class AccountController(ManagementStore store, LoginSessionStore sessions, PasswordChangeStore passwords) : Controller
+public class AccountController(ManagementStore store, LoginSessionStore sessions, PasswordChangeStore passwords, SecurityAuditStore audit) : Controller
 {
     public const string InvalidCredentials = "Tên đăng nhập, số điện thoại hoặc mật khẩu không hợp lệ.";
 
@@ -31,8 +31,11 @@ public class AccountController(ManagementStore store, LoginSessionStore sessions
         ViewData["ReturnUrl"] = returnUrl;
         var result = ModelState.IsValid ? await store.Authenticate(model.Identifier, model.Password) : new LoginResult(null);
         var user = result.User;
+        var ipAddress = ClientIp.From(HttpContext);
         if (user is null)
         {
+            // S1-05: ghi đăng nhập thất bại (sai mật khẩu, tài khoản khoá/ngừng hoạt động, định danh không tồn tại, thiếu dữ liệu).
+            await audit.WriteLogin(result.Candidate?.Id, model.Identifier, succeeded: false, ipAddress);
             ModelState.Clear();
             ModelState.AddModelError("", InvalidCredentials);
             model.Password = "";
@@ -50,6 +53,7 @@ public class AccountController(ManagementStore store, LoginSessionStore sessions
         }, CookieAuthenticationDefaults.AuthenticationScheme);
         await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
             new ClaimsPrincipal(identity), new AuthenticationProperties { IsPersistent = false });
+        await audit.WriteLogin(user.Id, user.UserName, succeeded: true, ipAddress);
         TempData.Remove(IdleSessionEvents.ExpiredItem);
         TempData["Success"] = "Đăng nhập thành công.";
         return await passwords.IsRequired(user.Id)

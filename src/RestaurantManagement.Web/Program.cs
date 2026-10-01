@@ -28,6 +28,8 @@ builder.Services.AddAuthorization(options =>
 });
 builder.Services.AddScoped(_ => new ManagementStore(sqlConnectionString));
 builder.Services.AddScoped(_ => new LoginSessionStore(sqlConnectionString));
+// S1-05: nhật ký bảo mật riêng (dbo.SecurityAuditLogs).
+builder.Services.AddScoped(_ => new SecurityAuditStore(sqlConnectionString));
 builder.Services.AddScoped<IdleSessionEvents>();
 builder.Services.AddScoped(_ => new PasswordChangeStore(sqlConnectionString));
 builder.Services.AddScoped<IEmployeeAccountStore>(_ => new SqlEmployeeAccountStore(sqlConnectionString));
@@ -59,6 +61,10 @@ builder.Services.AddScoped<RestaurantManagement.Web.Services.IQuanLyMonStore, Re
 // In-memory store used by the ThucDon and GoiMon Razor Pages
 builder.Services.AddSingleton<RestaurantManagement.Web.Services.InMemoryQuanLyMonStore>();
 
+// Ảnh món tải lên (JPG/PNG): lưu tại wwwroot/uploads/mon-an, đường dẫn "/uploads/mon-an/..." ghi vào MenuItems.ImagePath.
+var thuMucAnhMon = Path.Combine(builder.Environment.WebRootPath ?? Path.Combine(builder.Environment.ContentRootPath, "wwwroot"), "uploads", "mon-an");
+builder.Services.AddSingleton<IKhoAnhMonAn>(_ => new KhoAnhMonAnTrenDia(thuMucAnhMon));
+
 builder.Services.AddAuthentication("Cookies")
     .AddCookie("Cookies", options =>
     {
@@ -81,6 +87,15 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
     app.UseHttpsRedirection();
 }
+
+// Phục vụ ảnh món tải lên lúc chạy (MapStaticAssets chỉ biết tệp có sẵn khi build). Đặt trước xác thực để khách xem được.
+Directory.CreateDirectory(thuMucAnhMon);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(thuMucAnhMon),
+    RequestPath = "/uploads/mon-an",
+    OnPrepareResponse = context => context.Context.Response.Headers["X-Content-Type-Options"] = "nosniff"
+});
 
 app.UseRouting();
 app.UseSession();

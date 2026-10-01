@@ -1,11 +1,2 @@
-using Microsoft.AspNetCore.Mvc.RazorPages;
-using RestaurantManagement.Web.Services;
-
-namespace RestaurantManagement.Web.Pages.ThucDon;
-
-public class IndexModel(IQuanLyMonStore store) : PageModel
-{
-    public IReadOnlyList<NhomMonThucDon> NhomMon { get; private set; } = [];
-
-    public void OnGet() => NhomMon = store.LayThucDonTheoNhom();
-}
+// Đã chuyển sang ASP.NET Core MVC: Controllers/ThucDonController.cs + Views/ThucDon/Index.cshtml.
+// Hãy xoá cả thư mục Pages/ThucDon (file này không còn mã).

@@ -1,0 +1,61 @@
+@model IReadOnlyList<RestaurantManagement.Web.Services.NhomThucDonCongKhai>
+@{
+    ViewData["Title"] = "Thực đơn";
+    string AnhSrc(string url) => url.StartsWith('/') ? Url.Content("~" + url) : url;
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/public-menu.css" asp-append-version="true" />
+}
+
+<div class="public-menu">
+    <header class="public-menu-hero">
+        <span class="menu-eyebrow">BẾP NHÀ · THỰC ĐƠN</span>
+        <h1>Thực đơn</h1>
+        <p>Giá niêm yết bằng đồng Việt Nam (VND).</p>
+    </header>
+
+    @if (Model.Count == 0)
+    {
+        <p class="public-menu-empty">Thực đơn đang được cập nhật. Vui lòng quay lại sau.</p>
+    }
+    else
+    {
+        <nav class="public-menu-tabs" aria-label="Nhóm món">
+            @foreach (var nhom in Model)
+            {
+                <a href="#nhom-@nhom.Id">@nhom.Ten</a>
+            }
+        </nav>
+
+        @foreach (var nhom in Model)
+        {
+            <section class="public-menu-group" id="nhom-@nhom.Id" aria-labelledby="tieu-de-nhom-@nhom.Id" data-nhom-id="@nhom.Id">
+                <h2 id="tieu-de-nhom-@nhom.Id">@nhom.Ten</h2>
+                @if (nhom.MonAn.Count == 0)
+                {
+                    <p class="public-menu-group-empty">Nhóm này chưa có món.</p>
+                }
+                else
+                {
+                    <ul class="public-menu-list">
+                        @foreach (var mon in nhom.MonAn)
+                        {
+                            <li class="public-dish" data-mon-id="@mon.Id">
+                                <img class="public-dish-image" src="@AnhSrc(mon.AnhUrl)" alt="Ảnh món @mon.Ten"
+                                     width="96" height="96" loading="lazy" decoding="async" />
+                                <div class="public-dish-body">
+                                    <h3 class="public-dish-name">@mon.Ten</h3>
+                                    @if (!string.IsNullOrEmpty(mon.MoTaNgan))
+                                    {
+                                        <p class="public-dish-desc">@mon.MoTaNgan</p>
+                                    }
+                                    <p class="public-dish-price"><data value="@mon.GiaVnd">@mon.GiaHienThi</data><span class="public-dish-unit"> / @mon.DonViTinh</span></p>
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                }
+            </section>
+        }
+    }
+</div>

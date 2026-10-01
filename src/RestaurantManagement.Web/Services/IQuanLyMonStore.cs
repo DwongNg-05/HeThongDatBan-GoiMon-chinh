@@ -25,6 +25,10 @@ namespace RestaurantManagement.Web.Services
         // Public Menu (Thực đơn công khai)
         IReadOnlyList<NhomMonThucDon> LayThucDonTheoNhom();
 
+        // Thực đơn cho khách (không cần đăng nhập): chỉ nhóm đang sử dụng và món đang bán,
+        // kèm ảnh, mô tả ngắn, giá VND và cờ hết trong ngày. Xem docs/S2-01-Task1.md.
+        IReadOnlyList<NhomThucDonCongKhai> LayThucDonCongKhai();
+
         // DonHang (Order) Management
         DonHang TaoDonHang();
         DonHang? LayDonHang(int donHangId);

@@ -2,6 +2,11 @@
 @model RestaurantManagement.Web.Pages.QuanLyMon.IndexModel
 @{
     ViewData["Title"] = "Danh sách món";
+    string AnhSrc(string? duongDan)
+    {
+        var anh = RestaurantManagement.Web.Services.AnhMonAn.ChonAnh(duongDan);
+        return anh.StartsWith('/') ? Url.Content("~" + anh) : anh;
+    }
 }
 
 <h2>Danh sách món</h2>
@@ -14,6 +19,7 @@
     <thead>
         <tr>
             <th>#</th>
+            <th>Ảnh</th>
             <th>Tên món</th>
             <th>Giá bán</th>
             <th>Đơn vị</th>
@@ -30,6 +36,7 @@
     {
         <tr>
             <td>@idx</td>
+            <td><img src="@AnhSrc(item.DuongDanAnh)" alt="Ảnh món @item.Ten" width="56" height="56" style="object-fit:cover;border-radius:8px" loading="lazy" /></td>
             <td>@item.Ten</td>
             <td>@(item.GiaBanVnd.ToString("N0")) VND</td>
             <td>@item.DonViTinh</td>
@@ -46,7 +53,10 @@
             </td>
             <td>
                 <a asp-page="/QuanLyMon/Sua" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary">Sửa</a>
-                <a asp-page="/QuanLyMon/NhatKyGia" asp-route-id="@item.Id" class="btn btn-sm btn-outline-secondary ms-1">Lịch sử giá</a>
+                @if (User.IsInRole("Manager"))
+                {
+                    <a asp-page="/QuanLyMon/NhatKyGia" asp-route-id="@item.Id" class="btn btn-sm btn-outline-secondary ms-1">Lịch sử giá</a>
+                }
             </td>
         </tr>
         idx++;

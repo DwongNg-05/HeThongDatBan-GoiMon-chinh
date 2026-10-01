@@ -21,7 +21,7 @@ public class ManagementController(ManagementStore store) : Controller
             ModelState.AddModelError("price", "Giá không hợp lệ.");
             TempData["Error"] = "Giá phải là số nguyên từ 1 đến 50.000.000 đồng.";
         }
-        else await Save(() => store.ChangeMenu(ActorId, id, price: price));
+        else await Save(() => store.ChangeMenu(ActorId, id, price: price, ipAddress: ClientIp.From(HttpContext)));
         return RedirectToAction(nameof(Index));
     }
 

@@ -23,20 +23,21 @@ namespace RestaurantManagement.Web.Services
         {
             var defaults = new[]
             {
-                ("Khai vị", "Gỏi cuốn", 45000, "Đĩa"),
-                ("Món chính", "Cơm chiên hải sản", 85000, "Đĩa"),
-                ("Lẩu", "Lẩu Thái", 250000, "Nồi"),
-                ("Tráng miệng", "Chè hạt sen", 30000, "Chén"),
-                ("Đồ uống", "Trà đào", 35000, "Ly")
+                ("Khai vị", "Gỏi cuốn", 45000, "Đĩa", "Tôm, thịt, bún và rau sống cuốn bánh tráng, chấm tương đậu.", "/images/thuc-don/khai-vi.svg"),
+                ("Món chính", "Cơm chiên hải sản", 85000, "Đĩa", "Cơm chiên tôm mực, trứng và rau củ, đảo lửa lớn.", "/images/thuc-don/mon-chinh.svg"),
+                ("Lẩu", "Lẩu Thái", 250000, "Nồi", "Nước lẩu chua cay, hải sản tươi, nấm và rau ăn kèm cho 2–3 người.", "/images/thuc-don/lau.svg"),
+                ("Tráng miệng", "Chè hạt sen", 30000, "Chén", "Hạt sen bùi, nước đường phèn thanh mát.", "/images/thuc-don/trang-mieng.svg"),
+                ("Đồ uống", "Trà đào", 35000, "Ly", "Trà đen ủ lạnh với đào miếng và sả.", "/images/thuc-don/do-uong.svg")
             };
             for (var index = 0; index < defaults.Length; index++)
             {
-                var (tenNhom, tenMon, gia, donVi) = defaults[index];
+                var (tenNhom, tenMon, gia, donVi, moTa, anh) = defaults[index];
                 var nhom = AddNhomMon(new NhomMon { Ten = tenNhom, ThuTuHienThi = index + 1 });
                 ThemMonAn(new MonAn
                 {
                     Ten = tenMon, NhomMonId = nhom.Id, GiaBanVnd = gia,
-                    DonViTinh = donVi, ThoiGianCheBienPhut = 15
+                    DonViTinh = donVi, ThoiGianCheBienPhut = 15,
+                    MoTaNgan = moTa, DuongDanAnh = anh
                 });
             }
         }
@@ -80,6 +81,14 @@ namespace RestaurantManagement.Web.Services
             return LayNhomMonDangSuDung()
                 .Select(n => new NhomMonThucDon(n.Id, n.Ten, monDangBan[n.Id].ToArray())).ToArray();
         }
+
+        // Store bộ nhớ không theo dõi "hết trong ngày" nên mọi món đang bán đều HetTrongNgay = false.
+        public IReadOnlyList<NhomThucDonCongKhai> LayThucDonCongKhai() =>
+            ThucDonCongKhaiBuilder.Tao(
+                LayNhomMonDangSuDung().Select(n => (n.Id, n.Ten)),
+                LayTatCaMonAn().Where(m => m.TrangThai == TrangThaiMon.DangBan)
+                    .Select(m => new MonDangBanTho(m.Id, m.NhomMonId, m.Ten, m.MoTaNgan, m.GiaBanVnd,
+                        m.DonViTinh, m.DuongDanAnh, 0, false)));
 
         // no external DB integration in the in-memory store
 
@@ -195,6 +204,7 @@ namespace RestaurantManagement.Web.Services
                     old.MoTaNgan = updated.MoTaNgan;
                     old.ThoiGianCheBienPhut = updated.ThoiGianCheBienPhut;
                     old.TrangThai = updated.TrangThai;
+                    old.DuongDanAnh = updated.DuongDanAnh;
                     return old;
                 });
 

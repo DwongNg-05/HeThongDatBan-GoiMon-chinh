@@ -11,10 +11,11 @@ internal static class MenuTests
         check(menu.Select(n => n.Ten).SequenceEqual(expected), "Menu: exactly five default groups in required order");
         check(menu.All(n => n.MonAn.Count > 0 && n.MonAn.All(m => m.NhomMonId == n.Id)), "Menu: sample dishes belong to their displayed group");
         check(menu.All(n => store.LayMonAnTheoNhom(n.Id).All(m => m.NhomMonId == n.Id)), "Menu: query dishes by group");
-        var publicPage = new RestaurantManagement.Web.Pages.ThucDon.IndexModel(store);
+        var publicMenu = new RestaurantManagement.Web.Controllers.ThucDonController(store);
+        int[] PublicIds() => ((IReadOnlyList<NhomThucDonCongKhai>)((Microsoft.AspNetCore.Mvc.ViewResult)publicMenu.Index()).Model!).Select(n => n.Id).ToArray();
         var orderPage = new RestaurantManagement.Web.Pages.GoiMon.IndexModel(store);
-        publicPage.OnGet(); orderPage.OnGet();
-        check(publicPage.NhomMon.Select(n => n.Id).SequenceEqual(orderPage.NhomMon.Select(n => n.Id)), "Menu: public and ordering pages have identical group order");
+        orderPage.OnGet();
+        check(PublicIds().SequenceEqual(orderPage.NhomMon.Select(n => n.Id)), "Menu: public and ordering pages have identical group order");
         var first = store.LayTatCaNhomMon().First();
         first.ThuTuHienThi = 100;
         check(store.LayThucDonTheoNhom().Last().Id == first.Id, "Menu: explicit display order takes precedence over ID");
@@ -25,8 +26,8 @@ internal static class MenuTests
         var inactive = store.LayTatCaNhomMon().First();
         inactive.DangSuDung = false;
         check(store.LayThucDonTheoNhom().All(n => n.Id != inactive.Id), "Menu: inactive group and its dishes are excluded");
-        publicPage.OnGet(); orderPage.OnGet();
-        check(publicPage.NhomMon.Select(n => n.Id).SequenceEqual(orderPage.NhomMon.Select(n => n.Id)), "Menu: both pages remain consistent after status/order changes");
+        orderPage.OnGet();
+        check(PublicIds().SequenceEqual(orderPage.NhomMon.Select(n => n.Id)), "Menu: both pages remain consistent after status/order changes");
         var invalidRejected = false;
         try { store.ThemMonAn(new MonAn { NhomMonId = int.MaxValue }); }
         catch (ArgumentException) { invalidRejected = true; }

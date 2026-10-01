@@ -6,7 +6,8 @@
 
 <h2>Tạo món mới</h2>
 
-<form method="post">
+<form method="post" enctype="multipart/form-data">
+    <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
     <div class="mb-3">
         <label asp-for="Mon.Ten" class="form-label">Tên món</label>
         <input asp-for="Mon.Ten" class="form-control" />
@@ -40,6 +41,14 @@
     </div>
 
     <div class="mb-3">
+        <label asp-for="AnhMon" class="form-label">Ảnh món</label>
+        <input asp-for="AnhMon" type="file" class="form-control" accept="@RestaurantManagement.Web.Services.QuyTacAnhMonAn.AcceptHtml" data-anh-preview="anh-mon-preview" />
+        <div class="form-text">Định dạng JPG hoặc PNG, tối đa 5 MB. Bỏ trống để dùng ảnh mặc định của nhóm món.</div>
+        <span asp-validation-for="AnhMon" class="text-danger"></span>
+        <img id="anh-mon-preview" alt="Xem trước ảnh món" class="mt-2 rounded border" style="max-width:160px;max-height:160px;object-fit:cover" hidden />
+    </div>
+
+    <div class="mb-3">
         <label asp-for="Mon.ThoiGianCheBienPhut" class="form-label">Thời gian chế biến (phút)</label>
         <input asp-for="Mon.ThoiGianCheBienPhut" class="form-control" />
         <span asp-validation-for="Mon.ThoiGianCheBienPhut" class="text-danger"></span>
@@ -59,4 +68,5 @@
 
 @section Scripts{
     <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/anh-mon-preview.js" asp-append-version="true"></script>
 }

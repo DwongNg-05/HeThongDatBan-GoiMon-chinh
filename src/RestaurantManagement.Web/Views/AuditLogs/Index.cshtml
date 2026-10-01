@@ -1,131 +1,113 @@
-﻿@model IEnumerable<RestaurantManagement.Data.Models.AuditLog>
-
+@using RestaurantManagement.Web.Models
+@model SecurityAuditViewModel
 @{
     ViewData["Title"] = "Nhật ký hệ thống";
+    var filter = Model.Filter;
+    var items = Model.Page.Items;
+    string BadgeClass(string action) => action switch
+    {
+        SecurityAuditEntry.LoginSucceeded => "bg-success",
+        SecurityAuditEntry.LoginFailed => "bg-danger",
+        SecurityAuditEntry.PriceChanged => "bg-primary",
+        _ => "bg-secondary"
+    };
 }
 
-<h2>Nhật ký hệ thống</h2>
+<h1 class="h3">Nhật ký hệ thống</h1>
+<p class="text-muted">
+    Đăng nhập thành công, đăng nhập thất bại và sửa giá món; mới nhất lên đầu. Ngày và giờ theo giờ Việt Nam (UTC+7).
+    Nhật ký chỉ để xem, không thể sửa hoặc xoá.
+</p>
 
-<!-- Bộ lọc -->
-<form method="get" class="mb-4">
-
-    <div class="row">
-
-        <!-- Từ ngày -->
-        <div class="col-md-3">
-            <label class="form-label">Từ ngày</label>
-            <input type="date"
-                   name="fromDate"
-                   value="@ViewBag.FromDate"
-                   class="form-control" />
-        </div>
-
-        <!-- Đến ngày -->
-        <div class="col-md-3">
-            <label class="form-label">Đến ngày</label>
-            <input type="date"
-                   name="toDate"
-                   value="@ViewBag.ToDate"
-                   class="form-control" />
-        </div>
-
-        <!-- Tài khoản -->
-        <div class="col-md-3">
-            <label class="form-label">Tài khoản</label>
-
-            <select name="username" class="form-select">
-
-                <option value="">-- Tất cả tài khoản --</option>
-
-                @foreach (var user in ViewBag.Usernames)
-                {
-                    if (user == ViewBag.Username)
-                    {
-                        <option value="@user" selected>
-                            @user
-                        </option>
-                    }
-                    else
-                    {
-                        <option value="@user">
-                            @user
-                        </option>
-                    }
-                }
-
-            </select>
-        </div>
-
-        <!-- Nút lọc -->
-        <div class="col-md-3 d-flex align-items-end">
-
-            <button type="submit"
-                    class="btn btn-primary me-2">
-                Lọc
-            </button>
-
-            <a asp-action="Index"
-                   class="btn btn-secondary">
-                Đặt lại
-            </a>
-
-        </div>
-
+<form method="get" asp-controller="AuditLogs" asp-action="Index" id="audit-filter" class="row g-3 align-items-end mb-3" novalidate>
+    <div class="col-sm-6 col-lg-3">
+        <label for="fromDate" class="form-label">Từ ngày</label>
+        <input type="date" id="fromDate" name="fromDate" class="form-control" value="@filter.FromDate.ToString("yyyy-MM-dd")" />
     </div>
-
+    <div class="col-sm-6 col-lg-3">
+        <label for="toDate" class="form-label">Đến ngày</label>
+        <input type="date" id="toDate" name="toDate" class="form-control" value="@filter.ToDate.ToString("yyyy-MM-dd")" />
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <label for="userId" class="form-label">Tài khoản</label>
+        <select id="userId" name="userId" class="form-select">
+            <option value="" selected="@(filter.UserId is null)">Tất cả tài khoản</option>
+            @foreach (var account in Model.Accounts)
+            {
+                <option value="@account.Id" selected="@(filter.UserId == account.Id)">@account.Label</option>
+            }
+            <option value="@SecurityAuditFilter.UnknownAccountsValue" selected="@filter.UnknownAccounts">@SecurityAuditFilter.UnknownAccountsLabel</option>
+        </select>
+    </div>
+    <div class="col-sm-6 col-lg-3 d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Lọc</button>
+        <a asp-controller="AuditLogs" asp-action="Index" class="btn btn-outline-secondary" id="audit-filter-reset">7 ngày gần nhất</a>
+    </div>
+    <div class="col-12 form-text mt-1">
+        Khoảng ngày tính cả hai đầu, tối đa @SecurityAuditFilter.MaxDays ngày. Mở màn hình không chọn gì sẽ hiển thị @SecurityAuditFilter.DefaultDays ngày gần nhất (hôm nay và @(SecurityAuditFilter.DefaultDays - 1) ngày trước).
+    </div>
 </form>
 
-<!-- Danh sách nhật ký -->
-<table class="table table-bordered table-striped">
-
-    <thead>
-        <tr>
-            <th>Thời điểm</th>
-            <th>Tài khoản</th>
-            <th>Vai trò</th>
-            <th>Hành động</th>
-            <th>Địa chỉ IP</th>
-        </tr>
-    </thead>
-
-    <tbody>
-
-        @if (Model.Any())
+@if (!filter.IsValid)
+{
+    <div class="alert alert-danger" role="alert" id="audit-filter-errors">
+        @foreach (var error in filter.Errors)
         {
-            @foreach (var log in Model)
+            <div>@error</div>
+        }
+    </div>
+}
+else
+{
+    <p id="audit-filter-summary" role="status" data-from="@filter.FromDate.ToString("yyyy-MM-dd")" data-to="@filter.ToDate.ToString("yyyy-MM-dd")" data-total="@Model.Page.TotalCount">
+        @(filter.IsDefault ? "Mặc định 7 ngày gần nhất: " : "Kết quả lọc: ")
+        <strong>@Model.Page.TotalCount</strong> sự kiện từ @filter.FromDate.ToString("dd/MM/yyyy") đến @filter.ToDate.ToString("dd/MM/yyyy"),
+        tài khoản: <strong>@Model.AccountLabel</strong>.
+    </p>
+    @if (Model.Page.TotalCount > items.Count)
+    {
+        <div class="alert alert-warning" role="status" id="audit-row-limit">
+            Chỉ hiển thị @items.Count sự kiện mới nhất trong tổng số @Model.Page.TotalCount. Hãy thu hẹp khoảng ngày hoặc chọn một tài khoản.
+        </div>
+    }
+}
+
+<div class="table-responsive">
+    <table class="table align-middle" id="security-audit-table">
+        <thead>
+            <tr>
+                <th scope="col">Thời điểm</th>
+                <th scope="col">Tài khoản</th>
+                <th scope="col">Vai trò</th>
+                <th scope="col">Hành động</th>
+                <th scope="col">Địa chỉ IP</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (items.Count == 0)
             {
-                <tr>
-                    <td>
-                        @log.CreatedAt.ToString("dd/MM/yyyy HH:mm:ss")
-                    </td>
-
-                    <td>
-                        @log.Username
-                    </td>
-                    <td>
-                        @log.Role
-                    </td>
-
-                    <td>
-                        @log.Action
-                    </td>
-
-                    <td>
-                        @log.IpAddress
+                <tr id="audit-empty">
+                    <td colspan="5" class="text-center text-muted">
+                        @(filter.IsValid ? "Không có sự kiện nào khớp điều kiện lọc." : "Chưa hiển thị dữ liệu vì điều kiện lọc không hợp lệ.")
                     </td>
                 </tr>
             }
-        }
-        else
-        {
-            <tr>
-                <td colspan="5"
-                    class="text-center">
-                    Không có dữ liệu nhật ký.
-                </td>
-            </tr>
-        }
-
-    </tbody>
-
-</table>
+            @foreach (var log in items)
+            {
+                <tr data-audit-id="@log.Id" data-action="@log.Action">
+                    <td class="text-nowrap"><time datetime="@log.OccurredAtUtc.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")">@log.OccurredAtVietnam.ToString("dd/MM/yyyy HH:mm:ss")</time></td>
+                    <td>@log.UserName</td>
+                    <td>@log.RoleLabel</td>
+                    <td>
+                        <span class="badge @BadgeClass(log.Action)">@log.ActionLabel</span>
+                        @if (!string.IsNullOrEmpty(log.Detail))
+                        {
+                            <div class="small text-muted mt-1">@log.Detail</div>
+                        }
+                    </td>
+                    <td class="text-nowrap"><code>@log.IpAddress</code></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

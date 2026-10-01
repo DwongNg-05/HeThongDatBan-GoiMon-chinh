@@ -37,7 +37,7 @@ public sealed class ManagementStore(string connectionString)
         complete.Parameters.Add("@ExpectedHash", SqlDbType.VarChar, 100).Value = (object?)hash ?? DBNull.Value;
         await using var decision = await complete.ExecuteReaderAsync();
         await decision.ReadAsync();
-        return new(decision.GetBoolean(0) ? user : null, decision.GetInt32(1));
+        return new(decision.GetBoolean(0) ? user : null, decision.GetInt32(1), user);
     }
 
     public async Task<ManagementMenu> GetMenu(int actorId)
@@ -55,7 +55,7 @@ public sealed class ManagementStore(string connectionString)
         return new(items, changes);
     }
 
-    public async Task ChangeMenu(int actorId, int itemId, decimal? price = null, bool? soldOut = null)
+    public async Task ChangeMenu(int actorId, int itemId, decimal? price = null, bool? soldOut = null, string? ipAddress = null)
     {
         await using var cn = new SqlConnection(connectionString);
         await cn.OpenAsync();
@@ -66,6 +66,7 @@ public sealed class ManagementStore(string connectionString)
         {
             var p = cmd.Parameters.Add("@Price", SqlDbType.Decimal);
             p.Precision = 18; p.Scale = 0; p.Value = price.Value;
+            cmd.Parameters.Add("@IpAddress", SqlDbType.VarChar, 45).Value = ClientIp.Normalize(ipAddress);
         }
         else cmd.Parameters.Add("@IsSoldOut", SqlDbType.Bit).Value = soldOut ?? throw new ArgumentException("Missing availability");
         await cmd.ExecuteNonQueryAsync();
