@@ -1,0 +1,70 @@
+/* Màn hình "Khu vực & bàn": giao diện thẻ, chữ lớn, nút dễ bấm. */
+.at-page { max-width: 1200px; margin: 0 auto; padding: 8px 0 32px; font-size: 1.02rem; }
+.at-header { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; justify-content: space-between; margin: 16px 0 20px; }
+.at-header h1 { font-size: 1.75rem; font-weight: 700; margin: 0 0 6px; color: var(--ink, #30282a); }
+.at-header p { margin: 0; max-width: 720px; color: var(--muted, #766b6e); line-height: 1.55; }
+.at-big-btn { padding: 12px 22px; font-size: 1.05rem; font-weight: 600; border-radius: 12px; white-space: nowrap; }
+
+.at-empty { text-align: center; padding: 48px 16px; border: 2px dashed var(--line, #eee3e5); border-radius: 16px; background: #fff; }
+.at-empty h2 { font-size: 1.3rem; }
+
+.at-jump { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.at-jump a { display: inline-flex; gap: 8px; align-items: center; padding: 8px 14px; border-radius: 999px; background: var(--soft, #fff3f4); border: 1px solid var(--line, #eee3e5); color: var(--ink, #30282a); text-decoration: none; font-weight: 600; }
+.at-jump a span { font-weight: 400; color: var(--muted, #766b6e); font-size: .9em; }
+.at-jump a:hover, .at-jump a:focus-visible { border-color: var(--brand, #c92d3e); color: var(--brand, #c92d3e); }
+.at-jump a.is-off { opacity: .6; }
+
+.at-area { background: #fff; border: 1px solid var(--line, #eee3e5); border-left: 6px solid var(--brand, #c92d3e); border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(48, 40, 42, .05); scroll-margin-top: 80px; }
+.at-area.is-off { border-left-color: #b9b2b4; background: #fafafa; }
+.at-area:target { box-shadow: 0 0 0 3px rgba(201, 45, 62, .25); }
+.at-area-head { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+.at-area-title h2 { display: inline; font-size: 1.4rem; font-weight: 700; margin: 0 10px 0 0; vertical-align: middle; }
+.at-area-meta { margin: 6px 0 0; color: var(--muted, #766b6e); }
+.at-notes { margin: 6px 0 0; color: var(--ink, #30282a); font-style: italic; }
+.at-pill { display: inline-block; padding: 3px 12px; border-radius: 999px; font-size: .85rem; font-weight: 600; vertical-align: middle; }
+.at-pill.is-on { background: #e6f6ec; color: #1d7a3e; }
+.at-pill.is-off { background: #ececec; color: #5d5d5d; }
+.at-area-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.at-area-actions .btn { min-height: 44px; padding: 8px 16px; border-radius: 10px; font-weight: 600; }
+.at-area-actions form { margin: 0; }
+
+.at-no-tables { margin: 0; padding: 16px; border-radius: 12px; background: var(--soft, #fff3f4); color: var(--muted, #766b6e); }
+
+.at-tables { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.at-table { border: 1px solid var(--line, #eee3e5); border-radius: 14px; padding: 14px; background: #fff; display: flex; flex-direction: column; gap: 8px; }
+.at-table.is-off { background: #f3f3f3; opacity: .75; }
+.at-table-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.at-table-code { font-size: 1.3rem; }
+.at-table-info { color: var(--muted, #766b6e); font-size: .95rem; }
+.at-table-actions { display: flex; gap: 6px; margin-top: auto; }
+.at-table-actions .btn { flex: 1; min-height: 38px; border-radius: 8px; }
+
+.at-status { padding: 2px 10px; border-radius: 999px; font-size: .8rem; font-weight: 600; background: #eee; color: #444; white-space: nowrap; }
+.at-status.is-available { background: #e6f6ec; color: #1d7a3e; }
+.at-status.is-reserved { background: #ece8fb; color: #5a3fb8; }
+.at-status.is-serving { background: #fff1d6; color: #9a5b00; }
+.at-status.is-cleaning { background: #dff4f4; color: #17716f; }
+
+.at-help { margin-top: 8px; padding: 14px 16px; border-radius: 12px; background: #f7f7f9; color: var(--muted, #766b6e); }
+
+/* Biểu mẫu thêm/sửa khu vực và bàn */
+.at-form-card { max-width: 760px; background: #fff; border: 1px solid var(--line, #eee3e5); border-radius: 16px; padding: 24px; margin: 16px 0 32px; box-shadow: 0 2px 10px rgba(48, 40, 42, .05); }
+.at-form-card h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 4px; }
+.at-form-card .at-lead { color: var(--muted, #766b6e); margin-bottom: 20px; }
+.at-form-card .form-label { font-weight: 600; }
+.at-form-card .form-control, .at-form-card .form-select { min-height: 46px; font-size: 1.02rem; border-radius: 10px; }
+.at-form-card .form-text { font-size: .9rem; }
+.at-form-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+.at-form-actions .btn { min-height: 46px; padding: 10px 22px; border-radius: 10px; font-weight: 600; }
+.at-back { display: inline-block; margin-top: 12px; color: var(--muted, #766b6e); text-decoration: none; }
+.at-back:hover { color: var(--brand, #c92d3e); }
+
+@media (max-width: 576px) {
+    .at-area { padding: 16px; }
+    .at-area-actions { width: 100%; }
+    .at-area-actions .btn, .at-area-actions form { flex: 1 1 calc(50% - 8px); }
+    .at-area-actions form .btn { width: 100%; }
+    .at-big-btn { width: 100%; text-align: center; }
+    .at-tables { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+    .at-form-card { padding: 18px; }
+}

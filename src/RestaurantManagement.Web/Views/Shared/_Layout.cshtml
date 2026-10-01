@@ -39,8 +39,7 @@
                         @if (User.Identity?.IsAuthenticated == true)
                         {
                         <li class="nav-item"><a class="sidebar-link @(IsCurrent("Reservations", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("Reservations", "Index") ? "page" : null)" asp-controller="Reservations" asp-action="Index">Đặt bàn</a></li>
-                        <li class="nav-item"><a class="sidebar-link @(IsCurrent("Areas", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("Areas", "Index") ? "page" : null)" asp-controller="Areas" asp-action="Index">Quản lý khu vực</a></li>
-                        <li class="nav-item"><a class="sidebar-link @(IsCurrent("Tables", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("Tables", "Index") ? "page" : null)" asp-controller="Tables" asp-action="Index">Quản lý bàn</a></li>
+                        <li class="nav-item"><a class="sidebar-link @(IsCurrent("Areas", "Index") || IsCurrent("Tables", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("Areas", "Index") || IsCurrent("Tables", "Index") ? "page" : null)" asp-controller="Areas" asp-action="Index">Khu vực &amp; bàn</a></li>
                         <li class="nav-item"><a class="sidebar-link @(IsCurrent("Home", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("Home", "Index") ? "page" : null)" asp-controller="Home" asp-action="Index">Sơ đồ bàn</a></li>
                         <li class="nav-item"><a class="sidebar-link @(IsCurrent("OpeningHours", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("OpeningHours", "Index") ? "page" : null)" asp-controller="OpeningHours" asp-action="Index">Giờ hoạt động</a></li>
                         <li class="nav-item"><a class="sidebar-link @(IsCurrent("Home", "Privacy") ? "is-active" : "")" aria-current="@(IsCurrent("Home", "Privacy") ? "page" : null)" asp-controller="Home" asp-action="Privacy">Thông tin</a></li>

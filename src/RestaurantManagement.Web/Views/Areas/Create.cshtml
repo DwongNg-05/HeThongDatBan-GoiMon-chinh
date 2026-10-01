@@ -1,68 +1,21 @@
 @model RestaurantManagement.Web.Models.Areas.AreaFormViewModel
-
-@{
-    ViewData["Title"] = "Thêm khu vực";
+@{ ViewData["Title"] = "Thêm khu vực"; }
+@section Styles {
+    <link rel="stylesheet" href="~/css/area-tables.css" asp-append-version="true" />
 }
 
-<div class="container mt-4">
-
-    <h2>Thêm khu vực</h2>
-
+<a asp-action="Index" class="at-back">← Quay lại Khu vực &amp; bàn</a>
+<div class="at-form-card">
+    <h1>Thêm khu vực mới</h1>
+    <p class="at-lead">Khu vực là một phần của nhà hàng, ví dụ “Tầng 1” hay “Sân vườn”. Sau khi lưu, bạn có thể thêm bàn vào khu vực này.</p>
     <form asp-action="Create" method="post">
-
         @Html.AntiForgeryToken()
-
-        <div asp-validation-summary="ModelOnly"
-             class="text-danger mb-3">
+        <partial name="_AreaFields" model="Model" />
+        <div class="at-form-actions">
+            <button type="submit" class="btn btn-primary">Lưu khu vực</button>
+            <a asp-action="Index" class="btn btn-outline-secondary">Quay lại</a>
         </div>
-
-        <div class="mb-3">
-
-            <label asp-for="Name"
-                   class="form-label">
-            </label>
-
-            <input asp-for="Name"
-                   class="form-control"
-                   placeholder="Ví dụ: Tầng một" />
-
-            <span asp-validation-for="Name"
-                  class="text-danger">
-            </span>
-
-        </div>
-
-        <div class="mb-3">
-
-            <label asp-for="SortOrder"
-                   class="form-label">
-            </label>
-
-            <input asp-for="SortOrder"
-                   type="number"
-                   class="form-control"
-                   min="0" step="1" required />
-
-            <span asp-validation-for="SortOrder"
-                  class="text-danger">
-            </span>
-
-        </div>
-
-
-
-        <button type="submit"
-                class="btn btn-primary">
-            Lưu khu vực
-        </button>
-
-        <a asp-action="Index"
-           class="btn btn-secondary">
-            Quay lại
-        </a>
-
     </form>
-
 </div>
 
 @section Scripts {

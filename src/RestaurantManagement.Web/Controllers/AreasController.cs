@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using RestaurantManagement.Web.Models.Areas;
+using RestaurantManagement.Web.Models.Tables;
 using System.Data;
 
 namespace RestaurantManagement.Web.Controllers;
@@ -19,6 +20,27 @@ public class AreasController(IConfiguration configuration) : Controller
         await connection.OpenAsync();
         await using var reader = await command.ExecuteReaderAsync();
         while (await reader.ReadAsync()) model.Areas.Add(ReadArea(reader));
+        await reader.CloseAsync();
+
+        // Khu vực & bàn: hiển thị bàn ngay trong từng khu vực (gộp màn hình Quản lý bàn cũ).
+        var byId = model.Areas.ToDictionary(a => a.Id);
+        const string tablesSql = """
+            SELECT t.Id, t.Code, t.AreaId, t.MinCapacity, t.MaxCapacity, t.TableType, t.Status, t.IsActive
+            FROM dbo.DiningTables t
+            ORDER BY t.SortOrder, t.Code;
+            """;
+        await using var tables = new SqlCommand(tablesSql, connection);
+        await using var tableReader = await tables.ExecuteReaderAsync();
+        while (await tableReader.ReadAsync())
+        {
+            if (!byId.TryGetValue(tableReader.GetInt32(2), out var area)) continue;
+            area.Tables.Add(new DiningTableListItemViewModel
+            {
+                Id = tableReader.GetInt32(0), Code = tableReader.GetString(1), AreaName = area.Name,
+                MinCapacity = tableReader.GetInt32(3), MaxCapacity = tableReader.GetInt32(4),
+                TableType = tableReader.GetString(5), Status = tableReader.GetString(6), IsActive = tableReader.GetBoolean(7)
+            });
+        }
         return View(model);
     }
 

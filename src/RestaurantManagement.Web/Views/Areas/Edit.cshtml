@@ -1,83 +1,25 @@
-﻿@model RestaurantManagement.Web.Models.Areas.AreaFormViewModel
-
+@model RestaurantManagement.Web.Models.Areas.AreaFormViewModel
 @{
     ViewData["Title"] = "Sửa khu vực";
+    var backUrl = Url.Action("Index") + "#khu-vuc-" + Model.Id;
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/area-tables.css" asp-append-version="true" />
 }
 
-<div class="container mt-4">
-
-    <h2>Sửa khu vực</h2>
-
+<a href="@backUrl" class="at-back">← Quay lại Khu vực &amp; bàn</a>
+<div class="at-form-card">
+    <h1>Sửa khu vực</h1>
+    <p class="at-lead">Đổi tên, thứ tự hiển thị hoặc ghi chú. Các bàn trong khu vực vẫn giữ nguyên.</p>
     <form asp-action="Edit" method="post">
-
         @Html.AntiForgeryToken()
-
         <input asp-for="Id" type="hidden" />
-
-        <div asp-validation-summary="ModelOnly"
-             class="text-danger mb-3">
+        <partial name="_AreaFields" model="Model" />
+        <div class="at-form-actions">
+            <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
+            <a href="@backUrl" class="btn btn-outline-secondary">Quay lại</a>
         </div>
-
-        <div class="mb-3">
-
-            <label asp-for="Name"
-                   class="form-label">
-            </label>
-
-            <input asp-for="Name"
-                   class="form-control" />
-
-            <span asp-validation-for="Name"
-                  class="text-danger">
-            </span>
-
-        </div>
-
-        <div class="mb-3">
-
-            <label asp-for="SortOrder"
-                   class="form-label">
-            </label>
-
-            <input asp-for="SortOrder"
-                   type="number"
-                   class="form-control" />
-
-            <span asp-validation-for="SortOrder"
-                  class="text-danger">
-            </span>
-
-        </div>
-
-        <div class="mb-3">
-
-            <label asp-for="Notes"
-                   class="form-label">
-            </label>
-
-            <textarea asp-for="Notes"
-                      class="form-control"
-                      rows="4">
-            </textarea>
-
-            <span asp-validation-for="Notes"
-                  class="text-danger">
-            </span>
-
-        </div>
-
-        <button type="submit"
-                class="btn btn-primary">
-            Lưu thay đổi
-        </button>
-
-        <a asp-action="Index"
-           class="btn btn-secondary">
-            Quay lại
-        </a>
-
     </form>
-
 </div>
 
 @section Scripts {

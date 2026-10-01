@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using RestaurantManagement.Web.Models.Tables;
 
 namespace RestaurantManagement.Web.Models.Areas;
 
@@ -20,6 +21,12 @@ public class AreaViewModel
 
     [Display(Name = "Trạng thái")]
     public bool IsActive { get; set; } = true;
+
+    /// <summary>Các bàn thuộc khu vực (màn hình Khu vực &amp; bàn).</summary>
+    public List<DiningTableListItemViewModel> Tables { get; } = new();
+
+    public int ActiveTableCount => Tables.Count(t => t.IsActive);
+    public int SeatCount => Tables.Where(t => t.IsActive).Sum(t => t.MaxCapacity);
 }
 
 public class AreaFormViewModel
@@ -34,7 +41,7 @@ public class AreaFormViewModel
     [Required(ErrorMessage = "Vui lòng nhập thứ tự hiển thị.")]
     [Range(0, int.MaxValue, ErrorMessage = "Thứ tự hiển thị phải là số nguyên không âm.")]
     [Display(Name = "Thứ tự hiển thị")]
-    public int? SortOrder { get; set; }
+    public int? SortOrder { get; set; } = 0;
 
     [StringLength(500, ErrorMessage = "Ghi chú không được vượt quá 500 ký tự.")]
     [Display(Name = "Ghi chú")]

@@ -20,28 +20,13 @@ public class TablesController(
     private string ConnectionString => configuration.GetConnectionString("DefaultConnection")
         ?? throw new InvalidOperationException("Chưa cấu hình ConnectionStrings:DefaultConnection.");
 
+    // Danh sách bàn nay nằm trong màn hình "Khu vực & bàn"; giữ đường dẫn cũ để không gãy liên kết.
     [HttpGet]
-    public async Task<IActionResult> Index()
-    {
-        var model = new DiningTableListViewModel { Areas = await GetAreaOptionsAsync() };
-        const string sql = """
-            SELECT t.Id, t.Code, a.Name AS AreaName, t.MinCapacity, t.MaxCapacity, t.TableType, t.Status, t.IsActive
-            FROM dbo.DiningTables t
-            INNER JOIN dbo.Areas a ON a.Id = t.AreaId
-            ORDER BY a.SortOrder, a.Name, t.SortOrder, t.Code;
-            """;
-
-        await using var connection = new SqlConnection(ConnectionString);
-        await using var command = new SqlCommand(sql, connection);
-        await connection.OpenAsync();
-        await using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync()) model.Tables.Add(ReadTable(reader));
-        return View(model);
-    }
+    public IActionResult Index() => RedirectToAction("Index", "Areas");
 
     [HttpGet]
-    public async Task<IActionResult> Create()
-        => View(await PopulateAreas(new DiningTableFormViewModel()));
+    public async Task<IActionResult> Create(int? areaId)
+        => View(await PopulateAreas(new DiningTableFormViewModel { AreaId = areaId ?? 0 }));
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(DiningTableFormViewModel model)
@@ -109,7 +94,7 @@ public class TablesController(
         {
             if (await ExecuteSave(sql, model, true) == 0) return NotFound();
             TempData["Success"] = $"Đã cập nhật bàn {model.Code}.";
-            return RedirectToAction(nameof(Index));
+            return BackToArea(model.AreaId);
         }
         catch (SqlException ex) when (ex.Number is 2601 or 2627)
         {
@@ -154,7 +139,7 @@ public class TablesController(
         if (!TryGetActorUserId(out var actorUserId))
         {
             TempData["Error"] = "Chưa cấu hình tài khoản thực hiện thao tác QR.";
-            return RedirectToAction(nameof(Index));
+            return BackToArea(areaId);
         }
 
         try
@@ -163,7 +148,7 @@ public class TablesController(
             if (items.Count == 0)
             {
                 TempData["Error"] = "Khu vực được chọn chưa có bàn đang hoạt động để xuất mã QR.";
-                return RedirectToAction(nameof(Index));
+                return BackToArea(areaId);
             }
             if (items.Any(item => item.PublicToken is null))
                 throw new InvalidOperationException("Không thể sinh mã QR cho tất cả bàn trong khu vực.");
@@ -176,7 +161,7 @@ public class TablesController(
         catch (SqlException ex) when (ex.Number == 51021)
         {
             TempData["Error"] = "Có bàn không còn hoạt động nên chưa thể sinh mã QR.";
-            return RedirectToAction(nameof(Index));
+            return BackToArea(areaId);
         }
     }
 
@@ -275,13 +260,6 @@ public class TablesController(
         return areas;
     }
 
-    private static DiningTableListItemViewModel ReadTable(SqlDataReader reader) => new()
-    {
-        Id = reader.GetInt32(0), Code = reader.GetString(1), AreaName = reader.GetString(2),
-        MinCapacity = reader.GetInt32(3), MaxCapacity = reader.GetInt32(4),
-        TableType = reader.GetString(5), Status = reader.GetString(6), IsActive = reader.GetBoolean(7)
-    };
-
     private string BuildPublicQrUrl(string token)
     {
         var configuredBaseUrl = configuration["TableQr:PublicBaseUrl"]?.Trim();
@@ -308,6 +286,9 @@ public class TablesController(
 
     private bool TryGetActorUserId(out int id)
         => int.TryParse(configuration["AreaManagement:ActorUserId"], out id) && id > 0;
+
+    private IActionResult BackToArea(int areaId) =>
+        Redirect(Url.Action("Index", "Areas") + "#khu-vuc-" + areaId);
 
     private static void Normalize(DiningTableFormViewModel model) => model.Code = model.Code.Trim().ToUpperInvariant();
 }

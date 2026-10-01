@@ -140,7 +140,7 @@ internal static class AreaHttpTests
             using (var result = await Post("/Areas/Deactivate/1", "/Areas/Deactivate/1", new()))
                 Check(result.StatusCode==HttpStatusCode.Redirect, "Confirm deactivation");
             html = await Get("/Areas");
-            var row = Regex.Match(html,"<tr data-area-id=\"1\">([\\s\\S]*?)</tr>").Value;
+            var row = Regex.Match(html,"<section[^>]*data-area-id=\"1\"[^>]*>([\\s\\S]*?)</section>").Value; // Khu vực & bàn: mỗi khu vực là một thẻ
             Check(row.Contains("Ngừng sử dụng") && !row.Contains("href=\"/Areas/Deactivate/1\""), "Inactive area remains visible with status");
             Check(await Scalar("SELECT COUNT(*) FROM dbo.DiningTables WHERE AreaId=1")==10, "Deactivation preserves tables");
             html=await Get("/Reservations/Create");

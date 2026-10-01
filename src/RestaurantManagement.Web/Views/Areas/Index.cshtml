@@ -1,53 +1,141 @@
 @model RestaurantManagement.Web.Models.Areas.AreaListViewModel
-@{ ViewData["Title"] = "Quản lý khu vực"; }
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2>Quản lý khu vực</h2>
-        <a asp-action="Create" class="btn btn-primary">+ Thêm khu vực</a>
-    </div>
+@{
+    ViewData["Title"] = "Khu vực & bàn";
+    string StatusClass(string status) => status switch
+    {
+        "Available" => "is-available",
+        "Reserved" => "is-reserved",
+        "Serving" => "is-serving",
+        "Cleaning" => "is-cleaning",
+        _ => ""
+    };
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/area-tables.css" asp-append-version="true" />
+}
+
+<div class="at-page">
+    <header class="at-header">
+        <div>
+            <h1>Khu vực &amp; bàn</h1>
+            <p>Nhà hàng được chia thành các <strong>khu vực</strong> (ví dụ: Tầng 1, Sân vườn). Mỗi khu vực có các <strong>bàn</strong> bên trong.
+               Hãy thêm khu vực trước, sau đó bấm <strong>“+ Thêm bàn”</strong> ngay trong khu vực đó.</p>
+        </div>
+        <a asp-action="Create" class="btn btn-primary at-big-btn">+ Thêm khu vực</a>
+    </header>
+
     @if (TempData["Success"] != null)
     {
-        <div class="alert alert-success" role="status">@TempData["Success"]</div>
+        <div class="alert alert-success" role="status">✔ @TempData["Success"]</div>
     }
     @if (TempData["Error"] != null)
     {
-        <div class="alert alert-danger" role="alert">@TempData["Error"]</div>
+        <div class="alert alert-danger" role="alert">⚠ @TempData["Error"]</div>
     }
-    <div class="table-responsive">
-        <table class="table table-bordered table-hover">
-            <thead><tr><th>Tên khu vực</th><th>Thứ tự hiển thị</th><th>Ghi chú</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
-            <tbody>
-            @if (Model.Areas.Count == 0)
-            {
-                <tr><td colspan="5" class="text-center">Chưa có khu vực nào.</td></tr>
-            }
+
+    @if (Model.Areas.Count == 0)
+    {
+        <div class="at-empty">
+            <h2>Chưa có khu vực nào</h2>
+            <p>Bấm <strong>“+ Thêm khu vực”</strong> để tạo khu vực đầu tiên, ví dụ “Tầng 1”.</p>
+        </div>
+    }
+    else
+    {
+        <nav class="at-jump" aria-label="Chuyển nhanh tới khu vực">
             @foreach (var area in Model.Areas)
             {
-                <tr data-area-id="@area.Id">
-                    <td>@area.Name</td><td>@area.SortOrder</td>
-                    <td style="white-space: pre-wrap">@(string.IsNullOrEmpty(area.Notes) ? "—" : area.Notes)</td>
-                    <td><span class="badge @(area.IsActive ? "bg-success" : "bg-secondary")">@(area.IsActive ? "Đang sử dụng" : "Ngừng sử dụng")</span></td>
-                    <td>
-                        <a asp-action="Edit" asp-route-id="@area.Id" class="btn btn-sm btn-outline-primary">Sửa</a>
-                        @if (area.IsActive)
+                <a href="#khu-vuc-@area.Id" class="@(area.IsActive ? "" : "is-off")">@area.Name <span>@area.Tables.Count bàn</span></a>
+            }
+        </nav>
+    }
+
+    @foreach (var area in Model.Areas)
+    {
+        <section class="at-area @(area.IsActive ? "" : "is-off")" id="khu-vuc-@area.Id" data-area-id="@area.Id" aria-labelledby="ten-khu-vuc-@area.Id">
+            <div class="at-area-head">
+                <div class="at-area-title">
+                    <h2 id="ten-khu-vuc-@area.Id">@area.Name</h2>
+                    <span class="at-pill @(area.IsActive ? "is-on" : "is-off")">@(area.IsActive ? "Đang sử dụng" : "Ngừng sử dụng")</span>
+                    <p class="at-area-meta">
+                        @area.ActiveTableCount bàn đang dùng · tối đa @area.SeatCount khách
+                    </p>
+                    @if (!string.IsNullOrEmpty(area.Notes))
+                    {
+                        <p class="at-notes" style="white-space: pre-wrap">Ghi chú: @area.Notes</p>
+                    }
+                </div>
+                <div class="at-area-actions">
+                    @if (area.IsActive)
+                    {
+                        <a asp-controller="Tables" asp-action="Create" asp-route-areaId="@area.Id" class="btn btn-primary">+ Thêm bàn</a>
+                        @if (area.ActiveTableCount > 0)
                         {
-                            <a asp-action="Deactivate" asp-route-id="@area.Id" class="btn btn-sm btn-outline-secondary">Ngừng sử dụng</a>
-                        }
-                        @if (!area.IsActive)
-                        {
-                            <form asp-action="Reactivate" asp-route-id="@area.Id" method="post" class="d-inline">
-                                <button type="submit" class="btn btn-sm btn-outline-success">Sử dụng lại</button>
+                            <form asp-controller="Tables" asp-action="DownloadQrPdf" method="post" class="d-inline">
+                                <input type="hidden" name="areaId" value="@area.Id" />
+                                <button type="submit" class="btn btn-outline-primary" title="Tải file PDF chứa mã QR của tất cả bàn trong khu vực để in và dán lên bàn">In mã QR cả khu vực</button>
                             </form>
                         }
-                        <form asp-action="Delete" asp-route-id="@area.Id" method="post" class="d-inline"
-                              onsubmit="return confirm('Bạn có chắc muốn xóa khu vực này?');">
-                            <button type="submit" class="btn btn-sm btn-outline-danger">Xóa</button>
+                    }
+                    <a asp-action="Edit" asp-route-id="@area.Id" class="btn btn-outline-secondary">Sửa khu vực</a>
+                    @if (area.IsActive)
+                    {
+                        <a asp-action="Deactivate" asp-route-id="@area.Id" class="btn btn-outline-secondary">Ngừng sử dụng</a>
+                    }
+                    else
+                    {
+                        <form asp-action="Reactivate" asp-route-id="@area.Id" method="post" class="d-inline">
+                            <button type="submit" class="btn btn-outline-success">Sử dụng lại</button>
                         </form>
-                    </td>
-                </tr>
-            }
-            </tbody>
-        </table>
-    </div>
-</div>
+                    }
+                    @if (area.Tables.Count == 0)
+                    {
+                        <form asp-action="Delete" asp-route-id="@area.Id" method="post" class="d-inline"
+                              onsubmit="return confirm('Xóa hẳn khu vực này? Thao tác này không hoàn tác được.');">
+                            <button type="submit" class="btn btn-outline-danger">Xóa</button>
+                        </form>
+                    }
+                </div>
+            </div>
 
+            @if (area.Tables.Count == 0)
+            {
+                <p class="at-no-tables">Khu vực này chưa có bàn nào.@(area.IsActive ? " Bấm “+ Thêm bàn” để thêm bàn đầu tiên." : "")</p>
+            }
+            else
+            {
+                <ul class="at-tables">
+                    @foreach (var table in area.Tables)
+                    {
+                        <li class="at-table @(table.IsActive ? "" : "is-off")" data-table-id="@table.Id">
+                            <div class="at-table-top">
+                                <strong class="at-table-code">@table.Code</strong>
+                                <span class="at-status @StatusClass(table.Status)">@table.StatusLabel</span>
+                            </div>
+                            <div class="at-table-info">
+                                👥 @(table.MinCapacity == table.MaxCapacity ? $"{table.MaxCapacity}" : $"{table.MinCapacity}–{table.MaxCapacity}") khách
+                                @if (table.TableType == "PrivateRoom")
+                                {
+                                    <span>· Phòng riêng</span>
+                                }
+                                @if (!table.IsActive)
+                                {
+                                    <span>· Ngừng dùng</span>
+                                }
+                            </div>
+                            <div class="at-table-actions">
+                                <a asp-controller="Tables" asp-action="Edit" asp-route-id="@table.Id" class="btn btn-sm btn-outline-primary">Sửa</a>
+                                <a asp-controller="Tables" asp-action="Details" asp-route-id="@table.Id" class="btn btn-sm btn-outline-secondary">Mã QR</a>
+                            </div>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+    }
+
+    <p class="at-help">
+        <strong>Mẹo:</strong> “Ngừng sử dụng” một khu vực sẽ ẩn khu vực đó khỏi việc đặt bàn mới nhưng vẫn giữ nguyên các bàn và lịch sử.
+        Chỉ xóa hẳn được khu vực chưa có bàn nào.
+    </p>
+</div>
