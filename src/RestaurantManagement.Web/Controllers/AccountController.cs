@@ -29,6 +29,8 @@ public class AccountController(ManagementStore store, LoginSessionStore sessions
     public async Task<IActionResult> Login(LoginModel model, string? returnUrl = null)
     {
         ViewData["ReturnUrl"] = returnUrl;
+        try
+        {
         var result = ModelState.IsValid ? await store.Authenticate(model.Identifier, model.Password) : new LoginResult(null);
         var user = result.User;
         var ipAddress = ClientIp.From(HttpContext);
@@ -58,6 +60,19 @@ public class AccountController(ManagementStore store, LoginSessionStore sessions
         TempData["Success"] = "Đăng nhập thành công.";
         return await passwords.IsRequired(user.Id)
             ? RedirectToAction(nameof(DoiMatKhau)) : RedirectAfterLogin(returnUrl);
+        }
+        catch (Microsoft.Data.SqlClient.SqlException ex)
+        {
+            // Log SQL metadata without credentials so connection and schema failures can be distinguished.
+            HttpContext.RequestServices.GetRequiredService<ILogger<AccountController>>()
+                .LogError("Login SQL failure: number {Number}, state {State}, procedure {Procedure}.", ex.Number, ex.State, ex.Procedure);
+            Microsoft.Data.SqlClient.SqlConnection.ClearAllPools();
+            ModelState.Clear();
+            ModelState.AddModelError("", "Không thể kết nối cơ sở dữ liệu. Vui lòng kiểm tra SQL Server và thử lại.");
+            model.Password = "";
+            Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+            return View(model);
+        }
     }
 
     [Authorize, HttpGet]
@@ -107,3 +122,5 @@ public class AccountController(ManagementStore store, LoginSessionStore sessions
     [AllowAnonymous]
     public IActionResult AccessDenied() => StatusCode(403, "Bạn không có quyền truy cập chức năng này.");
 }
+
+

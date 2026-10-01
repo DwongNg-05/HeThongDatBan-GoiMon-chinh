@@ -15,6 +15,10 @@ if (string.IsNullOrWhiteSpace(sqlConnectionString))
 builder.Configuration["ConnectionStrings:DefaultConnection"] = sqlConnectionString;
 
 builder.Services.AddScoped<AuditLogService>();
+builder.Services.AddScoped<ReservationConfirmationService>();
+builder.Services.AddScoped<IConfirmationEmailSender, SmtpConfirmationEmailSender>();
+builder.Services.AddScoped<ConfirmationEmailDispatcher>();
+builder.Services.AddHostedService<ConfirmationEmailWorker>();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(

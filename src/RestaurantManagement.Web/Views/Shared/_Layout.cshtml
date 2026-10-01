@@ -36,6 +36,10 @@
             </div>
             <nav class="sidebar-navigation" aria-label="Điều hướng chính">
                 <ul class="sidebar-links">
+                        @if (User.IsInRole("Manager") || User.IsInRole("Waiter"))
+                        {
+                            <li class="nav-item"><a class="sidebar-link @(IsCurrent("ReservationConfirmations", "Index") ? "is-active" : "")" asp-controller="ReservationConfirmations" asp-action="Index">Xác nhận đặt bàn</a></li>
+                        }
                         @if (User.Identity?.IsAuthenticated == true)
                         {
                         <li class="nav-item"><a class="sidebar-link @(IsCurrent("Reservations", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("Reservations", "Index") ? "page" : null)" asp-controller="Reservations" asp-action="Index">Đặt bàn</a></li>
