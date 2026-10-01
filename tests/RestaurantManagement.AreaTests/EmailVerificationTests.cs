@@ -25,7 +25,7 @@ internal static class EmailVerificationTests
         check(VerificationCode.MaskEmail("nguyenvana@gmail.com") == "n********a@gmail.com" && VerificationCode.MaskEmail("ab@x.vn") == "a*@x.vn", "Email: masked for display");
 
         check(EmailVerificationService.IsValidEmail("tenban@gmail.com") && !EmailVerificationService.IsValidEmail("tenban")
-            && !EmailVerificationService.IsValidEmail("Ten <a@b.com>") && !EmailVerificationService.IsValidEmail(""), "Email: address validation");
+            && !EmailVerificationService.IsValidEmail("Name <a@b.com>") && !EmailVerificationService.IsValidEmail(""), "Email: address validation");
 
         var service = new EmailVerificationService(new EmailVerificationStore("Server=127.0.0.1,1;Database=None"), new NoSender(),
             Options.Create(new EmailVerificationOptions()), NullLogger<EmailVerificationService>.Instance);
@@ -50,8 +50,8 @@ internal static class EmailVerificationTests
         check(mail.HtmlBody.Contains("10 phút") && mail.HtmlBody.Contains("01:05 ngày 02/10/2026"), "Email: shows validity and Vietnam send time");
         check(mail.HtmlBody.Contains("Nguyễn &lt;Văn&gt; A") && !mail.HtmlBody.Contains("<Văn>"), "Email: account name is HTML-encoded");
         check(mail.TextBody.Contains("K7P2QX") && mail.TextBody.Contains("K 7 P 2 Q X"), "Email: plain-text version for apps without HTML");
-        check(EmailVerificationMiddlewareAllows("/Account/XacMinhEmail") && EmailVerificationMiddlewareAllows("/account/guilaimaxacminh")
-            && !EmailVerificationMiddlewareAllows("/Account/DoiMatKhau") && !EmailVerificationMiddlewareAllows("/"),
+        check(EmailVerificationMiddlewareAllows("/Account/VerifyEmail") && EmailVerificationMiddlewareAllows("/account/resendverificationcode")
+            && !EmailVerificationMiddlewareAllows("/Account/ChangePassword") && !EmailVerificationMiddlewareAllows("/"),
             "Email verification: only verification pages and logout are reachable before verifying (password change comes after)");
     }
 

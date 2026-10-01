@@ -62,15 +62,15 @@ builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession();
 builder.Services.AddScoped<RestaurantManagement.Web.Security.ICurrentUser, RestaurantManagement.Web.Security.SessionCurrentUser>();
 
-// Register SQL-backed store as the IQuanLyMonStore implementation
-builder.Services.AddScoped<RestaurantManagement.Web.Services.IQuanLyMonStore, RestaurantManagement.Web.Services.SqlQuanLyMonStore>();
+// Register SQL-backed store as the IMenuStore implementation
+builder.Services.AddScoped<RestaurantManagement.Web.Services.IMenuStore, RestaurantManagement.Web.Services.SqlMenuStore>();
 
-// In-memory store used by the ThucDon and GoiMon Razor Pages
-builder.Services.AddSingleton<RestaurantManagement.Web.Services.InMemoryQuanLyMonStore>();
+// In-memory store used by the Menu and Ordering Razor Pages
+builder.Services.AddSingleton<RestaurantManagement.Web.Services.InMemoryMenuStore>();
 
 // Ảnh món tải lên (JPG/PNG): lưu tại wwwroot/uploads/mon-an, đường dẫn "/uploads/mon-an/..." ghi vào MenuItems.ImagePath.
-var thuMucAnhMon = Path.Combine(builder.Environment.WebRootPath ?? Path.Combine(builder.Environment.ContentRootPath, "wwwroot"), "uploads", "mon-an");
-builder.Services.AddSingleton<IKhoAnhMonAn>(_ => new KhoAnhMonAnTrenDia(thuMucAnhMon));
+var dishImageFolder = Path.Combine(builder.Environment.WebRootPath ?? Path.Combine(builder.Environment.ContentRootPath, "wwwroot"), "uploads", "mon-an");
+builder.Services.AddSingleton<IDishImageStorage>(_ => new DiskDishImageStorage(dishImageFolder));
 
 builder.Services.AddAuthentication("Cookies")
     .AddCookie("Cookies", options =>
@@ -96,10 +96,10 @@ if (!app.Environment.IsDevelopment())
 }
 
 // Phục vụ ảnh món tải lên lúc chạy (MapStaticAssets chỉ biết tệp có sẵn khi build). Đặt trước xác thực để khách xem được.
-Directory.CreateDirectory(thuMucAnhMon);
+Directory.CreateDirectory(dishImageFolder);
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(thuMucAnhMon),
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(dishImageFolder),
     RequestPath = "/uploads/mon-an",
     OnPrepareResponse = context => context.Context.Response.Headers["X-Content-Type-Options"] = "nosniff"
 });
@@ -120,5 +120,15 @@ app.MapControllerRoute(
     .WithStaticAssets();
 
 app.MapRazorPages();
+
+// Old Vietnamese URLs (bookmarks, printed links) redirect to the English routes.
+foreach (var (oldPath, newPath) in new[]
+{
+    ("/ThucDon", "/Menu"), ("/api/thuc-don", "/api/menu"), ("/GoiMon", "/Ordering"),
+    ("/QuanLyMon", "/Dishes"), ("/QuanLyNhomMon", "/DishCategories")
+})
+{
+    app.MapGet(oldPath, () => Results.Redirect(newPath, permanent: true)).AllowAnonymous();
+}
 
 app.Run();

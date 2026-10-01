@@ -26,7 +26,7 @@ Bảng **chỉ cho thêm**: trigger `tr_SecurityAuditLogs_AppendOnly` chặn UPD
   - Thông báo trên màn hình đăng nhập không đổi (vẫn là lỗi chung).
 - **Sửa giá món**: `dbo.usp_UpdateMenuPrice` được cập nhật (thêm tham số tuỳ chọn `@IpAddress`) để ghi nhật ký **trong cùng giao dịch** với việc đổi giá, nên không thể đổi giá mà thiếu nhật ký. Chỉ ghi khi giá thực sự thay đổi; lưu lại cùng một giá thì không sinh bản ghi. Cả hai nơi sửa giá đều được ghi:
   - **Sửa giá món** (`/Management`, liên kết mới trong menu của Quản lý);
-  - **Quản lý món → Sửa** (`/QuanLyMon/Sua/{id}`).
+  - **Quản lý món → Sửa** (`/Dishes/Edit/{id}`).
 
   Tài khoản và vai trò lấy theo người đang đăng nhập phía máy chủ, không lấy từ biểu mẫu.
 

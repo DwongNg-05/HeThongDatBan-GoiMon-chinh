@@ -18,22 +18,22 @@ internal static class MenuImageVerification
 
     internal static async Task Run(string connection, HttpClient client)
     {
-        var khaiVi = await Scalar<int>(connection, "SELECT Id FROM dbo.MenuCategories WHERE Name=N'Khai vị'");
+        var appetizer = await Scalar<int>(connection, "SELECT Id FROM dbo.MenuCategories WHERE Name=N'Khai vị'");
         var savedFiles = new List<string>();
         try
         {
-            using (var invalid = await Create(client, khaiVi, "S2 món ảnh GIF", ("anh.gif", "image/gif", new byte[] { 0x47, 0x49, 0x46, 0x38, 0x39, 0x61 })))
+            using (var invalid = await Create(client, appetizer, "S2 món ảnh GIF", ("image.gif", "image/gif", new byte[] { 0x47, 0x49, 0x46, 0x38, 0x39, 0x61 })))
             {
                 var html = WebUtility.HtmlDecode(await invalid.Content.ReadAsStringAsync());
                 Assert(invalid.StatusCode == HttpStatusCode.OK && html.Contains("Chỉ chấp nhận ảnh định dạng JPG hoặc PNG."), "GIF upload rejected with message");
             }
-            using (var fake = await Create(client, khaiVi, "S2 món ảnh giả", ("anh.png", "image/png", "not an image"u8.ToArray())))
+            using (var fake = await Create(client, appetizer, "S2 món ảnh giả", ("image.png", "image/png", "not an image"u8.ToArray())))
                 Assert(fake.StatusCode == HttpStatusCode.OK && WebUtility.HtmlDecode(await fake.Content.ReadAsStringAsync()).Contains("Nội dung tệp không phải ảnh JPG/PNG hợp lệ."), "Renamed non-image rejected");
             await Check(connection, "SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM dbo.MenuItems WHERE Name IN (N'S2 món ảnh GIF',N'S2 món ảnh giả')) THEN 1 ELSE 0 END", "Rejected uploads create no dish");
 
-            using (var png = await Create(client, khaiVi, "S2 món có ảnh PNG", ("goi-cuon.png", "image/png", Png)))
+            using (var png = await Create(client, appetizer, "S2 món có ảnh PNG", ("goi-cuon.png", "image/png", Png)))
                 Assert(png.StatusCode == HttpStatusCode.Redirect, "Create dish with PNG image");
-            using (var jpg = await Create(client, khaiVi, "S2 món có ảnh JPG", ("cha gio.jpg", "image/jpeg", Jpeg)))
+            using (var jpg = await Create(client, appetizer, "S2 món có ảnh JPG", ("cha gio.jpg", "image/jpeg", Jpeg)))
                 Assert(jpg.StatusCode == HttpStatusCode.Redirect, "Create dish with JPG image");
 
             var pngPath = await Scalar<string>(connection, "SELECT ImagePath FROM dbo.MenuItems WHERE Name=N'S2 món có ảnh PNG'");
@@ -48,18 +48,18 @@ internal static class MenuImageVerification
                 using var image = await anonymous.GetAsync(pngPath);
                 Assert(image.StatusCode == HttpStatusCode.OK && image.Content.Headers.ContentType?.MediaType == "image/png"
                     && (await image.Content.ReadAsByteArrayAsync()).SequenceEqual(Png), "Uploaded image served to customers without login");
-                var menu = WebUtility.HtmlDecode(await anonymous.GetStringAsync("/ThucDon"));
+                var menu = WebUtility.HtmlDecode(await anonymous.GetStringAsync("/Menu"));
                 Assert(menu.Contains($"src=\"{pngPath}\"") && menu.Contains($"src=\"{jpgPath}\""), "Public menu shows uploaded images");
             }
 
             // Sửa món: thay ảnh PNG bằng JPG, ảnh cũ được dọn.
             var id = await Scalar<int>(connection, "SELECT Id FROM dbo.MenuItems WHERE Name=N'S2 món có ảnh PNG'");
-            var editHtml = await client.GetStringAsync($"/QuanLyMon/Sua/{id}");
+            var editHtml = await client.GetStringAsync($"/Dishes/Edit/{id}");
             Assert(WebUtility.HtmlDecode(editHtml).Contains($"src=\"{pngPath}\""), "Edit form shows current image");
-            using (var form = Form(Token(editHtml), khaiVi, "S2 món có ảnh PNG", ("moi.jpg", "image/jpeg", Jpeg)))
+            using (var form = Form(Token(editHtml), appetizer, "S2 món có ảnh PNG", ("moi.jpg", "image/jpeg", Jpeg)))
             {
-                form.Add(new StringContent(id.ToString()), "Mon.Id");
-                using var edited = await client.PostAsync($"/QuanLyMon/Sua/{id}", form);
+                form.Add(new StringContent(id.ToString()), "Dish.Id");
+                using var edited = await client.PostAsync($"/Dishes/Edit/{id}", form);
                 Assert(edited.StatusCode == HttpStatusCode.Redirect, "Edit dish replaces image");
             }
             var replaced = await Scalar<string>(connection, $"SELECT ImagePath FROM dbo.MenuItems WHERE Id={id}");
@@ -67,11 +67,11 @@ internal static class MenuImageVerification
             Assert(replaced != pngPath && replaced.EndsWith(".jpg") && !File.Exists(LocalPath(pngPath)) && File.Exists(LocalPath(replaced)),
                 "Replaced image path saved and old upload removed");
 
-            var editAgain = await client.GetStringAsync($"/QuanLyMon/Sua/{id}");
-            using (var keep = Form(Token(editAgain), khaiVi, "S2 món có ảnh PNG", null))
+            var editAgain = await client.GetStringAsync($"/Dishes/Edit/{id}");
+            using (var keep = Form(Token(editAgain), appetizer, "S2 món có ảnh PNG", null))
             {
-                keep.Add(new StringContent(id.ToString()), "Mon.Id");
-                using var kept = await client.PostAsync($"/QuanLyMon/Sua/{id}", keep);
+                keep.Add(new StringContent(id.ToString()), "Dish.Id");
+                using var kept = await client.PostAsync($"/Dishes/Edit/{id}", keep);
                 Assert(kept.StatusCode == HttpStatusCode.Redirect, "Edit without new image succeeds");
             }
             Assert(await Scalar<string>(connection, $"SELECT ImagePath FROM dbo.MenuItems WHERE Id={id}") == replaced, "Edit without new image keeps current image");
@@ -87,10 +87,10 @@ internal static class MenuImageVerification
 
     private static async Task<HttpResponseMessage> Create(HttpClient client, int categoryId, string name, (string FileName, string ContentType, byte[] Bytes) image)
     {
-        var html = await client.GetStringAsync("/QuanLyMon/Tao");
+        var html = await client.GetStringAsync("/Dishes/Create");
         using var form = Form(Token(html), categoryId, name, image);
-        form.Add(new StringContent("javascript:alert(1)"), "Mon.DuongDanAnh");
-        return await client.PostAsync("/QuanLyMon/Tao", form);
+        form.Add(new StringContent("javascript:alert(1)"), "Dish.ImagePath");
+        return await client.PostAsync("/Dishes/Create", form);
     }
 
     private static MultipartFormDataContent Form(string token, int categoryId, string name, (string FileName, string ContentType, byte[] Bytes)? image)
@@ -98,19 +98,19 @@ internal static class MenuImageVerification
         var form = new MultipartFormDataContent
         {
             { new StringContent(token), "__RequestVerificationToken" },
-            { new StringContent(name), "Mon.Ten" },
-            { new StringContent(categoryId.ToString()), "Mon.NhomMonId" },
-            { new StringContent("50000"), "Mon.GiaBanVnd" },
-            { new StringContent("Phần"), "Mon.DonViTinh" },
-            { new StringContent("Món kiểm thử ảnh"), "Mon.MoTaNgan" },
-            { new StringContent("10"), "Mon.ThoiGianCheBienPhut" },
-            { new StringContent("0"), "Mon.TrangThai" }
+            { new StringContent(name), "Dish.Name" },
+            { new StringContent(categoryId.ToString()), "Dish.CategoryId" },
+            { new StringContent("50000"), "Dish.PriceVnd" },
+            { new StringContent("Phần"), "Dish.Unit" },
+            { new StringContent("Món kiểm thử ảnh"), "Dish.ShortDescription" },
+            { new StringContent("10"), "Dish.PrepMinutes" },
+            { new StringContent("0"), "Dish.Status" }
         };
         if (image is { } file)
         {
             var content = new ByteArrayContent(file.Bytes);
             content.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
-            form.Add(content, "AnhMon", file.FileName);
+            form.Add(content, "ImageFile", file.FileName);
         }
         return form;
     }

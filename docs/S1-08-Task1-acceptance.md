@@ -6,12 +6,12 @@
 - Nhóm có tên, trạng thái sử dụng và thứ tự hiển thị. Chỉ nhóm đang sử dụng xuất hiện; sắp xếp theo thứ tự hiển thị, rồi theo ID nếu trùng thứ tự.
 - Mỗi món liên kết đến một nhóm tồn tại; thao tác thêm/sửa từ chối nhóm không hợp lệ.
 - Chỉ món đang bán xuất hiện. Nhóm không có món hoặc không còn món đang bán vẫn hiện tiêu đề và “Chưa có món ăn”.
-- `/ThucDon` và `/GoiMon` dùng chung truy vấn và giao diện nhóm món, có liên kết chuyển nhanh đến từng nhóm.
+- `/Menu` và `/Ordering` dùng chung truy vấn và giao diện nhóm món, có liên kết chuyển nhanh đến từng nhóm.
 - Không bổ sung màn hình quản lý nhóm món trong task này.
 
 ## Phạm vi dữ liệu
 
-Hai màn hình tiếp tục sử dụng `InMemoryQuanLyMonStore` hiện có. Khi khởi động, ứng dụng tạo 5 nhóm và 5 món mẫu, mỗi nhóm một món. Các thay đổi trong quản lý món chỉ tồn tại trong tiến trình và mất khi khởi động lại. Chưa kết nối hai màn hình này với bảng SQL `MenuCategories`/`MenuItems`; không thay đổi migration hoặc database đang chạy. SQL hiện đã có tên, trạng thái, thứ tự và khóa ngoại món–nhóm.
+Hai màn hình tiếp tục sử dụng `InMemoryMenuStore` hiện có. Khi khởi động, ứng dụng tạo 5 nhóm và 5 món mẫu, mỗi nhóm một món. Các thay đổi trong quản lý món chỉ tồn tại trong tiến trình và mất khi khởi động lại. Chưa kết nối hai màn hình này với bảng SQL `MenuCategories`/`MenuItems`; không thay đổi migration hoặc database đang chạy. SQL hiện đã có tên, trạng thái, thứ tự và khóa ngoại món–nhóm.
 
 ## Demo
 
@@ -19,7 +19,7 @@ Hai màn hình tiếp tục sử dụng `InMemoryQuanLyMonStore` hiện có. Khi
 dotnet run --project src/RestaurantManagement.Web --launch-profile http
 ```
 
-1. Mở `http://localhost:5105/ThucDon` và `http://localhost:5105/GoiMon`.
+1. Mở `http://localhost:5105/Menu` và `http://localhost:5105/Ordering`.
 2. Kiểm tra đúng 5 nhóm theo thứ tự trên; lần lượt thấy Gỏi cuốn, Cơm chiên hải sản, Lẩu Thái, Chè hạt sen, Trà đào.
 3. Bấm tên nhóm ở đầu trang để chuyển nhanh đến nhóm đó.
 4. Vào Quản lý món, sửa Gỏi cuốn thành Ngưng bán. Tải lại cả hai trang: Khai vị vẫn đứng đầu, hiển thị “Chưa có món ăn”.

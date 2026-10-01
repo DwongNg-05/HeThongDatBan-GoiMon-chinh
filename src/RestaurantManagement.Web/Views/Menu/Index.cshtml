@@ -1,0 +1,61 @@
+@model IReadOnlyList<RestaurantManagement.Web.Services.PublicMenuCategory>
+@{
+    ViewData["Title"] = "Thực đơn";
+    string ImageSrc(string url) => url.StartsWith('/') ? Url.Content("~" + url) : url;
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/public-menu.css" asp-append-version="true" />
+}
+
+<div class="public-menu">
+    <header class="public-menu-hero">
+        <span class="menu-eyebrow">BẾP NHÀ · THỰC ĐƠN</span>
+        <h1>Thực đơn</h1>
+        <p>Giá niêm yết bằng đồng Việt Nam (VND).</p>
+    </header>
+
+    @if (Model.Count == 0)
+    {
+        <p class="public-menu-empty">Thực đơn đang được cập nhật. Vui lòng quay lại sau.</p>
+    }
+    else
+    {
+        <nav class="public-menu-tabs" aria-label="Nhóm món">
+            @foreach (var category in Model)
+            {
+                <a href="#nhom-@category.Id">@category.Name</a>
+            }
+        </nav>
+
+        @foreach (var category in Model)
+        {
+            <section class="public-menu-group" id="nhom-@category.Id" aria-labelledby="tieu-de-nhom-@category.Id" data-nhom-id="@category.Id">
+                <h2 id="tieu-de-nhom-@category.Id">@category.Name</h2>
+                @if (category.Dishes.Count == 0)
+                {
+                    <p class="public-menu-group-empty">Nhóm này chưa có món.</p>
+                }
+                else
+                {
+                    <ul class="public-menu-list">
+                        @foreach (var dish in category.Dishes)
+                        {
+                            <li class="public-dish" data-mon-id="@dish.Id">
+                                <img class="public-dish-image" src="@ImageSrc(dish.ImageUrl)" alt="Ảnh món @dish.Name"
+                                     width="96" height="96" loading="lazy" decoding="async" />
+                                <div class="public-dish-body">
+                                    <h3 class="public-dish-name">@dish.Name</h3>
+                                    @if (!string.IsNullOrEmpty(dish.ShortDescription))
+                                    {
+                                        <p class="public-dish-desc">@dish.ShortDescription</p>
+                                    }
+                                    <p class="public-dish-price"><data value="@dish.PriceVnd">@dish.DisplayPrice</data><span class="public-dish-unit"> / @dish.Unit</span></p>
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                }
+            </section>
+        }
+    }
+</div>

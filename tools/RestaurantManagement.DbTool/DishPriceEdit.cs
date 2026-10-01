@@ -5,7 +5,7 @@ using Microsoft.Data.SqlClient;
 namespace RestaurantManagement.DbTool;
 
 /// <summary>
-/// Sửa giá món qua màn hình Sửa món (/QuanLyMon/Sua/{id}) — nơi duy nhất còn sửa giá sau khi
+/// Sửa giá món qua màn hình Sửa món (/Dishes/Edit/{id}) — nơi duy nhất còn sửa giá sau khi
 /// màn hình "Sửa giá món" (/Management) được gộp vào Quản lý món. Giữ nguyên các thông tin khác của món.
 /// </summary>
 internal static class DishPriceEdit
@@ -26,18 +26,18 @@ internal static class DishPriceEdit
         }
         var fields = new List<KeyValuePair<string, string>>
         {
-            new("Mon.Id", id.ToString()), new("Mon.Ten", name), new("Mon.NhomMonId", category.ToString()),
-            new("Mon.GiaBanVnd", price.ToString()), new("Mon.DonViTinh", unit),
-            new("Mon.MoTaNgan", string.IsNullOrWhiteSpace(description) ? "Món demo" : description),
-            new("Mon.ThoiGianCheBienPhut", prep.ToString()), new("Mon.TrangThai", "0")
+            new("Dish.Id", id.ToString()), new("Dish.Name", name), new("Dish.CategoryId", category.ToString()),
+            new("Dish.PriceVnd", price.ToString()), new("Dish.Unit", unit),
+            new("Dish.ShortDescription", string.IsNullOrWhiteSpace(description) ? "Món demo" : description),
+            new("Dish.PrepMinutes", prep.ToString()), new("Dish.Status", "0")
         };
         if (withToken)
         {
-            var edit = await client.GetStringAsync($"/QuanLyMon/Sua/{id}");
+            var edit = await client.GetStringAsync($"/Dishes/Edit/{id}");
             fields.Add(new("__RequestVerificationToken",
                 WebUtility.HtmlDecode(Regex.Match(edit, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value)));
         }
         fields.AddRange(extra.Select(e => new KeyValuePair<string, string>(e.Name, e.Value)));
-        return await client.PostAsync($"/QuanLyMon/Sua/{id}", new FormUrlEncodedContent(fields));
+        return await client.PostAsync($"/Dishes/Edit/{id}", new FormUrlEncodedContent(fields));
     }
 }

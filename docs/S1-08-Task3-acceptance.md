@@ -3,7 +3,7 @@
 ## Quy tắc
 
 - Chọn nút Lên/Xuống, dùng được với chuột và bàn phím; chưa triển khai kéo thả. Đây là lựa chọn triển khai, chưa có xác nhận trực tiếp từ PO.
-- Mở Quản lý nhóm món → Sắp xếp nhóm món (`/QuanLyNhomMon/SapXep`).
+- Mở Quản lý nhóm món → Sắp xếp nhóm món (`/DishCategories/Reorder`).
 - Thao tác lên/xuống chỉ thay đổi bản xem trước. Bấm Lưu thứ tự mới ghi dữ liệu; Hủy không ghi.
 - Khi lưu, phải có đầy đủ mỗi ID nhóm đúng một lần, bao gồm nhóm ngừng sử dụng nếu có. Máy chủ tự đánh lại vị trí 1..N, không trùng hoặc thiếu vị trí.
 - Nếu danh sách/thứ tự đã thay đổi sau khi mở trang, từ chối ghi và yêu cầu sắp xếp lại theo danh sách mới.
@@ -13,10 +13,10 @@
 ## Demo
 
 1. Chạy `dotnet run --project src/RestaurantManagement.Web --launch-profile http`.
-2. Mở `http://localhost:5105/QuanLyNhomMon/SapXep`.
+2. Mở `http://localhost:5105/DishCategories/Reorder`.
 3. Bấm Lên ở Đồ uống đến vị trí đầu; bấm Lưu thứ tự.
 4. Xem thông báo thành công và tải lại danh sách.
-5. Mở `/ThucDon` và `/GoiMon`: Đồ uống đứng đầu ở cả hai trang.
+5. Mở `/Menu` và `/Ordering`: Đồ uống đứng đầu ở cả hai trang.
 6. Thử chuyển xuống cuối và đổi chỗ hai nhóm rồi lưu lại.
 
 ## Kiểm thử ngày 27/09/2026

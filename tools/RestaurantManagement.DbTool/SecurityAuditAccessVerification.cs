@@ -17,26 +17,26 @@ internal static class SecurityAuditAccessVerification
     private static readonly string[] ScreenUrls =
     [
         "/AuditLogs", "/AuditLogs/Index", "/auditlogs", "/AUDITLOGS/INDEX", "/AuditLogs/Index/1",
-        "/AuditLogs?fromDate=2020-03-01&toDate=2020-03-31&userId=1", "/QuanLyMon/NhatKyGia/60"
+        "/AuditLogs?fromDate=2020-03-01&toDate=2020-03-31&userId=1", "/Dishes/PriceHistory/60"
     ];
 
     private static readonly string[] WriteUrls =
     [
         "/AuditLogs", "/AuditLogs/Index", "/AuditLogs/Index/1", "/AuditLogs/Delete/1", "/AuditLogs/Edit/1",
-        "/AuditLogs/Update/1", "/AuditLogs/Xoa/1", "/AuditLogs/Sua/1", "/QuanLyMon/NhatKyGia/60"
+        "/AuditLogs/Update/1", "/AuditLogs/Delete/1", "/AuditLogs/Edit/1", "/Dishes/PriceHistory/60"
     ];
 
     private static readonly HttpMethod[] WriteMethods = [HttpMethod.Post, HttpMethod.Put, HttpMethod.Delete, HttpMethod.Patch];
 
     private static readonly string[] ManagerPages =
     [
-        "/", "/AuditLogs", "/QuanLyMon/NhatKyGia/60", "/QuanLyMon", "/QuanLyMon/Tao", "/QuanLyMon/Sua/60",
-        "/QuanLyNhomMon", "/GoiMon", "/ThucDon", "/admin/employee-accounts", "/Areas", "/Tables", "/Reservations",
-        "/OpeningHours", "/SpecialHolidays", "/Home/Privacy", "/Account/DoiMatKhau"
+        "/", "/AuditLogs", "/Dishes/PriceHistory/60", "/Dishes", "/Dishes/Create", "/Dishes/Edit/60",
+        "/DishCategories", "/Ordering", "/Menu", "/admin/employee-accounts", "/Areas", "/Tables", "/Reservations",
+        "/OpeningHours", "/SpecialHolidays", "/Home/Privacy", "/Account/ChangePassword"
     ];
 
     // Các trang bắt buộc phải mở được để rà soát; các trang khác nếu lỗi môi trường thì ghi SKIP.
-    private static readonly HashSet<string> RequiredPages = ["/", "/AuditLogs", "/QuanLyMon/NhatKyGia/60", "/QuanLyMon"];
+    private static readonly HashSet<string> RequiredPages = ["/", "/AuditLogs", "/Dishes/PriceHistory/60", "/Dishes"];
 
     internal static async Task Run(string connection, string password, HttpClient client)
     {
@@ -53,8 +53,8 @@ internal static class SecurityAuditAccessVerification
             var home = await client.GetStringAsync("/");
             Assert(!home.Contains("/AuditLogs", StringComparison.OrdinalIgnoreCase) && !WebUtility.HtmlDecode(home).Contains("Nhật ký hệ thống"),
                 $"{role}: menu has no audit log link");
-            var dishes = await client.GetStringAsync("/QuanLyMon");
-            Assert(!dishes.Contains("NhatKyGia", StringComparison.OrdinalIgnoreCase), $"{role}: dish list has no price-history link");
+            var dishes = await client.GetStringAsync("/Dishes");
+            Assert(!dishes.Contains("PriceHistory", StringComparison.OrdinalIgnoreCase), $"{role}: dish list has no price-history link");
             foreach (var url in ScreenUrls)
             {
                 using var response = await client.GetAsync(url);
@@ -97,10 +97,10 @@ internal static class SecurityAuditAccessVerification
             if (page == "/AuditLogs") auditHtml = html;
             var postForms = Regex.Matches(html, "<form\\b[^>]*>", RegexOptions.IgnoreCase).Select(m => m.Value)
                 .Where(f => Regex.IsMatch(f, "method=\"post\"", RegexOptions.IgnoreCase)).ToArray();
-            Assert(postForms.All(f => !Regex.IsMatch(f, "auditlog|nhatky|securityaudit", RegexOptions.IgnoreCase)),
+            Assert(postForms.All(f => !Regex.IsMatch(f, "auditlog|pricehistory|securityaudit", RegexOptions.IgnoreCase)),
                 $"UI review {page}: no POST form targets a log");
             Assert(!Regex.IsMatch(html, "(href|action|formaction)=\"[^\"]*/auditlogs/(?!index\\b)[^\"]*\"", RegexOptions.IgnoreCase)
-                && !Regex.IsMatch(html, "(href|action|formaction)=\"[^\"]*nhatkygia[^\"]*(delete|edit|xoa|sua|remove)[^\"]*\"", RegexOptions.IgnoreCase),
+                && !Regex.IsMatch(html, "(href|action|formaction)=\"[^\"]*pricehistory[^\"]*(delete|edit|xoa|sua|remove)[^\"]*\"", RegexOptions.IgnoreCase),
                 $"UI review {page}: no link to a log edit/delete action");
             Assert(!Regex.IsMatch(html, "(xo[áa]|s[ửu]a|delete|edit|remove)\\s+(b[ảa]n\\s+ghi\\s+)?nh[ậa]t\\s*k[ýy]", RegexOptions.IgnoreCase),
                 $"UI review {page}: no edit/delete log wording");

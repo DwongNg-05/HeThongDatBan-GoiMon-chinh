@@ -13,7 +13,7 @@ không đặt lại mật khẩu hoặc thay đổi cờ của tài khoản hi�
 
 ## Hành vi
 
-- `MustChangePassword=1`: đăng nhập thành công chuyển tới `/Account/DoiMatKhau`.
+- `MustChangePassword=1`: đăng nhập thành công chuyển tới `/Account/ChangePassword`.
 - Chặn truy cập trực tiếp các màn hình MVC, Razor Pages và API quản lý cho đến khi đổi mật khẩu; vẫn cho phép đăng xuất.
 - Mật khẩu mới có ít nhất 8 ký tự, gồm chữ và số, tối đa 72 byte UTF-8; phải khác mật khẩu hiện tại và khớp xác nhận.
 - Sai mật khẩu hiện tại không tăng bộ đếm khóa đăng nhập.

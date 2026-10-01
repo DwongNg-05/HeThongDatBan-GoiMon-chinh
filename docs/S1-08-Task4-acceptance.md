@@ -2,7 +2,7 @@
 
 ## Hành vi
 
-- Quản lý nhóm món (`/QuanLyNhomMon`) hiển thị trạng thái và liên kết Ngừng sử dụng/Bật lại theo trạng thái hiện tại.
+- Quản lý nhóm món (`/DishCategories`) hiển thị trạng thái và liên kết Ngừng sử dụng/Bật lại theo trạng thái hiện tại.
 - Mở liên kết chỉ xem xác nhận, chưa ghi dữ liệu. Bấm xác nhận gửi POST có anti-forgery token; Hủy trở về danh sách.
 - Nội dung xác nhận ngừng: “Bạn có chắc muốn ngừng sử dụng nhóm [tên]? Nhóm và các món thuộc nhóm sẽ không hiển thị trên thực đơn công khai và màn hình gọi món. Dữ liệu nhóm và [số món] món ăn liên kết vẫn được giữ nguyên. Bạn có thể bật lại nhóm sau.”
 - Nội dung xác nhận và lựa chọn cho phép bật lại là quy tắc triển khai đề xuất, chưa được xác nhận trực tiếp với PO.
@@ -13,9 +13,9 @@
 ## Demo
 
 1. Chạy `dotnet run --project src/RestaurantManagement.Web --launch-profile http`.
-2. Mở `http://localhost:5105/QuanLyNhomMon`, tạo Món nướng nếu chưa có.
+2. Mở `http://localhost:5105/DishCategories`, tạo Món nướng nếu chưa có.
 3. Chọn Ngừng sử dụng, đọc nội dung và xác nhận.
-4. Nhóm vẫn có trong quản lý, trạng thái Ngừng sử dụng. Tải lại `/ThucDon` và `/GoiMon`: nhóm không xuất hiện.
+4. Nhóm vẫn có trong quản lý, trạng thái Ngừng sử dụng. Tải lại `/Menu` và `/Ordering`: nhóm không xuất hiện.
 5. Thử với nhóm có món: món vẫn còn ở Quản lý món; tên, giá và liên kết không đổi.
 6. Chọn Bật lại và xác nhận; tải lại hai thực đơn để thấy nhóm trở lại.
 

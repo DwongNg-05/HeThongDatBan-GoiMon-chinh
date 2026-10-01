@@ -14,7 +14,7 @@ Cho phép xóa vĩnh viễn nhóm không còn món, cả nhóm đang dùng và n
 
 ## Demo
 
-1. Khởi động lại ứng dụng với code mới, mở `/QuanLyNhomMon`.
+1. Khởi động lại ứng dụng với code mới, mở `/DishCategories`.
 2. Chọn Xóa ở Lẩu: thấy thông báo không thể xóa và danh sách món liên kết.
 3. Chọn Chuyển sang nhóm khác cạnh từng món, chọn Món chính hoặc nhóm phù hợp rồi lưu.
 4. Quay lại xóa Lẩu: khi nhóm rỗng mới thấy xác nhận xóa vĩnh viễn. Có thể Hủy để giữ nhóm.

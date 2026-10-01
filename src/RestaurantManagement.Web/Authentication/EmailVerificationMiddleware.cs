@@ -10,7 +10,7 @@ namespace RestaurantManagement.Web.Authentication;
 public sealed class EmailVerificationMiddleware(RequestDelegate next)
 {
     public static readonly string[] AllowedPaths =
-        ["/Account/XacMinhEmail", "/Account/GuiLaiMaXacMinh", "/Account/DatEmailXacMinh", "/Account/Logout"];
+        ["/Account/VerifyEmail", "/Account/ResendVerificationCode", "/Account/SetVerificationEmail", "/Account/Logout"];
 
     public static bool IsAllowed(PathString path) =>
         AllowedPaths.Any(p => path.Equals(p, StringComparison.OrdinalIgnoreCase));
@@ -23,7 +23,7 @@ public sealed class EmailVerificationMiddleware(RequestDelegate next)
             && !IsAllowed(context.Request.Path)
             && verification.IsRequired(context.User))
         {
-            var target = context.Request.PathBase + "/Account/XacMinhEmail";
+            var target = context.Request.PathBase + "/Account/VerifyEmail";
             if (HttpMethods.IsGet(context.Request.Method))
                 target += "?returnUrl=" + Uri.EscapeDataString(context.Request.PathBase + context.Request.Path + context.Request.QueryString);
             context.Response.Redirect(target);

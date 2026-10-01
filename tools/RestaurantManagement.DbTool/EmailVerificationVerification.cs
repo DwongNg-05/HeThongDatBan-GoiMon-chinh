@@ -46,35 +46,35 @@ internal static class EmailVerificationVerification
 
             // 1. Phục vụ đăng nhập → bị chuyển tới màn hình xác minh; mọi trang khác (kể cả đổi mật khẩu) đều bị chặn.
             using (var login = await Login(client, "waiter", password))
-                Assert(login.StatusCode == HttpStatusCode.Redirect && Location(login).StartsWith("/Account/XacMinhEmail"), "Waiter login goes to email verification");
-            foreach (var path in new[] { "/", "/Areas", "/QuanLyMon", "/Account/DoiMatKhau" })
+                Assert(login.StatusCode == HttpStatusCode.Redirect && Location(login).StartsWith("/Account/VerifyEmail"), "Waiter login goes to email verification");
+            foreach (var path in new[] { "/", "/Areas", "/Dishes", "/Account/ChangePassword" })
             {
                 using var blocked = await client.GetAsync(path);
-                Assert(blocked.StatusCode == HttpStatusCode.Redirect && Location(blocked).StartsWith("/Account/XacMinhEmail"), $"Unverified waiter cannot open {path}");
+                Assert(blocked.StatusCode == HttpStatusCode.Redirect && Location(blocked).StartsWith("/Account/VerifyEmail"), $"Unverified waiter cannot open {path}");
             }
 
             // 2. Tài khoản chưa có email → nhập email để nhận mã.
-            var page = await Html(client, "/Account/XacMinhEmail");
+            var page = await Html(client, "/Account/VerifyEmail");
             Assert(page.Contains("name=\"email\"") && page.Contains("Gửi mã xác minh"), "Account without email is asked for an email address");
-            using (var bad = await client.PostAsync("/Account/DatEmailXacMinh", Form(("email", "khong-hop-le"), ("__RequestVerificationToken", Token(page)))))
+            using (var bad = await client.PostAsync("/Account/SetVerificationEmail", Form(("email", "khong-hop-le"), ("__RequestVerificationToken", Token(page)))))
                 Assert(bad.StatusCode == HttpStatusCode.Redirect, "Invalid email is rejected");
-            page = await Html(client, "/Account/XacMinhEmail");
+            page = await Html(client, "/Account/VerifyEmail");
             Assert(page.Contains("Email không hợp lệ") && Mails(mailDir).Length == 0, "Invalid email shows an error and sends nothing");
-            using (var set = await client.PostAsync("/Account/DatEmailXacMinh", Form(("email", "waiter.test@example.com"), ("__RequestVerificationToken", Token(page)))))
+            using (var set = await client.PostAsync("/Account/SetVerificationEmail", Form(("email", "waiter.test@example.com"), ("__RequestVerificationToken", Token(page)))))
                 Assert(set.StatusCode == HttpStatusCode.Redirect, "Email accepted");
             Assert(Mails(mailDir).Length == 1, "One verification email sent");
             var first = ReadCode(mailDir, 0);
             Assert(Regex.IsMatch(first, "^[A-Z0-9]{6}$") && first.Any(char.IsLetter) && first.Any(char.IsDigit), "Emailed code has 6 uppercase letters and digits");
             var html = await File.ReadAllTextAsync(Mails(mailDir)[0].Replace(".txt", ".html"));
             Assert(first.All(c => html.Contains($">{c}</div>")) && html.Contains("10 phút"), "HTML email shows the code in large boxes with validity");
-            page = await Html(client, "/Account/XacMinhEmail");
+            page = await Html(client, "/Account/VerifyEmail");
             Assert(page.Contains("w*********t@example.com") && page.Contains("Gửi lại mã") && page.Contains("disabled=\"disabled\""), "Page shows masked email and a disabled resend button during cooldown");
             await Check(connection, "SELECT CASE WHEN EXISTS(SELECT 1 FROM dbo.Users WHERE UserName=N'waiter' AND Email IS NULL) THEN 1 ELSE 0 END", "Email is saved only after it is verified");
 
             // 3. Gửi lại quá sớm bị từ chối.
-            using (var early = await client.PostAsync("/Account/GuiLaiMaXacMinh", Form(("__RequestVerificationToken", Token(page)))))
+            using (var early = await client.PostAsync("/Account/ResendVerificationCode", Form(("__RequestVerificationToken", Token(page)))))
                 Assert(early.StatusCode == HttpStatusCode.Redirect, "Early resend redirects");
-            page = await Html(client, "/Account/XacMinhEmail");
+            page = await Html(client, "/Account/VerifyEmail");
             Assert(page.Contains("Vui lòng chờ") && Mails(mailDir).Length == 1, "Resend within cooldown is refused");
 
             // 4. Nhập sai mã, sai định dạng.
@@ -86,11 +86,11 @@ internal static class EmailVerificationVerification
 
             // 5. Hết thời gian chờ → "Gửi lại mã" gửi mã mới, mã cũ hết hiệu lực.
             await DatabaseTool.Execute(connection, "UPDATE dbo.EmailVerificationCodes SET CreatedAt=DATEADD(minute,-2,CreatedAt) WHERE Email=N'waiter.test@example.com';");
-            using (var resend = await client.PostAsync("/Account/GuiLaiMaXacMinh", Form(("__RequestVerificationToken", Token(page)))))
+            using (var resend = await client.PostAsync("/Account/ResendVerificationCode", Form(("__RequestVerificationToken", Token(page)))))
                 Assert(resend.StatusCode == HttpStatusCode.Redirect, "Resend after cooldown accepted");
             Assert(Mails(mailDir).Length == 2, "Resend sends a second email");
             var second = ReadCode(mailDir, 1);
-            page = await Html(client, "/Account/XacMinhEmail");
+            page = await Html(client, "/Account/VerifyEmail");
             Assert(page.Contains("Đã gửi mã mới"), "Resend confirmation shown");
             if (second != first)
             {
@@ -99,8 +99,8 @@ internal static class EmailVerificationVerification
             }
 
             // 6. Mã đúng (gõ chữ thường, có khoảng trắng vẫn nhận) → vào được hệ thống.
-            using (var ok = await client.PostAsync("/Account/XacMinhEmail", Form(("code", " " + second.ToLowerInvariant()[..3] + " " + second.ToLowerInvariant()[3..]), ("__RequestVerificationToken", Token(page)))))
-                Assert(ok.StatusCode == HttpStatusCode.Redirect && !Location(ok).Contains("XacMinhEmail"), "Correct code completes verification");
+            using (var ok = await client.PostAsync("/Account/VerifyEmail", Form(("code", " " + second.ToLowerInvariant()[..3] + " " + second.ToLowerInvariant()[3..]), ("__RequestVerificationToken", Token(page)))))
+                Assert(ok.StatusCode == HttpStatusCode.Redirect && !Location(ok).Contains("VerifyEmail"), "Correct code completes verification");
             using (var home = await client.GetAsync("/"))
                 Assert(home.StatusCode == HttpStatusCode.OK, "Verified waiter can use the system");
             await Check(connection, "SELECT CASE WHEN EXISTS(SELECT 1 FROM dbo.Users WHERE UserName=N'waiter' AND Email=N'waiter.test@example.com') AND NOT EXISTS(SELECT 1 FROM dbo.EmailVerificationCodes c JOIN dbo.LoginSessions s ON s.Id=c.SessionId WHERE c.Email=N'waiter.test@example.com' AND s.EmailVerifiedAt IS NULL AND s.RevokedAt IS NULL) THEN 1 ELSE 0 END",
@@ -110,23 +110,23 @@ internal static class EmailVerificationVerification
             await DatabaseTool.Execute(connection, "UPDATE dbo.EmailVerificationCodes SET CreatedAt=DATEADD(minute,-2,CreatedAt) WHERE Email=N'waiter.test@example.com';");
             // 7. Lần đăng nhập sau: mã tự gửi tới email đã lưu; phải xác minh lại cho phiên mới.
             using (var again = await Login(client, "waiter", password))
-                Assert(Location(again).StartsWith("/Account/XacMinhEmail"), "Every new login session must be verified again");
+                Assert(Location(again).StartsWith("/Account/VerifyEmail"), "Every new login session must be verified again");
             Assert(Mails(mailDir).Length == 3, "Code sent automatically to the saved email on login");
-            page = await Html(client, "/Account/XacMinhEmail");
+            page = await Html(client, "/Account/VerifyEmail");
             Assert(!page.Contains("name=\"email\" type=\"email\" class=\"form-control form-control-lg\"") && page.Contains("Đã gửi mã xác minh tới email của bạn"), "Saved email is used without asking again");
             await Logout(client);
 
             // 8. Bắt buộc đổi mật khẩu: xác minh email trước, đổi mật khẩu sau.
             await DatabaseTool.Execute(connection, "UPDATE dbo.Users SET MustChangePassword=1 WHERE UserName=N'kitchen';");
             using (var kitchen = await Login(client, "kitchen", password))
-                Assert(Location(kitchen).StartsWith("/Account/XacMinhEmail"), "Kitchen with required password change verifies email first");
-            page = await Html(client, "/Account/XacMinhEmail");
-            using (var set = await client.PostAsync("/Account/DatEmailXacMinh", Form(("email", "kitchen.test@example.com"), ("__RequestVerificationToken", Token(page)))))
+                Assert(Location(kitchen).StartsWith("/Account/VerifyEmail"), "Kitchen with required password change verifies email first");
+            page = await Html(client, "/Account/VerifyEmail");
+            using (var set = await client.PostAsync("/Account/SetVerificationEmail", Form(("email", "kitchen.test@example.com"), ("__RequestVerificationToken", Token(page)))))
                 Assert(set.StatusCode == HttpStatusCode.Redirect, "Kitchen email accepted");
-            page = await Html(client, "/Account/XacMinhEmail");
-            using (var ok = await client.PostAsync("/Account/XacMinhEmail", Form(("code", ReadCode(mailDir, 3)), ("__RequestVerificationToken", Token(page)))))
-                Assert(Location(ok).StartsWith("/Account/DoiMatKhau"), "After email verification the user goes to change password");
-            using (var change = await client.GetAsync("/Account/DoiMatKhau"))
+            page = await Html(client, "/Account/VerifyEmail");
+            using (var ok = await client.PostAsync("/Account/VerifyEmail", Form(("code", ReadCode(mailDir, 3)), ("__RequestVerificationToken", Token(page)))))
+                Assert(Location(ok).StartsWith("/Account/ChangePassword"), "After email verification the user goes to change password");
+            using (var change = await client.GetAsync("/Account/ChangePassword"))
                 Assert(change.StatusCode == HttpStatusCode.OK, "Password change page reachable after verification");
             await Logout(client);
             await DatabaseTool.Execute(connection, "UPDATE dbo.Users SET MustChangePassword=0 WHERE UserName=N'kitchen';");
@@ -134,7 +134,7 @@ internal static class EmailVerificationVerification
             // 9. Quản lý không phải xác minh (demo-manager: mật khẩu "manager" đã được đổi ở bước kiểm thử S1-03).
             var before = Mails(mailDir).Length;
             using (var manager = await Login(client, "demo-manager", password))
-                Assert(manager.StatusCode == HttpStatusCode.Redirect && !Location(manager).Contains("XacMinhEmail"), "Manager is not asked to verify email");
+                Assert(manager.StatusCode == HttpStatusCode.Redirect && !Location(manager).Contains("VerifyEmail"), "Manager is not asked to verify email");
             using (var home = await client.GetAsync("/"))
                 Assert(home.StatusCode == HttpStatusCode.OK && Mails(mailDir).Length == before, "Manager uses the system directly, no email sent");
             await Logout(client);
@@ -163,7 +163,7 @@ internal static class EmailVerificationVerification
 
     private static async Task<string> PostCode(HttpClient client, string page, string code)
     {
-        using var response = await client.PostAsync("/Account/XacMinhEmail", Form(("code", code), ("__RequestVerificationToken", Token(page))));
+        using var response = await client.PostAsync("/Account/VerifyEmail", Form(("code", code), ("__RequestVerificationToken", Token(page))));
         Assert(response.StatusCode == HttpStatusCode.OK, "Code form re-displayed: " + code);
         return WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
     }
@@ -183,9 +183,9 @@ internal static class EmailVerificationVerification
 
     private static async Task Logout(HttpClient client)
     {
-        using var page = await client.GetAsync("/Account/XacMinhEmail");
+        using var page = await client.GetAsync("/Account/VerifyEmail");
         var html = await page.Content.ReadAsStringAsync();
-        foreach (var fallback in new[] { "/", "/Account/DoiMatKhau" })
+        foreach (var fallback in new[] { "/", "/Account/ChangePassword" })
         {
             if (html.Contains("__RequestVerificationToken")) break;
             using var other = await client.GetAsync(fallback);

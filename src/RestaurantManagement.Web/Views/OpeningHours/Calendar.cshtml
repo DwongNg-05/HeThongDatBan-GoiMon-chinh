@@ -10,8 +10,8 @@
 </form>
 @if (Model.Date is not null && ViewData.ModelState.IsValid)
 {
-    var thu = Model.Date.Value.DayOfWeek == DayOfWeek.Sunday ? "Chủ nhật" : $"Thứ {(int)Model.Date.Value.DayOfWeek + 1}";
-    <h2 class="h5">@thu, @Model.Date.Value.ToString("dd/MM/yyyy")</h2>
+    var dayName = Model.Date.Value.DayOfWeek == DayOfWeek.Sunday ? "Chủ nhật" : $"Thứ {(int)Model.Date.Value.DayOfWeek + 1}";
+    <h2 class="h5">@dayName, @Model.Date.Value.ToString("dd/MM/yyyy")</h2>
     @if (Model.HolidayName is not null)
     {
         <div class="alert alert-warning">Ngày nghỉ đặc biệt: <strong>@Model.HolidayName</strong>. Không nhận đặt bàn trong ngày này.</div>

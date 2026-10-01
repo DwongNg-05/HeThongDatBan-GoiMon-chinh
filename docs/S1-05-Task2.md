@@ -36,7 +36,7 @@ Nếu PO chọn khác (ví dụ 31 ngày, hoặc cho nhập tự do), chỉ cầ
 ## Chạy demo
 
 ```powershell
-cd D:\HeThongDatBan-GoiMon-Chinh
+cd D:\HeThongDatBan-Ordering-Chinh
 $env:RM_CONNECTION_STRING = 'Server=.\MSSQLSERVER07;Database=RestaurantManagement_Dev;Trusted_Connection=True;Encrypt=True;TrustServerCertificate=True'
 dotnet run --project tools/RestaurantManagement.DbTool -- migrate      # phải thấy "Applied: 021_SecurityAuditFilter.sql"
 ```

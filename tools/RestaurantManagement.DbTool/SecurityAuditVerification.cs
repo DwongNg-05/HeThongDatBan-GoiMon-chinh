@@ -62,11 +62,11 @@ internal static class SecurityAuditVerification
             await r.ReadAsync();
             var (name, category, price58, unit, description, prep) = (r.GetString(0), r.GetInt32(1), r.GetInt32(2), r.GetString(3), r.GetString(4), r.GetInt32(5));
             await r.CloseAsync();
-            var edit = await client.GetStringAsync("/QuanLyMon/Sua/58");
-            using var saved = await client.PostAsync("/QuanLyMon/Sua/58", Form(
-                ("__RequestVerificationToken", Token(edit)), ("Mon.Id", "58"), ("Mon.Ten", name), ("Mon.NhomMonId", category.ToString()),
-                ("Mon.GiaBanVnd", (price58 + 2000).ToString()), ("Mon.DonViTinh", unit), ("Mon.MoTaNgan", description),
-                ("Mon.ThoiGianCheBienPhut", prep.ToString()), ("Mon.TrangThai", "0")));
+            var edit = await client.GetStringAsync("/Dishes/Edit/58");
+            using var saved = await client.PostAsync("/Dishes/Edit/58", Form(
+                ("__RequestVerificationToken", Token(edit)), ("Dish.Id", "58"), ("Dish.Name", name), ("Dish.CategoryId", category.ToString()),
+                ("Dish.PriceVnd", (price58 + 2000).ToString()), ("Dish.Unit", unit), ("Dish.ShortDescription", description),
+                ("Dish.PrepMinutes", prep.ToString()), ("Dish.Status", "0")));
             Assert(saved.StatusCode == HttpStatusCode.Redirect, "Manager changes a price on the dish edit screen");
             await Check(connection, New($"Action='PriceChanged' AND UserId=1 AND RoleCode='Manager' AND IpAddress='{Ip}' AND Detail LIKE N'%(#58): {Vnd(price58)} ₫ → {Vnd(price58 + 2000)} ₫'"),
                 "Price change from dish edit screen is recorded with IP");

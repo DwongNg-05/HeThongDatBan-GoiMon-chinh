@@ -9,9 +9,9 @@ Mục tiêu: bảo đảm nhật ký chỉ đọc tuyệt đối và kiểm soá
 | Hạng mục | Trước Task 3 | Sau Task 3 |
 | --- | --- | --- |
 | Màn hình **Nhật ký hệ thống** (`/AuditLogs`) | Chỉ một action GET, `[Authorize(Roles = "Manager")]`, không có nút sửa/xoá | Giữ nguyên. Thêm xử lý trường hợp quyền bị thu hồi trong phiên (xem dưới). Kiểm thử xác nhận bảng không có nút, liên kết hay ô nhập nào |
-| Màn hình **Nhật ký thay đổi giá** (`/QuanLyMon/NhatKyGia/{id}`) | Mọi tài khoản đã đăng nhập đều xem được; nút “Lịch sử giá” hiện với mọi vai trò | Chỉ Quản lý. Nút chỉ hiện với Quản lý. POST/PUT/DELETE/PATCH luôn trả **405** |
+| Màn hình **Nhật ký thay đổi giá** (`/Dishes/PriceHistory/{id}`) | Mọi tài khoản đã đăng nhập đều xem được; nút “Lịch sử giá” hiện với mọi vai trò | Chỉ Quản lý. Nút chỉ hiện với Quản lý. POST/PUT/DELETE/PATCH luôn trả **405** |
 | Đường gọi web trực tiếp (`POST/PUT/DELETE/PATCH /AuditLogs`, `/AuditLogs/Delete/1`, `/AuditLogs/Edit/1`, …) | Không có action ghi, nên đã trả 405/404 | Kiểm thử cho cả 3 vai trò không phải quản lý, người chưa đăng nhập và Quản lý: luôn bị từ chối, dữ liệu không đổi |
-| Đường gọi qua EF (`ApplicationDbContext.AuditLogs`, `RestaurantDbContext.GhiNhanThayDoiGias`) | Về lý thuyết cho phép `Update`/`Remove` nếu có code gọi | `SaveChanges`/`SaveChangesAsync` ném lỗi khi có bản ghi nhật ký ở trạng thái sửa/xoá (`AppendOnlyGuard`); vẫn cho thêm |
+| Đường gọi qua EF (`ApplicationDbContext.AuditLogs`, `RestaurantDbContext.PriceChangeLogs`) | Về lý thuyết cho phép `Update`/`Remove` nếu có code gọi | `SaveChanges`/`SaveChangesAsync` ném lỗi khi có bản ghi nhật ký ở trạng thái sửa/xoá (`AppendOnlyGuard`); vẫn cho thêm |
 | Database — chủ database | Trigger chặn UPDATE/DELETE trên `SecurityAuditLogs` và `AuditLogs`; **TRUNCATE vượt qua được trigger**; `MenuPriceHistory` chưa được bảo vệ | Thêm trigger chỉ-thêm cho `MenuPriceHistory`. Bảng chặn `AuditTruncateGuard` (luôn rỗng) có khoá ngoại tới cả 3 bảng, nên SQL Server từ chối `TRUNCATE` (lỗi 4712), kể cả với chủ database |
 | Database — tài khoản ứng dụng (`restaurant_app`) | Không có `DENY` | `DENY SELECT/INSERT/UPDATE/DELETE/ALTER` trên `SecurityAuditLogs`; `DENY UPDATE/DELETE/ALTER` trên `AuditLogs` và `MenuPriceHistory`. `ALTER` bị từ chối nên TRUNCATE và `DISABLE TRIGGER` cũng bị chặn. Ứng dụng vẫn ghi/đọc qua stored procedure |
 | Quyền bị thu hồi khi đang đăng nhập | Cookie vẫn ghi vai trò `Manager`; database từ chối (51001) nhưng web trả lỗi 500 | Bắt lỗi 51001 và trả **403** (chuyển tới AccessDenied); không lộ dữ liệu |
@@ -24,13 +24,13 @@ Migration mới: `022_AuditReadOnlyHardening.sql`. Các migration cũ không b�
 ## Chạy demo
 
 ```powershell
-cd D:\HeThongDatBan-GoiMon-Chinh
+cd D:\HeThongDatBan-Ordering-Chinh
 $env:RM_CONNECTION_STRING = 'Server=.\MSSQLSERVER07;Database=RestaurantManagement_Dev;Trusted_Connection=True;Encrypt=True;TrustServerCertificate=True'
 dotnet run --project tools/RestaurantManagement.DbTool -- migrate      # phải thấy "Applied: 022_AuditReadOnlyHardening.sql"
 ```
 
 1. Đăng nhập bằng tài khoản **không phải Quản lý** (ví dụ `waiter`, `kitchen`, `cashier`): menu không có **Nhật ký hệ thống**, danh sách món không có nút **Lịch sử giá**.
-2. Gõ thẳng `/AuditLogs`, `/AuditLogs?fromDate=2026-09-01&toDate=2026-09-30&userId=1` hoặc `/QuanLyMon/NhatKyGia/1` lên thanh địa chỉ: đều bị chặn với thông báo “Bạn không có quyền truy cập chức năng này.” (403).
+2. Gõ thẳng `/AuditLogs`, `/AuditLogs?fromDate=2026-09-01&toDate=2026-09-30&userId=1` hoặc `/Dishes/PriceHistory/1` lên thanh địa chỉ: đều bị chặn với thông báo “Bạn không có quyền truy cập chức năng này.” (403).
 3. Đăng xuất, đăng nhập bằng Quản lý và mở **Nhật ký hệ thống** và **Lịch sử giá**: chỉ có bộ lọc và bảng xem, không có nút sửa/xoá.
 4. Tuỳ chọn, chạy trong SSMS để thấy database từ chối: `TRUNCATE TABLE dbo.SecurityAuditLogs;` báo lỗi 4712; `DELETE dbo.SecurityAuditLogs;` báo lỗi 51110.
 
@@ -46,7 +46,7 @@ dotnet run --no-build --project tools/RestaurantManagement.DbTool -- verify
 
 - **Tài khoản không phải quản lý** (Phục vụ, Bếp, Thu ngân):
   - không thấy liên kết Nhật ký hệ thống và Lịch sử giá;
-  - mở trực tiếp 7 đường dẫn đều bị chuyển tới AccessDenied rồi nhận **403**, không có dữ liệu nhật ký. Các đường dẫn gồm `/AuditLogs`, `/AuditLogs/Index`, `/auditlogs`, `/AUDITLOGS/INDEX`, `/AuditLogs/Index/1`, có kèm tham số lọc, và `/QuanLyMon/NhatKyGia/60`;
+  - mở trực tiếp 7 đường dẫn đều bị chuyển tới AccessDenied rồi nhận **403**, không có dữ liệu nhật ký. Các đường dẫn gồm `/AuditLogs`, `/AuditLogs/Index`, `/auditlogs`, `/AUDITLOGS/INDEX`, `/AuditLogs/Index/1`, có kèm tham số lọc, và `/Dishes/PriceHistory/60`;
   - database cũng từ chối `usp_SecurityAuditList` và `usp_SecurityAuditAccounts` (51001).
 - **Chưa đăng nhập**: mọi đường dẫn trên đều chuyển về trang đăng nhập.
 - **Gọi sửa/xoá trực tiếp**: 9 đường dẫn × POST/PUT/DELETE/PATCH, gửi kèm token chống giả mạo hợp lệ, cho cả 3 vai trò không phải quản lý, người chưa đăng nhập và Quản lý. Mọi lời gọi đều bị từ chối (400/403/404/405 hoặc chuyển tới đăng nhập/AccessDenied).
@@ -66,6 +66,6 @@ dotnet run --no-build --project tools/RestaurantManagement.DbTool -- verify
 - kho nhật ký chỉ có `WriteLogin`, `Search`, `Accounts`;
 - EF từ chối sửa/xoá bản ghi nhật ký và lịch sử giá nhưng vẫn cho thêm.
 
-`AuthenticationHttpTests` bổ sung `/AuditLogs/Index` và `/QuanLyMon/NhatKyGia/1` vào danh sách bị chặn khi chưa đăng nhập.
+`AuthenticationHttpTests` bổ sung `/AuditLogs/Index` và `/Dishes/PriceHistory/1` vào danh sách bị chặn khi chưa đăng nhập.
 
 Phần dọn dữ liệu của `MenuImageVerification` không còn xoá lịch sử giá, vì bảng này giờ chỉ cho thêm.

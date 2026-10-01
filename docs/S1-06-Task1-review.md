@@ -44,5 +44,5 @@ Unit test là executable test runner (không dùng xUnit/dotnet test), trả exi
 ## Giới hạn còn lại
 - Chưa chạy demo bằng trình duyệt trên database phát triển; chỉ kiểm tra build, unit và SQL integration.
 - Dự án chưa có đăng nhập web. ActorUserId đang lấy từ cấu hình, mặc định 1; kiểm tra quyền SQL không chứng minh danh tính người truy cập. Chỉ dùng cho demo nội bộ; cần tích hợp xác thực/phân quyền thực trước nghiệm thu quyền “Quản lý” trên môi trường triển khai.
-- Entity EF KhuVuc hiện không được dùng bởi luồng này; luồng Areas dùng bảng dbo.Areas qua stored procedure. Không dùng EnsureCreated để tạo schema thay migration.
+- Entity EF AreaEntity hiện không được dùng bởi luồng này; luồng Areas dùng bảng dbo.Areas qua stored procedure. Không dùng EnsureCreated để tạo schema thay migration.
 

@@ -20,12 +20,12 @@ Thông báo:
 
 ## Giao diện và demo
 
-Chạy ứng dụng với profile `http`, mở `http://localhost:5105/QuanLyNhomMon` hoặc chọn **Quản lý nhóm món** trên thanh điều hướng.
+Chạy ứng dụng với profile `http`, mở `http://localhost:5105/DishCategories` hoặc chọn **Quản lý nhóm món** trên thanh điều hướng.
 
 1. Chọn **Thêm nhóm món**, nhập `Món nướng`. Trạng thái mặc định đang sử dụng; thứ tự mặc định đặt sau nhóm cuối. Có thể chọn trạng thái và thứ tự khi tạo.
 2. Lưu: quay về danh sách và thấy thông báo thành công. Tải lại trang vẫn thấy nhóm mới.
 3. Chọn **Sửa tên**, nhập `Món nướng BBQ`, lưu và tải lại để xác nhận.
-4. Mở `/ThucDon` và `/GoiMon`: cùng hiển thị tên mới và thông báo nhóm chưa có món.
+4. Mở `/Menu` và `/Ordering`: cùng hiển thị tên mới và thông báo nhóm chưa có món.
 5. Thử tên rỗng, 51 ký tự hoặc ` KHAI   VỊ `: ở lại form, giữ dữ liệu nhập và báo lỗi; không ghi dữ liệu sai.
 
 Màn hình sửa chỉ nhận tên; trạng thái và thứ tự hiện có không bị thay đổi. Không có thao tác đổi thứ tự/ngừng sử dụng nhóm hiện có trong task này. Đổi tên giữ nguyên ID nên các món vẫn liên kết đến nhóm cũ.
@@ -41,6 +41,6 @@ Kết quả 27/09/2026: build thành công, 0 cảnh báo, 0 lỗi; 76 kiểm th
 
 ## Giới hạn tích hợp hiện tại
 
-- Tiếp tục dùng singleton `InMemoryQuanLyMonStore`: dữ liệu tồn tại qua tải lại trang, không tồn tại qua khởi động lại ứng dụng, không chia sẻ giữa nhiều tiến trình. Chưa nối SQL.
+- Tiếp tục dùng singleton `InMemoryMenuStore`: dữ liệu tồn tại qua tải lại trang, không tồn tại qua khởi động lại ứng dụng, không chia sẻ giữa nhiều tiến trình. Chưa nối SQL.
 - Nhánh EP-02 hiện chưa có đăng nhập/phân quyền web. Màn hình mang chức năng dành cho quản lý nhưng chưa giới hạn truy cập theo vai trò; cần tích hợp phần xác thực EP-01 để áp dụng quyền quản lý.
 - Chưa kiểm thử bằng trình duyệt tự động; đã kiểm thử HTTP và HTML thực tế.

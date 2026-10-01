@@ -68,10 +68,10 @@ public class AccountController(ManagementStore store, LoginSessionStore sessions
                 var sent = await verification.SendCode(user.Id, sessionId, email, user.FullName, HttpContext.RequestAborted);
                 TempData[sent.Sent ? VerifyInfo : VerifyError] = sent.Sent ? "Đã gửi mã xác minh tới email của bạn." : sent.Error;
             }
-            return RedirectToAction(nameof(XacMinhEmail), new { returnUrl = Url.IsLocalUrl(returnUrl) ? returnUrl : null });
+            return RedirectToAction(nameof(VerifyEmail), new { returnUrl = Url.IsLocalUrl(returnUrl) ? returnUrl : null });
         }
         return await passwords.IsRequired(user.Id)
-            ? RedirectToAction(nameof(DoiMatKhau)) : RedirectAfterLogin(returnUrl);
+            ? RedirectToAction(nameof(ChangePassword)) : RedirectAfterLogin(returnUrl);
     }
 
     private const string VerifyInfo = "EmailVerificationInfo";
@@ -81,7 +81,7 @@ public class AccountController(ManagementStore store, LoginSessionStore sessions
         (int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!), Guid.Parse(User.FindFirstValue(LoginSessionStore.SessionClaim)!));
 
     [Authorize, HttpGet]
-    public async Task<IActionResult> XacMinhEmail(string? returnUrl = null)
+    public async Task<IActionResult> VerifyEmail(string? returnUrl = null)
     {
         if (!verification.IsRequired(User)) return await AfterVerification(returnUrl);
         var (userId, sessionId) = CurrentIds();
@@ -92,7 +92,7 @@ public class AccountController(ManagementStore store, LoginSessionStore sessions
     }
 
     [Authorize, HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> XacMinhEmail(string? code, string? returnUrl = null)
+    public async Task<IActionResult> VerifyEmail(string? code, string? returnUrl = null)
     {
         if (!verification.IsRequired(User)) return await AfterVerification(returnUrl);
         var (userId, sessionId) = CurrentIds();
@@ -123,7 +123,7 @@ public class AccountController(ManagementStore store, LoginSessionStore sessions
     }
 
     [Authorize, HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> GuiLaiMaXacMinh(string? returnUrl = null)
+    public async Task<IActionResult> ResendVerificationCode(string? returnUrl = null)
     {
         if (!verification.IsRequired(User)) return await AfterVerification(returnUrl);
         var (userId, sessionId) = CurrentIds();
@@ -136,11 +136,11 @@ public class AccountController(ManagementStore store, LoginSessionStore sessions
             var sent = await verification.SendCode(userId, sessionId, email, User.FindFirstValue("FullName") ?? "", HttpContext.RequestAborted);
             TempData[sent.Sent ? VerifyInfo : VerifyError] = sent.Sent ? "Đã gửi mã mới. Mã cũ không còn dùng được." : sent.Error;
         }
-        return RedirectToAction(nameof(XacMinhEmail), new { returnUrl = Url.IsLocalUrl(returnUrl) ? returnUrl : null });
+        return RedirectToAction(nameof(VerifyEmail), new { returnUrl = Url.IsLocalUrl(returnUrl) ? returnUrl : null });
     }
 
     [Authorize, HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> DatEmailXacMinh(string? email, string? returnUrl = null)
+    public async Task<IActionResult> SetVerificationEmail(string? email, string? returnUrl = null)
     {
         if (!verification.IsRequired(User)) return await AfterVerification(returnUrl);
         var (userId, sessionId) = CurrentIds();
@@ -155,7 +155,7 @@ public class AccountController(ManagementStore store, LoginSessionStore sessions
             var sent = await verification.SendCode(userId, sessionId, email!.Trim(), User.FindFirstValue("FullName") ?? "", HttpContext.RequestAborted);
             TempData[sent.Sent ? VerifyInfo : VerifyError] = sent.Sent ? "Đã gửi mã xác minh. Hãy mở email và nhập mã bên dưới." : sent.Error;
         }
-        return RedirectToAction(nameof(XacMinhEmail), new { returnUrl = Url.IsLocalUrl(returnUrl) ? returnUrl : null });
+        return RedirectToAction(nameof(VerifyEmail), new { returnUrl = Url.IsLocalUrl(returnUrl) ? returnUrl : null });
     }
 
     private EmailVerificationViewModel BuildModel(EmailVerificationState state, string? returnUrl, string? info, string? error)
@@ -189,7 +189,7 @@ public class AccountController(ManagementStore store, LoginSessionStore sessions
     private async Task<IActionResult> AfterVerification(string? returnUrl)
     {
         var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        return await passwords.IsRequired(userId) ? RedirectToAction(nameof(DoiMatKhau)) : RedirectAfterLogin(returnUrl);
+        return await passwords.IsRequired(userId) ? RedirectToAction(nameof(ChangePassword)) : RedirectAfterLogin(returnUrl);
     }
 
     private async Task<IActionResult> ExpiredSession()
@@ -200,24 +200,24 @@ public class AccountController(ManagementStore store, LoginSessionStore sessions
     }
 
     [Authorize, HttpGet]
-    public IActionResult DoiMatKhau() => View();
+    public IActionResult ChangePassword() => View();
 
     [Authorize, HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> DoiMatKhau(string? matKhauHienTai, string? matKhauMoi, string? xacNhanMatKhau)
+    public async Task<IActionResult> ChangePassword(string? currentPassword, string? newPassword, string? confirmPassword)
     {
         string? error = null;
-        if (string.IsNullOrWhiteSpace(matKhauHienTai)) error = "Vui lòng nhập mật khẩu hiện tại.";
-        else if (string.IsNullOrWhiteSpace(matKhauMoi) || matKhauMoi.Length < 8
-            || System.Text.Encoding.UTF8.GetByteCount(matKhauMoi) > 72
-            || !matKhauMoi.Any(char.IsLetter) || !matKhauMoi.Any(char.IsDigit))
+        if (string.IsNullOrWhiteSpace(currentPassword)) error = "Vui lòng nhập mật khẩu hiện tại.";
+        else if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 8
+            || System.Text.Encoding.UTF8.GetByteCount(newPassword) > 72
+            || !newPassword.Any(char.IsLetter) || !newPassword.Any(char.IsDigit))
             error = "Mật khẩu mới phải có ít nhất 8 ký tự, gồm chữ và số, tối đa 72 byte UTF-8.";
-        else if (matKhauMoi != xacNhanMatKhau) error = "Mật khẩu xác nhận không khớp.";
-        else if (matKhauMoi == matKhauHienTai) error = "Mật khẩu mới không được trùng mật khẩu hiện tại.";
+        else if (newPassword != confirmPassword) error = "Mật khẩu xác nhận không khớp.";
+        else if (newPassword == currentPassword) error = "Mật khẩu mới không được trùng mật khẩu hiện tại.";
         if (error is null)
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             var sessionId = Guid.Parse(User.FindFirstValue(LoginSessionStore.SessionClaim)!);
-            if (await passwords.Change(userId, sessionId, matKhauHienTai!, matKhauMoi!))
+            if (await passwords.Change(userId, sessionId, currentPassword!, newPassword!))
             {
                 TempData["Success"] = "Đổi mật khẩu thành công!";
                 return RedirectToAction("Index", "Home");
@@ -226,7 +226,7 @@ public class AccountController(ManagementStore store, LoginSessionStore sessions
         }
         // A wrong current password must not increment the login lockout counter.
         ModelState.AddModelError("", error);
-        ViewBag.Loi = error;
+        ViewBag.Error = error;
         return View();
     }
 

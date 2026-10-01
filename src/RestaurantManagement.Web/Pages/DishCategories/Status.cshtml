@@ -1,0 +1,20 @@
+@page "{id:int}"
+@model RestaurantManagement.Web.Pages.DishCategories.StatusModel
+@{ ViewData["Title"] = Model.Category.IsActive ? "Ngừng sử dụng nhóm món" : "Bật lại nhóm món"; }
+<h1>@ViewData["Title"]</h1>
+@if (Model.Category.IsActive)
+{
+    <p>Bạn có chắc muốn ngừng sử dụng nhóm “@Model.Category.Name”? Nhóm và các món thuộc nhóm sẽ không hiển thị trên thực đơn công khai và màn hình gọi món. Dữ liệu nhóm và @Model.DishCount món ăn liên kết vẫn được giữ nguyên. Bạn có thể bật lại nhóm sau.</p>
+    <form method="post" asp-page-handler="Deactivate">
+        <button type="submit" class="btn btn-warning">Xác nhận ngừng sử dụng</button>
+        <a asp-page="Index" class="btn btn-secondary">Hủy</a>
+    </form>
+}
+else
+{
+    <p>Bật lại nhóm “@Model.Category.Name”? Nhóm và các món đang bán sẽ xuất hiện trở lại trên hai thực đơn theo thứ tự đã lưu. Trạng thái bán của từng món không thay đổi.</p>
+    <form method="post" asp-page-handler="Reactivate">
+        <button type="submit" class="btn btn-success">Xác nhận bật lại</button>
+        <a asp-page="Index" class="btn btn-secondary">Hủy</a>
+    </form>
+}

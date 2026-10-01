@@ -11,7 +11,7 @@ public sealed class RequiredPasswordChangeMiddleware(RequestDelegate next)
     {
         var endpoint = context.GetEndpoint();
         var path = context.Request.Path;
-        var allowed = path.Equals("/Account/DoiMatKhau", StringComparison.OrdinalIgnoreCase)
+        var allowed = path.Equals("/Account/ChangePassword", StringComparison.OrdinalIgnoreCase)
             || path.Equals("/Account/Logout", StringComparison.OrdinalIgnoreCase)
             // Bước xác minh email diễn ra trước bước đổi mật khẩu.
             || EmailVerificationMiddleware.IsAllowed(path);
@@ -21,7 +21,7 @@ public sealed class RequiredPasswordChangeMiddleware(RequestDelegate next)
             && int.TryParse(context.User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId)
             && await passwords.IsRequired(userId))
         {
-            context.Response.Redirect(context.Request.PathBase + "/Account/DoiMatKhau");
+            context.Response.Redirect(context.Request.PathBase + "/Account/ChangePassword");
             return;
         }
         await next(context);

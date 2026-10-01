@@ -18,7 +18,7 @@ internal static class AuthenticationHttpTests
             UseShellExecute = false, CreateNoWindow = true,
             RedirectStandardOutput = true, RedirectStandardError = true
         };
-        start.ArgumentList.Add(typeof(InMemoryQuanLyMonStore).Assembly.Location);
+        start.ArgumentList.Add(typeof(InMemoryMenuStore).Assembly.Location);
         start.ArgumentList.Add("--urls");
         start.ArgumentList.Add($"http://127.0.0.1:{port}");
         start.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
@@ -46,14 +46,14 @@ internal static class AuthenticationHttpTests
                 await Task.Delay(250);
             }
             if (!ready) throw new Exception("Login page did not start: " + string.Join(Environment.NewLine, log.TakeLast(20)));
-            foreach (var path in new[] { "/", "/Home/Index", "/Areas", "/Tables", "/Reservations", "/OpeningHours", "/SpecialHolidays", "/QuanLyMon", "/QuanLyNhomMon", "/GoiMon", "/admin/employee-accounts", "/AuditLogs", "/AuditLogs/Index", "/QuanLyMon/NhatKyGia/1", "/api/table-status", "/api/table-map/A01" })
+            foreach (var path in new[] { "/", "/Home/Index", "/Areas", "/Tables", "/Reservations", "/OpeningHours", "/SpecialHolidays", "/Dishes", "/DishCategories", "/Ordering", "/admin/employee-accounts", "/AuditLogs", "/AuditLogs/Index", "/Dishes/PriceHistory/1", "/api/table-status", "/api/table-map/A01" })
             {
                 using var response = await client.GetAsync(path);
                 Check(response.StatusCode == HttpStatusCode.Unauthorized ||
                     (response.StatusCode == HttpStatusCode.Redirect && response.Headers.Location?.OriginalString.Contains("/Account/Login?ReturnUrl=") == true),
                     "Anonymous access blocked: " + path);
             }
-            // /ThucDon và /api/thuc-don là thực đơn công khai cho khách (S2-01); được kiểm thử trong DbTool verify với SQL Server.
+            // /Menu và /api/menu là thực đơn công khai cho khách (S2-01); được kiểm thử trong DbTool verify với SQL Server.
             using var post = await client.PostAsync("/Tables/Create", new FormUrlEncodedContent(new Dictionary<string, string>()));
             Check(post.StatusCode == HttpStatusCode.Redirect && post.Headers.Location?.OriginalString.Contains("/Account/Login") == true,
                 "Anonymous writes require login before running the action");

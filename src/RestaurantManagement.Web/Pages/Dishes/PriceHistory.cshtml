@@ -1,0 +1,42 @@
+@page "{id:int}"
+@model RestaurantManagement.Web.Pages.Dishes.PriceHistoryModel
+@{
+    ViewData["Title"] = "Nhật ký thay đổi giá";
+}
+
+<h2>Lịch sử giá: @Model.Dish?.Name</h2>
+<p class="text-muted">Các lần đổi giá của món này (chỉ xem). Muốn đổi giá, hãy bấm “Sửa” ở trang Quản lý món.</p>
+
+@if (Model.Entries == null || !Model.Entries.Any())
+{
+    <div class="alert alert-info">Chưa có lần thay đổi giá nào cho món này.</div>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Thời điểm (UTC+7)</th>
+                <th>Người sửa</th>
+                <th>Giá cũ (VND)</th>
+                <th>Giá mới (VND)</th>
+            </tr>
+        </thead>
+        <tbody>
+            @{ var idx = 1; }
+            @foreach (var e in Model.Entries)
+            {
+                <tr>
+                    <td>@(idx++)</td>
+                    <td>@e.ChangedAt.AddHours(7).ToString("dd/MM/yyyy HH:mm:ss")</td>
+                    <td>@e.ChangedBy</td>
+                    <td>@e.OldPriceVnd.ToString("N0")</td>
+                    <td>@e.NewPriceVnd.ToString("N0")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<a asp-page="/Dishes/Index" class="btn btn-secondary">Quay lại Quản lý món</a>

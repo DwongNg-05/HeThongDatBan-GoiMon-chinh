@@ -46,7 +46,7 @@ internal static partial class LoginVerification
             Assert(ready, "Web starts");
             Assert((await client.GetAsync("/Management")).StatusCode == HttpStatusCode.Redirect, "Anonymous management access denied");
             Assert((await client.GetAsync("/admin/employee-accounts")).StatusCode == HttpStatusCode.Redirect, "Anonymous employee account access denied");
-            Assert((await client.GetAsync("/GoiMon")).StatusCode == HttpStatusCode.Redirect, "Anonymous staff ordering page still requires login");
+            Assert((await client.GetAsync("/Ordering")).StatusCode == HttpStatusCode.Redirect, "Anonymous staff ordering page still requires login");
             await PublicMenuVerification.Run(connection, client);
             await SecurityAuditVerification.Run(connection, password, client);
 
@@ -70,10 +70,10 @@ internal static partial class LoginVerification
                 Assert(success.StatusCode == HttpStatusCode.Redirect, "Login succeeds: " + identifier);
                 var cookies = success.Headers.GetValues("Set-Cookie").Where(c => c.StartsWith("RestaurantManagement.Auth="));
                 Assert(cookies.Any(c => c.Contains("httponly", StringComparison.OrdinalIgnoreCase) && !c.Contains("expires=", StringComparison.OrdinalIgnoreCase)), "Protected browser-session cookie");
-                // "Sửa giá món" đã gộp vào Quản lý món: đường dẫn cũ /Management chuyển về /QuanLyMon.
+                // "Sửa giá món" đã gộp vào Quản lý món: đường dẫn cũ /Management chuyển về /Dishes.
                 using (var legacy = await client.GetAsync("/Management"))
-                    Assert(legacy.StatusCode == HttpStatusCode.Redirect && legacy.Headers.Location?.OriginalString.StartsWith("/QuanLyMon") == true, "Old price screen redirects to dish management");
-                var page = await client.GetStringAsync("/QuanLyMon");
+                    Assert(legacy.StatusCode == HttpStatusCode.Redirect && legacy.Headers.Location?.OriginalString.StartsWith("/Dishes") == true, "Old price screen redirects to dish management");
+                var page = await client.GetStringAsync("/Dishes");
                 Assert(WebUtility.HtmlDecode(page).Contains("Đăng nhập thành công."), "Shows login success");
                 Assert(WebUtility.HtmlDecode(page).Contains("Xin chào, manager"), "Session identifies manager");
                 Assert((await client.GetAsync("/admin/employee-accounts")).IsSuccessStatusCode, "Manager can open merged employee account list");
@@ -97,14 +97,14 @@ internal static partial class LoginVerification
             {
                 using var success = await Login(identifier, password);
                 Assert(success.StatusCode == HttpStatusCode.Redirect, "Second manager login: " + identifier);
-                var page = await client.GetStringAsync("/QuanLyMon");
+                var page = await client.GetStringAsync("/Dishes");
                 Assert(WebUtility.HtmlDecode(page).Contains("Xin chào, demo-manager"), "Session switches to the second manager");
                 var token = Token(page);
                 using var price = await DishPriceEdit.Post(connection, client, 60, 87655, true, ("ActorUserId", "1"));
                 using var availability = await client.PostAsync("/Management/Availability", Form(("id", "60"), ("soldOut", "false"), ("ActorUserId", "1"), ("__RequestVerificationToken", token)));
                 Assert(price.StatusCode == HttpStatusCode.Redirect && availability.StatusCode == HttpStatusCode.Redirect, "Second manager can change menu");
                 await Check(connection, "DECLARE @actor int=(SELECT Id FROM dbo.Users WHERE UserName='demo-manager'); SELECT CASE WHEN EXISTS(SELECT 1 FROM dbo.MenuPriceHistory WHERE MenuItemId=60 AND ChangedBy=@actor AND NewPrice=87655) AND EXISTS(SELECT 1 FROM dbo.MenuAvailabilityEvents WHERE MenuItemId=60 AND ChangedBy=@actor AND IsSoldOut=0) AND EXISTS(SELECT 1 FROM dbo.AuditLogs WHERE EntityId='60' AND Action='PriceChanged' AND ActorUserId=@actor) THEN 1 ELSE 0 END", "Audit records second manager rather than a hardcoded user");
-                var history = WebUtility.HtmlDecode(await client.GetStringAsync("/QuanLyMon"));
+                var history = WebUtility.HtmlDecode(await client.GetStringAsync("/Dishes"));
                 Assert(history.Contains("id=\"bang-nhat-ky-gia\"") && history.Contains("<td>demo-manager</td>"), "Price log in dish management displays the actual actor");
                 using var logout = await client.PostAsync("/Account/Logout", Form(("__RequestVerificationToken", token)));
             }

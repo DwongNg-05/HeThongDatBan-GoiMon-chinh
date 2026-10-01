@@ -6,7 +6,7 @@ using Microsoft.Data.SqlClient;
 namespace RestaurantManagement.DbTool;
 
 /// <summary>
-/// S2-01 Task 1 (AC1): khách mở /ThucDon khi chưa đăng nhập và thấy món theo nhóm với ảnh, tên, mô tả ngắn, giá VND.
+/// S2-01 Task 1 (AC1): khách mở /Menu khi chưa đăng nhập và thấy món theo nhóm với ảnh, tên, mô tả ngắn, giá VND.
 /// Chạy trên database kiểm thử riêng của lệnh verify, với client chưa có cookie đăng nhập.
 /// </summary>
 internal static class PublicMenuVerification
@@ -32,7 +32,7 @@ internal static class PublicMenuVerification
             """);
         try
         {
-            using var page = await anonymous.GetAsync("/ThucDon");
+            using var page = await anonymous.GetAsync("/Menu");
             Assert(page.StatusCode == HttpStatusCode.OK, "Public menu opens without login (200, no redirect)");
             var html = WebUtility.HtmlDecode(await page.Content.ReadAsStringAsync());
             Assert(html.Contains("name=\"viewport\"") && html.Contains("public-menu.css"), "Public menu has mobile viewport and menu styles");
@@ -49,10 +49,10 @@ internal static class PublicMenuVerification
                 Regex.Matches(Section(group), "<li class=\"public-dish\".*?</li>", RegexOptions.Singleline)
                     .Select(m => m.Value).Single(li => li.Contains($">{name}</h3>"));
 
-            var goiCuon = Dish("Khai vị", "Gỏi cuốn tôm thịt");
-            Assert(goiCuon.Contains("src=\"/images/thuc-don/khai-vi.svg\"") && goiCuon.Contains("alt=\"Ảnh món Gỏi cuốn tôm thịt\""), "Dish shows its image with alt text");
-            Assert(goiCuon.Contains("2 cuốn tôm, thịt, bún và rau sống, chấm tương đậu phộng."), "Dish shows short description");
-            Assert(goiCuon.Contains("<data value=\"45000\">45.000 ₫</data>") && goiCuon.Contains("/ Phần"), "Price shows VND grouping and ₫ unit");
+            var springRoll = Dish("Khai vị", "Gỏi cuốn tôm thịt");
+            Assert(springRoll.Contains("src=\"/images/thuc-don/khai-vi.svg\"") && springRoll.Contains("alt=\"Ảnh món Gỏi cuốn tôm thịt\""), "Dish shows its image with alt text");
+            Assert(springRoll.Contains("2 cuốn tôm, thịt, bún và rau sống, chấm tương đậu phộng."), "Dish shows short description");
+            Assert(springRoll.Contains("<data value=\"45000\">45.000 ₫</data>") && springRoll.Contains("/ Phần"), "Price shows VND grouping and ₫ unit");
             Assert(Dish("Lẩu", "Lẩu Thái hải sản").Contains("280.000 ₫") && Dish("Món chính", "Bò lúc lắc").Contains("145.000 ₫"), "Six-digit VND prices formatted correctly");
             Assert(Dish("Đồ uống", "Cà phê sữa đá").Contains("29.000 ₫"), "Drinks are listed in their own group");
 
@@ -67,18 +67,18 @@ internal static class PublicMenuVerification
             using var image = await anonymous.GetAsync("/images/thuc-don/khai-vi.svg");
             Assert(image.StatusCode == HttpStatusCode.OK, "Menu images load without login");
 
-            using var api = await anonymous.GetAsync("/api/thuc-don");
+            using var api = await anonymous.GetAsync("/api/menu");
             Assert(api.StatusCode == HttpStatusCode.OK && api.Content.Headers.ContentType?.MediaType == "application/json", "Public menu API works without login");
             using var json = JsonDocument.Parse(await api.Content.ReadAsStringAsync());
             var apiGroups = json.RootElement.EnumerateArray().ToArray();
-            Assert(apiGroups.Select(g => g.GetProperty("ten").GetString()).SequenceEqual(groups), "API returns groups in display order");
-            var apiDish = apiGroups[0].GetProperty("monAn").EnumerateArray().Single(m => m.GetProperty("ten").GetString() == "Gỏi cuốn tôm thịt");
-            Assert(apiDish.GetProperty("giaVnd").GetInt32() == 45000 && apiDish.GetProperty("giaHienThi").GetString() == "45.000 ₫"
-                && apiDish.GetProperty("anhUrl").GetString() == "/images/thuc-don/khai-vi.svg"
-                && apiDish.GetProperty("moTaNgan").GetString()!.Length > 0, "API dish has image, description and VND price");
-            Assert(apiGroups.All(g => g.GetProperty("monAn").EnumerateArray().All(m => m.GetProperty("ten").GetString() != "Cua rang me")), "API hides stopped dish");
+            Assert(apiGroups.Select(g => g.GetProperty("name").GetString()).SequenceEqual(groups), "API returns groups in display order");
+            var apiDish = apiGroups[0].GetProperty("dishes").EnumerateArray().Single(m => m.GetProperty("name").GetString() == "Gỏi cuốn tôm thịt");
+            Assert(apiDish.GetProperty("priceVnd").GetInt32() == 45000 && apiDish.GetProperty("displayPrice").GetString() == "45.000 ₫"
+                && apiDish.GetProperty("imageUrl").GetString() == "/images/thuc-don/khai-vi.svg"
+                && apiDish.GetProperty("shortDescription").GetString()!.Length > 0, "API dish has image, description and VND price");
+            Assert(apiGroups.All(g => g.GetProperty("dishes").EnumerateArray().All(m => m.GetProperty("name").GetString() != "Cua rang me")), "API hides stopped dish");
 
-            // Không gia hạn hay tạo phiên đăng nhập cho khách.
+            // Không price hạn hay tạo phiên đăng nhập cho khách.
             Assert(!page.Headers.TryGetValues("Set-Cookie", out var cookies) || cookies.All(c => !c.StartsWith("RestaurantManagement.Auth=")), "Public menu does not create a login cookie");
             Console.WriteLine("PASS: S2-01 Task 1 public menu checks.");
         }

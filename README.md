@@ -24,8 +24,8 @@ GitHub lưu **mã nguồn tạo database**, không lưu database đang chạy ha
 Mở PowerShell:
 
 ```powershell
-git clone https://github.com/DwongNg-05/HeThongDatBan-GoiMon-chinh.git
-cd HeThongDatBan-GoiMon-chinh
+git clone https://github.com/DwongNg-05/HeThongDatBan-Ordering-chinh.git
+cd HeThongDatBan-Ordering-chinh
 dotnet restore RestaurantManagement.sln --locked-mode
 
 # Đổi tên server phù hợp với máy của bạn, ví dụ .\SQLEXPRESS.
@@ -208,7 +208,7 @@ Lệnh `verify` bao gồm kiểm tra phiên ở phút 29, làm mới thời gian
 
 ## S2-01 Task 1 — thực đơn công khai
 
-Khách mở `/ThucDon` trên điện thoại mà không cần đăng nhập, xem món theo nhóm với ảnh, tên, mô tả ngắn và giá VND (`45.000 ₫`). API công khai: `GET /api/thuc-don`. Nạp dữ liệu mẫu bằng `dotnet run --project tools/RestaurantManagement.DbTool -- seed-menu-demo` (chạy lại an toàn, không cần mật khẩu). Quy tắc món đang bán / hết trong ngày / ngừng bán, kịch bản demo và kiểm thử: xem [docs/S2-01-Task1.md](docs/S2-01-Task1.md).
+Khách mở `/Menu` trên điện thoại mà không cần đăng nhập, xem món theo nhóm với ảnh, tên, mô tả ngắn và giá VND (`45.000 ₫`). API công khai: `GET /api/menu`. Nạp dữ liệu mẫu bằng `dotnet run --project tools/RestaurantManagement.DbTool -- seed-menu-demo` (chạy lại an toàn, không cần mật khẩu). Quy tắc món đang bán / hết trong ngày / ngừng bán, kịch bản demo và kiểm thử: xem [docs/S2-01-Task1.md](docs/S2-01-Task1.md).
 
 ## S1-05 Task 1 — nhật ký đăng nhập và sửa giá món
 

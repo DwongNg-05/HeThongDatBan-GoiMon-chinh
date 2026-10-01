@@ -19,7 +19,7 @@ internal static class MenuHttpTests
             UseShellExecute = false, CreateNoWindow = true,
             RedirectStandardOutput = true, RedirectStandardError = true
         };
-        start.ArgumentList.Add(typeof(InMemoryQuanLyMonStore).Assembly.Location);
+        start.ArgumentList.Add(typeof(InMemoryMenuStore).Assembly.Location);
         start.ArgumentList.Add("--urls");
         start.ArgumentList.Add($"http://127.0.0.1:{port}");
         start.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
@@ -37,7 +37,7 @@ internal static class MenuHttpTests
             var ready = false;
             for (var i = 0; i < 60 && !web.HasExited; i++)
             {
-                try { if ((await client.GetAsync("/ThucDon")).IsSuccessStatusCode) { ready = true; break; } }
+                try { if ((await client.GetAsync("/Menu")).IsSuccessStatusCode) { ready = true; break; } }
                 catch (HttpRequestException) { }
                 await Task.Delay(250);
             }
@@ -57,8 +57,8 @@ internal static class MenuHttpTests
             static string[] Headings(string html) => Regex.Matches(html, "<h2 id=\"tieu-de-nhom-[0-9]+\">(.*?)</h2>")
                 .Select(m => m.Groups[1].Value).ToArray();
             string[] expected = ["Khai vị", "Món chính", "Lẩu", "Tráng miệng", "Đồ uống"];
-            var publicHtml = await Get("/ThucDon");
-            var orderHtml = await Get("/GoiMon");
+            var publicHtml = await Get("/Menu");
+            var orderHtml = await Get("/Ordering");
             Check(Headings(publicHtml).SequenceEqual(expected), "HTTP: public menu has five headings in required order");
             Check(Headings(orderHtml).SequenceEqual(expected), "HTTP: ordering menu has the same five headings in required order");
             foreach (var html in new[] { publicHtml, orderHtml })
@@ -66,22 +66,22 @@ internal static class MenuHttpTests
                 var sections = Regex.Matches(html, "<section .*?</section>", RegexOptions.Singleline);
                 string[] dishes = ["Gỏi cuốn", "Cơm chiên hải sản", "Lẩu Thái", "Chè hạt sen", "Trà đào"];
                 Check(sections.Count == 5 && sections.Select((s, i) => s.Value.Contains(dishes[i])).All(v => v), "HTTP: each dish renders in its own group");
-                Check(html.Contains("action=\"/GoiMon/Checkout\"") && html.Contains("name=\"__RequestVerificationToken\""), "HTTP: shared cart has working checkout form and anti-forgery token");
+                Check(html.Contains("action=\"/Ordering/Checkout\"") && html.Contains("name=\"__RequestVerificationToken\""), "HTTP: shared cart has working checkout form and anti-forgery token");
                 Check(html.Contains("<html lang=\"vi\">") && !html.Contains("<<<<<<<"), "HTTP: menu uses application layout without conflict markers");
             }
 
             // Stop the only appetizer through the existing edit form; both pages must retain its empty group.
-            var edit = await Get("/QuanLyMon/Sua/1");
+            var edit = await Get("/Dishes/Edit/1");
             var token = Regex.Match(edit, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
             Check(token.Length > 0, "HTTP: dish edit form has an anti-forgery token");
-            using var saved = await client.PostAsync("/QuanLyMon/Sua/1", new FormUrlEncodedContent(new Dictionary<string, string>
+            using var saved = await client.PostAsync("/Dishes/Edit/1", new FormUrlEncodedContent(new Dictionary<string, string>
             {
-                ["__RequestVerificationToken"] = token, ["Mon.Id"] = "1", ["Mon.Ten"] = "Gỏi cuốn",
-                ["Mon.NhomMonId"] = "1", ["Mon.GiaBanVnd"] = "45000", ["Mon.DonViTinh"] = "Đĩa",
-                ["Mon.MoTaNgan"] = "Món kiểm thử", ["Mon.ThoiGianCheBienPhut"] = "15", ["Mon.TrangThai"] = "NgungBan"
+                ["__RequestVerificationToken"] = token, ["Dish.Id"] = "1", ["Dish.Name"] = "Gỏi cuốn",
+                ["Dish.CategoryId"] = "1", ["Dish.PriceVnd"] = "45000", ["Dish.Unit"] = "Đĩa",
+                ["Dish.ShortDescription"] = "Món kiểm thử", ["Dish.PrepMinutes"] = "15", ["Dish.Status"] = "Discontinued"
             }));
             Check(saved.StatusCode == HttpStatusCode.Redirect, "HTTP: existing dish editor can stop a dish");
-            foreach (var path in new[] { "/ThucDon", "/GoiMon" })
+            foreach (var path in new[] { "/Menu", "/Ordering" })
             {
                 var html = await Get(path);
                 var firstSection = Regex.Match(html, "<section .*?</section>", RegexOptions.Singleline).Value;

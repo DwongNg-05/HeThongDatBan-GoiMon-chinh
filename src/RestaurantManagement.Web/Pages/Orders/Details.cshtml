@@ -1,0 +1,50 @@
+@page "{id:int}"
+@model RestaurantManagement.Web.Pages.Orders.DetailsModel
+@{
+    ViewData["Title"] = "Chi tiết đơn hàng";
+}
+
+<h1>Chi tiết đơn hàng #@Model.Order?.Id</h1>
+
+@if (Model.Order == null)
+{
+    <div class="alert alert-warning">Đơn hàng không tồn tại.</div>
+}
+else
+{
+    <p>Thời gian tạo: @Model.Order.CreatedAt.ToLocalTime()</p>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Tên món</th>
+                <th>Đơn vị</th>
+                <th>Giá (VND)</th>
+                <th>Số lượng</th>
+                <th>Thành tiền (VND)</th>
+            </tr>
+        </thead>
+        <tbody>
+            @{ 
+                var items = Model.Lines.ToList();
+                var idx = 1;
+                long total = items.Sum(d => d.LineTotal);
+            }
+            @foreach (var d in items)
+            {
+                <tr>
+                    <td>@(idx++)</td>
+                    <td>@d.DishNameSnapshot</td>
+                    <td>@d.Unit</td>
+                    <td>@d.UnitPriceVnd.ToString("N0")</td>
+                    <td>@d.Quantity</td>
+                    <td>@d.LineTotal.ToString("N0")</td>
+                </tr>
+            }
+            <tr>
+                <td colspan="5" class="text-end"><strong>Tổng</strong></td>
+                <td><strong>@total.ToString("N0")</strong></td>
+            </tr>
+        </tbody>
+    </table>
+}

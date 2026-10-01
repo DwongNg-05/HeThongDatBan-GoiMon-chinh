@@ -20,7 +20,7 @@ Các thông số đổi được trong `appsettings.json`, mục `EmailVerificat
 1. Chạy migration (thêm cột `Users.Email`, `LoginSessions.EmailVerifiedAt`, bảng `EmailVerificationCodes`):
 
    ```powershell
-   cd D:\HeThongDatBan-GoiMon-Chinh
+   cd D:\HeThongDatBan-Ordering-Chinh
    $env:RM_CONNECTION_STRING = 'Server=.\MSSQLSERVER07;Database=RestaurantManagement_Dev;Trusted_Connection=True;Encrypt=True;TrustServerCertificate=True'
    dotnet run --project tools/RestaurantManagement.DbTool -- migrate      # phải thấy "Applied: 023_EmailVerification.sql"
    ```
@@ -30,7 +30,7 @@ Các thông số đổi được trong `appsettings.json`, mục `EmailVerificat
    - Lưu cấu hình bằng user-secrets (không ghi mật khẩu vào appsettings.json hay đẩy lên GitHub):
 
    ```powershell
-   cd D:\HeThongDatBan-GoiMon-Chinh
+   cd D:\HeThongDatBan-Ordering-Chinh
    dotnet user-secrets set "Email:Host" "smtp.gmail.com" --project src/RestaurantManagement.Web
    dotnet user-secrets set "Email:Port" "587" --project src/RestaurantManagement.Web
    dotnet user-secrets set "Email:UserName" "tenban@gmail.com" --project src/RestaurantManagement.Web
@@ -44,7 +44,7 @@ Các thông số đổi được trong `appsettings.json`, mục `EmailVerificat
 
 ## Thử nhanh
 
-1. Đăng nhập bằng `waiter` → màn hình **Xác minh đăng nhập** hiện ra; thử mở `/` hay `/Account/DoiMatKhau` đều bị đưa về đây.
+1. Đăng nhập bằng `waiter` → màn hình **Xác minh đăng nhập** hiện ra; thử mở `/` hay `/Account/ChangePassword` đều bị đưa về đây.
 2. Nhập email → mở hộp thư (hoặc `App_Data/emails`) → nhập mã → vào hệ thống.
 3. Bấm **Gửi lại mã** ngay: báo phải chờ; sau 60 giây bấm lại: nhận mã mới, mã cũ không dùng được.
 4. Đăng nhập bằng `manager`: vào thẳng, không cần mã.
