@@ -1,0 +1,124 @@
+{
+  "measuredAtUtc": "2026-10-01T20:03:50.955Z",
+  "tableCount": 80,
+  "environment": "local Chromium headless; loopback HTTP; local SQL Server",
+  "acceptanceStandardConfirmed": false,
+  "readyDefinition": "all tiles laid out, sync/details handlers attached, two paint opportunities",
+  "scenarios": {
+    "cold": [
+      532,
+      254,
+      220,
+      227,
+      196,
+      206,
+      217,
+      233,
+      204,
+      253
+    ],
+    "warm": [
+      95,
+      81,
+      76,
+      62,
+      56,
+      107,
+      57,
+      70,
+      74,
+      89
+    ]
+  },
+  "polls": [
+    {
+      "milliseconds": 131,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 15,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 10,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 11,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 8,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 11,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 8,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 11,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 10,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 7,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 11,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 11,
+      "bytes": 76
+    },
+    {
+      "milliseconds": 5,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 7,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 14,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 13,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 7,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 6,
+      "bytes": 76
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 76
+    },
+    {
+      "milliseconds": 6,
+      "bytes": 77
+    }
+  ],
+  "clickMs": [],
+  "errors": [],
+  "browserVersion": "154.0.8037.92",
+  "pass": true,
+  "maxReadyMs": 532
+}

@@ -3,7 +3,7 @@
 @section Styles {
     <link rel="stylesheet" href="~/css/table-map-snapshot.css" asp-append-version="true" />
 }
-<section class="snapshot-map map-page" data-changes-url="@Url.Content("~/api/table-map/changes")" data-details-url="@Url.Content("~/api/table-map")" data-cursor="@Model.Cursor" data-load-failed="@Model.LoadFailed.ToString().ToLowerInvariant()">
+<section class="snapshot-map map-page" data-table-count="@Model.TotalCount" data-changes-url="@Url.Content("~/api/table-map/changes")" data-details-url="@Url.Content("~/api/table-map")" data-cursor="@Model.Cursor" data-load-failed="@Model.LoadFailed.ToString().ToLowerInvariant()">
     <div class="map-heading">
         <div><h1>Sơ đồ bàn</h1><p>@Model.TotalCount bàn trong nhà hàng</p></div>
         <a class="btn btn-outline-secondary" asp-action="Index">Tải lại sơ đồ</a>
@@ -69,4 +69,5 @@
 @section Scripts {
     <script src="~/js/table-map-sync.js" asp-append-version="true"></script>
     <script src="~/js/table-details.js" asp-append-version="true"></script>
+    <script src="~/js/table-map-performance.js" asp-append-version="true"></script>
 }

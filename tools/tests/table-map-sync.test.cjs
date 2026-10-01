@@ -13,7 +13,7 @@ function setup() {
     const cards = ['A01', 'A02'].map(code => {
         const classes = new Set(['status-available']);
         return { dataset: { tableCode: code, status: 'Available' }, label: {}, classes,
-            classList: { add: x => classes.add(x), remove: x => classes.delete(x) },
+            classList: { add: (...values) => values.forEach(x => classes.add(x)), remove: (...values) => values.forEach(x => classes.delete(x)) },
             querySelector() { return this.label; }, setAttribute(name, value) { this[name] = value; },
             closest() { return area; }, offsetWidth: 100 };
     });
@@ -31,6 +31,19 @@ function setup() {
 }
 const flush = () => new Promise(resolve => setImmediate(resolve));
 const update = (code, status) => ({ code, status, capacity: 4 });
+
+test('successive status changes restart highlighting without retaining either animation class', async () => {
+    const ui = setup(); await flush();
+    ui.result = { cursor: '2', tables: [update('A01', 'Serving')], syncedAtUtc: '2026-10-02T01:00:02Z' };
+    ui.tick(); await flush();
+    ui.result = { cursor: '3', tables: [update('A01', 'Cleaning')], syncedAtUtc: '2026-10-02T01:00:04Z' };
+    ui.tick(); await flush();
+    assert(!ui.cards[0].classes.has('table-just-changed'));
+    assert(ui.cards[0].classes.has('table-just-changed-again'));
+    assert.equal(ui.count.textContent, '1');
+    for (const timer of ui.timers.values()) timer();
+    assert(!ui.cards[0].classes.has('table-just-changed-again'));
+});
 
 test('only changed cards update; area count, labels, highlight and scroll are preserved', async () => {
     const ui = setup(); await flush();

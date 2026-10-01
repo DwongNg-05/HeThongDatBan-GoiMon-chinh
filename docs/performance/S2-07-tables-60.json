@@ -1,0 +1,808 @@
+{
+  "measuredAtUtc": "2026-10-01T20:08:26.504Z",
+  "tableCount": 60,
+  "environment": "local Chromium headless; loopback HTTP; local SQL Server",
+  "acceptanceStandardConfirmed": false,
+  "readyDefinition": "all tiles laid out, sync/details handlers attached, two paint opportunities",
+  "scenarios": {
+    "cold": [
+      344,
+      251,
+      184,
+      193,
+      189,
+      152,
+      163,
+      194,
+      163,
+      162
+    ],
+    "warm": [
+      95,
+      87,
+      123,
+      121,
+      91,
+      92,
+      87,
+      99,
+      101,
+      87
+    ],
+    "slowCold": [
+      1059,
+      1077,
+      1073,
+      1066,
+      1083,
+      1067,
+      1067,
+      1070,
+      1069,
+      1059
+    ],
+    "concurrent": [
+      403,
+      374,
+      401,
+      452,
+      605,
+      703,
+      1152,
+      1465,
+      1335,
+      1387,
+      1652,
+      839,
+      1334,
+      1708,
+      744,
+      1244,
+      1512,
+      930,
+      746,
+      500,
+      1602,
+      1521,
+      979,
+      1416,
+      877,
+      831,
+      580,
+      1138,
+      1183,
+      1017,
+      681,
+      698,
+      862,
+      902,
+      822,
+      584,
+      428,
+      954,
+      878,
+      1183,
+      577,
+      305,
+      338,
+      479,
+      334,
+      313,
+      300,
+      290,
+      345,
+      324,
+      292,
+      330,
+      321,
+      453,
+      398,
+      358,
+      363,
+      312,
+      319,
+      495
+    ]
+  },
+  "polls": [
+    {
+      "milliseconds": 75,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 13,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 7,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 12,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 8,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 6,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 11,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 7,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 7,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 6,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 9,
+      "bytes": 76
+    },
+    {
+      "milliseconds": 8,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 9,
+      "bytes": 76
+    },
+    {
+      "milliseconds": 11,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 13,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 7,
+      "bytes": 76
+    },
+    {
+      "milliseconds": 17,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 7,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 9,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 9,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 15,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 7,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 6,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 7,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 16,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 5,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 12,
+      "bytes": 76
+    },
+    {
+      "milliseconds": 5,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 57,
+      "bytes": 76
+    },
+    {
+      "milliseconds": 66,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 301,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 173,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 199,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 82,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 45,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 76,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 102,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 58,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 82,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 213,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 56,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 155,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 320,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 155,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 73,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 94,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 38,
+      "bytes": 124
+    },
+    {
+      "milliseconds": 278,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 281,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 70,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 288,
+      "bytes": 76
+    },
+    {
+      "milliseconds": 886,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 231,
+      "bytes": 125
+    },
+    {
+      "milliseconds": 137,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 67,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 117,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 114,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 102,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 58,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 284,
+      "bytes": 124
+    },
+    {
+      "milliseconds": 326,
+      "bytes": 76
+    },
+    {
+      "milliseconds": 176,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 216,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 88,
+      "bytes": 125
+    },
+    {
+      "milliseconds": 99,
+      "bytes": 125
+    },
+    {
+      "milliseconds": 181,
+      "bytes": 125
+    },
+    {
+      "milliseconds": 173,
+      "bytes": 124
+    },
+    {
+      "milliseconds": 60,
+      "bytes": 124
+    },
+    {
+      "milliseconds": 283,
+      "bytes": 124
+    },
+    {
+      "milliseconds": 380,
+      "bytes": 124
+    },
+    {
+      "milliseconds": 286,
+      "bytes": 124
+    },
+    {
+      "milliseconds": 194,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 87,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 402,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 172,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 418,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 100,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 54,
+      "bytes": 124
+    },
+    {
+      "milliseconds": 39,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 56,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 38,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 34,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 30,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 29,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 65,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 60,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 58,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 43,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 137,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 20,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 77,
+      "bytes": 76
+    },
+    {
+      "milliseconds": 81,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 38,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 54,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 27,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 46,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 74,
+      "bytes": 125
+    },
+    {
+      "milliseconds": 22,
+      "bytes": 125
+    },
+    {
+      "milliseconds": 12,
+      "bytes": 125
+    },
+    {
+      "milliseconds": 11,
+      "bytes": 125
+    },
+    {
+      "milliseconds": 13,
+      "bytes": 125
+    },
+    {
+      "milliseconds": 13,
+      "bytes": 125
+    },
+    {
+      "milliseconds": 9,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 124
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 125
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 124
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 125
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 124
+    },
+    {
+      "milliseconds": 3,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 125
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 76
+    },
+    {
+      "milliseconds": 6,
+      "bytes": 124
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 76
+    },
+    {
+      "milliseconds": 6,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 6,
+      "bytes": 125
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 5,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 3,
+      "bytes": 124
+    },
+    {
+      "milliseconds": 6,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 6,
+      "bytes": 125
+    },
+    {
+      "milliseconds": 6,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 5,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 6,
+      "bytes": 124
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 5,
+      "bytes": 125
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 3,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 6,
+      "bytes": 124
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 5,
+      "bytes": 125
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 6,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 5,
+      "bytes": 124
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 7,
+      "bytes": 125
+    },
+    {
+      "milliseconds": 6,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 5,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 123
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 5,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 125
+    },
+    {
+      "milliseconds": 5,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 6,
+      "bytes": 124
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 5,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 125
+    },
+    {
+      "milliseconds": 7,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 124
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 125
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 7,
+      "bytes": 124
+    },
+    {
+      "milliseconds": 5,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 125
+    },
+    {
+      "milliseconds": 5,
+      "bytes": 76
+    },
+    {
+      "milliseconds": 5,
+      "bytes": 124
+    },
+    {
+      "milliseconds": 4,
+      "bytes": 77
+    },
+    {
+      "milliseconds": 6,
+      "bytes": 77
+    }
+  ],
+  "clickMs": [
+    80,
+    66,
+    51,
+    50,
+    69,
+    67,
+    66,
+    64,
+    69,
+    66,
+    68,
+    66,
+    65,
+    49,
+    63,
+    66,
+    69,
+    49,
+    67,
+    68,
+    66,
+    66,
+    67,
+    66
+  ],
+  "errors": [],
+  "browserVersion": "154.0.8037.92",
+  "slowNetwork": {
+    "latencyMs": 100,
+    "downloadMbps": 4,
+    "uploadMbps": 1,
+    "simulated": true
+  },
+  "remoteDetailsMs": 1664,
+  "soakSeconds": 120,
+  "longTasksMs": [],
+  "pass": true,
+  "maxReadyMs": 1708
+}

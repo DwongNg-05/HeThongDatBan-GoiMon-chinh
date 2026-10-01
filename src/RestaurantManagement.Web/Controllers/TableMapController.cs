@@ -9,9 +9,10 @@ namespace RestaurantManagement.Web.Controllers;
 public sealed class TableMapController(ITableMapReader reader, ILogger<TableMapController> logger) : Controller
 {
     [HttpGet]
-    public IActionResult Index()
+    public async Task<IActionResult> Index(CancellationToken cancellationToken = default)
     {
-        try { return View(reader.Read()); }
+        try { return View(await reader.ReadAsync(cancellationToken)); }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception exception)
         {
             logger.LogError(exception, "Unable to load table map");
@@ -21,9 +22,15 @@ public sealed class TableMapController(ITableMapReader reader, ILogger<TableMapC
     }
 
     [HttpGet("api/table-map")]
-    public IActionResult Snapshot()
+    public async Task<IActionResult> Snapshot(CancellationToken cancellationToken = default)
     {
-        try { return Ok(reader.Read()); }
+        try
+        {
+            var snapshot = await reader.ReadAsync(cancellationToken);
+            return Ok(new { snapshot.Cursor, snapshot.SyncedAtUtc, snapshot.TotalCount,
+                Areas = snapshot.Areas.Select(area => new { area.Name, Tables = area.Tables.Select(table => new { table.Code, table.Capacity, table.Status }) }) });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception exception)
         {
             logger.LogError(exception, "Unable to load table map snapshot");
@@ -37,7 +44,11 @@ public sealed class TableMapController(ITableMapReader reader, ILogger<TableMapC
     {
         if (!long.TryParse(after, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var cursor) || cursor < 0)
             return BadRequest(new { message = "Mốc đồng bộ không hợp lệ." });
-        try { return Ok(await reader.ReadChangesAsync(cursor, cancellationToken)); }
+        try
+        {
+            var changes = await reader.ReadChangesAsync(cursor, cancellationToken);
+            return Ok(new { changes.Cursor, changes.SyncedAtUtc, Tables = changes.Tables.Select(table => new { table.Code, table.Capacity, table.Status }) });
+        }
         catch (ArgumentOutOfRangeException) { return Conflict(new { message = "Dữ liệu đã được đặt lại. Vui lòng tải lại sơ đồ." }); }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception exception)

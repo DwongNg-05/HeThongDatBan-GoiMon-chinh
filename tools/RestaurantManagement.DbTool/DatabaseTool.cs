@@ -26,6 +26,8 @@ internal static partial class DatabaseTool
                 case "seed-demo": await Seed(connection); break;
                 case "seed-login-demo": await SeedLoginDemo(connection); break;
                 case "seed-menu-demo": await SeedMenuDemo(connection); break;
+                case "seed-map-performance": await SeedMapPerformance(connection); break;
+                case "drop-map-performance": await DropMapPerformance(connection); break;
                 case "verify": await Verification.Run(connection); break;
                 case "maintenance": await Execute(connection, "EXEC dbo.usp_RunMaintenance;"); break;
                 case "check": await Execute(connection, "SELECT TOP(1) Name FROM dbo.SchemaVersions;"); Console.WriteLine("Database connected."); break;

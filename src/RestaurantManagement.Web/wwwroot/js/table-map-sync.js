@@ -21,18 +21,21 @@
         if (!card) return;
         const [label, css] = statuses[table.status];
         if (card.dataset.status === table.status) return;
+        const wasAvailable = card.dataset.status === 'Available';
         for (const [, statusClass] of Object.values(statuses)) card.classList.remove('status-' + statusClass);
         card.classList.add('status-' + css);
         card.dataset.status = table.status;
         card.querySelector('.table-status-label').textContent = label;
         card.setAttribute('aria-label', `Bàn ${table.code}, ${table.capacity} chỗ, ${label}`);
-        card.classList.remove('table-just-changed');
-        void card.offsetWidth;
-        card.classList.add('table-just-changed');
+        const variant = card.dataset.highlightVariant === 'first' ? 'second' : 'first';
+        card.dataset.highlightVariant = variant;
+        card.classList.remove('table-just-changed', 'table-just-changed-again');
+        card.classList.add(variant === 'first' ? 'table-just-changed' : 'table-just-changed-again');
         clearTimeout(highlights.get(card));
-        highlights.set(card, setTimeout(() => { card.classList.remove('table-just-changed'); highlights.delete(card); }, 3000));
+        highlights.set(card, setTimeout(() => { card.classList.remove('table-just-changed', 'table-just-changed-again'); highlights.delete(card); }, 3000));
         const area = card.closest('.area-section');
-        area.querySelector('[data-area-available]').textContent = String(Array.from(area.querySelectorAll('[data-table-code]')).filter(item => item.dataset.status === 'Available').length);
+        const counter = area.querySelector('[data-area-available]');
+        counter.textContent = String(Number(counter.textContent) + (table.status === 'Available' ? 1 : 0) - (wasAvailable ? 1 : 0));
         root.dispatchEvent(new CustomEvent('tablemap:changed', { detail: { code: table.code } }));
     }
     async function sync() {
@@ -73,5 +76,6 @@
     const interval = setInterval(() => void sync(), 2000);
     window.addEventListener('pagehide', () => { stopped = true; cancel(); clearInterval(interval); });
     window.addEventListener('pageshow', event => { if (event.persisted) window.location.reload(); });
+    root.dataset.syncReady = 'true';
     void sync();
 })();

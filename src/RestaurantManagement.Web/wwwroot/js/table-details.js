@@ -91,4 +91,5 @@
     window.addEventListener('online', () => { cancel(); void refresh(); });
     const interval = setInterval(() => void refresh(), 2000);
     window.addEventListener('pagehide', () => { cancel(); clearInterval(interval); if (dialog.open) close(); });
+    map.dataset.detailsReady = 'true';
 })();

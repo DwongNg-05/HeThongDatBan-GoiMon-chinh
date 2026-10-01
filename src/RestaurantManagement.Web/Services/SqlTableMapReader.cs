@@ -6,30 +6,32 @@ namespace RestaurantManagement.Web.Services;
 /// <summary>Reads active areas and tables from the same database as table management.</summary>
 public sealed class SqlTableMapReader(IConfiguration configuration) : ITableMapReader
 {
-    public TableMapSnapshot Read()
+    public TableMapSnapshot Read() => ReadAsync(CancellationToken.None).GetAwaiter().GetResult();
+
+    public async Task<TableMapSnapshot> ReadAsync(CancellationToken cancellationToken)
     {
-        using var connection = new SqlConnection(configuration.GetConnectionString("DefaultConnection"));
-        connection.Open();
-        using var transaction = connection.BeginTransaction();
-        // Writers lock tables before inserting events; use the same order for the initial snapshot.
-        using var tableLock = new SqlCommand("SELECT COUNT_BIG(*) FROM dbo.DiningTables WITH (TABLOCK,HOLDLOCK);", connection, transaction);
-        tableLock.ExecuteScalar();
-        // A shared table lock waits for pending event inserts before choosing the watermark.
-        // This prevents an earlier uncommitted identity being skipped by a later committed event.
-        using var watermark = new SqlCommand("SELECT COALESCE(MAX(Id),0) FROM dbo.TableStatusChangeEvents WITH (TABLOCK,HOLDLOCK);", connection, transaction);
-        var cursor = Convert.ToInt64(watermark.ExecuteScalar());
-        using var command = new SqlCommand("""
+        await using var connection = new SqlConnection(configuration.GetConnectionString("DefaultConnection"));
+        await connection.OpenAsync(cancellationToken);
+        await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(cancellationToken);
+        // Lock in writer order and read watermark + tiles in one SQL round trip.
+        await using var command = new SqlCommand("""
+            DECLARE @TableCount bigint;
+            SELECT @TableCount=COUNT_BIG(*) FROM dbo.DiningTables WITH (TABLOCK,HOLDLOCK);
+            SELECT COALESCE(MAX(Id),0) FROM dbo.TableStatusChangeEvents WITH (TABLOCK,HOLDLOCK);
             SELECT a.Id, a.Name, t.Code, t.MaxCapacity, t.Status, t.StatusChangedAt
             FROM dbo.Areas a
             LEFT JOIN dbo.DiningTables t ON t.AreaId = a.Id AND t.IsActive = 1
             WHERE a.IsActive = 1
             ORDER BY a.SortOrder, a.Id, t.SortOrder, t.Code;
             """, connection, transaction);
-        using var reader = command.ExecuteReader();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        await reader.ReadAsync(cancellationToken);
+        var cursor = reader.GetInt64(0);
+        await reader.NextResultAsync(cancellationToken);
         var areas = new List<TableMapArea>();
         List<DiningTableCard>? tables = null;
         int? previousAreaId = null;
-        while (reader.Read())
+        while (await reader.ReadAsync(cancellationToken))
         {
             var areaId = reader.GetInt32(0);
             var areaName = reader.GetString(1);
@@ -46,8 +48,8 @@ public sealed class SqlTableMapReader(IConfiguration configuration) : ITableMapR
                 status, display.Label, display.CssClass,
                 new DateTimeOffset(DateTime.SpecifyKind(reader.GetDateTime(5), DateTimeKind.Utc))));
         }
-        reader.Close();
-        transaction.Commit();
+        await reader.CloseAsync();
+        await transaction.CommitAsync(cancellationToken);
         return new TableMapSnapshot(areas) { Cursor = cursor.ToString(System.Globalization.CultureInfo.InvariantCulture) };
     }
 

@@ -19,6 +19,7 @@ public sealed record TableMapChanges(string Cursor, IReadOnlyList<DiningTableCar
 public interface ITableMapReader
 {
     TableMapSnapshot Read();
+    Task<TableMapSnapshot> ReadAsync(CancellationToken cancellationToken) => Task.FromResult(Read());
     Task<TableMapChanges> ReadChangesAsync(long after, CancellationToken cancellationToken)
         => throw new NotSupportedException("Change tracking is unavailable.");
 }
