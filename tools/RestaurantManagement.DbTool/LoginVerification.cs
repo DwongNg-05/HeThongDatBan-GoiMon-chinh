@@ -25,6 +25,8 @@ internal static partial class LoginVerification
         start.ArgumentList.Add($"http://127.0.0.1:{port}");
         start.Environment["RM_CONNECTION_STRING"] = connection;
         start.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
+        // Các kiểm thử S1-01/S1-05 cũ không nhập mã email; xác minh email có bộ kiểm thử riêng (EmailVerificationVerification).
+        start.Environment["EmailVerification__Enabled"] = "false";
         using var process = Process.Start(start)!;
         // Drain logs without printing request details or credentials.
         var output = process.StandardOutput.ReadToEndAsync();

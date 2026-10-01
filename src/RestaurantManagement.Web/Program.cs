@@ -5,6 +5,7 @@ using RestaurantManagement.Data.Data;
 using RestaurantManagement.Data.Models;
 using RestaurantManagement.Data;
 using RestaurantManagement.Web.Services;
+using RestaurantManagement.Web.Services.EmailVerification;
 
 var builder = WebApplication.CreateBuilder(args);
 var sqlConnectionString = Environment.GetEnvironmentVariable("RM_CONNECTION_STRING");
@@ -32,6 +33,12 @@ builder.Services.AddScoped(_ => new LoginSessionStore(sqlConnectionString));
 builder.Services.AddScoped(_ => new SecurityAuditStore(sqlConnectionString));
 builder.Services.AddScoped<IdleSessionEvents>();
 builder.Services.AddScoped(_ => new PasswordChangeStore(sqlConnectionString));
+// Xác minh đăng nhập bằng mã gửi qua email (mọi vai trò trừ Quản lý). Cấu hình: mục "EmailVerification" và "Email".
+builder.Services.Configure<EmailVerificationOptions>(builder.Configuration.GetSection(EmailVerificationOptions.Section));
+builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailOptions.Section));
+builder.Services.AddScoped(_ => new EmailVerificationStore(sqlConnectionString));
+builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
+builder.Services.AddScoped<EmailVerificationService>();
 builder.Services.AddScoped<IEmployeeAccountStore>(_ => new SqlEmployeeAccountStore(sqlConnectionString));
 builder.Services.AddControllersWithViews(options => options.Filters.Add<SessionActivityFilter>());
 // Support Razor Pages
@@ -102,6 +109,7 @@ app.UseSession();
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<EmailVerificationMiddleware>();
 app.UseMiddleware<RequiredPasswordChangeMiddleware>();
 
 app.MapStaticAssets().AllowAnonymous();

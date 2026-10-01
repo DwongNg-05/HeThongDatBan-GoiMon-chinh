@@ -122,6 +122,7 @@ await MenuImageTests.Run(Check);
 SecurityAuditTests.Run(Check);
 await AuditReadOnlyTests.Run(Check);
 OpeningHoursTests.Run(Check);
+EmailVerificationTests.Run(Check);
 CategoryTests.Run(Check);
 Console.WriteLine($"{count} tests passed.");
 if (args.Contains("--authentication-http")) await AuthenticationHttpTests.Run();

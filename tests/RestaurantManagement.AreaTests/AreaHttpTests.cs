@@ -37,6 +37,7 @@ internal static class AreaHttpTests
             start.Environment["OpeningHours__ActorUserId"] = "1";
             start.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
             start.Environment["AreaManagement__ActorUserId"] = "1";
+            start.Environment["EmailVerification__Enabled"] = "false";
             web = new Process { StartInfo = start };
             web.OutputDataReceived += (_, e) => { if (e.Data is not null) output.Enqueue(e.Data); };
             web.ErrorDataReceived += (_, e) => { if (e.Data is not null) output.Enqueue(e.Data); };

@@ -12,7 +12,9 @@ public sealed class RequiredPasswordChangeMiddleware(RequestDelegate next)
         var endpoint = context.GetEndpoint();
         var path = context.Request.Path;
         var allowed = path.Equals("/Account/DoiMatKhau", StringComparison.OrdinalIgnoreCase)
-            || path.Equals("/Account/Logout", StringComparison.OrdinalIgnoreCase);
+            || path.Equals("/Account/Logout", StringComparison.OrdinalIgnoreCase)
+            // Bước xác minh email diễn ra trước bước đổi mật khẩu.
+            || EmailVerificationMiddleware.IsAllowed(path);
         if (!allowed && endpoint is not null
             && endpoint.Metadata.GetMetadata<IAllowAnonymous>() is null
             && context.User.Identity?.IsAuthenticated == true

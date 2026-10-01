@@ -5,11 +5,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RestaurantManagement.Web.Models;
 using RestaurantManagement.Web.Authentication;
+using RestaurantManagement.Web.Services.EmailVerification;
 
 namespace RestaurantManagement.Web.Controllers;
 
 [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
-public class AccountController(ManagementStore store, LoginSessionStore sessions, PasswordChangeStore passwords, SecurityAuditStore audit) : Controller
+public class AccountController(ManagementStore store, LoginSessionStore sessions, PasswordChangeStore passwords, SecurityAuditStore audit,
+    EmailVerificationService verification) : Controller
 {
     public const string InvalidCredentials = "Tên đăng nhập, số điện thoại hoặc mật khẩu không hợp lệ.";
 
@@ -51,13 +53,150 @@ public class AccountController(ManagementStore store, LoginSessionStore sessions
             new Claim("FullName", user.FullName),
             new Claim(ClaimTypes.Role, user.Role)
         }, CookieAuthenticationDefaults.AuthenticationScheme);
+        var principal = new ClaimsPrincipal(identity);
         await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
-            new ClaimsPrincipal(identity), new AuthenticationProperties { IsPersistent = false });
+            principal, new AuthenticationProperties { IsPersistent = false });
         await audit.WriteLogin(user.Id, user.UserName, succeeded: true, ipAddress);
         TempData.Remove(IdleSessionEvents.ExpiredItem);
         TempData["Success"] = "Đăng nhập thành công.";
+        // Xác minh email (mọi vai trò trừ Quản lý) diễn ra trước bước đổi mật khẩu.
+        if (verification.IsRequired(principal))
+        {
+            var state = await verification.State(user.Id, sessionId);
+            if (state?.Email is { } email)
+            {
+                var sent = await verification.SendCode(user.Id, sessionId, email, user.FullName, HttpContext.RequestAborted);
+                TempData[sent.Sent ? VerifyInfo : VerifyError] = sent.Sent ? "Đã gửi mã xác minh tới email của bạn." : sent.Error;
+            }
+            return RedirectToAction(nameof(XacMinhEmail), new { returnUrl = Url.IsLocalUrl(returnUrl) ? returnUrl : null });
+        }
         return await passwords.IsRequired(user.Id)
             ? RedirectToAction(nameof(DoiMatKhau)) : RedirectAfterLogin(returnUrl);
+    }
+
+    private const string VerifyInfo = "EmailVerificationInfo";
+    private const string VerifyError = "EmailVerificationError";
+
+    private (int UserId, Guid SessionId) CurrentIds() =>
+        (int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!), Guid.Parse(User.FindFirstValue(LoginSessionStore.SessionClaim)!));
+
+    [Authorize, HttpGet]
+    public async Task<IActionResult> XacMinhEmail(string? returnUrl = null)
+    {
+        if (!verification.IsRequired(User)) return await AfterVerification(returnUrl);
+        var (userId, sessionId) = CurrentIds();
+        var state = await verification.State(userId, sessionId);
+        if (state is null) return await ExpiredSession();
+        if (state.Verified) return await CompleteVerification(sessionId, returnUrl);
+        return View(BuildModel(state, returnUrl, TempData[VerifyInfo] as string, TempData[VerifyError] as string));
+    }
+
+    [Authorize, HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> XacMinhEmail(string? code, string? returnUrl = null)
+    {
+        if (!verification.IsRequired(User)) return await AfterVerification(returnUrl);
+        var (userId, sessionId) = CurrentIds();
+        var state = await verification.State(userId, sessionId);
+        if (state is null) return await ExpiredSession();
+        var normalized = VerificationCode.Normalize(code);
+        string error;
+        if (!VerificationCode.IsWellFormed(normalized))
+            error = "Mã xác minh gồm đúng 6 ký tự, chỉ có chữ in hoa (A–Z) và số (0–9).";
+        else
+        {
+            var (status, remaining) = await verification.Verify(userId, sessionId, normalized);
+            if (status == VerifyStatus.Verified)
+            {
+                TempData["Success"] = "Xác minh email thành công.";
+                return await CompleteVerification(sessionId, returnUrl);
+            }
+            error = status switch
+            {
+                VerifyStatus.Wrong => $"Mã xác minh không đúng. Bạn còn {remaining} lần thử.",
+                VerifyStatus.TooManyAttempts => "Bạn đã nhập sai quá nhiều lần. Hãy bấm “Gửi lại mã” để nhận mã mới.",
+                _ => "Mã đã hết hạn hoặc chưa được gửi. Hãy bấm “Gửi lại mã” để nhận mã mới."
+            };
+        }
+        var model = BuildModel(state, returnUrl, null, error);
+        model.Code = normalized.Length <= 8 ? normalized : null;
+        return View(model);
+    }
+
+    [Authorize, HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> GuiLaiMaXacMinh(string? returnUrl = null)
+    {
+        if (!verification.IsRequired(User)) return await AfterVerification(returnUrl);
+        var (userId, sessionId) = CurrentIds();
+        var state = await verification.State(userId, sessionId);
+        if (state is null) return await ExpiredSession();
+        if (state.TargetEmail is not { } email)
+            TempData[VerifyError] = "Hãy nhập email của bạn trước.";
+        else
+        {
+            var sent = await verification.SendCode(userId, sessionId, email, User.FindFirstValue("FullName") ?? "", HttpContext.RequestAborted);
+            TempData[sent.Sent ? VerifyInfo : VerifyError] = sent.Sent ? "Đã gửi mã mới. Mã cũ không còn dùng được." : sent.Error;
+        }
+        return RedirectToAction(nameof(XacMinhEmail), new { returnUrl = Url.IsLocalUrl(returnUrl) ? returnUrl : null });
+    }
+
+    [Authorize, HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DatEmailXacMinh(string? email, string? returnUrl = null)
+    {
+        if (!verification.IsRequired(User)) return await AfterVerification(returnUrl);
+        var (userId, sessionId) = CurrentIds();
+        var state = await verification.State(userId, sessionId);
+        if (state is null) return await ExpiredSession();
+        if (state.Email is not null)
+            TempData[VerifyError] = "Tài khoản đã có email. Mã xác minh luôn được gửi tới email này.";
+        else if (!EmailVerificationService.IsValidEmail(email))
+            TempData[VerifyError] = "Email không hợp lệ. Ví dụ đúng: tenban@gmail.com";
+        else
+        {
+            var sent = await verification.SendCode(userId, sessionId, email!.Trim(), User.FindFirstValue("FullName") ?? "", HttpContext.RequestAborted);
+            TempData[sent.Sent ? VerifyInfo : VerifyError] = sent.Sent ? "Đã gửi mã xác minh. Hãy mở email và nhập mã bên dưới." : sent.Error;
+        }
+        return RedirectToAction(nameof(XacMinhEmail), new { returnUrl = Url.IsLocalUrl(returnUrl) ? returnUrl : null });
+    }
+
+    private EmailVerificationViewModel BuildModel(EmailVerificationState state, string? returnUrl, string? info, string? error)
+    {
+        var wait = state.LastSentAtUtc is { } last
+            ? (int)Math.Ceiling((last.AddSeconds(verification.Options.ResendCooldownSeconds) - DateTime.UtcNow).TotalSeconds) : 0;
+        return new EmailVerificationViewModel
+        {
+            HasSavedEmail = state.Email is not null,
+            MaskedEmail = state.TargetEmail is { } e ? VerificationCode.MaskEmail(e) : null,
+            CodeSent = state.ActiveExpiresAtUtc is not null,
+            ResendAfterSeconds = Math.Max(0, wait),
+            ValidMinutes = verification.Options.ValidMinutes,
+            ReturnUrl = Url.IsLocalUrl(returnUrl) ? returnUrl : null,
+            Info = info,
+            Error = error
+        };
+    }
+
+    /// <summary>Ghi nhận phiên đã xác minh vào cookie đăng nhập rồi chuyển sang bước tiếp theo (đổi mật khẩu nếu bắt buộc).</summary>
+    private async Task<IActionResult> CompleteVerification(Guid sessionId, string? returnUrl)
+    {
+        var claims = User.Claims.Where(c => c.Type != EmailVerificationService.VerifiedClaim)
+            .Append(new Claim(EmailVerificationService.VerifiedClaim, sessionId.ToString()));
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme));
+        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal, new AuthenticationProperties { IsPersistent = false });
+        HttpContext.User = principal;
+        return await AfterVerification(returnUrl);
+    }
+
+    private async Task<IActionResult> AfterVerification(string? returnUrl)
+    {
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        return await passwords.IsRequired(userId) ? RedirectToAction(nameof(DoiMatKhau)) : RedirectAfterLogin(returnUrl);
+    }
+
+    private async Task<IActionResult> ExpiredSession()
+    {
+        await sessions.Revoke(User);
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        return RedirectToAction(nameof(Login), new { sessionExpired = true });
     }
 
     [Authorize, HttpGet]

@@ -18,3 +18,4 @@ TestResults/
 *.log
 *.db
 build-output.txt
+**/App_Data/emails/
