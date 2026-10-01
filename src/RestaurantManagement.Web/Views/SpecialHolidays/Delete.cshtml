@@ -1,7 +1,7 @@
 @model RestaurantManagement.Web.Models.SpecialHolidayViewModel
 @{ ViewData["Title"] = "Xóa ngày nghỉ"; }
-<h1>Xóa ngày nghỉ</h1>
-<p>Xóa ngày nghỉ <strong>@Model.Name</strong> (@Model.HolidayDate?.ToString("dd/MM/yyyy"))? Ngày này sẽ dùng lại lịch tuần.</p>
-<form asp-action="Delete" asp-route-id="@Model.Id" method="post">
-    <button type="submit" class="btn btn-danger">Xóa ngày nghỉ</button> <a asp-action="Index" class="btn btn-outline-secondary">Hủy</a>
+<h1 class="h3">Xóa ngày nghỉ</h1>
+<p>Xóa ngày nghỉ <strong>@Model.Name</strong> (@Model.HolidayDate?.ToString("dd/MM/yyyy"))? Sau khi xóa, ngày này sẽ mở cửa lại theo lịch tuần.</p>
+<form asp-controller="SpecialHolidays" asp-action="Delete" asp-route-id="@Model.Id" method="post">
+    <button type="submit" class="btn btn-danger">Xóa ngày nghỉ</button> <a asp-controller="SpecialHolidays" asp-action="Index" class="btn btn-outline-secondary">Hủy</a>
 </form>

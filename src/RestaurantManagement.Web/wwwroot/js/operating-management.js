@@ -3,7 +3,7 @@
     let dirty = false;
     weekly?.addEventListener('input', () => {
         dirty = true;
-        document.getElementById('weekly-save-state').textContent = 'Có thay đổi chưa lưu. Nhấn Lưu cấu hình hoạt động trước khi kiểm tra lịch hoặc thử đặt bàn.';
+        document.getElementById('weekly-save-state').textContent = '⚠ Có thay đổi chưa lưu. Bấm “Lưu giờ hoạt động” để áp dụng.';
     });
     weekly?.addEventListener('submit', () => { dirty = false; });
     window.addEventListener('beforeunload', event => {
