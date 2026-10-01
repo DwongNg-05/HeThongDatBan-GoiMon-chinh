@@ -18,6 +18,7 @@ public sealed class SessionActivityFilter(LoginSessionStore sessions) : IAsyncAc
         if (executed.Exception is null && !executed.Canceled && context.ModelState.IsValid && status < 400
             && context.HttpContext.User.Identity?.IsAuthenticated == true
             && endpoint?.Metadata.GetMetadata<IAuthorizeData>() is not null
+            && endpoint.Metadata.GetMetadata<PassiveSessionReadAttribute>() is null
             && endpoint.Metadata.GetMetadata<IAllowAnonymous>() is null)
         {
             // Never revive a session that expired while an action was running.

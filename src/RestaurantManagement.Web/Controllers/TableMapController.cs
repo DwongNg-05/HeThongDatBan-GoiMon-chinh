@@ -30,4 +30,20 @@ public sealed class TableMapController(ITableMapReader reader, ILogger<TableMapC
             return StatusCode(503, new { message = "Không tải được sơ đồ bàn. Vui lòng thử lại." });
         }
     }
+
+    [HttpGet("api/table-map/changes")]
+    [RestaurantManagement.Web.Authentication.PassiveSessionRead]
+    public async Task<IActionResult> Changes(string? after, CancellationToken cancellationToken)
+    {
+        if (!long.TryParse(after, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var cursor) || cursor < 0)
+            return BadRequest(new { message = "Mốc đồng bộ không hợp lệ." });
+        try { return Ok(await reader.ReadChangesAsync(cursor, cancellationToken)); }
+        catch (ArgumentOutOfRangeException) { return Conflict(new { message = "Dữ liệu đã được đặt lại. Vui lòng tải lại sơ đồ." }); }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Unable to load table map changes");
+            return StatusCode(503, new { message = "Không đồng bộ được sơ đồ. Dữ liệu có thể đã cũ." });
+        }
+    }
 }

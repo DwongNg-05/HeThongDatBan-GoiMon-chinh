@@ -10,11 +10,17 @@ public sealed record TableMapArea(string Name, IReadOnlyList<DiningTableCard> Ta
 public sealed record TableMapSnapshot(IReadOnlyList<TableMapArea> Areas, bool LoadFailed = false)
 {
     public int TotalCount => Areas.Sum(area => area.Tables.Count);
+    public string Cursor { get; init; } = "0";
+    public DateTimeOffset SyncedAtUtc { get; init; } = DateTimeOffset.UtcNow;
 }
+
+public sealed record TableMapChanges(string Cursor, IReadOnlyList<DiningTableCard> Tables, DateTimeOffset SyncedAtUtc);
 
 public interface ITableMapReader
 {
     TableMapSnapshot Read();
+    Task<TableMapChanges> ReadChangesAsync(long after, CancellationToken cancellationToken)
+        => throw new NotSupportedException("Change tracking is unavailable.");
 }
 
 // Uses the existing development catalog; keeps areas with zero tables in the snapshot.

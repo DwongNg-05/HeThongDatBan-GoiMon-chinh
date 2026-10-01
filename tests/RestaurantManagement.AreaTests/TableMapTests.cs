@@ -23,6 +23,9 @@ internal static class TableMapTests
         { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() } };
         check(controller.Index() is ViewResult { Model: TableMapSnapshot { LoadFailed: true } } && controller.Response.StatusCode == 503, "Map load failure renders retry state with 503");
         check(controller.Snapshot() is ObjectResult { StatusCode: 503 }, "Grouped API returns safe load failure");
+        check(await controller.Changes("-1", CancellationToken.None) is BadRequestObjectResult, "Changes rejects negative cursor");
+        check(await controller.Changes("not-a-number", CancellationToken.None) is BadRequestObjectResult, "Changes rejects malformed cursor");
+        check(await controller.Changes("0", CancellationToken.None) is ObjectResult { StatusCode: 503 }, "Changes fails safely when tracking is unavailable");
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddAuthorization();

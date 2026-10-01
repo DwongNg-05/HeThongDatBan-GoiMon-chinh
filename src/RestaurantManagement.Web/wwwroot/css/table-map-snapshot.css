@@ -11,3 +11,9 @@
 .snapshot-key{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;font-weight:700}
 .snapshot-key i{width:12px;height:12px;border-radius:50%;background:var(--status-color)}
 .snapshot-map .area-heading{gap:12px;flex-wrap:wrap}
+.snapshot-map .map-sync-notice{min-height:52px;margin-bottom:8px}
+.snapshot-map .map-sync-notice[hidden]{display:block;visibility:hidden}
+.snapshot-map .table-status{min-height:38px}
+.snapshot-map .table-just-changed{animation:table-change-pulse .6s ease-in-out 5}
+@keyframes table-change-pulse{50%{box-shadow:0 0 0 5px var(--status-color)}}
+@media(prefers-reduced-motion:reduce){.snapshot-map .table-just-changed{animation:none;outline:3px solid currentColor;outline-offset:3px}}

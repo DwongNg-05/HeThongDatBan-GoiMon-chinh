@@ -129,6 +129,7 @@ if (args.Contains("--authentication-http")) await AuthenticationHttpTests.Run();
 if (args.Contains("--integration")) await AreaHttpTests.Run();
 if (args.Contains("--opening-hours-http")) await AreaHttpTests.Run(openingHoursOnly: true);
 if (args.Contains("--menu-http")) await MenuHttpTests.Run();
+if (args.Contains("--table-map-sql")) await TableMapSqlTests.Run();
 
 sealed class TestHostEnvironment : IHostEnvironment
 {
