@@ -1,4 +1,13 @@
 @model System.Collections.Generic.IReadOnlyList<RestaurantManagement.Web.Services.NhomMonThucDon>
+@{
+    // Ảnh món (đường dẫn lưu trong MenuItems.ImagePath); món chưa có ảnh dùng ảnh mặc định.
+    string AnhSrc(string? duongDan)
+    {
+        var anh = RestaurantManagement.Web.Services.AnhMonAn.ChonAnh(duongDan);
+        return anh.StartsWith('/') ? Url.Content("~" + anh) : anh;
+    }
+    var anhMacDinh = Url.Content("~" + RestaurantManagement.Web.Services.AnhMonAn.AnhMacDinh);
+}
 <div class="menu-intro"><div><span class="menu-eyebrow">BẾP NHÀ · THỰC ĐƠN</span><h2>Món ngon, trọn vị nhà.</h2><p>Chọn món yêu thích và thêm vào giỏ để bắt đầu gọi món.</p></div><a class="btn btn-outline-primary" href="#cart">Xem giỏ món ↓</a></div>
 <div class="menu-workspace">
 <nav class="menu-categories" aria-label="Nhóm món">
@@ -28,7 +37,9 @@
     @foreach (var item in nhom.MonAn)
     {
         <div class="col-md-4 mb-3 menu-item" data-search="@item.Ten">
-            <div class="card">
+            <div class="card menu-item-card">
+                <img class="menu-item-photo" src="@AnhSrc(item.DuongDanAnh)" alt="Ảnh món @item.Ten" width="112" height="112" loading="lazy"
+                     onerror="this.onerror=null;this.src='@anhMacDinh';" />
                 <div class="card-body">
                     <h3 class="card-title h5">@item.Ten</h3>
                     <p class="card-subtitle mb-2 text-muted">@nhom.Ten</p>

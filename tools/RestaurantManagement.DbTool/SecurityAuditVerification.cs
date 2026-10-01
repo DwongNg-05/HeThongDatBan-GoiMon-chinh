@@ -41,16 +41,14 @@ internal static class SecurityAuditVerification
         await Check(connection, New($"Action='LoginSucceeded' AND UserId=1 AND UserName=N'manager' AND RoleCode='Manager' AND IpAddress='{Ip}'"),
             "Successful login records time, account, role and IP");
 
-        // Sửa giá món ở màn hình Quản lý thực đơn.
+        // Sửa giá món (màn hình Sửa món trong Quản lý món).
         var oldPrice = await Scalar<decimal>(connection, "SELECT Price FROM dbo.MenuItems WHERE Id=59");
         var newPrice = oldPrice + 1000;
-        var management = await client.GetStringAsync("/Management");
-        using (var price = await client.PostAsync("/Management/Price", Form(("id", "59"), ("price", newPrice.ToString("0")), ("__RequestVerificationToken", Token(management)))))
+        using (var price = await DishPriceEdit.Post(connection, client, 59, (int)newPrice))
             Assert(price.StatusCode == HttpStatusCode.Redirect, "Manager changes a dish price");
         await Check(connection, New($"Action='PriceChanged' AND UserId=1 AND UserName=N'manager' AND RoleCode='Manager' AND IpAddress='{Ip}' AND Detail LIKE N'%(#59): {Vnd(oldPrice)} ₫ → {Vnd(newPrice)} ₫'"),
             "Price change records time, account, role, IP and old/new price");
-        management = await client.GetStringAsync("/Management");
-        using (var same = await client.PostAsync("/Management/Price", Form(("id", "59"), ("price", newPrice.ToString("0")), ("__RequestVerificationToken", Token(management)))))
+        using (var same = await DishPriceEdit.Post(connection, client, 59, (int)newPrice))
             Assert(same.StatusCode == HttpStatusCode.Redirect, "Saving the same price is accepted");
         await Check(connection, $"SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.SecurityAuditLogs WHERE Id>{baseId} AND Action='PriceChanged' AND Detail LIKE N'%(#59)%')=1 THEN 1 ELSE 0 END",
             "Saving an unchanged price adds no price-change entry");

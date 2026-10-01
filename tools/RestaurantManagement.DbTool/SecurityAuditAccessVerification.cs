@@ -30,13 +30,13 @@ internal static class SecurityAuditAccessVerification
 
     private static readonly string[] ManagerPages =
     [
-        "/", "/AuditLogs", "/QuanLyMon/NhatKyGia/60", "/Management", "/QuanLyMon", "/QuanLyMon/Tao", "/QuanLyMon/Sua/60",
+        "/", "/AuditLogs", "/QuanLyMon/NhatKyGia/60", "/QuanLyMon", "/QuanLyMon/Tao", "/QuanLyMon/Sua/60",
         "/QuanLyNhomMon", "/GoiMon", "/ThucDon", "/admin/employee-accounts", "/Areas", "/Tables", "/Reservations",
         "/OpeningHours", "/SpecialHolidays", "/Home/Privacy", "/Account/DoiMatKhau"
     ];
 
     // Các trang bắt buộc phải mở được để rà soát; các trang khác nếu lỗi môi trường thì ghi SKIP.
-    private static readonly HashSet<string> RequiredPages = ["/", "/AuditLogs", "/QuanLyMon/NhatKyGia/60", "/Management", "/QuanLyMon"];
+    private static readonly HashSet<string> RequiredPages = ["/", "/AuditLogs", "/QuanLyMon/NhatKyGia/60", "/QuanLyMon"];
 
     internal static async Task Run(string connection, string password, HttpClient client)
     {

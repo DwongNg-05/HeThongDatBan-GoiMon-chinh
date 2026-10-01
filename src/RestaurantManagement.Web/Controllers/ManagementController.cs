@@ -6,40 +6,32 @@ using RestaurantManagement.Web.Models;
 
 namespace RestaurantManagement.Web.Controllers;
 
+/// <summary>
+/// Màn hình "Sửa giá món" cũ đã được gộp vào Quản lý món (/QuanLyMon):
+/// giá được sửa ngay ở trang Sửa món, nhật ký thay đổi giá hiển thị trong Quản lý món.
+/// Controller này chỉ còn chuyển hướng đường dẫn cũ và xử lý nút "Tạm hết / Còn món" của Quản lý.
+/// </summary>
 [Authorize(Roles = "Manager")]
 [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
 public class ManagementController(ManagementStore store) : Controller
 {
     private int ActorId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-    public async Task<IActionResult> Index() => View(await store.GetMenu(ActorId));
 
-    [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Price(int id, decimal price)
-    {
-        if (!ModelState.IsValid || price <= 0 || price > 50000000 || decimal.Truncate(price) != price)
-        {
-            ModelState.AddModelError("price", "Giá không hợp lệ.");
-            TempData["Error"] = "Giá phải là số nguyên từ 1 đến 50.000.000 đồng.";
-        }
-        else await Save(() => store.ChangeMenu(ActorId, id, price: price, ipAddress: ClientIp.From(HttpContext)));
-        return RedirectToAction(nameof(Index));
-    }
+    public IActionResult Index() => RedirectToPage("/QuanLyMon/Index");
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Availability(int id, bool soldOut)
     {
         if (!ModelState.IsValid) return BadRequest();
-        await Save(() => store.ChangeMenu(ActorId, id, soldOut: soldOut));
-        return RedirectToAction(nameof(Index));
-    }
-
-    private async Task Save(Func<Task> change)
-    {
-        try { await change(); TempData["Success"] = "Đã lưu thay đổi và ghi nhận người thực hiện."; }
+        try
+        {
+            await store.ChangeMenu(ActorId, id, soldOut: soldOut);
+            TempData["Success"] = soldOut ? "Đã đánh dấu món tạm hết." : "Đã mở bán lại món.";
+        }
         catch (SqlException ex) when (ex.Number is 51001 or 51039 or 51040)
         {
-            ModelState.AddModelError("", "Không thể cập nhật thực đơn.");
             TempData["Error"] = "Không thể cập nhật: món không tồn tại hoặc tài khoản không có quyền.";
         }
+        return RedirectToPage("/QuanLyMon/Index");
     }
 }

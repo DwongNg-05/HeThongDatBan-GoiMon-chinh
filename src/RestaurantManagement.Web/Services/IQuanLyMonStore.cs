@@ -38,5 +38,7 @@ namespace RestaurantManagement.Web.Services
 
         // Audit (Nhật ký thay đổi giá)
         IEnumerable<RestaurantManagement.Data.Models.GhiNhanThayDoiGia> LayNhatKyGiaChoMon(int monAnId);
+        // Các lần đổi giá gần nhất của mọi món (mới nhất trước), hiển thị trong màn hình Quản lý món.
+        IEnumerable<RestaurantManagement.Data.Models.GhiNhanThayDoiGia> LayNhatKyGiaGanDay(int soDong);
     }
 }

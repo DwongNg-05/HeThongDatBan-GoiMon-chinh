@@ -4,7 +4,8 @@
     ViewData["Title"] = "Nhật ký thay đổi giá";
 }
 
-<h2>Nhật ký thay đổi giá cho: @Model.Mon?.Ten</h2>
+<h2>Lịch sử giá: @Model.Mon?.Ten</h2>
+<p class="text-muted">Các lần đổi giá của món này (chỉ xem). Muốn đổi giá, hãy bấm “Sửa” ở trang Quản lý món.</p>
 
 @if (Model.NhatKy == null || !Model.NhatKy.Any())
 {
@@ -16,7 +17,7 @@ else
         <thead>
             <tr>
                 <th>#</th>
-                <th>Thời điểm</th>
+                <th>Thời điểm (UTC+7)</th>
                 <th>Người sửa</th>
                 <th>Giá cũ (VND)</th>
                 <th>Giá mới (VND)</th>
@@ -28,7 +29,7 @@ else
             {
                 <tr>
                     <td>@(idx++)</td>
-                    <td>@e.ThoiDiem.ToLocalTime()</td>
+                    <td>@e.ThoiDiem.AddHours(7).ToString("dd/MM/yyyy HH:mm:ss")</td>
                     <td>@e.NguoiSua</td>
                     <td>@e.GiaCuVnd.ToString("N0")</td>
                     <td>@e.GiaMoiVnd.ToString("N0")</td>
@@ -38,4 +39,4 @@ else
     </table>
 }
 
-<a asp-page="/QuanLyMon/Index" class="btn btn-secondary">Quay lại</a>
+<a asp-page="/QuanLyMon/Index" class="btn btn-secondary">Quay lại Quản lý món</a>

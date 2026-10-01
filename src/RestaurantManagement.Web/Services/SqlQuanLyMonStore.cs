@@ -247,5 +247,15 @@ namespace RestaurantManagement.Web.Services
                 JOIN dbo.Users u ON u.Id = h.ChangedBy
                 WHERE h.MenuItemId = {monAnId}
                 """).OrderByDescending(e => e.ThoiDiem).ToList();
+
+        public IEnumerable<GhiNhanThayDoiGia> LayNhatKyGiaGanDay(int soDong) =>
+            _db.Database.SqlQuery<GhiNhanThayDoiGia>($"""
+                SELECT CAST(h.Id AS int) AS Id, h.MenuItemId AS MonAnId, m.Name AS TenMon,
+                       CAST(h.OldPrice AS int) AS GiaCuVnd, CAST(h.NewPrice AS int) AS GiaMoiVnd,
+                       h.ChangedAt AS ThoiDiem, u.UserName AS NguoiSua
+                FROM dbo.MenuPriceHistory h
+                JOIN dbo.MenuItems m ON m.Id = h.MenuItemId
+                JOIN dbo.Users u ON u.Id = h.ChangedBy
+                """).OrderByDescending(e => e.ThoiDiem).ThenByDescending(e => e.Id).Take(soDong).ToList();
     }
 }

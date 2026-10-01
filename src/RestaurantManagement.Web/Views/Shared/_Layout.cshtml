@@ -53,9 +53,6 @@
                                 <a class="sidebar-link @(IsCurrent("EmployeeAccounts", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("EmployeeAccounts", "Index") ? "page" : null)" asp-controller="EmployeeAccounts" asp-action="Index">Quản lý tài khoản</a>
                             </li>
                             <li class="nav-item">
-                                <a class="sidebar-link @(IsCurrent("Management", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("Management", "Index") ? "page" : null)" asp-area="" asp-controller="Management" asp-action="Index">Sửa giá món</a>
-                            </li>
-                            <li class="nav-item">
                                 <a class="sidebar-link @(IsCurrent("AuditLogs", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("AuditLogs", "Index") ? "page" : null)" asp-area="" asp-controller="AuditLogs" asp-action="Index">Nhật ký hệ thống</a>
                             </li>
                         }

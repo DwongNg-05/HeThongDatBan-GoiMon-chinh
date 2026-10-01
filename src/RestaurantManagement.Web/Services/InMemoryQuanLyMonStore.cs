@@ -233,6 +233,10 @@ namespace RestaurantManagement.Web.Services
         public IEnumerable<RestaurantManagement.Data.Models.GhiNhanThayDoiGia> LayNhatKyGiaChoMon(int monAnId)
             => _nhatkyGia.Values.Where(e => e.MonAnId == monAnId).OrderByDescending(e => e.ThoiDiem);
 
+        // Các lần đổi giá gần nhất của mọi món (gần nhất trước)
+        public IEnumerable<RestaurantManagement.Data.Models.GhiNhanThayDoiGia> LayNhatKyGiaGanDay(int soDong)
+            => _nhatkyGia.Values.OrderByDescending(e => e.ThoiDiem).Take(soDong).ToList();
+
         // Very small helper to resolve current user - in this demo read from environment thread principal if available
         private string? GetCurrentUserName()
         {
