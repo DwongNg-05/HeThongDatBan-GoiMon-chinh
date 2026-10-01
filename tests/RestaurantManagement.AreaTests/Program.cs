@@ -46,7 +46,7 @@ var demoTables = new DemoTableCatalog().Get(null).Tables;
 Check(demoTables.Count == 60 && expectedStatuses.Keys.All(status => demoTables.Any(table => table.Status == status)), "Demo map contains all four statuses across 60 tables");
 Check(demoTables.All(table => TableStatusDisplay.From(table.Status).Label == table.StatusLabel), "Every demo table displays the label resolved from its current status");
 var detailCatalog = new DemoTableCatalog();
-var detailService = new TableDetailsService(new ConfigurationBuilder().Build(), detailCatalog,
+var detailService = new TableDetailsService(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?> { ["TableDetails:UseDemoData"] = "true" }).Build(), detailCatalog,
     new TestHostEnvironment { EnvironmentName = "Development" }, NullLogger<TableDetailsService>.Instance);
 var detailCodes = detailCatalog.GetAll().GroupBy(table => table.Status).ToDictionary(group => group.Key, group => group.First().Code);
 var emptyDetails = await detailService.GetAsync(detailCodes["Available"], CancellationToken.None);

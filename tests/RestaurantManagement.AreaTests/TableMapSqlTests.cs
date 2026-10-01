@@ -49,6 +49,7 @@ internal static class TableMapSqlTests
             var latest = service.Read().Areas.SelectMany(a => a.Tables).Single(t => t.Code == "A01");
             Require(concurrent.Tables.Count == 1 && concurrent.Tables[0].Status == latest.Status, "Concurrent writes to one table collapse to last committed state");
             Require((await service.ReadChangesAsync(long.Parse(concurrent.Cursor), default)).Tables.Count == 0, "Acknowledged changes are not replayed");
+            await TableDetailsSqlTests.Run(connectionString, configuration);
             Console.WriteLine("Table map SQL integration checks passed.");
         }
         finally

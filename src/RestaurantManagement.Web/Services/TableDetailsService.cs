@@ -9,26 +9,25 @@ public sealed class TableDetailsService(
     IHostEnvironment environment,
     ILogger<TableDetailsService> logger)
 {
-    public async Task<TableDetailsViewModel?> GetAsync(string code, CancellationToken cancellationToken)
+    public Task<TableDetailsViewModel?> GetAsync(string code, CancellationToken cancellationToken)
+        => GetCore(code, null, cancellationToken);
+
+    public Task<TableDetailsViewModel?> GetForUserAsync(string code, int actorUserId, CancellationToken cancellationToken)
+        => GetCore(code, actorUserId, cancellationToken);
+
+    private async Task<TableDetailsViewModel?> GetCore(string code, int? actorUserId, CancellationToken cancellationToken)
     {
-        try
+        if (actorUserId is null && environment.IsDevelopment() && configuration.GetValue<bool>("TableDetails:UseDemoData"))
         {
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeout.CancelAfter(TimeSpan.FromSeconds(3));
-            return await ReadFromDatabase(code, timeout.Token);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception exception) when (environment.IsDevelopment())
-        {
-            logger.LogWarning(exception, "Falling back to sample details for table {TableCode}; SQL Server is unavailable or its schema is not migrated.", code);
+            logger.LogInformation("Explicit development demo requested for table {TableCode}.", code);
             return GetDemoDetails(code);
         }
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(3));
+        return await ReadFromDatabase(code, actorUserId, timeout.Token);
     }
 
-    private async Task<TableDetailsViewModel?> ReadFromDatabase(string code, CancellationToken cancellationToken)
+    private async Task<TableDetailsViewModel?> ReadFromDatabase(string code, int? actorUserId, CancellationToken cancellationToken)
     {
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("SQL Server connection is not configured.");
@@ -36,25 +35,43 @@ public sealed class TableDetailsService(
         await connection.OpenAsync(cancellationToken);
 
         const string query = """
-            SELECT TOP (1)
-                m.Code,m.AreaName,m.MaxCapacity,m.Status,m.GuestCount,m.OpenedAt,
+            IF @ActorUserId IS NOT NULL AND NOT EXISTS (
+                SELECT 1 FROM dbo.Users u JOIN dbo.Roles r ON r.Id=u.RoleId
+                WHERE u.Id=@ActorUserId AND u.IsActive=1 AND r.Code='Waiter'
+            ) THROW 51001,N'Không có quyền xem chi tiết bàn.',1;
+            DECLARE @Now datetime2(3)=SYSUTCDATETIME();
+            SELECT
+                t.Code,a.Name,t.MaxCapacity,t.Status,session.GuestCount,session.OpenedAt,
                 currentReservation.CustomerName,currentReservation.Phone,
                 upcoming.CustomerName,upcoming.Phone,upcoming.GuestCount,upcoming.StartsAt,
-                CASE WHEN m.SessionId IS NULL THEN NULL ELSE COALESCE(balance.Subtotal,0) END AS CurrentSubtotal
-            FROM dbo.vw_TableMap AS m
-            LEFT JOIN dbo.DiningSessions AS session ON session.Id=m.SessionId
+                CASE WHEN session.Id IS NULL THEN NULL ELSE COALESCE(balance.Subtotal,0) END AS CurrentSubtotal,
+                COALESCE(upcoming.ReservationCount,0)
+            FROM dbo.DiningTables t
+            JOIN dbo.Areas a ON a.Id=t.AreaId AND a.IsActive=1
+            OUTER APPLY (
+                SELECT TOP(1) s.* FROM dbo.SessionTables st
+                JOIN dbo.DiningSessions s ON s.Id=st.SessionId AND s.Status IN ('Open','AwaitingPayment')
+                WHERE st.TableId=t.Id AND st.ReleasedAt IS NULL AND t.Status='Serving'
+                ORDER BY s.OpenedAt DESC,s.Id DESC
+            ) session
             LEFT JOIN dbo.Reservations AS currentReservation ON currentReservation.Id=session.ReservationId
-            LEFT JOIN dbo.Reservations AS upcoming ON upcoming.Id=m.UpcomingReservationId
+            OUTER APPLY (
+                SELECT TOP(1) r.CustomerName,r.Phone,r.GuestCount,r.StartsAt,COUNT(*) OVER() AS ReservationCount
+                FROM dbo.Reservations r
+                WHERE r.TableId=t.Id AND r.Status='Confirmed' AND r.StartsAt>=@Now
+                ORDER BY r.StartsAt,r.Id
+            ) upcoming
             OUTER APPLY
             (
                 SELECT SUM(sessionTotals.Subtotal) AS Subtotal
                 FROM dbo.vw_SessionTotals AS sessionTotals
                 WHERE sessionTotals.BillingSessionId=COALESCE(session.BillingSessionId,session.Id)
             ) AS balance
-            WHERE m.Code=@Code;
+            WHERE t.Code=@Code AND t.IsActive=1;
             """;
         await using var command = new SqlCommand(query, connection);
         command.Parameters.AddWithValue("@Code", code);
+        command.Parameters.Add("@ActorUserId", System.Data.SqlDbType.Int).Value = (object?)actorUserId ?? DBNull.Value;
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (!await reader.ReadAsync(cancellationToken))
             return null;
@@ -80,7 +97,7 @@ public sealed class TableDetailsService(
             startedAt is null ? null : (long)Math.Max(0, (DateTimeOffset.UtcNow - startedAt.Value).TotalMinutes),
             subtotal,
             hasActiveSession,
-            false);
+            false) { UpcomingReservationCount = reader.GetInt32(13) };
     }
 
     private TableDetailsViewModel? GetDemoDetails(string code)
@@ -106,7 +123,7 @@ public sealed class TableDetailsService(
             serving ? 42 : null,
             serving ? 245000 : null,
             serving,
-            true);
+            true) { UpcomingReservationCount = upcoming is null ? 0 : 1 };
     }
 
     private static DateTimeOffset AsUtc(DateTime value) => new(DateTime.SpecifyKind(value, DateTimeKind.Utc));

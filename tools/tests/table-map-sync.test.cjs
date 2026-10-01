@@ -18,11 +18,11 @@ function setup() {
             closest() { return area; }, offsetWidth: 100 };
     });
     const area = { querySelector: () => count, querySelectorAll: () => cards };
-    const root = { dataset: { cursor: '0', loadFailed: 'false', changesUrl: '/api/table-map/changes' }, querySelector: selector => selector === '.map-sync-notice' ? notice : clock, querySelectorAll: () => cards };
+    const root = { dispatchEvent() {}, dataset: { cursor: '0', loadFailed: 'false', changesUrl: '/api/table-map/changes' }, querySelector: selector => selector === '.map-sync-notice' ? notice : clock, querySelectorAll: () => cards };
     const document = { hidden: false, querySelector: () => root, addEventListener: (name, callback) => events[name] = callback };
     const navigator = { onLine: true };
     const window = { scrollY: 700, addEventListener: (name, callback) => events[name] = callback };
-    const context = { document, navigator, window, Map, Array, Date, Number, Object, AbortController, encodeURIComponent,
+    const context = { document, navigator, window, Map, Array, Date, Number, Object, AbortController, encodeURIComponent, CustomEvent: class { constructor(type, options) { this.type = type; this.detail = options.detail; } },
         setInterval: callback => { interval = callback; return 1; }, clearInterval() {},
         setTimeout: callback => { timers.set(++sequence, callback); return sequence; }, clearTimeout: id => timers.delete(id),
         fetch: async () => { calls++; if (fail) throw Error('offline'); return { ok: true, status: 200, json: async () => result }; } };

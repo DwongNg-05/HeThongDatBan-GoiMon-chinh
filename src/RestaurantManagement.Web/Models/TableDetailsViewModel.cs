@@ -21,4 +21,9 @@ public sealed record TableDetailsViewModel(
     long? ServiceElapsedMinutes,
     decimal? CurrentSubtotal,
     bool HasActiveSession,
-    bool IsDemoData);
+    bool IsDemoData)
+{
+    public int UpcomingReservationCount { get; init; }
+    public DateTimeOffset SyncedAtUtc { get; init; } = DateTimeOffset.UtcNow;
+    public string SubtotalExplanation => "Tổng món tính tiền, gồm món hủy có tính phí; chưa cộng phụ thu, thuế phí hoặc trừ giảm giá. Bàn gộp dùng tổng chung của nhóm thanh toán.";
+}

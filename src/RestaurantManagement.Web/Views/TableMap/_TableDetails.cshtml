@@ -1,0 +1,28 @@
+<dialog id="snapshot-table-details" class="snapshot-details table-details-dialog" aria-labelledby="snapshot-details-title">
+    <header class="details-header">
+        <h2 id="snapshot-details-title">Chi tiết bàn</h2>
+        <button class="details-close" type="button" data-details-close aria-label="Đóng chi tiết bàn">×</button>
+    </header>
+    <p data-details-message role="status" aria-live="polite">Đang tải thông tin…</p>
+    <button type="button" class="btn btn-outline-secondary" data-details-retry hidden>Thử lại</button>
+    <div data-details-content hidden>
+        <p><strong data-details-status></strong> · <span data-details-area></span></p>
+        <p data-details-context></p>
+        <dl class="snapshot-details-metrics">
+            <div><dt>Khách đang ngồi</dt><dd data-details-guest></dd><dd data-details-phone></dd><dd data-details-count></dd></div>
+            <div><dt>Bắt đầu phục vụ</dt><dd data-details-started></dd><dd data-details-duration></dd></div>
+            <div><dt>Tạm tính hiện tại</dt><dd class="snapshot-details-money" data-details-subtotal></dd></div>
+        </dl>
+        <p class="text-muted" data-details-subtotal-note></p>
+        <section class="details-reservation">
+            <h3>Đặt bàn sắp tới</h3>
+            <p data-details-reservation-empty>Không có đặt bàn sắp tới.</p>
+            <div data-details-reservation-content hidden>
+                <strong data-details-reservation-name></strong>
+                <p data-details-reservation-phone></p><p data-details-reservation-count></p>
+                <p data-details-reservation-time></p><p data-details-reservation-more></p>
+            </div>
+        </section>
+        <p class="text-muted">Cập nhật chi tiết: <time data-details-updated></time> (giờ Việt Nam)</p>
+    </div>
+</dialog>

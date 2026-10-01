@@ -26,6 +26,11 @@ internal static class TableMapTests
         check(await controller.Changes("-1", CancellationToken.None) is BadRequestObjectResult, "Changes rejects negative cursor");
         check(await controller.Changes("not-a-number", CancellationToken.None) is BadRequestObjectResult, "Changes rejects malformed cursor");
         check(await controller.Changes("0", CancellationToken.None) is ObjectResult { StatusCode: 503 }, "Changes fails safely when tracking is unavailable");
+        var failingDetails = new TableDetailsService(new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build(), new DemoTableCatalog(), new TestHostEnvironment(), NullLogger<TableDetailsService>.Instance);
+        var detailsController = new TableDetailsController(failingDetails, NullLogger<TableDetailsController>.Instance);
+        detailsController.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier,"1"), new Claim(ClaimTypes.Role,"Waiter") },"test")) } };
+        check(await detailsController.Get("A01", default) is ObjectResult { StatusCode: 503 }, "SQL detail failure returns 503 instead of invented sample guest or money");
+        check(await detailsController.Get(new string('A',21), default) is BadRequestObjectResult, "Detail API rejects oversized table code");
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddAuthorization();

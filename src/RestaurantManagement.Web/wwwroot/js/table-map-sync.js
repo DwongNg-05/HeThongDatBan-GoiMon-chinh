@@ -33,6 +33,7 @@
         highlights.set(card, setTimeout(() => { card.classList.remove('table-just-changed'); highlights.delete(card); }, 3000));
         const area = card.closest('.area-section');
         area.querySelector('[data-area-available]').textContent = String(Array.from(area.querySelectorAll('[data-table-code]')).filter(item => item.dataset.status === 'Available').length);
+        root.dispatchEvent(new CustomEvent('tablemap:changed', { detail: { code: table.code } }));
     }
     async function sync() {
         if (stopped || document.hidden || pending) return;
