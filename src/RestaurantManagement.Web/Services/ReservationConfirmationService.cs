@@ -45,7 +45,7 @@ public sealed class ReservationConfirmationService(IConfiguration configuration)
             CustomerName=r.GetString(r.GetOrdinal("CustomerName")), Phone=r.GetString(r.GetOrdinal("Phone")),
             Email=Optional(r,"Email"), GuestCount=r.GetInt32(r.GetOrdinal("GuestCount")),
             StartsAt=Local(r,"StartsAt"), EndsAt=Local(r,"EndsAt"), Status=r.GetString(r.GetOrdinal("Status")),
-            AreaName=Optional(r,"AreaName"), TableCode=Optional(r,"TableCode"), EmailStatus=Optional(r,"EmailStatus"),
+            AreaName=Optional(r,"AreaName"), TableCode=Optional(r,"TableCode"), RejectionReason=Optional(r,"RejectionReason"), EmailStatus=Optional(r,"EmailStatus"),
             EmailError=Optional(r,"EmailError"), AttemptCount=r.IsDBNull(r.GetOrdinal("AttemptCount"))?0:r.GetInt32(r.GetOrdinal("AttemptCount"))
         };
         await r.NextResultAsync(ct);
@@ -60,6 +60,27 @@ public sealed class ReservationConfirmationService(IConfiguration configuration)
         cmd.Parameters.Add("@TableId",SqlDbType.Int).Value=tableId;
         await cn.OpenAsync(ct);
         await cmd.ExecuteNonQueryAsync(ct);
+    }
+    public async Task Reject(int actor,long id,string? reason,CancellationToken ct=default)
+    {
+        await using var cn=new SqlConnection(ConnectionString);
+        await using var cmd=Command(cn,"dbo.usp_RejectReservation",actor);
+        cmd.Parameters.Add("@ReservationId",SqlDbType.BigInt).Value=id;
+        cmd.Parameters.Add("@Reason",SqlDbType.NVarChar,100).Value=(object?)reason??DBNull.Value;
+        await cn.OpenAsync(ct);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+    public async Task<CustomerReservation?> Lookup(string code,string phone,string ip,CancellationToken ct=default)
+    {
+        await using var cn=new SqlConnection(ConnectionString);
+        await using var cmd=new SqlCommand("dbo.usp_CustomerReservationLookup",cn) { CommandType=CommandType.StoredProcedure };
+        cmd.Parameters.Add("@Code",SqlDbType.VarChar,64).Value=code;
+        cmd.Parameters.Add("@Phone",SqlDbType.VarChar,64).Value=phone;
+        cmd.Parameters.Add("@IpAddress",SqlDbType.VarChar,45).Value=ip;
+        await cn.OpenAsync(ct);
+        await using var r=await cmd.ExecuteReaderAsync(ct);
+        if(!await r.ReadAsync(ct)) return null;
+        return new(r.GetString(0),r.GetString(1),Optional(r,"RejectionReason"),Local(r,"StartsAt"),Local(r,"EndsAt"),r.GetInt32(5),Optional(r,"TableCode"));
     }
     public async Task<List<ReservedSlot>> Slots(int actor,DateTime day,CancellationToken ct = default)
     {

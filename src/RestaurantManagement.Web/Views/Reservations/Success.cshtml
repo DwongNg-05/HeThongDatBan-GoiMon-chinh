@@ -13,6 +13,11 @@
         <p>
             Yêu cầu đặt bàn đã được ghi nhận và đang chờ nhà hàng xác nhận, sắp xếp bàn.
         </p>
+        @if(TempData["ReservationCode"] is string code)
+        {
+            <p>Mã đặt bàn: <strong>@code</strong>. Hãy lưu mã này để tra cứu bằng số điện thoại đã đặt.</p>
+        }
+        <a asp-controller="ReservationLookup" asp-action="Index" class="btn btn-outline-primary">Tra cứu đặt bàn</a>
 
         <a asp-controller="Reservations"
            asp-action="Create"

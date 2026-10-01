@@ -81,6 +81,7 @@ internal static class ReservationConfirmationTests
             for(var i=0;i<3;i++) { await Sql("UPDATE dbo.EmailOutbox SET NextAttemptAt=SYSUTCDATETIME() WHERE Status='Pending' AND LastError IS NOT NULL;"); await dispatcher.DispatchOne(default); }
             Check(Convert.ToInt32(await Sql("SELECT COUNT(*) FROM dbo.EmailOutbox WHERE AttemptCount=4 AND Status='Failed'"))==1,"delivery retries stop after four failures");
             await Http(connection,password,await Booking(1200),t4,Sql);
+            await ReservationRejectionTests.Run(service,Sql,t4,id);
             await Smtp();
             await DatabaseTool.SeedConfirmationDemo(connection);
             await DatabaseTool.SeedConfirmationDemo(connection);
@@ -143,6 +144,7 @@ internal static class ReservationConfirmationTests
             Check(staleHtml.Contains("Bàn vừa được giữ") && !staleHtml.Contains($"id=\"table-{table}\""),"conflict shows clear error and refreshed suggestions without occupied table");
             await sql($"UPDATE dbo.Reservations SET GuestCount=20 WHERE Id={staleId}");
             Check((await Get(stalePath)).Contains("Không có bàn trống đủ chỗ"),"empty suggestions screen explains no suitable tables");
+            await ReservationRejectionTests.Http(client,sql);
         }
         finally { if(!web.HasExited) {web.Kill(true);await web.WaitForExitAsync();} }
     }

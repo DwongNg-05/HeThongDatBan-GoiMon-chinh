@@ -65,4 +65,27 @@ public sealed class ReservationConfirmationsController(ReservationConfirmationSe
         try { return View(await service.Slots(Actor,date,ct)); }
         catch(SqlException ex) when(ex.Number==51001) { return Forbid(); }
     }
+    [HttpPost,ValidateAntiForgeryToken]
+    public async Task<IActionResult> Reject(long id,string? reason,CancellationToken ct)
+    {
+        if(reason is null || !RejectionReasons.Labels.ContainsKey(reason))
+            ModelState.AddModelError("","Vui lòng chọn một trong ba lý do từ chối hợp lệ.");
+        try
+        {
+            if(ModelState.IsValid)
+            {
+                await service.Reject(Actor,id,reason,ct);
+                TempData["Success"]="Đã từ chối lượt đặt. Khách có thể tra cứu lý do bằng mã đặt bàn và số điện thoại.";
+                return RedirectToAction(nameof(Index));
+            }
+        }
+        catch(SqlException ex) when(ex.Number==51001) { return Forbid(); }
+        catch(SqlException ex) when(ex.Number is 51010 or 51011) { ModelState.AddModelError("",ex.Message); }
+        try
+        {
+            var model=await service.Details(Actor,id,ct);
+            return model is null?NotFound():View("Details",model);
+        }
+        catch(SqlException ex) when(ex.Number==51001) { return Forbid(); }
+    }
 }

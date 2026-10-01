@@ -317,7 +317,11 @@ public class ReservationsController : Controller
             // THỰC THI
             // =================================================
 
-            await command.ExecuteNonQueryAsync();
+            await using (var result = await command.ExecuteReaderAsync())
+            {
+                if (await result.ReadAsync()) TempData["ReservationCode"] = result.GetString(result.GetOrdinal("Code"));
+                while (await result.NextResultAsync()) { }
+            }
 
 
             // =================================================

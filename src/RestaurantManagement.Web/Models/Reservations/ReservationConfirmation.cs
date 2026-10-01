@@ -28,6 +28,7 @@ public sealed class ReservationConfirmation
     public string Status { get; init; } = "";
     public string? AreaName { get; init; }
     public string? TableCode { get; init; }
+    public string? RejectionReason { get; init; }
     public string? EmailStatus { get; init; }
     public string? EmailError { get; init; }
     public int AttemptCount { get; init; }
