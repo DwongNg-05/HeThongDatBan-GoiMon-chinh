@@ -15,7 +15,7 @@ internal static class MenuTests
         int[] PublicIds() => ((IReadOnlyList<PublicMenuCategory>)((Microsoft.AspNetCore.Mvc.ViewResult)publicMenu.Index()).Model!).Select(n => n.Id).ToArray();
         var orderPage = new RestaurantManagement.Web.Pages.Ordering.IndexModel(store);
         orderPage.OnGet();
-        check(PublicIds().SequenceEqual(orderPage.DishCategory.Select(n => n.Id)), "Menu: public and ordering pages have identical group order");
+        check(PublicIds().SequenceEqual(orderPage.Categories.Select(n => n.Id)), "Menu: public and ordering pages have identical group order");
         var first = store.GetAllCategories().First();
         first.SortOrder = 100;
         check(store.GetMenuByCategory().Last().Id == first.Id, "Menu: explicit display order takes precedence over ID");
@@ -27,7 +27,7 @@ internal static class MenuTests
         inactive.IsActive = false;
         check(store.GetMenuByCategory().All(n => n.Id != inactive.Id), "Menu: inactive group and its dishes are excluded");
         orderPage.OnGet();
-        check(PublicIds().SequenceEqual(orderPage.DishCategory.Select(n => n.Id)), "Menu: both pages remain consistent after status/order changes");
+        check(PublicIds().SequenceEqual(orderPage.Categories.Select(n => n.Id)), "Menu: both pages remain consistent after status/order changes");
         var invalidRejected = false;
         try { store.AddDish(new Dish { CategoryId = int.MaxValue }); }
         catch (ArgumentException) { invalidRejected = true; }

@@ -11,7 +11,7 @@ public class ReorderModel(IMenuStore store) : PageModel
     [BindProperty] public List<int> OrderedIds { get; set; } = [];
     [BindProperty] public List<int> OriginalIds { get; set; } = [];
     [TempData] public string? StatusMessage { get; set; }
-    public IReadOnlyList<DishCategory> DishCategory { get; private set; } = [];
+    public IReadOnlyList<DishCategory> Categories { get; private set; } = [];
 
     public void OnGet() => LoadCategories();
 
