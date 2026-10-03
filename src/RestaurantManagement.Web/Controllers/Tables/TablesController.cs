@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.Data.SqlClient;
 using RestaurantManagement.Web.Models.Tables;
+using RestaurantManagement.Web.Security;
 using RestaurantManagement.Web.Services;
 
 namespace RestaurantManagement.Web.Controllers;
@@ -15,7 +16,8 @@ namespace RestaurantManagement.Web.Controllers;
 public class TablesController(
     IConfiguration configuration,
     TableQrService qrService,
-    TableQrPdfBuilder pdfBuilder) : Controller
+    TableQrPdfBuilder pdfBuilder,
+    ICurrentUser currentUser) : Controller
 {
     private string ConnectionString => configuration.GetConnectionString("DefaultConnection")
         ?? throw new InvalidOperationException("Chưa cấu hình ConnectionStrings:DefaultConnection.");
@@ -31,7 +33,8 @@ public class TablesController(
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(DiningTableFormViewModel model)
     {
-        if (!TryGetActorUserId(out var actorUserId))
+        var actorUserId = await GetActorUserIdAsync();
+        if (actorUserId is null)
         {
             ModelState.AddModelError(string.Empty, "Chưa cấu hình tài khoản thực hiện thao tác QR.");
             return View(await PopulateAreas(model));
@@ -45,7 +48,7 @@ public class TablesController(
         try
         {
             var id = await InsertTableAsync(model);
-            await qrService.RotateAsync(id, actorUserId);
+            await qrService.RotateAsync(id, actorUserId.Value);
             TempData["Success"] = $"Đã thêm bàn {model.Code} và sinh mã QR.";
             return RedirectToAction(nameof(Details), new { id });
         }
@@ -136,7 +139,8 @@ public class TablesController(
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> DownloadQrPdf(int areaId)
     {
-        if (!TryGetActorUserId(out var actorUserId))
+        var actorUserId = await GetActorUserIdAsync();
+        if (actorUserId is null)
         {
             TempData["Error"] = "Chưa cấu hình tài khoản thực hiện thao tác QR.";
             return BackToArea(areaId);
@@ -144,7 +148,7 @@ public class TablesController(
 
         try
         {
-            var items = await qrService.GetAreaPrintItemsAsync(areaId, actorUserId);
+            var items = await qrService.GetAreaPrintItemsAsync(areaId, actorUserId.Value);
             if (items.Count == 0)
             {
                 TempData["Error"] = "Khu vực được chọn chưa có bàn đang hoạt động để xuất mã QR.";
@@ -176,14 +180,15 @@ public class TablesController(
 
     private async Task<IActionResult> RotateQrCore(int id, bool replacingExisting)
     {
-        if (!TryGetActorUserId(out var actorUserId))
+        var actorUserId = await GetActorUserIdAsync();
+        if (actorUserId is null)
         {
             TempData["Error"] = "Chưa cấu hình tài khoản thực hiện thao tác QR.";
             return RedirectToAction(nameof(Details), new { id });
         }
         try
         {
-            await qrService.RotateAsync(id, actorUserId);
+            await qrService.RotateAsync(id, actorUserId.Value);
             TempData["Success"] = replacingExisting
                 ? "Đã sinh mã QR mới. Mã QR cũ đã hết hiệu lực ngay lập tức."
                 : "Đã sinh mã QR cho bàn này.";
@@ -284,8 +289,16 @@ public class TablesController(
         CreatedAt = details.CreatedAt
     };
 
-    private bool TryGetActorUserId(out int id)
-        => int.TryParse(configuration["AreaManagement:ActorUserId"], out id) && id > 0;
+    private async Task<int?> GetActorUserIdAsync()
+    {
+        if (!currentUser.IsAuthenticated || string.IsNullOrWhiteSpace(currentUser.UserName)) return null;
+        await using var connection = new SqlConnection(ConnectionString);
+        await using var command = new SqlCommand("SELECT Id FROM dbo.Users WHERE UserName=@UserName AND IsActive=1;", connection);
+        command.Parameters.Add("@UserName", SqlDbType.NVarChar, 100).Value = currentUser.UserName;
+        await connection.OpenAsync();
+        var id = await command.ExecuteScalarAsync();
+        return id is null ? null : Convert.ToInt32(id);
+    }
 
     private IActionResult BackToArea(int areaId) =>
         Redirect(Url.Action("Index", "Areas") + "#khu-vuc-" + areaId);
