@@ -16,6 +16,7 @@ if (string.IsNullOrWhiteSpace(sqlConnectionString))
 builder.Configuration["ConnectionStrings:DefaultConnection"] = sqlConnectionString;
 
 builder.Services.AddScoped<AuditLogService>();
+builder.Services.AddScoped<RestaurantManagement.Web.Services.Reservations.ReservationSlotService>();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(
