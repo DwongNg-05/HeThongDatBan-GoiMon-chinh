@@ -29,27 +29,30 @@
                    class="form-control" />
         </div>
 
-        <!-- Tài khoản -->
+        <!-- Vai trò -->
         <div class="col-md-3">
-            <label class="form-label">Tài khoản</label>
+            <label class="form-label">Vai trò</label>
 
-            <select name="username" class="form-select">
+            <select name="actorRole" class="form-select">
 
-                <option value="">-- Tất cả tài khoản --</option>
+                <option value="">-- Tất cả vai trò --</option>
 
-                @foreach (var user in ViewBag.Usernames)
+                @if (ViewBag.ActorRoles != null)
                 {
-                    if (user == ViewBag.Username)
+                    foreach (var role in ViewBag.ActorRoles)
                     {
-                        <option value="@user" selected>
-                            @user
-                        </option>
-                    }
-                    else
-                    {
-                        <option value="@user">
-                            @user
-                        </option>
+                        if (role == ViewBag.ActorRole)
+                        {
+                            <option value="@role" selected>
+                                @role
+                            </option>
+                        }
+                        else
+                        {
+                            <option value="@role">
+                                @role
+                            </option>
+                        }
                     }
                 }
 
@@ -65,7 +68,7 @@
             </button>
 
             <a asp-action="Index"
-                   class="btn btn-secondary">
+               class="btn btn-secondary">
                 Đặt lại
             </a>
 
@@ -81,9 +84,11 @@
     <thead>
         <tr>
             <th>Thời điểm</th>
-            <th>Tài khoản</th>
             <th>Vai trò</th>
             <th>Hành động</th>
+            <th>Loại đối tượng</th>
+            <th>Mã đối tượng</th>
+            <th>Lý do</th>
             <th>Địa chỉ IP</th>
         </tr>
     </thead>
@@ -92,18 +97,15 @@
 
         @if (Model.Any())
         {
-            @foreach (var log in Model)
+            foreach (var log in Model)
             {
                 <tr>
                     <td>
-                        @log.CreatedAt.ToString("dd/MM/yyyy HH:mm:ss")
+                        @log.OccurredAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")
                     </td>
 
                     <td>
-                        @log.Username
-                    </td>
-                    <td>
-                        @log.Role
+                        @(log.ActorRole ?? "-")
                     </td>
 
                     <td>
@@ -111,7 +113,19 @@
                     </td>
 
                     <td>
-                        @log.IpAddress
+                        @log.EntityType
+                    </td>
+
+                    <td>
+                        @(log.EntityId ?? "-")
+                    </td>
+
+                    <td>
+                        @(log.Reason ?? "-")
+                    </td>
+
+                    <td>
+                        @(log.IpAddress ?? "-")
                     </td>
                 </tr>
             }
@@ -119,7 +133,7 @@
         else
         {
             <tr>
-                <td colspan="5"
+                <td colspan="7"
                     class="text-center">
                     Không có dữ liệu nhật ký.
                 </td>

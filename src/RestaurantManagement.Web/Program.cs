@@ -5,6 +5,7 @@ using RestaurantManagement.Web.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddScoped<AuditLogService>();
+builder.Services.AddScoped<ReservationStore>();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(
