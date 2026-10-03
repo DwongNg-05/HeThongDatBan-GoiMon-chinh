@@ -1,0 +1,76 @@
+@{
+    ViewData["Title"] = "Thực đơn hôm nay";
+    var canManage = User.Identity?.IsAuthenticated == true && (User.IsInRole("Kitchen") || User.IsInRole("Manager"));
+}
+
+<section class="menu-page" data-can-manage="@canManage.ToString().ToLowerInvariant()">
+    <header class="menu-heading">
+        <div>
+            <p class="eyebrow">NHÀ HÀNG · THỰC ĐƠN HÔM NAY</p>
+            <h1>Món ngon hôm nay</h1>
+            <p class="menu-subtitle">Trạng thái món được cập nhật tự động.</p>
+        </div>
+        <span class="live-indicator"><i></i> Đang cập nhật</span>
+    </header>
+    <div id="menu-status" class="alert alert-info" role="status" hidden></div>
+    <div id="menu-list" class="menu-grid" aria-live="polite" aria-busy="true"></div>
+    @Html.AntiForgeryToken()
+</section>
+
+@section Scripts {
+<script>
+(() => {
+    const list = document.getElementById('menu-list');
+    const notice = document.getElementById('menu-status');
+    const canManage = document.querySelector('.menu-page').dataset.canManage === 'true';
+    const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+    let lastState = '';
+    const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+    async function refresh() {
+        try {
+            const response = await fetch('@Url.Action("Availability", "Menu")', { cache: 'no-store' });
+            if (!response.ok) throw new Error('Không kết nối được cơ sở dữ liệu thực đơn.');
+            const items = await response.json();
+            const state = JSON.stringify(items.map(x => [x.id, x.isSoldOut, x.isTemporarilyOut]));
+            notice.hidden = true;
+            if (state !== lastState) {
+                lastState = state;
+                list.innerHTML = items.map(item => `<article class="menu-card ${item.isSoldOut || item.isTemporarilyOut ? 'sold-out' : ''}" data-item-id="${item.id}" data-menu-id="${item.id}">
+                    ${item.imagePath ? `<img class="menu-image" src="${escapeHtml(item.imagePath)}" alt="${escapeHtml(item.name)}" loading="lazy">` : '<div class="menu-image menu-image-placeholder" aria-hidden="true">🍽</div>'}
+                    <div class="menu-card-body"><p class="menu-category">${escapeHtml(item.category)}</p><h2>${escapeHtml(item.name)}</h2>
+                    ${item.description ? `<p class="menu-description">${escapeHtml(item.description)}</p>` : ''}
+                    <div class="menu-card-footer"><strong>${Number(item.price).toLocaleString('vi-VN')} ₫ <small>/ ${escapeHtml(item.unit)}</small></strong>
+                    ${item.isTemporarilyOut ? '<span class="temporarily-out-badge">Tạm hết tạm thời</span>' : (item.isSoldOut ? '<span class="sold-out-badge">Đã hết</span>' : '<span class="available-badge">Đang phục vụ</span>')}</div>
+                    ${canManage ? `<form class="availability-form" method="post" action="/menu/${item.id}/availability"><input type="hidden" name="__RequestVerificationToken" value="${escapeHtml(token)}"><input type="hidden" name="isSoldOut" value="${!item.isSoldOut}"><button class="availability-toggle ${item.isSoldOut ? 'restore' : ''}" type="submit">${item.isSoldOut ? 'Bật bán lại' : 'Tạm hết'}</button></form>
+                    <form class="temporarily-form" method="post" action="/menu/${item.id}/temporarily-out"><input type="hidden" name="__RequestVerificationToken" value="${escapeHtml(token)}"><input type="hidden" name="isTemporarilyOut" value="${!item.isTemporarilyOut}"><button class="temporarily-toggle ${item.isTemporarilyOut ? 'restore' : ''}" type="submit">${item.isTemporarilyOut ? 'Bật bán lại' : 'Tạm hết tạm thời'}</button></form>` : ''}</div></article>`).join('');
+                list.setAttribute('aria-busy', 'false');
+            }
+        } catch (error) {
+            notice.textContent = error.message;
+            notice.hidden = false;
+            list.setAttribute('aria-busy', 'false');
+        }
+    }
+
+    list.addEventListener('submit', async event => {
+        const form = event.target.closest('.availability-form, .temporarily-form');
+        if (!form) return;
+        event.preventDefault();
+        const button = form.querySelector('button');
+        button.disabled = true;
+        try {
+            const response = await fetch(form.action, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'RequestVerificationToken': token }, body: new URLSearchParams(new FormData(form)) });
+            if (!response.ok) throw new Error(response.status === 403 ? 'Tài khoản không có quyền đổi trạng thái món.' : 'Không thể đổi trạng thái món.');
+            await refresh();
+        } catch (error) {
+            notice.textContent = error.message;
+            notice.hidden = false;
+        } finally { button.disabled = false; }
+    });
+
+    refresh();
+    window.setInterval(refresh, 3000);
+})();
+</script>
+}

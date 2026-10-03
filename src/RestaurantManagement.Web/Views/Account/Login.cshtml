@@ -1,0 +1,25 @@
+@model RestaurantManagement.Web.Models.LoginInput
+@{
+    ViewData["Title"] = "Đăng nhập nhân viên";
+}
+<main class="login-card">
+    <p class="eyebrow">NHÀ HÀNG · NHÂN VIÊN</p>
+    <h1>Đăng nhập</h1>
+    <p class="text-muted">Dùng tài khoản nhân viên đã được cấp.</p>
+    <form asp-action="Login" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+        <div class="mb-3">
+            <label asp-for="UserName" class="form-label">Tên đăng nhập</label>
+            <input asp-for="UserName" class="form-control" autocomplete="username" autofocus />
+            <span asp-validation-for="UserName" class="text-danger"></span>
+        </div>
+        <div class="mb-4">
+            <label asp-for="Password" class="form-label">Mật khẩu</label>
+            <input asp-for="Password" class="form-control" type="password" autocomplete="current-password" />
+            <span asp-validation-for="Password" class="text-danger"></span>
+        </div>
+        <button class="availability-toggle" type="submit">Đăng nhập</button>
+    </form>
+</main>
