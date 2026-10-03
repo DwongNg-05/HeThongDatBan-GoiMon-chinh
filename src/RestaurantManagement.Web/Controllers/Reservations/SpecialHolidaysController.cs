@@ -2,14 +2,14 @@ using System.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using RestaurantManagement.Web.Models;
+using RestaurantManagement.Web.Security;
 
 namespace RestaurantManagement.Web.Controllers;
 
-public class SpecialHolidaysController(IConfiguration configuration) : Controller
+public class SpecialHolidaysController(IConfiguration configuration, ICurrentUser currentUser) : Controller
 {
     private string ConnectionString => configuration.GetConnectionString("DefaultConnection")
         ?? throw new InvalidOperationException("Chưa cấu hình kết nối database.");
-    private int Actor => int.TryParse(configuration["OpeningHours:ActorUserId"], out var id) ? id : 0;
 
     [HttpGet]
     public async Task<IActionResult> Index()
@@ -50,11 +50,17 @@ public class SpecialHolidaysController(IConfiguration configuration) : Controlle
     private async Task<IActionResult> Save(SpecialHolidayViewModel model)
     {
         if (!ModelState.IsValid) return View("Edit", model);
+        var actorUserId = await GetActorUserIdAsync();
+        if (actorUserId is null)
+        {
+            ModelState.AddModelError(string.Empty, "Không xác định được tài khoản đang thực hiện thao tác.");
+            return View("Edit", model);
+        }
         try
         {
             await using var cn = new SqlConnection(ConnectionString);
             await using var cmd = new SqlCommand("dbo.usp_SaveSpecialHoliday", cn) { CommandType = CommandType.StoredProcedure };
-            cmd.Parameters.Add("@ActorUserId", SqlDbType.Int).Value = Actor;
+            cmd.Parameters.Add("@ActorUserId", SqlDbType.Int).Value = actorUserId.Value;
             cmd.Parameters.Add("@Id", SqlDbType.Int).Value = (object?)model.Id ?? DBNull.Value;
             cmd.Parameters.Add("@HolidayDate", SqlDbType.Date).Value = model.HolidayDate!.Value.ToDateTime(TimeOnly.MinValue);
             cmd.Parameters.Add("@Name", SqlDbType.NVarChar, -1).Value = model.Name.Trim();
@@ -82,11 +88,17 @@ public class SpecialHolidaysController(IConfiguration configuration) : Controlle
     [HttpPost, ActionName("Delete"), ValidateAntiForgeryToken]
     public async Task<IActionResult> ConfirmDelete(int id)
     {
+        var actorUserId = await GetActorUserIdAsync();
+        if (actorUserId is null)
+        {
+            TempData["Error"] = "Không xác định được tài khoản đang thực hiện thao tác.";
+            return RedirectToAction(nameof(Index));
+        }
         try
         {
             await using var cn = new SqlConnection(ConnectionString);
             await using var cmd = new SqlCommand("dbo.usp_DeleteSpecialHoliday", cn) { CommandType = CommandType.StoredProcedure };
-            cmd.Parameters.Add("@ActorUserId", SqlDbType.Int).Value = Actor;
+            cmd.Parameters.Add("@ActorUserId", SqlDbType.Int).Value = actorUserId.Value;
             cmd.Parameters.Add("@Id", SqlDbType.Int).Value = id;
             await cn.OpenAsync(); await cmd.ExecuteNonQueryAsync();
             TempData["Success"] = "Đã xóa ngày nghỉ đặc biệt.";
@@ -110,4 +122,15 @@ public class SpecialHolidaysController(IConfiguration configuration) : Controlle
         Id = reader.GetInt32(0), HolidayDate = DateOnly.FromDateTime(reader.GetDateTime(1)),
         Name = reader.GetString(2), IsActive = reader.GetBoolean(3)
     };
+
+    private async Task<int?> GetActorUserIdAsync()
+    {
+        if (!currentUser.IsAuthenticated || string.IsNullOrWhiteSpace(currentUser.UserName)) return null;
+        await using var connection = new SqlConnection(ConnectionString);
+        await using var command = new SqlCommand("SELECT Id FROM dbo.Users WHERE UserName=@UserName AND IsActive=1;", connection);
+        command.Parameters.Add("@UserName", SqlDbType.NVarChar, 100).Value = currentUser.UserName;
+        await connection.OpenAsync();
+        var id = await command.ExecuteScalarAsync();
+        return id is null ? null : Convert.ToInt32(id);
+    }
 }
