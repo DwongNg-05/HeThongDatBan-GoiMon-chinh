@@ -28,3 +28,12 @@ public sealed record ReservationSlotsResult(DateOnly Date, IReadOnlyList<string>
 {
     public bool IsAvailable => Slots.Count > 0;
 }
+
+public sealed record TableReservationInterval(int TableId, DateTime StartsAtUtc, DateTime EndsAtUtc);
+
+public static class ReservationCapacityPolicy
+{
+    public static bool HasAvailableTable(IEnumerable<int> tableIds, IEnumerable<TableReservationInterval> reservations, DateTime startsAtUtc, DateTime endsAtUtc) =>
+        tableIds.Any(tableId => !reservations.Any(reservation => reservation.TableId == tableId
+            && reservation.StartsAtUtc < endsAtUtc && reservation.EndsAtUtc > startsAtUtc));
+}

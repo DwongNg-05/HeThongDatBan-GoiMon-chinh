@@ -119,6 +119,7 @@ Check(RestaurantManagement.Web.Models.Reservations.BookingTime.NextStart(day.Add
 ReservationInputValidationTests.Run(Check);
 PendingReservationLimitTests.Run(Check);
 ReservationSlotPolicyTests.Run(Check);
+ReservationCapacityPolicyTests.Run(Check);
 MenuTests.Run(Check);
 PublicMenuTests.Run(Check);
 await MenuImageTests.Run(Check);
