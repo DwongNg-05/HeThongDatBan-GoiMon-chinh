@@ -35,6 +35,12 @@ public class ReservationCreateViewModel
     public string? Notes { get; set; }
 
     public List<BookingAreaOption> Areas { get; set; } = new();
+
+    [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]
+    public DateOnly MinimumReservationDate { get; set; }
+
+    [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]
+    public DateOnly MaximumReservationDate { get; set; }
 }
 
 public class ReservationConfirmationViewModel

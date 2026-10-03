@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using RestaurantManagement.Web.Models.Reservations;
+using RestaurantManagement.Web.Services.Reservations;
 using System.Data;
 using System.Text.Json;
 
@@ -9,7 +10,7 @@ namespace RestaurantManagement.Web.Controllers;
 
 [AllowAnonymous]
 [Route("Reservations")]
-public class PublicReservationsController(IConfiguration configuration) : Controller
+public class PublicReservationsController(IConfiguration configuration, ReservationSlotService slotService) : Controller
 {
     private string ConnectionString => configuration.GetConnectionString("DefaultConnection")
         ?? throw new InvalidOperationException("Chưa cấu hình ConnectionStrings:DefaultConnection.");
@@ -17,13 +18,9 @@ public class PublicReservationsController(IConfiguration configuration) : Contro
     [HttpGet("Create")]
     public async Task<IActionResult> Create()
     {
-        var nextStart = BookingTime.NextStart(VietnamTime.Now);
-        var model = new ReservationCreateViewModel
-        {
-            GuestCount = 2,
-            ReservationDate = DateOnly.FromDateTime(nextStart),
-            ReservationTime = TimeOnly.FromDateTime(nextStart)
-        };
+        var model = new ReservationCreateViewModel { GuestCount = 2 };
+        await SetFirstAvailableSlot(model);
+        SetReservationDateRange(model);
         await LoadActiveAreas(model);
         return View(model);
     }
@@ -33,11 +30,20 @@ public class PublicReservationsController(IConfiguration configuration) : Contro
     public async Task<IActionResult> Create(ReservationCreateViewModel model)
     {
         await LoadActiveAreas(model);
+        SetReservationDateRange(model);
         ReplaceGuestCountBindingError(model);
         if (!ModelState.IsValid) return View(model);
         if (model.PreferredAreaId.HasValue && !model.Areas.Any(area => area.Id == model.PreferredAreaId.Value))
         {
             ModelState.AddModelError(nameof(model.PreferredAreaId), "Khu vực bạn chọn không còn hoạt động.");
+            return View(model);
+        }
+
+        var slots = await slotService.GetSlotsAsync(model.ReservationDate!.Value);
+        var selectedTime = model.ReservationTime!.Value.ToString("HH:mm");
+        if (!slots.Slots.Contains(selectedTime))
+        {
+            ModelState.AddModelError(nameof(model.ReservationTime), slots.Message ?? "Khung giờ đã chọn không còn nằm trong giờ mở cửa.");
             return View(model);
         }
 
@@ -77,6 +83,11 @@ public class PublicReservationsController(IConfiguration configuration) : Contro
             ModelState.AddModelError(nameof(model.Phone), PendingReservationLimit.ReachedMessage);
             return View(model);
         }
+        catch (SqlException ex) when (ex.Number is 51003 or 51004 or 51410 or 51411 or 51412 or 51413 or 51414)
+        {
+            ModelState.AddModelError(nameof(model.ReservationTime), ex.Message);
+            return View(model);
+        }
         catch (Exception)
         {
             await LoadActiveAreas(model);
@@ -102,6 +113,13 @@ public class PublicReservationsController(IConfiguration configuration) : Contro
         return Ok(model.Areas.Select(area => new { area.Id, area.Name }));
     }
 
+    [HttpGet("/api/reservation-slots")]
+    public async Task<IActionResult> Slots(DateOnly? date)
+    {
+        if (date is null) return BadRequest(new { message = "Vui lòng chọn ngày đặt bàn." });
+        return Ok(await slotService.GetSlotsAsync(date.Value));
+    }
+
     private async Task LoadActiveAreas(ReservationCreateViewModel model)
     {
         model.Areas.Clear();
@@ -125,5 +143,25 @@ public class PublicReservationsController(IConfiguration configuration) : Contro
         if (!ModelState.TryGetValue(field, out var state) || !state.Errors.Any(error => error.Exception is not null)) return;
         state.Errors.Clear();
         state.Errors.Add("Số khách phải là số nguyên từ 1 đến 20. Đoàn trên 20 khách, vui lòng liên hệ trực tiếp nhà hàng.");
+    }
+
+    private static void SetReservationDateRange(ReservationCreateViewModel model)
+    {
+        model.MinimumReservationDate = ReservationSchedulePolicy.Today;
+        model.MaximumReservationDate = ReservationSchedulePolicy.LastReservableDate;
+    }
+
+    private async Task SetFirstAvailableSlot(ReservationCreateViewModel model)
+    {
+        for (var offset = 0; offset <= ReservationSchedulePolicy.MaximumAdvanceDays; offset++)
+        {
+            var date = ReservationSchedulePolicy.Today.AddDays(offset);
+            var slots = await slotService.GetSlotsAsync(date);
+            if (slots.Slots.Count == 0) continue;
+            model.ReservationDate = date;
+            model.ReservationTime = TimeOnly.Parse(slots.Slots[0]);
+            return;
+        }
+        model.ReservationDate = ReservationSchedulePolicy.Today;
     }
 }
