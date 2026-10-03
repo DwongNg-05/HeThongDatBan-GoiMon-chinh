@@ -14,6 +14,22 @@ public sealed record PublicMenuDish(
 {
     /// <summary>Giá hiển thị theo chuẩn Việt Nam, ví dụ "45.000 ₫".</summary>
     public string DisplayPrice => MoneyFormat.Vnd(PriceVnd);
+
+    /// <summary>
+    /// S2-01 Task 3: món đang bán nhưng đã hết trong ngày nghiệp vụ hiện tại.
+    /// Món vẫn nằm trong thực đơn (và kết quả tìm kiếm), chỉ hiển thị nhãn "Tạm hết" và bị làm mờ.
+    /// </summary>
+    public bool IsTemporarilyUnavailable => SoldOutToday;
+
+    /// <summary>Nhãn trạng thái hiển thị cho khách; rỗng khi món còn phục vụ.</summary>
+    public string AvailabilityLabel => SoldOutToday ? SoldOutDisplay.Label : string.Empty;
+}
+
+/// <summary>S2-01 Task 3: chữ hiển thị cho món hết trong ngày.</summary>
+public static class SoldOutDisplay
+{
+    public const string Label = "Tạm hết";
+    public const string ScreenReaderNote = "Món này hiện không phục vụ trong hôm nay.";
 }
 
 /// <summary>Một nhóm món trên thực đơn công khai, giữ đúng thứ tự hiển thị.</summary>

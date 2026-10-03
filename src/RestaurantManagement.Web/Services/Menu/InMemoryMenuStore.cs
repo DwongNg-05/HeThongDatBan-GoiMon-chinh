@@ -82,13 +82,27 @@ namespace RestaurantManagement.Web.Services
                 .Select(n => new CategoryWithDishes(n.Id, n.Name, onSaleDishes[n.Id].ToArray())).ToArray();
         }
 
-        // Store bộ nhớ không theo dõi "hết trong ngày" nên mọi món đang bán đều SoldOutToday = false.
+        // S2-01 Task 3: món hết trong ngày (bản SQL lưu ở MenuItems.IsSoldOut + SoldOutBusinessDate).
+        // Store bộ nhớ chỉ dùng cho test, không có khái niệm sang ngày mới.
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<int, bool> _soldOutToday = new();
+
+        /// <summary>Đánh dấu món hết trong ngày (true) hoặc còn bán lại (false).</summary>
+        public bool SetSoldOutToday(int dishId, bool soldOut)
+        {
+            if (!_dishes.ContainsKey(dishId)) return false;
+            if (soldOut) _soldOutToday[dishId] = true;
+            else _soldOutToday.TryRemove(dishId, out _);
+            return true;
+        }
+
+        public bool IsSoldOutToday(int dishId) => _soldOutToday.ContainsKey(dishId);
+
         public IReadOnlyList<PublicMenuCategory> GetPublicMenu() =>
             PublicMenuBuilder.Build(
                 GetActiveCategories().Select(n => (n.Id, n.Name)),
                 GetAllDishes().Where(m => m.Status == DishStatus.OnSale)
                     .Select(m => new OnSaleDishRow(m.Id, m.CategoryId, m.Name, m.ShortDescription, m.PriceVnd,
-                        m.Unit, m.ImagePath, 0, false)));
+                        m.Unit, m.ImagePath, 0, IsSoldOutToday(m.Id))));
 
         // no external DB integration in the in-memory store
 

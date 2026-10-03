@@ -39,4 +39,11 @@
 .public-menu-search-status { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; margin: 0 0 10px; font-size: 14px; color: var(--muted); }
 .public-menu-search-status p { margin: 0; }
 .public-menu-search-clear { color: var(--brand); font-weight: 600; white-space: nowrap; }
+/* S2-01 Task 3 — món hết trong ngày: vẫn nằm trong danh sách, làm mờ và có nhãn "Tạm hết". */
+.public-dish-status { display: inline-block; margin: 0 0 4px; padding: 2px 10px; border-radius: 999px; background: #4b5563; color: #fff; font-size: 12px; font-weight: 700; letter-spacing: .02em; }
+.public-dish[data-sold-out="true"] .public-dish-image { opacity: .45; filter: grayscale(1); }
+.public-dish[data-sold-out="true"] .public-dish-name,
+.public-dish[data-sold-out="true"] .public-dish-desc,
+.public-dish[data-sold-out="true"] .public-dish-price { opacity: .55; }
+
 .public-menu-no-result { flex: 1 1 100%; padding: 28px 16px; text-align: center; background: #fff; border: 1px dashed #ead5d8; border-radius: 12px; }

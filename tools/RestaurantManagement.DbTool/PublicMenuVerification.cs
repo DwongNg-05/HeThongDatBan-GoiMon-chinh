@@ -79,6 +79,7 @@ internal static class PublicMenuVerification
             Assert(apiGroups.All(g => g.GetProperty("dishes").EnumerateArray().All(m => m.GetProperty("name").GetString() != "Cua rang me")), "API hides stopped dish");
 
             await VerifySearch(anonymous, groups);
+            await VerifySoldOut(connection, anonymous);
 
             // Không price hạn hay tạo phiên đăng nhập cho khách.
             Assert(!page.Headers.TryGetValues("Set-Cookie", out var cookies) || cookies.All(c => !c.StartsWith("RestaurantManagement.Auth=")), "Public menu does not create a login cookie");
@@ -143,6 +144,97 @@ internal static class PublicMenuVerification
             .Select(m => m.GetProperty("name").GetString()!).ToArray();
         Assert(api.StatusCode == HttpStatusCode.OK && apiDishes.SequenceEqual(found), "API ?q= returns the same search results");
         Console.WriteLine("PASS: S2-01 Task 2 menu search checks.");
+    }
+
+    /// <summary>
+    /// S2-01 Task 3: món hết trong ngày vẫn hiển thị (kể cả khi tìm kiếm), có nhãn "Tạm hết" và được làm mờ;
+    /// mở bán lại hoặc sang ngày nghiệp vụ mới thì hiển thị bình thường.
+    /// </summary>
+    private static async Task VerifySoldOut(string connection, HttpClient anonymous)
+    {
+        const string name = "Cơm rang dưa bò";
+        async Task<string> Page(string path)
+        {
+            using var response = await anonymous.GetAsync(path);
+            Assert(response.StatusCode == HttpStatusCode.OK, $"{path} opens without login");
+            return WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        }
+        static string? DishItem(string html, string dish) =>
+            Regex.Matches(html, "<li class=\"public-dish\".*?</li>", RegexOptions.Singleline)
+                .Select(m => m.Value).SingleOrDefault(li => li.Contains($">{dish}</h3>"));
+
+        var id = await Scalar(connection, $"SELECT Id FROM dbo.MenuItems WHERE Name=N'{name}'");
+        try
+        {
+            // Món còn bán.
+            var normal = DishItem(await Page("/Menu"), name);
+            Assert(normal is not null && normal.Contains("data-sold-out=\"false\"") && !normal.Contains("Tạm hết"), "Dish on sale has no sold-out label");
+
+            // Đánh dấu hết trong ngày bằng đúng thủ tục mà màn hình Quản lý món dùng.
+            await DatabaseTool.Execute(connection, $"EXEC dbo.usp_SetMenuAvailability @MenuItemId={id},@IsSoldOut=1,@ActorUserId=1;");
+            var html = await Page("/Menu");
+            var soldOut = DishItem(html, name);
+            Assert(soldOut is not null && soldOut.Contains("data-sold-out=\"true\"") && soldOut.Contains("class=\"public-dish-status\">Tạm hết"),
+                "Sold-out dish stays on the menu with the \"Tạm hết\" label and is marked for dimming");
+            Assert(soldOut!.Contains("<data value=\"75000\">75.000 ₫</data>") && soldOut.Contains("src=\"/images/thuc-don/mon-chinh.svg\"")
+                && soldOut.Contains("Cơm rang giòn hạt"), "Sold-out dish keeps image, description and price");
+            Assert(DishItem(html, "Bò lúc lắc")?.Contains("data-sold-out=\"false\"") == true, "Other dishes stay normal");
+            Assert(html.Contains("public-menu.css"), "Menu page loads the dimming styles");
+            Assert(await ManagementSoldOut(connection, id), "Dish management shows the same sold-out status");
+
+            // Tìm kiếm món đang tạm hết.
+            foreach (var keyword in new[] { "com rang dua bo", "Cơm rang dưa bò" })
+            {
+                var search = await Page("/Menu?q=" + Uri.EscapeDataString(keyword));
+                var found = DishItem(search, name);
+                Assert(found is not null && found.Contains("data-sold-out=\"true\"") && found.Contains("Tạm hết") && !search.Contains("Không tìm thấy món nào"),
+                    $"Search \"{keyword}\" still shows the sold-out dish with its label");
+            }
+            using (var api = await anonymous.GetAsync("/api/menu?q=" + Uri.EscapeDataString("com rang dua bo")))
+            {
+                using var json = JsonDocument.Parse(await api.Content.ReadAsStringAsync());
+                var dish = json.RootElement.EnumerateArray().SelectMany(g => g.GetProperty("dishes").EnumerateArray()).Single();
+                Assert(dish.GetProperty("soldOutToday").GetBoolean(), "API reports soldOutToday = true");
+            }
+            await Check(connection, $"SELECT CASE WHEN EXISTS(SELECT 1 FROM dbo.MenuAvailabilityEvents WHERE MenuItemId={id} AND IsSoldOut=1) THEN 1 ELSE 0 END",
+                "Sold-out change is recorded");
+
+            // Cờ của ngày hôm trước không còn hiệu lực (cả thực đơn công khai lẫn màn hình Quản lý món).
+            await DatabaseTool.Execute(connection, $"UPDATE dbo.MenuItems SET SoldOutBusinessDate=DATEADD(day,-1,SoldOutBusinessDate) WHERE Id={id};");
+            Assert(DishItem(await Page("/Menu"), name)?.Contains("data-sold-out=\"false\"") == true, "Yesterday's sold-out flag no longer applies");
+            Assert(!await ManagementSoldOut(connection, id), "Dish management uses the same business-day rule");
+
+            // Mở bán lại: hiển thị bình thường.
+            await DatabaseTool.Execute(connection, $"EXEC dbo.usp_SetMenuAvailability @MenuItemId={id},@IsSoldOut=1,@ActorUserId=1; EXEC dbo.usp_SetMenuAvailability @MenuItemId={id},@IsSoldOut=0,@ActorUserId=1;");
+            var reopened = DishItem(await Page("/Menu"), name);
+            Assert(reopened is not null && reopened.Contains("data-sold-out=\"false\"") && !reopened.Contains("Tạm hết"), "Dish back on sale shows normally again");
+            Console.WriteLine("PASS: S2-01 Task 3 sold-out checks.");
+        }
+        finally
+        {
+            await DatabaseTool.Execute(connection, $"UPDATE dbo.MenuItems SET IsSoldOut=0 WHERE Id={id};");
+        }
+    }
+
+    /// <summary>Cột IsSoldOut của usp_ManagementMenu (màn hình Quản lý món) cho một món.</summary>
+    private static async Task<bool> ManagementSoldOut(string connection, int dishId)
+    {
+        await using var cn = new SqlConnection(connection);
+        await cn.OpenAsync();
+        await using var cmd = new SqlCommand("dbo.usp_ManagementMenu", cn) { CommandType = System.Data.CommandType.StoredProcedure };
+        cmd.Parameters.AddWithValue("@ActorUserId", 1);
+        await using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+            if (reader.GetInt32(0) == dishId) return reader.GetBoolean(3);
+        throw new Exception("FAIL: dish missing from usp_ManagementMenu");
+    }
+
+    private static async Task<int> Scalar(string connection, string sql)
+    {
+        await using var cn = new SqlConnection(connection);
+        await cn.OpenAsync();
+        await using var cmd = new SqlCommand(sql, cn);
+        return Convert.ToInt32(await cmd.ExecuteScalarAsync());
     }
 
     private static void Assert(bool condition, string name)

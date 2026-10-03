@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.FileProviders;
@@ -119,6 +119,7 @@ Check(RestaurantManagement.Web.Models.Reservations.BookingTime.NextStart(day.Add
 MenuTests.Run(Check);
 PublicMenuTests.Run(Check);
 MenuSearchTests.Run(Check);
+SoldOutTests.Run(Check);
 await MenuImageTests.Run(Check);
 SecurityAuditTests.Run(Check);
 await AuditReadOnlyTests.Run(Check);
