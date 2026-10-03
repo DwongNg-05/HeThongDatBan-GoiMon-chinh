@@ -11,6 +11,23 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection")));
 
+builder.Services.Configure<SmtpOptions>(
+    builder.Configuration.GetSection("Smtp"));
+
+builder.Services.AddSingleton<SmtpEmailSender>();
+
+// Chỉ bật EmailWorker khi SMTP đã được cấu hình đầy đủ.
+var smtpUsername = builder.Configuration["Smtp:Username"];
+var smtpPassword = builder.Configuration["Smtp:Password"];
+var smtpFromEmail = builder.Configuration["Smtp:FromEmail"];
+
+if (!string.IsNullOrWhiteSpace(smtpUsername) &&
+    !string.IsNullOrWhiteSpace(smtpPassword) &&
+    !string.IsNullOrWhiteSpace(smtpFromEmail))
+{
+    builder.Services.AddHostedService<EmailWorker>();
+}
+
 builder.Services.AddControllersWithViews();
 
 builder.Services.AddAuthentication("Cookies")

@@ -75,11 +75,15 @@
                         <dt class="col-sm-4">Thời gian</dt>
                         <dd class="col-sm-8">
                             @result.AppointmentLabel
-                            <small class="text-muted">(giờ Việt Nam)</small>
+                            <small class="text-muted">
+                                (giờ Việt Nam)
+                            </small>
                         </dd>
 
                         <dt class="col-sm-4">Số khách</dt>
-                        <dd class="col-sm-8">@result.GuestCount khách</dd>
+                        <dd class="col-sm-8">
+                            @result.GuestCount khách
+                        </dd>
 
                         <dt class="col-sm-4">Khu vực</dt>
                         <dd class="col-sm-8">
@@ -87,7 +91,9 @@
                         </dd>
 
                         <dt class="col-sm-4">Bàn</dt>
-                        <dd class="col-sm-8">@result.TableLabel</dd>
+                        <dd class="col-sm-8">
+                            @result.TableLabel
+                        </dd>
                     </dl>
 
                     @if (!string.IsNullOrWhiteSpace(
@@ -95,6 +101,22 @@
                     {
                         <div class="alert alert-info" role="status">
                             @result.CancellationMessage
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(
+                        result.EmailDeliveryMessage))
+                    {
+                        var emailAlertClass =
+                            result.EmailDeliveryMessage.Contains(
+                                "chưa gửi được",
+                                StringComparison.OrdinalIgnoreCase)
+                                ? "alert-warning"
+                                : "alert-success";
+
+                        <div class="alert @emailAlertClass"
+                             role="status">
+                            @result.EmailDeliveryMessage
                         </div>
                     }
 
@@ -110,7 +132,8 @@
                                 aria-labelledby="cancelDialogTitle"
                                 class="rounded border p-4">
 
-                            <h3 id="cancelDialogTitle" class="h5">
+                            <h3 id="cancelDialogTitle"
+                                class="h5">
                                 Xác nhận huỷ đặt bàn
                             </h3>
 
@@ -126,8 +149,11 @@
                                   method="post"
                                   id="cancelForm">
 
-                                <input asp-for="Code" type="hidden" />
-                                <input asp-for="Phone" type="hidden" />
+                                <input asp-for="Code"
+                                       type="hidden" />
+
+                                <input asp-for="Phone"
+                                       type="hidden" />
 
                                 <div class="d-flex gap-2">
                                     <button type="button"
@@ -162,14 +188,26 @@
     <partial name="_ValidationScriptsPartial" />
 
     <script>
-        const cancelDialog = document.getElementById("cancelDialog");
-        const openButton = document.getElementById("openCancelDialog");
-        const closeButton = document.getElementById("closeCancelDialog");
-        const cancelForm = document.getElementById("cancelForm");
+        const cancelDialog =
+            document.getElementById("cancelDialog");
+
+        const openButton =
+            document.getElementById("openCancelDialog");
+
+        const closeButton =
+            document.getElementById("closeCancelDialog");
+
+        const cancelForm =
+            document.getElementById("cancelForm");
+
         const confirmButton =
             document.getElementById("confirmCancelButton");
 
-        if (cancelDialog && openButton && closeButton && cancelForm) {
+        if (cancelDialog &&
+            openButton &&
+            closeButton &&
+            cancelForm) {
+
             openButton.addEventListener("click", () => {
                 cancelDialog.showModal();
             });
@@ -179,8 +217,10 @@
             });
 
             cancelForm.addEventListener("submit", () => {
-                confirmButton.disabled = true;
-                confirmButton.textContent = "Đang huỷ...";
+                if (confirmButton) {
+                    confirmButton.disabled = true;
+                    confirmButton.textContent = "Đang huỷ...";
+                }
             });
         }
     </script>

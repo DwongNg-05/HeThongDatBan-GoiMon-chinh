@@ -7,7 +7,9 @@ using RestaurantManagement.Web.ViewModels;
 namespace RestaurantManagement.Web.Controllers;
 
 [AllowAnonymous]
-[ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
+[ResponseCache(
+    Location = ResponseCacheLocation.None,
+    NoStore = true)]
 public class ReservationsController : Controller
 {
     private readonly ReservationStore _store;
@@ -25,57 +27,70 @@ public class ReservationsController : Controller
         _auditLogService = auditLogService;
     }
 
-    // Mở trang tra cứu.
     [HttpGet]
     public IActionResult Index()
     {
-        return View(new ReservationLookupViewModel());
+        return View(
+            new ReservationLookupViewModel());
     }
 
-    // Nhận mã và số điện thoại để tra cứu.
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Lookup(
-        [Bind("Code,Phone")] ReservationLookupViewModel model)
+        [Bind("Code,Phone")]
+        ReservationLookupViewModel model)
     {
         if (!ModelState.IsValid)
             return View("Index", model);
 
-        model.Result = await _store.LookupAsync(
-            model.Code,
-            model.Phone);
+        model.Result =
+            await _store.LookupAsync(
+                model.Code,
+                model.Phone);
 
         if (model.Result is null)
-            ModelState.AddModelError("", PairError);
+        {
+            ModelState.AddModelError(
+                "",
+                PairError);
+        }
 
         return View("Index", model);
     }
 
-    // Nhận yêu cầu sau khi khách xác nhận huỷ.
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Cancel(
-        [Bind("Code,Phone")] ReservationLookupViewModel model)
+        [Bind("Code,Phone")]
+        ReservationLookupViewModel model)
     {
         if (!ModelState.IsValid)
             return View("Index", model);
 
         // Kiểm tra lại cặp mã và số điện thoại.
-        model.Result = await _store.LookupAsync(
-            model.Code,
-            model.Phone);
+        model.Result =
+            await _store.LookupAsync(
+                model.Code,
+                model.Phone);
 
         if (model.Result is null)
         {
-            ModelState.AddModelError("", PairError);
+            ModelState.AddModelError(
+                "",
+                PairError);
+
             return View("Index", model);
         }
 
-        // Huỷ lần thứ hai không thực hiện thay đổi thêm.
+        // Huỷ lần thứ hai không thay đổi dữ liệu
+        // và không tạo thêm email.
         if (model.Result.Status == "Cancelled")
         {
             model.SuccessMessage =
                 "Đặt bàn này đã được huỷ trước đó.";
+
+            await SetEmailDeliveryMessageAsync(
+                model);
 
             return View("Index", model);
         }
@@ -85,27 +100,38 @@ public class ReservationsController : Controller
 
         try
         {
-            // Thủ tục SQL kiểm tra lại trạng thái và thời gian,
-            // đồng thời huỷ và giải phóng bàn trong transaction.
-            await _store.CancelAsync(model.Code, model.Phone);
+            // SQL tự kiểm tra lại trạng thái,
+            // thời gian, huỷ đặt bàn,
+            // ghi ReservationEvents,
+            // giải phóng bàn và queue email.
+            await _store.CancelAsync(
+                model.Code,
+                model.Phone);
         }
-        catch (SqlException ex) when (ex.Number == 51012)
+        catch (SqlException ex)
+            when (ex.Number == 51012)
         {
             model.Result = null;
-            ModelState.AddModelError("", PairError);
+
+            ModelState.AddModelError(
+                "",
+                PairError);
 
             return View("Index", model);
         }
-        catch (SqlException ex) when (ex.Number == 51013)
+        catch (SqlException ex)
+            when (ex.Number == 51013)
         {
-            // Trạng thái hoặc thời gian đã đổi sau lần đọc trước.
-            model.Result = await _store.LookupAsync(
-                model.Code,
-                model.Phone);
+            model.Result =
+                await _store.LookupAsync(
+                    model.Code,
+                    model.Phone);
 
             if (model.Result is null)
             {
-                ModelState.AddModelError("", PairError);
+                ModelState.AddModelError(
+                    "",
+                    PairError);
             }
             else
             {
@@ -113,7 +139,8 @@ public class ReservationsController : Controller
 
                 model.Result.CancellationMessage ??=
                     "Không thể huỷ đặt bàn lúc này. " +
-                    "Vui lòng gọi trực tiếp cho quán để được hỗ trợ.";
+                    "Vui lòng gọi trực tiếp cho quán " +
+                    "để được hỗ trợ.";
             }
 
             return View("Index", model);
@@ -122,7 +149,8 @@ public class ReservationsController : Controller
         // Ghi Audit Log sau khi huỷ thành công.
         var username =
             User.Identity?.IsAuthenticated == true
-                ? User.Identity.Name ?? "AuthenticatedUser"
+                ? User.Identity.Name
+                    ?? "AuthenticatedUser"
                 : "Anonymous";
 
         var role =
@@ -131,7 +159,9 @@ public class ReservationsController : Controller
                 : "Guest";
 
         var ipAddress =
-            HttpContext.Connection.RemoteIpAddress?.ToString()
+            HttpContext.Connection
+                .RemoteIpAddress?
+                .ToString()
             ?? "Unknown";
 
         await _auditLogService.LogAsync(
@@ -140,13 +170,64 @@ public class ReservationsController : Controller
             $"Cancel reservation {model.Code}",
             ipAddress);
 
-        // Đọc lại thông tin mới nhất sau khi huỷ thành công.
-        model.Result = await _store.LookupAsync(
-            model.Code,
-            model.Phone);
+        // Đọc lại trạng thái mới nhất.
+        model.Result =
+            await _store.LookupAsync(
+                model.Code,
+                model.Phone);
 
-        model.SuccessMessage = "Huỷ đặt bàn thành công.";
+        model.SuccessMessage =
+            "Huỷ đặt bàn thành công.";
+
+        await SetEmailDeliveryMessageAsync(
+            model);
 
         return View("Index", model);
+    }
+
+    private async Task SetEmailDeliveryMessageAsync(
+        ReservationLookupViewModel model)
+    {
+        if (model.Result is null)
+            return;
+
+        // Đặt bàn không có email:
+        // huỷ vẫn thành công và không báo lỗi.
+        if (string.IsNullOrWhiteSpace(
+                model.Result.Email))
+        {
+            model.Result.EmailDeliveryMessage =
+                null;
+
+            return;
+        }
+
+        var status =
+            await _store
+                .GetCancellationEmailStatusAsync(
+                    model.Code,
+                    model.Phone);
+
+        model.Result.EmailDeliveryMessage =
+            status switch
+            {
+                "Sent" =>
+                    $"Đã gửi email xác nhận đến " +
+                    $"{model.Result.MaskedEmail}.",
+
+                "Pending" or "Processing" =>
+                    $"Email xác nhận đang được gửi đến " +
+                    $"{model.Result.MaskedEmail}.",
+
+                "Failed" =>
+                    "Huỷ đặt bàn đã thành công, " +
+                    "nhưng email xác nhận chưa gửi được.",
+
+                "Cancelled" =>
+                    null,
+
+                _ =>
+                    null
+            };
     }
 }
