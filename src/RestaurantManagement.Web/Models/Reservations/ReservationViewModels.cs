@@ -5,14 +5,17 @@ namespace RestaurantManagement.Web.Models.Reservations;
 public class ReservationCreateViewModel
 {
     [Required(ErrorMessage = "Vui lòng nhập tên khách hàng.")]
-    [StringLength(100)]
+    [StringLength(100, ErrorMessage = "Họ tên không được vượt quá 100 ký tự.")]
     [Display(Name = "Tên khách hàng")]
     public string CustomerName { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Vui lòng nhập số điện thoại.")]
+    [RegularExpression(@"^0\d{9}$", ErrorMessage = "Số điện thoại phải gồm đúng 10 chữ số và bắt đầu bằng 0.")]
     [Display(Name = "Số điện thoại")]
     public string Phone { get; set; } = string.Empty;
 
+    [Required(ErrorMessage = "Vui lòng nhập số khách.")]
+    [Range(1, 20, ErrorMessage = "Số khách phải là số nguyên từ 1 đến 20. Đoàn trên 20 khách, vui lòng liên hệ trực tiếp nhà hàng.")]
     [Display(Name = "Số khách")]
     public int? GuestCount { get; set; } = 2;
 
@@ -27,7 +30,7 @@ public class ReservationCreateViewModel
     [Display(Name = "Khu vực")]
     public int? PreferredAreaId { get; set; }
 
-    [StringLength(500)]
+    [StringLength(500, ErrorMessage = "Ghi chú không được vượt quá 500 ký tự.")]
     [Display(Name = "Ghi chú")]
     public string? Notes { get; set; }
 
