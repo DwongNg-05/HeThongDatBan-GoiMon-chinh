@@ -1,0 +1,9 @@
+@model RestaurantManagement.Web.Models.Reservations.ReservationConfirmationViewModel
+@{ ViewData["Title"] = "Đặt bàn thành công"; }
+<div class="container mt-5"><div class="card shadow-sm border-success"><div class="card-body">
+    <h3>Đặt bàn thành công!</h3><p class="lead">Yêu cầu đặt bàn đã được ghi nhận và đang chờ nhà hàng xác nhận.</p>
+    <div class="text-center rounded bg-light p-4 mb-4"><div class="text-muted text-uppercase small">Mã đặt bàn của bạn</div><strong class="display-4 text-success">@Model.Code</strong></div>
+    <h4>Tóm tắt đặt bàn</h4><dl class="row mb-4">
+        <dt class="col-sm-4">Họ tên</dt><dd class="col-sm-8">@Model.CustomerName</dd><dt class="col-sm-4">Số điện thoại</dt><dd class="col-sm-8">@Model.Phone</dd><dt class="col-sm-4">Số khách</dt><dd class="col-sm-8">@Model.GuestCount</dd><dt class="col-sm-4">Ngày, giờ</dt><dd class="col-sm-8">@Model.ReservationDate.ToString("dd/MM/yyyy") lúc @Model.ReservationTime.ToString("HH:mm")</dd><dt class="col-sm-4">Khu vực</dt><dd class="col-sm-8">@Model.AreaName</dd><dt class="col-sm-4">Ghi chú</dt><dd class="col-sm-8">@(string.IsNullOrWhiteSpace(Model.Notes) ? "Không có" : Model.Notes)</dd>
+    </dl><a asp-controller="PublicReservations" asp-action="Create" class="btn btn-primary">Đặt bàn tiếp</a>
+</div></div></div>

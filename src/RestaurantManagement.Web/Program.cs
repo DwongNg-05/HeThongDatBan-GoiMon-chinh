@@ -119,6 +119,8 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
 
+app.MapControllers();
+
 app.MapRazorPages();
 
 // Old Vietnamese URLs (bookmarks, printed links) redirect to the English routes.
