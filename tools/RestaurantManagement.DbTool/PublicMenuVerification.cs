@@ -17,7 +17,7 @@ internal static class PublicMenuVerification
         await DatabaseTool.SeedMenuDemo(connection);
         await DatabaseTool.SeedMenuDemo(connection);
         await Check(connection, """
-            SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.MenuItems WHERE ImagePath LIKE N'/images/thuc-don/%')=16
+            SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.MenuItems WHERE ImagePath LIKE N'/images/thuc-don/%')=17
              AND (SELECT COUNT(*) FROM dbo.MenuCategories WHERE Name IN (N'Khai vị',N'Món chính',N'Lẩu',N'Tráng miệng',N'Đồ uống'))=5
              AND NOT EXISTS(SELECT 1 FROM dbo.MenuCategories WHERE Name IN (N'Khai vị',N'Món chính',N'Lẩu',N'Tráng miệng',N'Đồ uống') AND DefaultImagePath IS NULL)
              AND (SELECT COUNT(*) FROM dbo.MenuItems WHERE Name=N'Cua rang me' AND IsActive=0)=1
@@ -78,6 +78,8 @@ internal static class PublicMenuVerification
                 && apiDish.GetProperty("shortDescription").GetString()!.Length > 0, "API dish has image, description and VND price");
             Assert(apiGroups.All(g => g.GetProperty("dishes").EnumerateArray().All(m => m.GetProperty("name").GetString() != "Cua rang me")), "API hides stopped dish");
 
+            await VerifySearch(anonymous, groups);
+
             // Không price hạn hay tạo phiên đăng nhập cho khách.
             Assert(!page.Headers.TryGetValues("Set-Cookie", out var cookies) || cookies.All(c => !c.StartsWith("RestaurantManagement.Auth=")), "Public menu does not create a login cookie");
             Console.WriteLine("PASS: S2-01 Task 1 public menu checks.");
@@ -86,6 +88,61 @@ internal static class PublicMenuVerification
         {
             await DatabaseTool.Execute(connection, "DELETE dbo.MenuItems WHERE Name=N'Món thuộc nhóm ẩn'; DELETE dbo.MenuCategories WHERE Name=N'S2 nhóm ẩn';");
         }
+    }
+
+    /// <summary>
+    /// S2-01 Task 2 (AC2): tìm món theo tên trên /Menu?q= và /api/menu?q=,
+    /// không phân biệt chữ hoa/chữ thường và dấu tiếng Việt.
+    /// </summary>
+    private static async Task VerifySearch(HttpClient anonymous, string[] groups)
+    {
+        static string[] DishNames(string html) =>
+            Regex.Matches(html, "<h3 class=\"public-dish-name\">(.*?)</h3>").Select(m => m.Groups[1].Value).ToArray();
+        async Task<string> Search(string keyword)
+        {
+            using var response = await anonymous.GetAsync("/Menu?q=" + Uri.EscapeDataString(keyword));
+            Assert(response.StatusCode == HttpStatusCode.OK, $"Search \"{keyword}\" opens without login");
+            return WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+        }
+
+        var plain = await Search("com rang");
+        var found = DishNames(plain);
+        Assert(found.Contains("Cơm rang dưa bò") && found.All(n => n.StartsWith("Cơm rang", StringComparison.Ordinal)),
+            "Search \"com rang\" returns \"Cơm rang dưa bò\" and only dishes named cơm rang");
+        Assert(!found.Contains("Bò lúc lắc") && !found.Contains("Cơm chiên hải sản"), "Search hides dishes that do not match");
+        var dish = Regex.Matches(plain, "<li class=\"public-dish\".*?</li>", RegexOptions.Singleline)
+            .Select(m => m.Value).Single(li => li.Contains(">Cơm rang dưa bò</h3>"));
+        Assert(dish.Contains("<data value=\"75000\">75.000 ₫</data>") && dish.Contains("/ Đĩa")
+            && dish.Contains("src=\"/images/thuc-don/mon-chinh.svg\"") && dish.Contains("Cơm rang giòn hạt với dưa cải chua"),
+            "Search result keeps image, description, VND price and unit");
+        Assert(Regex.IsMatch(plain, "<h2 id=\"tieu-de-nhom-[0-9]+\">Món chính</h2>")
+            && !plain.Contains(">Đồ uống</h2>"), "Search result keeps its group and hides groups without matches");
+        Assert(plain.Contains($"Tìm thấy {found.Length} món phù hợp với “com rang”") && plain.Contains("value=\"com rang\""),
+            "Search shows result count and keeps the keyword in the box");
+
+        foreach (var keyword in new[] { "Cơm rang", "CƠM RANG", "COM RANG", "cOm RaNg", "  com   rang  " })
+            Assert(DishNames(await Search(keyword)).SequenceEqual(found), $"Search \"{keyword}\" returns the same dishes (accent/case/space insensitive)");
+
+        Assert(DishNames(await Search("ca phe")).Contains("Cà phê sữa đá") && DishNames(await Search("Cà Phê")).Contains("Cà phê sữa đá"),
+            "Search without and with accents finds \"Cà phê sữa đá\"");
+        Assert(DishNames(await Search("lau ga la e")).SequenceEqual(new[] { "Lẩu gà lá é" }), "Search \"lau ga la e\" (accents removed) finds Lẩu gà lá é");
+        Assert(!DishNames(await Search("rang me")).Contains("Cua rang me"), "Search never shows a stopped dish");
+
+        var missing = await Search("pizza hải sản xyz");
+        Assert(DishNames(missing).Length == 0 && missing.Contains("Không tìm thấy món nào phù hợp với “pizza hải sản xyz”")
+            && missing.Contains("Xem toàn bộ thực đơn"), "Unknown keyword shows a not-found message and a link back to the full menu");
+
+        var cleared = await Search("");
+        var headings = Regex.Matches(cleared, "<h2 id=\"tieu-de-nhom-[0-9]+\">(.*?)</h2>").Select(m => m.Groups[1].Value).ToArray();
+        Assert(headings.SequenceEqual(groups) && DishNames(cleared).Contains("Bò lúc lắc") && !cleared.Contains("Tìm thấy"),
+            "Clearing the keyword shows the full menu again");
+
+        using var api = await anonymous.GetAsync("/api/menu?q=" + Uri.EscapeDataString("COM RANG"));
+        using var json = JsonDocument.Parse(await api.Content.ReadAsStringAsync());
+        var apiDishes = json.RootElement.EnumerateArray().SelectMany(g => g.GetProperty("dishes").EnumerateArray())
+            .Select(m => m.GetProperty("name").GetString()!).ToArray();
+        Assert(api.StatusCode == HttpStatusCode.OK && apiDishes.SequenceEqual(found), "API ?q= returns the same search results");
+        Console.WriteLine("PASS: S2-01 Task 2 menu search checks.");
     }
 
     private static void Assert(bool condition, string name)

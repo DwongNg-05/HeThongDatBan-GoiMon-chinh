@@ -1,4 +1,4 @@
-@model IReadOnlyList<RestaurantManagement.Web.Services.PublicMenuCategory>
+@model PublicMenuViewModel
 @{
     ViewData["Title"] = "Thực đơn";
     string ImageSrc(string url) => url.StartsWith('/') ? Url.Content("~" + url) : url;
@@ -14,20 +14,48 @@
         <p>Giá niêm yết bằng đồng Việt Nam (VND).</p>
     </header>
 
-    @if (Model.Count == 0)
+    @if (Model.MenuIsEmpty)
     {
         <p class="public-menu-empty">Thực đơn đang được cập nhật. Vui lòng quay lại sau.</p>
     }
     else
     {
-        <nav class="public-menu-tabs" aria-label="Nhóm món">
-            @foreach (var category in Model)
-            {
-                <a href="#nhom-@category.Id">@category.Name</a>
-            }
-        </nav>
+        @* S2-01 Task 2: tìm món theo tên, không phân biệt hoa/thường và dấu tiếng Việt. *@
+        <form class="public-menu-search" role="search" method="get" asp-controller="Menu" asp-action="Index"
+              data-keyword="@Model.Keyword">
+            <label class="visually-hidden" for="menu-search">Tìm món theo tên</label>
+            <input id="menu-search" class="public-menu-search-input" type="search" name="q" value="@Model.Keyword"
+                   maxlength="@RestaurantManagement.Web.Services.MenuSearch.MaxKeywordLength"
+                   placeholder="Tìm món, ví dụ: com rang" autocomplete="off" enterkeyhint="search" />
+            <button class="public-menu-search-button" type="submit">Tìm</button>
+        </form>
 
-        @foreach (var category in Model)
+        @if (Model.IsSearching)
+        {
+            <div class="public-menu-search-status" role="status">
+                @if (Model.NoResults)
+                {
+                    <p class="public-menu-no-result">Không tìm thấy món nào phù hợp với “@Model.Keyword”. Hãy thử từ khóa khác.</p>
+                }
+                else
+                {
+                    <p>Tìm thấy @Model.DishCount món phù hợp với “@Model.Keyword”.</p>
+                }
+                <a class="public-menu-search-clear" asp-controller="Menu" asp-action="Index">Xem toàn bộ thực đơn</a>
+            </div>
+        }
+
+        @if (Model.Categories.Count > 0)
+        {
+            <nav class="public-menu-tabs" aria-label="Nhóm món">
+                @foreach (var category in Model.Categories)
+                {
+                    <a href="#nhom-@category.Id">@category.Name</a>
+                }
+            </nav>
+        }
+
+        @foreach (var category in Model.Categories)
         {
             <section class="public-menu-group" id="nhom-@category.Id" aria-labelledby="tieu-de-nhom-@category.Id" data-nhom-id="@category.Id">
                 <h2 id="tieu-de-nhom-@category.Id">@category.Name</h2>
@@ -59,3 +87,7 @@
         }
     }
 </div>
+
+@section Scripts {
+    <script src="~/js/menu-search.js" asp-append-version="true"></script>
+}

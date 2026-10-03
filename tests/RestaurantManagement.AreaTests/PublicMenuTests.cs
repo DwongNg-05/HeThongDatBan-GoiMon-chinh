@@ -52,8 +52,9 @@ internal static class PublicMenuTests
         check(store.GetPublicMenu().Any(n => n.Id == emptyCategory.Id && n.Dishes.Count == 0), "Public menu: active empty group still listed");
 
         var expectedIds = store.GetPublicMenu().Select(n => n.Id).ToArray();
-        var viewModel = (new MenuController(store).Index() as ViewResult)?.Model as IReadOnlyList<PublicMenuCategory>;
-        check(viewModel is not null && viewModel.Select(n => n.Id).SequenceEqual(expectedIds), "Public menu: MenuController.Index returns public menu view");
+        var viewModel = (new MenuController(store).Index() as ViewResult)?.Model as RestaurantManagement.Web.Models.PublicMenuViewModel;
+        check(viewModel is { IsSearching: false, MenuIsEmpty: false } && viewModel.Categories.Select(n => n.Id).SequenceEqual(expectedIds),
+            "Public menu: MenuController.Index returns public menu view");
         var apiModel = (new MenuApiController(store).List().Result as OkObjectResult)?.Value as IReadOnlyList<PublicMenuCategory>;
         check(apiModel is not null && apiModel.Select(n => n.Id).SequenceEqual(expectedIds), "Public menu: API controller returns the same groups");
         check(typeof(MenuController).IsDefined(typeof(AllowAnonymousAttribute), inherit: true)

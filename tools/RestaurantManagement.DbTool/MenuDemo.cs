@@ -15,7 +15,7 @@ internal static partial class DatabaseTool
         {
             await Batches(cn, tx, await File.ReadAllTextAsync(Path.Combine(Root, "database", "seeds", "PublicMenuDemo.sql")));
             await tx.CommitAsync();
-            Console.WriteLine("Public menu demo ready: 5 groups with images, 15 dishes on sale, 1 stopped dish. Existing dishes preserved.");
+            Console.WriteLine("Public menu demo ready: 5 groups with images, 16 dishes on sale, 1 stopped dish. Existing dishes preserved.");
         }
         catch { await tx.RollbackAsync(); throw; }
     }

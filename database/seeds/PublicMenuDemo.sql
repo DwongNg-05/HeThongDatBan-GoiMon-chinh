@@ -42,6 +42,8 @@ INSERT @Mon(CategoryName,Name,Price,Unit,Description,PrepMinutes,ImagePath,SortO
  (N'Món chính',N'Cơm chiên hải sản',85000,N'Đĩa',N'Cơm chiên tôm mực, trứng và rau củ, đảo lửa lớn.',15,N'/images/thuc-don/mon-chinh.svg',1,1),
  (N'Món chính',N'Bò lúc lắc',145000,N'Đĩa',N'Thăn bò áp chảo với ớt chuông, hành tây; kèm salad và cơm trắng.',20,N'/images/thuc-don/mon-chinh.svg',2,1),
  (N'Món chính',N'Cá kho tộ',95000,N'Nồi',N'Cá basa kho tộ đậm vị nước màu, tiêu xanh; ăn kèm cơm trắng.',25,N'/images/thuc-don/mon-chinh.svg',3,1),
+ -- S2-01 Task 2: món dùng để demo tìm không dấu ("com rang" → "Cơm rang dưa bò").
+ (N'Món chính',N'Cơm rang dưa bò',75000,N'Đĩa',N'Cơm rang giòn hạt với dưa cải chua và thịt bò xào tỏi.',15,N'/images/thuc-don/mon-chinh.svg',5,1),
  -- Ngừng bán: dùng để kiểm tra món ngừng bán không xuất hiện trên thực đơn công khai.
  (N'Món chính',N'Cua rang me',320000,N'Phần',N'Cua thịt rang sốt me chua ngọt. Món theo mùa, hiện ngừng bán.',30,N'/images/thuc-don/mon-chinh.svg',4,0),
  (N'Lẩu',N'Lẩu Thái hải sản',280000,N'Nồi',N'Nước lẩu chua cay, tôm, mực, nghêu, nấm và rau ăn kèm; cho 2–3 người.',25,N'/images/thuc-don/lau.svg',1,1),
