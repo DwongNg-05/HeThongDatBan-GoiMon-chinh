@@ -72,6 +72,11 @@ public class PublicReservationsController(IConfiguration configuration) : Contro
             });
             return RedirectToAction(nameof(Success));
         }
+        catch (SqlException ex) when (ex.Number == 51005)
+        {
+            ModelState.AddModelError(nameof(model.Phone), PendingReservationLimit.ReachedMessage);
+            return View(model);
+        }
         catch (Exception)
         {
             await LoadActiveAreas(model);
