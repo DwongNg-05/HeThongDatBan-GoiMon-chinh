@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using RestaurantManagement.Web.Services;
 using RestaurantManagement.Data.Models;
 
@@ -74,6 +75,12 @@ public class CreateModel : PageModel
             _imageStorage.Delete(newImage);
             ModelState.AddModelError("Dish.CategoryId", "Nhóm món không còn tồn tại. Vui lòng chọn nhóm khác.");
             Categories = _store.GetAllCategories();
+            return Page();
+        }
+        catch (DbUpdateException)
+        {
+            _imageStorage.Delete(newImage);
+            ModelState.AddModelError("Dish.PrepMinutes", "Thời gian chế biến phải từ 1 đến 240 phút.");
             return Page();
         }
         catch
