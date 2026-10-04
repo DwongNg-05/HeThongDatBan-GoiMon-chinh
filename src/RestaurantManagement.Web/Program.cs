@@ -2,6 +2,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+builder.Services.AddHostedService<RestaurantManagement.Web.Services.TemporaryOutResetWorker>();
 builder.Services.AddAuthentication("StaffCookie")
     .AddCookie("StaffCookie", options =>
     {

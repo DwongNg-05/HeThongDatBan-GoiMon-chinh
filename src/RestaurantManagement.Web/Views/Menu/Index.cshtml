@@ -105,7 +105,7 @@
             const rows = await resp.json();
             const tbody = document.querySelector('#history-list tbody');
             document.getElementById('history-item-name').textContent = rows.length ? `· ${rows[0].menuItemName}` : '';
-            tbody.innerHTML = rows.map(r => `<tr><td>${new Date(r.changedAt).toLocaleString()}</td><td>${r.changedByName ?? ('#' + (r.changedBy ?? ''))}</td><td>${r.oldState === null ? '-' : (r.oldState ? 'Tạm hết' : 'Phục vụ')}</td><td>${r.newState ? 'Tạm hết' : 'Phục vụ'}</td></tr>`).join('');
+            tbody.innerHTML = rows.map(r => `<tr><td>${new Date(r.changedAt).toLocaleString()}</td><td>${r.changedByName ?? (r.changedBy === null ? 'Tự động (hệ thống)' : '#' + r.changedBy)}</td><td>${r.oldState === null ? '-' : (r.oldState ? 'Tạm hết' : 'Phục vụ')}</td><td>${r.newState ? 'Tạm hết' : 'Phục vụ'}</td></tr>`).join('');
             var modal = new bootstrap.Modal(document.getElementById('historyModal'));
             modal.show();
         } catch (err) {
