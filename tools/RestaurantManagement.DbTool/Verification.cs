@@ -59,6 +59,8 @@ internal static class Verification
             await Check(connection, "Void retains records, excludes revenue", "SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.vw_DailyRevenue)=0 AND (SELECT COUNT(*) FROM dbo.InvoiceLines)=1 THEN 1 ELSE 0 END");
             await MergeAndQr(connection);
             await VerifyAreaLifecycle(connection);
+            // S2-09 Task 1: chạy sau cùng vì tạo thêm lượt đặt bàn (các bước trên dựa vào Id đặt bàn cố định).
+            await BookingConfirmationVerification.Run(connection, password);
             await DatabaseTool.Execute(connection, "EXEC dbo.usp_RunMaintenance; EXEC dbo.usp_RunMaintenance;");
             Console.WriteLine("PASS: all SQL Server integration checks.");
         }

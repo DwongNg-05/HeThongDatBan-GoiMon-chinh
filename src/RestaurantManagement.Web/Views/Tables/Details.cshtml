@@ -37,6 +37,14 @@
                     <dt class="col-sm-5">Tình trạng</dt><dd class="col-sm-7">@Model.StatusLabel</dd>
                     <dt class="col-sm-5">Sử dụng</dt><dd class="col-sm-7">@(Model.IsActive ? "Đang dùng" : "Ngừng dùng")</dd>
                 </dl>
+                @if (User.IsInRole("Manager"))
+                {
+                    <form asp-action="Delete" asp-route-id="@Model.TableId" method="post" class="mt-3"
+                          data-confirm="Xoá bàn @Model.TableCode? Bàn đã có lịch sử sẽ được chuyển sang &quot;Ngừng sử dụng&quot; thay vì xoá hẳn."
+                          onsubmit="return confirm(this.dataset.confirm);">
+                        <button type="submit" class="btn btn-outline-danger">Xoá bàn</button>
+                    </form>
+                }
             </div>
         </div>
     </div>

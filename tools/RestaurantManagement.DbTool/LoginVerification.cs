@@ -27,6 +27,8 @@ internal static partial class LoginVerification
         start.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
         // Các kiểm thử S1-01/S1-05 cũ không nhập mã email; xác minh email có bộ kiểm thử riêng (EmailVerificationVerification).
         start.Environment["EmailVerification__Enabled"] = "false";
+        // S2-09 Task 2: tắt worker gửi lại email trong tiến trình này; kiểm thử email trạng thái tự gọi usp_ClaimEmail.
+        start.Environment["Email__RetryPollSeconds"] = "0";
         using var process = Process.Start(start)!;
         // Drain logs without printing request details or credentials.
         var output = process.StandardOutput.ReadToEndAsync();
@@ -81,6 +83,8 @@ internal static partial class LoginVerification
                 Assert((await client.GetAsync("/admin/employee-accounts")).IsSuccessStatusCode, "Manager can open merged employee account list");
                 Assert((await client.GetAsync("/admin/employee-accounts/create")).IsSuccessStatusCode, "Manager can open merged employee creation form");
                 if (identifier == "manager") await MenuImageVerification.Run(connection, client);
+                // S2-09 Task 3: trạng thái email xác nhận trong chi tiết đặt bàn.
+                if (identifier == "manager") await ReservationEmailStatusVerification.Run(connection, client);
                 var token = Token(page);
                 Assert((await DishPriceEdit.Post(connection, client, 60, 87654, withToken: false)).StatusCode == HttpStatusCode.BadRequest, "Menu writes require CSRF token");
                 Assert((await client.PostAsync("/Management/Price", Form(("id", "60"), ("price", "87654"), ("__RequestVerificationToken", token)))).StatusCode is HttpStatusCode.NotFound or HttpStatusCode.MethodNotAllowed, "Separate price screen no longer accepts writes");

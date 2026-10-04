@@ -126,6 +126,14 @@
                             <div class="at-table-actions">
                                 <a asp-controller="Tables" asp-action="Edit" asp-route-id="@table.Id" class="btn btn-sm btn-outline-primary">Sửa</a>
                                 <a asp-controller="Tables" asp-action="Details" asp-route-id="@table.Id" class="btn btn-sm btn-outline-secondary">Mã QR</a>
+                                @if (User.IsInRole("Manager"))
+                                {
+                                    <form asp-controller="Tables" asp-action="Delete" asp-route-id="@table.Id" method="post" class="d-inline"
+                                          data-confirm="Xoá bàn @table.Code? Bàn đã có lịch sử sẽ được chuyển sang &quot;Ngừng sử dụng&quot; thay vì xoá hẳn."
+                                          onsubmit="return confirm(this.dataset.confirm);">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Xoá</button>
+                                    </form>
+                                }
                             </div>
                         </li>
                     }

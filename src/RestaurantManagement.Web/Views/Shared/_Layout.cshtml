@@ -87,8 +87,12 @@
             }
             else
             {
-                <a class="sidebar-brand" asp-area="" asp-controller="Home" asp-action="Index"><span class="brand-mark" aria-hidden="true">B</span><strong>Bếp Nhà</strong></a>
-                <a asp-area="" asp-controller="Account" asp-action="Login">Đăng nhập</a>
+                @* S2-01 Task 1: khách chưa đăng nhập luôn có đường tới thực đơn công khai. *@
+                <a class="sidebar-brand" asp-area="" asp-controller="Menu" asp-action="Index"><span class="brand-mark" aria-hidden="true">B</span><strong>Bếp Nhà</strong></a>
+                <nav class="guest-links" aria-label="Điều hướng khách">
+                    <a asp-area="" asp-controller="Menu" asp-action="Index" aria-current="@(IsCurrent("Menu", "Index") ? "page" : null)">Thực đơn</a>
+                    <a asp-area="" asp-controller="Account" asp-action="Login" aria-current="@(IsCurrent("Account", "Login") ? "page" : null)">Đăng nhập</a>
+                </nav>
             }
         </header>
         <main id="main-content" class="workspace-content" tabindex="-1">

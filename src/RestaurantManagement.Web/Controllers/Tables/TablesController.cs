@@ -1,4 +1,6 @@
 using System.Data;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.Data.SqlClient;
@@ -101,6 +103,44 @@ public class TablesController(
             ModelState.AddModelError(nameof(model.Code), "Mã bàn đã tồn tại trong nhà hàng.");
             return View(await PopulateAreas(model));
         }
+    }
+
+    /// <summary>
+    /// Quản lý xoá bàn. Bàn chưa từng dùng thì xoá hẳn; bàn đã có lịch sử (đặt bàn, phục vụ, món đã gọi)
+    /// được chuyển sang "Ngừng sử dụng" để giữ lịch sử. Bàn đang phục vụ hoặc còn lượt đặt sắp tới thì không xoá được.
+    /// </summary>
+    [HttpPost, ValidateAntiForgeryToken]
+    [Authorize(Roles = "Manager")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var actorUserId)) return Forbid();
+        int? areaId = null;
+        try
+        {
+            await using var connection = new SqlConnection(ConnectionString);
+            await connection.OpenAsync();
+            await using (var area = new SqlCommand("SELECT AreaId FROM dbo.DiningTables WHERE Id=@id;", connection))
+            {
+                area.Parameters.Add("@id", SqlDbType.Int).Value = id;
+                areaId = await area.ExecuteScalarAsync() as int?;
+            }
+            if (areaId is null) return NotFound();
+            await using var command = new SqlCommand("dbo.usp_DeleteTable", connection) { CommandType = CommandType.StoredProcedure };
+            command.Parameters.Add("@TableId", SqlDbType.Int).Value = id;
+            command.Parameters.Add("@ActorUserId", SqlDbType.Int).Value = actorUserId;
+            await using var reader = await command.ExecuteReaderAsync();
+            await reader.ReadAsync();
+            var result = reader.GetString(0);
+            var code = reader.GetString(1);
+            TempData["Success"] = result == "Deleted"
+                ? $"Đã xoá bàn {code}."
+                : $"Bàn {code} đã có lịch sử đặt bàn/phục vụ nên được chuyển sang \"Ngừng sử dụng\" thay vì xoá hẳn (giữ lịch sử, không nhận đặt bàn mới, mã QR đã bị thu hồi).";
+        }
+        catch (SqlException ex) when (ex.Number is >= 51000 and < 51500)
+        {
+            TempData["Error"] = ex.Message;
+        }
+        return BackToArea(areaId ?? 0);
     }
 
     [HttpGet]

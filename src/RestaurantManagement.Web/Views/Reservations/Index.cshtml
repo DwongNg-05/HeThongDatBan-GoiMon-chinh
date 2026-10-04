@@ -20,13 +20,22 @@
 
     </div>
 
+    @if (TempData["Success"] is string success)
+    {
+        <div class="alert alert-success" role="status">@success</div>
+    }
+    @if (TempData["Error"] is string error)
+    {
+        <div class="alert alert-danger" role="alert">@error</div>
+    }
+
     <table class="table table-bordered table-hover">
 
         <thead>
 
             <tr>
 
-                <th>Mã đặt bàn</th>
+                <th>Mã đặt bàn (mã bàn)</th>
 
                 <th>Khách hàng</th>
 
@@ -36,7 +45,9 @@
 
                 <th>Thời gian</th>
 
-                <th>Trạng thái</th>
+                <th>Trạng thái đặt bàn</th>
+
+                <th>Ghi chú</th>
 
             </tr>
 
@@ -48,7 +59,7 @@
         {
             <tr>
 
-                <td colspan="6"
+                <td colspan="7"
                     class="text-center">
 
                     Chưa có đặt bàn.
@@ -63,9 +74,17 @@
             {
                 <tr>
 
-                    <td>
-                        <a asp-action="Details" asp-route-id="@reservation.Id">@reservation.Code</a>
+                    <td class="fw-bold">
+                        @if (reservation.TableCode is null)
+                        {
+                            <a asp-action="Details" asp-route-id="@reservation.Id" class="fw-normal">Chưa có bàn</a>
+                        }
+                        else
+                        {
+                            <a asp-action="Details" asp-route-id="@reservation.Id" data-table-code="@reservation.TableCode">@reservation.TableCode</a>
+                        }
                     </td>
+
 
                     <td>
                         @reservation.CustomerName
@@ -85,7 +104,23 @@
                     </td>
 
                     <td>
-                        @reservation.Status
+                        @reservation.StatusLabel
+                        @if (reservation.ConfirmationEmailLabel is string emailLabel)
+                        {
+                            <small class="d-block text-muted reservation-email-summary" data-confirmation-email="@reservation.ConfirmationEmailStatus">@emailLabel</small>
+                        }
+                        @if (User.IsInRole("Manager") && reservation.CanDelete)
+                        {
+                            <form asp-action="Delete" asp-route-id="@reservation.Id" method="post" class="d-inline ms-2"
+                                  data-confirm="Xoá hẳn lượt đặt bàn @(reservation.TableCode ?? reservation.Code) của @reservation.CustomerName? Thao tác này không thể hoàn tác."
+                                  onsubmit="return confirm(this.dataset.confirm);">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" data-reservation-delete="@reservation.Id">Xoá</button>
+                            </form>
+                        }
+                    </td>
+
+                    <td class="text-break">
+                        @reservation.Notes
                     </td>
 
                 </tr>

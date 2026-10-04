@@ -32,11 +32,19 @@ internal static class PublicMenuVerification
             """);
         try
         {
+            // Lối vào cho khách: mở địa chỉ gốc "/" thì tới thẳng thực đơn; màn hình đăng nhập có link "Xem thực đơn".
+            using (var root = await anonymous.GetAsync("/"))
+                Assert(root.StatusCode == HttpStatusCode.Redirect && root.Headers.Location?.OriginalString == "/Menu",
+                    "Guest opening the site root is sent to the public menu, not the login page");
+            var login = await anonymous.GetStringAsync("/Account/Login");
+            Assert(login.Contains("data-guest-menu-link") && login.Contains("href=\"/Menu\""), "Login page links guests to the public menu");
+
             using var page = await anonymous.GetAsync("/Menu");
             Assert(page.StatusCode == HttpStatusCode.OK, "Public menu opens without login (200, no redirect)");
             var html = WebUtility.HtmlDecode(await page.Content.ReadAsStringAsync());
             Assert(html.Contains("name=\"viewport\"") && html.Contains("public-menu.css"), "Public menu has mobile viewport and menu styles");
             Assert(!html.Contains("href=\"/Areas\"") && !html.Contains("Đăng xuất"), "Public menu hides staff navigation");
+            Assert(html.Contains(">Đăng nhập</a>") && !html.Contains("href=\"/\""), "Guest header links to menu and staff login, never to the staff home");
 
             string[] groups = ["Khai vị", "Món chính", "Lẩu", "Tráng miệng", "Đồ uống"];
             var headings = Regex.Matches(html, "<h2 id=\"tieu-de-nhom-[0-9]+\">(.*?)</h2>").Select(m => m.Groups[1].Value).ToArray();

@@ -16,7 +16,7 @@ internal static partial class DatabaseTool
             var connection = Environment.GetEnvironmentVariable("RM_CONNECTION_STRING");
             if (command == "help" || string.IsNullOrWhiteSpace(connection))
             {
-                Console.WriteLine("Commands: migrate | seed-demo | seed-login-demo | seed-menu-demo | seed-menu-200 | hide-menu-200 | verify | maintenance | check\nSet RM_CONNECTION_STRING first. seed-demo and seed-login-demo also require RM_DEMO_PASSWORD.\nseed-login-demo accepts RM_DEMO_USERNAME and RM_DEMO_PHONE; existing accounts are preserved.\nverify creates and removes its own uniquely named test database.");
+                Console.WriteLine("Commands: migrate | seed-demo | seed-login-demo | seed-menu-demo | seed-menu-200 | hide-menu-200 | email-retry-now | verify | maintenance | check\nSet RM_CONNECTION_STRING first. seed-demo and seed-login-demo also require RM_DEMO_PASSWORD.\nseed-login-demo accepts RM_DEMO_USERNAME and RM_DEMO_PHONE; existing accounts are preserved.\nverify creates and removes its own uniquely named test database.");
                 Environment.ExitCode = command == "help" ? 0 : 1;
                 return;
             }
@@ -30,11 +30,27 @@ internal static partial class DatabaseTool
                 case "hide-menu-200": await HideMenu200(connection); break;
                 case "verify": await Verification.Run(connection); break;
                 case "maintenance": await Execute(connection, "EXEC dbo.usp_RunMaintenance;"); break;
+                // S2-09 Task 2 (demo): không chờ 5 phút, cho các email đặt bàn đang chờ gửi lại tới giờ gửi lại ngay.
+                case "email-retry-now": await EmailRetryNow(connection); break;
                 case "check": await Execute(connection, "SELECT TOP(1) Name FROM dbo.SchemaVersions;"); Console.WriteLine("Database connected."); break;
                 default: throw new ArgumentException("Unknown command.");
             }
         }
         catch (Exception ex) { Console.Error.WriteLine($"Operation failed ({ex.GetType().Name}): {ex.Message}"); Environment.ExitCode = 1; }
+    }
+
+    /// <summary>Demo S2-09 Task 2: đưa giờ gửi lại của email đặt bàn đang chờ thử lại về hiện tại (web gửi lại trong vòng 30 giây).</summary>
+    internal static async Task EmailRetryNow(string connection)
+    {
+        await using var cn = new SqlConnection(connection);
+        await cn.OpenAsync();
+        await using var cmd = new SqlCommand("""
+            UPDATE dbo.EmailOutbox SET NextAttemptAt=SYSUTCDATETIME()
+            WHERE Status='Pending' AND AttemptCount BETWEEN 1 AND 3 AND MessageType IN ('BookingReceived','BookingCancelled');
+            SELECT @@ROWCOUNT;
+            """, cn);
+        var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+        Console.WriteLine($"{count} email đặt bàn sẽ được gửi lại ở lượt kiểm tra kế tiếp của web (tối đa 30 giây).");
     }
 
     internal static async Task Migrate(string connection)

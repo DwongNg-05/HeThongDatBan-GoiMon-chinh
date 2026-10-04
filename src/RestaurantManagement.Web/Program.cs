@@ -42,6 +42,11 @@ builder.Services.AddScoped<EmailVerificationService>();
 builder.Services.AddScoped<IEmployeeAccountStore>(_ => new SqlEmployeeAccountStore(sqlConnectionString));
 // S2-09 Task 3: trạng thái email xác nhận của từng lượt đặt bàn (dbo.EmailOutbox).
 builder.Services.AddScoped<IReservationEmailStatusStore>(_ => new SqlReservationEmailStatusStore(sqlConnectionString));
+// S2-09 Task 1: gửi email xác nhận ngay sau khi đặt bàn (dbo.EmailOutbox + IEmailSender).
+builder.Services.AddScoped<IBookingEmailOutbox>(_ => new SqlBookingEmailOutbox(sqlConnectionString));
+builder.Services.AddScoped<BookingEmailDispatcher>();
+// S2-09 Task 2: tự động gửi lại email đặt bàn thất bại (tối đa 3 lần, cách nhau 5 phút). Tắt bằng Email:RetryPollSeconds = 0.
+builder.Services.AddHostedService<BookingEmailRetryWorker>();
 builder.Services.AddControllersWithViews(options => options.Filters.Add<SessionActivityFilter>());
 // Support Razor Pages
 builder.Services.AddRazorPages();
@@ -122,6 +127,8 @@ app.UseRouting();
 app.UseSession();
 
 app.UseAuthentication();
+// S2-01 Task 1: khách chưa đăng nhập mở "/" được đưa thẳng tới thực đơn công khai (/Menu), không cần đăng nhập.
+app.Use((context, next) => RestaurantManagement.Web.Services.GuestMenuEntry.Invoke(context, next));
 app.UseAuthorization();
 app.UseMiddleware<EmailVerificationMiddleware>();
 app.UseMiddleware<RequiredPasswordChangeMiddleware>();

@@ -8,7 +8,7 @@ Controllers, Models và Services được chia theo **chức năng**: mỗi ch�
 | `Employees` | Tài khoản nhân viên | EmployeeAccountsController | CreateEmployeeAccountViewModel | – |
 | `Menu` | Thực đơn, quản lý món, nhóm món, tạm hết món | MenuController, MenuApiController, ManagementController | ManagementStore, ManagementMenu, MenuItem, MenuChange | IMenuStore, SqlMenuStore, InMemoryMenuStore, PublicMenu, DishImageUpload, CategoryNameRules, CategoryWithDishes |
 | `Tables` | Khu vực, bàn, sơ đồ bàn, trạng thái bàn, mã QR | AreasController, TablesController, TableDetailsController, TableStatusController, TableQrController | AreaViewModels, DiningTable*ViewModel, TableQr*ViewModel, TableDetailsViewModel, TableMapViewModel | TableQrService, TableQrPdfBuilder, TableDetailsService, TableMapEventBroker, TableStatusOutboxWorker, DemoTableCatalog |
-| `Reservations` | Đặt bàn, giờ hoạt động, ngày nghỉ | ReservationsController, OpeningHoursController, SpecialHolidaysController | ReservationViewModels, BookingTime, VietnamTime, VietnamBookingTimeBinder, OpeningHoursViewModel, SpecialHolidayViewModel | – |
+| `Reservations` | Đặt bàn, giờ hoạt động, ngày nghỉ, trạng thái email xác nhận | ReservationsController, OpeningHoursController, SpecialHolidaysController | ReservationViewModels, ReservationEmailStatus, BookingTime, VietnamTime, VietnamBookingTimeBinder, OpeningHoursViewModel, SpecialHolidayViewModel | ReservationEmailStatusStore |
 | `Audit` | Nhật ký hệ thống, nhật ký bảo mật | AuditLogsController | AuditLog, SecurityAuditFilter, SecurityAuditStore | AuditLogService |
 | `Home` / `Shared` | Trang chủ, trang lỗi | HomeController | ErrorViewModel (`Models/Shared`) | – |
 

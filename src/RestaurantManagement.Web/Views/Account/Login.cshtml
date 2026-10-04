@@ -28,6 +28,11 @@
             </div>
             <button class="btn btn-primary w-100" type="submit">Đăng nhập</button>
         </form>
+        @* S2-01 Task 1: khách hàng không cần đăng nhập để xem thực đơn. *@
+        <div class="guest-menu-callout mt-4" data-guest-menu-link>
+            <p class="mb-2">Bạn là khách hàng? Không cần đăng nhập để xem món và giá.</p>
+            <a class="btn btn-outline-primary w-100" asp-controller="Menu" asp-action="Index">Xem thực đơn</a>
+        </div>
     </section>
 </div>
 @section Scripts {

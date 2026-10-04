@@ -118,6 +118,7 @@ Check(RestaurantManagement.Web.Models.Reservations.BookingTime.NextStart(day.Add
 Check(RestaurantManagement.Web.Models.Reservations.BookingTime.NextStart(day.AddHours(23).AddMinutes(50)) == day.AddDays(1).AddHours(8), "Midnight rollover");
 MenuTests.Run(Check);
 PublicMenuTests.Run(Check);
+GuestMenuEntryTests.Run(Check);
 MenuSearchTests.Run(Check);
 SoldOutTests.Run(Check);
 MenuPerformanceTests.Run(Check);
@@ -127,6 +128,9 @@ await AuditReadOnlyTests.Run(Check);
 OpeningHoursTests.Run(Check);
 EmailVerificationTests.Run(Check);
 CategoryTests.Run(Check);
+ReservationEmailStatusTests.Run(Check);
+await BookingConfirmationEmailTests.Run(Check);
+await EmailRetryTests.Run(Check);
 Console.WriteLine($"{count} tests passed.");
 if (args.Contains("--authentication-http")) await AuthenticationHttpTests.Run();
 if (args.Contains("--integration")) await AreaHttpTests.Run();

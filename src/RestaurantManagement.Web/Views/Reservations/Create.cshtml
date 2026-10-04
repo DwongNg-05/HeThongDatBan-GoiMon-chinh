@@ -171,6 +171,38 @@
 
 
                         <!-- ============================= -->
+                        <!-- CHỌN BÀN: mã bàn là mã khách nhận -->
+                        <!-- ============================= -->
+
+                        <div class="mb-3">
+
+                            <label asp-for="TableId" class="form-label"></label>
+
+                            <select asp-for="TableId"
+                                    class="form-select"
+                                    required
+                                    data-tables-url="@Url.Action("AvailableTables", "Reservations")">
+                                <option value="">-- Chọn bàn còn trống --</option>
+                                @foreach (var table in Model.Tables)
+                                {
+                                    <option value="@table.Id" selected="@(Model.TableId == table.Id)">@table.Label</option>
+                                }
+                            </select>
+
+                            <div class="form-text">
+                                Danh sách chỉ gồm bàn còn trống theo giờ, số khách và khu vực bạn chọn.
+                                Mã bàn (ví dụ A05) sẽ hiện trên trang xác nhận và trong email.
+                            </div>
+
+                            <span asp-validation-for="TableId" class="text-danger"></span>
+                            <div id="booking-tables-feedback" aria-live="polite" class="mt-2 @(Model.Tables.Count == 0 ? "text-danger" : "")">
+                                @(Model.Tables.Count == 0 ? "Không còn bàn trống phù hợp trong khung giờ này. Vui lòng chọn giờ, số khách hoặc khu vực khác." : "")
+                            </div>
+
+                        </div>
+
+
+                        <!-- ============================= -->
                         <!-- EMAIL -->
                         <!-- ============================= -->
 
@@ -254,5 +286,6 @@
 
     <partial name="_ValidationScriptsPartial" />
     <script src="~/js/booking-schedule.js" asp-append-version="true"></script>
+    <script src="~/js/booking-tables.js" asp-append-version="true"></script>
 
 }
