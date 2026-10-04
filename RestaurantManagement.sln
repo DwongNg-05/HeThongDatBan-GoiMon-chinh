@@ -1,17 +1,24 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.0.31903.59
+# Visual Studio Version 18
+VisualStudioVersion = 18.9.12120.119
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RestaurantManagement.Web", "src\RestaurantManagement.Web\RestaurantManagement.Web.csproj", "{4A78B7AD-C5C0-4DA4-8215-D72E3EAA5745}"
+	ProjectSection(ProjectDependencies) = postProject
+		{C32EC8AC-B347-417C-95FA-19538FC31469} = {C32EC8AC-B347-417C-95FA-19538FC31469}
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RestaurantManagement.Data", "src\RestaurantManagement.Data\RestaurantManagement.Data.csproj", "{5A938356-F03D-458C-AC1B-A03D43956991}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{07C2787E-EAC7-C090-1BA3-A61EC2A24D84}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RestaurantManagement.DbTool", "tools\RestaurantManagement.DbTool\RestaurantManagement.DbTool.csproj", "{C32EC8AC-B347-417C-95FA-19538FC31469}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RestaurantManagement.AreaTests", "tests\RestaurantManagement.AreaTests\RestaurantManagement.AreaTests.csproj", "{8938F9B5-A165-4194-AA01-F89CCD1743BC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -59,6 +66,18 @@ Global
 		{C32EC8AC-B347-417C-95FA-19538FC31469}.Release|x64.Build.0 = Release|Any CPU
 		{C32EC8AC-B347-417C-95FA-19538FC31469}.Release|x86.ActiveCfg = Release|Any CPU
 		{C32EC8AC-B347-417C-95FA-19538FC31469}.Release|x86.Build.0 = Release|Any CPU
+		{8938F9B5-A165-4194-AA01-F89CCD1743BC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8938F9B5-A165-4194-AA01-F89CCD1743BC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8938F9B5-A165-4194-AA01-F89CCD1743BC}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{8938F9B5-A165-4194-AA01-F89CCD1743BC}.Debug|x64.Build.0 = Debug|Any CPU
+		{8938F9B5-A165-4194-AA01-F89CCD1743BC}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{8938F9B5-A165-4194-AA01-F89CCD1743BC}.Debug|x86.Build.0 = Debug|Any CPU
+		{8938F9B5-A165-4194-AA01-F89CCD1743BC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8938F9B5-A165-4194-AA01-F89CCD1743BC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8938F9B5-A165-4194-AA01-F89CCD1743BC}.Release|x64.ActiveCfg = Release|Any CPU
+		{8938F9B5-A165-4194-AA01-F89CCD1743BC}.Release|x64.Build.0 = Release|Any CPU
+		{8938F9B5-A165-4194-AA01-F89CCD1743BC}.Release|x86.ActiveCfg = Release|Any CPU
+		{8938F9B5-A165-4194-AA01-F89CCD1743BC}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -67,5 +86,9 @@ Global
 		{4A78B7AD-C5C0-4DA4-8215-D72E3EAA5745} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{5A938356-F03D-458C-AC1B-A03D43956991} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{C32EC8AC-B347-417C-95FA-19538FC31469} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
+		{8938F9B5-A165-4194-AA01-F89CCD1743BC} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {E4FAFB0E-87A6-4BC4-807B-8ADE4D59E02E}
 	EndGlobalSection
 EndGlobal

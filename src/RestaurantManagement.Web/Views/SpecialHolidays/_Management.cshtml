@@ -1,0 +1,21 @@
+@model List<RestaurantManagement.Web.Models.SpecialHolidayViewModel>
+
+<h2>Ngày nghỉ đặc biệt</h2>
+<p class="text-muted">Ngày nghỉ tính theo ngày tại Việt Nam · Asia/Ho_Chi_Minh (UTC+7).</p>
+<p>Ngày nghỉ đang áp dụng không có khung giờ nhận đặt bàn, kể cả khi lịch tuần đang mở cửa.</p>
+@if (TempData["Success"] is string success) { <div class="alert alert-success" role="status">@success</div> }
+@if (TempData["Error"] is string error) { <div class="alert alert-danger" role="alert">@error</div> }
+<p><a asp-action="Create" class="btn btn-primary">Thêm ngày nghỉ</a> <a asp-controller="OpeningHours" asp-action="Calendar" class="btn btn-outline-secondary">Xem lịch theo ngày</a> <a asp-controller="OpeningHours" asp-action="Index">Giờ hoạt động</a></p>
+@if (Model.Count == 0) { <p>Chưa có ngày nghỉ đặc biệt.</p> }
+else
+{
+    <div class="table-responsive"><table class="table">
+        <thead><tr><th>Ngày nghỉ</th><th>Tên ngày nghỉ</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+        <tbody>@foreach (var holiday in Model)
+        {
+            <tr><td>@holiday.HolidayDate?.ToString("dd/MM/yyyy")</td><td>@holiday.Name</td><td>@(holiday.IsActive ? "Đang áp dụng" : "Không áp dụng")</td>
+                <td><a asp-action="Edit" asp-route-id="@holiday.Id">Sửa</a> · <a asp-action="Delete" asp-route-id="@holiday.Id">Xóa</a> · <a asp-controller="OpeningHours" asp-action="Calendar" asp-route-date="@holiday.HolidayDate?.ToString("yyyy-MM-dd")">Xem lịch</a></td></tr>
+        }</tbody>
+    </table></div>
+}
+
