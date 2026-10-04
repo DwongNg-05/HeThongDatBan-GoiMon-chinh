@@ -298,7 +298,7 @@ internal static class BookingConfirmationVerification
     }
 
     /// <summary>Tìm các khung giờ hợp lệ (giờ mở cửa, không phải ngày nghỉ) trong tương lai bằng usp_ValidateBookingSchedule.</summary>
-    private static async Task<List<(DateTime Local, DateTime Utc)>> FreeSlots(string connection, int count)
+    internal static async Task<List<(DateTime Local, DateTime Utc)>> FreeSlots(string connection, int count)
     {
         var found = new List<(DateTime, DateTime)>();
         var today = DateTime.UtcNow.AddHours(7).Date;
@@ -317,7 +317,7 @@ internal static class BookingConfirmationVerification
         return found;
     }
 
-    private static async Task<(string Code, string Page)> Book(HttpClient client, string name, string phone, int guests, DateTime local, string? email, int? tableId = null)
+    internal static async Task<(string Code, string Page)> Book(HttpClient client, string name, string phone, int guests, DateTime local, string? email, int? tableId = null)
     {
         using var response = await Post(client, name, phone, guests, local, email, tableId);
         var body = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
@@ -337,7 +337,7 @@ internal static class BookingConfirmationVerification
         return WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
     }
 
-    private static async Task<(int Id, string Code)> FirstFreeTable(HttpClient client, DateTime local, int guests)
+    internal static async Task<(int Id, string Code)> FirstFreeTable(HttpClient client, DateTime local, int guests)
     {
         using var json = System.Text.Json.JsonDocument.Parse(await TablesJson(client, local, guests));
         var first = json.RootElement.GetProperty("tables").EnumerateArray().First();
@@ -373,7 +373,7 @@ internal static class BookingConfirmationVerification
     }
 
     /// <summary>Định dạng ngày giờ giống email: "11:00, Thứ Hai ngày 26/10/2026".</summary>
-    private static string BookingWhen(DateTime local)
+    internal static string BookingWhen(DateTime local)
     {
         string[] weekdays = ["Chủ nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
         return $"{local:HH:mm}, {weekdays[(int)local.DayOfWeek]} ngày {local.ToString("dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture)}";
@@ -388,14 +388,14 @@ internal static class BookingConfirmationVerification
         return port;
     }
 
-    private static async Task Login(HttpClient client, string user, string password)
+    internal static async Task Login(HttpClient client, string user, string password)
     {
         var html = await client.GetStringAsync("/Account/Login");
         using var response = await client.PostAsync("/Account/Login", Form(("Identifier", user), ("Password", password), ("__RequestVerificationToken", Token(html))));
         Assert(response.StatusCode == HttpStatusCode.Redirect, $"{user} signs in");
     }
 
-    private static async Task<string> Html(HttpClient client, string path)
+    internal static async Task<string> Html(HttpClient client, string path)
     {
         using var response = await client.GetAsync(path);
         Assert(response.StatusCode == HttpStatusCode.OK, "Opens " + path);
@@ -403,7 +403,7 @@ internal static class BookingConfirmationVerification
     }
 
     /// <summary>Mã nội bộ (Reservations.Code) của lượt đặt mới nhất theo số điện thoại; chỉ dùng để tra trong database.</summary>
-    private static async Task<string> InternalCode(string connection, string phone)
+    internal static async Task<string> InternalCode(string connection, string phone)
     {
         await using var cn = new SqlConnection(connection);
         await cn.OpenAsync();
@@ -412,7 +412,7 @@ internal static class BookingConfirmationVerification
         return Convert.ToString(await cmd.ExecuteScalarAsync())!.Trim();
     }
 
-    private static async Task<long> Scalar(string connection, string sql)
+    internal static async Task<long> Scalar(string connection, string sql)
     {
         await using var cn = new SqlConnection(connection);
         await cn.OpenAsync();
@@ -420,10 +420,10 @@ internal static class BookingConfirmationVerification
         return Convert.ToInt64(await cmd.ExecuteScalarAsync());
     }
 
-    private static async Task Check(string connection, string sql, string name) => Assert(await Scalar(connection, sql) == 1, name);
+    internal static async Task Check(string connection, string sql, string name) => Assert(await Scalar(connection, sql) == 1, name);
 
     /// <summary>Chờ worker xử lý (tối đa 30 giây) cho tới khi câu SQL trả về 1.</summary>
-    private static async Task WaitFor(string connection, string sql, string name, int seconds = 30)
+    internal static async Task WaitFor(string connection, string sql, string name, int seconds = 30)
     {
         var until = DateTime.UtcNow.AddSeconds(seconds);
         while (DateTime.UtcNow < until)
@@ -434,18 +434,18 @@ internal static class BookingConfirmationVerification
         Assert(false, name + $" (no result within {seconds} s)");
     }
 
-    private static string Location(HttpResponseMessage response) => response.Headers.Location?.OriginalString ?? "";
-    private static string Token(string html) => WebUtility.HtmlDecode(Regex.Match(html, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value);
-    private static FormUrlEncodedContent Form(params (string Name, string Value)[] pairs) => new(pairs.Select(p => new KeyValuePair<string, string>(p.Name, p.Value)));
+    internal static string Location(HttpResponseMessage response) => response.Headers.Location?.OriginalString ?? "";
+    internal static string Token(string html) => WebUtility.HtmlDecode(Regex.Match(html, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value);
+    internal static FormUrlEncodedContent Form(params (string Name, string Value)[] pairs) => new(pairs.Select(p => new KeyValuePair<string, string>(p.Name, p.Value)));
 
-    private static void Assert(bool condition, string name)
+    internal static void Assert(bool condition, string name)
     {
         if (!condition) throw new Exception("FAIL: " + name);
         Console.WriteLine("PASS: " + name);
     }
 
     /// <summary>Một tiến trình web riêng cho kiểm thử, với cấu hình email riêng.</summary>
-    private sealed class Web : IAsyncDisposable
+    internal sealed class Web : IAsyncDisposable
     {
         private Process _process = null!;
         private Task _drain = Task.CompletedTask;

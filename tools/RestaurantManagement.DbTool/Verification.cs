@@ -61,8 +61,39 @@ internal static class Verification
             await VerifyAreaLifecycle(connection);
             // S2-09 Task 1: chạy sau cùng vì tạo thêm lượt đặt bàn (các bước trên dựa vào Id đặt bàn cố định).
             await BookingConfirmationVerification.Run(connection, password);
+            // S2-09 Task 3: nghiệm thu toàn bộ luồng đặt bàn + email qua SMTP (thành công / gửi lại thành công / thất bại 3 lần).
+            await BookingEmailEndToEndVerification.Run(connection, password);
             await DatabaseTool.Execute(connection, "EXEC dbo.usp_RunMaintenance; EXEC dbo.usp_RunMaintenance;");
             Console.WriteLine("PASS: all SQL Server integration checks.");
+        }
+        finally
+        {
+            SqlConnection.ClearAllPools();
+            builder.InitialCatalog = "master";
+            await using var cn = new SqlConnection(builder.ConnectionString);
+            await cn.OpenAsync();
+            await using var drop = new SqlCommand($"IF DB_ID(@name) IS NOT NULL BEGIN ALTER DATABASE [{name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{name}]; END", cn);
+            drop.Parameters.AddWithValue("@name", name);
+            await drop.ExecuteNonQueryAsync();
+        }
+    }
+
+    /// <summary>
+    /// S2-09 Task 3: chỉ chạy bộ nghiệm thu luồng đặt bàn + email (lệnh "verify-booking-email") trên database tạm riêng,
+    /// nhanh hơn "verify" đầy đủ. Database tạm được xoá sau khi chạy.
+    /// </summary>
+    internal static async Task RunBookingEmail(string baseConnection)
+    {
+        var builder = new SqlConnectionStringBuilder(baseConnection);
+        var name = "RestaurantManagement_Test_" + Guid.NewGuid().ToString("N");
+        builder.InitialCatalog = name;
+        var connection = builder.ConnectionString;
+        try
+        {
+            await DatabaseTool.Migrate(connection);
+            var password = "VerificationOnly9!" + Guid.NewGuid().ToString("N");
+            await DatabaseTool.Seed(connection, password);
+            await BookingEmailEndToEndVerification.Run(connection, password);
         }
         finally
         {

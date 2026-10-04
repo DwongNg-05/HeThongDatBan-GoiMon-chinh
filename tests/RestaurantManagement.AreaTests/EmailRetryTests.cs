@@ -122,13 +122,15 @@ internal static class EmailRetryTests
     private static BookingEmailDispatcher Dispatcher(IBookingEmailOutbox outbox, IEmailSender sender) =>
         new(outbox, sender, NullLogger<BookingEmailDispatcher>.Instance);
 
-    private sealed class Clock(DateTime now)
+    internal sealed class Clock(DateTime now)
     {
         public DateTime Now { get; set; } = now;
     }
 
-    private sealed class SimulatedEmail
+    internal sealed class SimulatedEmail
     {
+        public string Recipient { get; init; } = "khach@example.com";
+        public string PayloadJson { get; init; } = Payload;
         public long Id { get; init; }
         public long ReservationId { get; init; }
         public string MessageType { get; init; } = "BookingReceived";
@@ -143,13 +145,17 @@ internal static class EmailRetryTests
     }
 
     /// <summary>Hàng đợi giả lập dbo.EmailOutbox + dbo.EmailAttempts theo đúng quy tắc của migration 030.</summary>
-    private sealed class SimulatedOutbox(Clock clock) : IBookingEmailOutbox
+    internal sealed class SimulatedOutbox(Clock clock) : IBookingEmailOutbox
     {
         private readonly List<SimulatedEmail> _emails = [];
 
-        public SimulatedEmail Queue(long id, long reservationId, string messageType = "BookingReceived")
+        public SimulatedEmail Queue(long id, long reservationId, string messageType = "BookingReceived", string? recipient = null, string? payloadJson = null)
         {
-            var email = new SimulatedEmail { Id = id, ReservationId = reservationId, MessageType = messageType, NextAttemptAtUtc = clock.Now, CreatedAtUtc = clock.Now };
+            var email = new SimulatedEmail
+            {
+                Id = id, ReservationId = reservationId, MessageType = messageType, NextAttemptAtUtc = clock.Now, CreatedAtUtc = clock.Now,
+                Recipient = recipient ?? "khach@example.com", PayloadJson = payloadJson ?? Payload
+            };
             _emails.Add(email);
             return email;
         }
@@ -173,7 +179,7 @@ internal static class EmailRetryTests
             email.AttemptCount++;
             email.LastAttemptAtUtc = clock.Now;
             email.Attempts.Add(new EmailAttemptRecord(email.AttemptCount, "Sending", clock.Now, null, null));
-            return new ClaimedEmail(email.Id, email.AttemptCount, "khach@example.com", "Xác nhận đặt bàn B03", Payload, email.MessageType, email.ReservationId);
+            return new ClaimedEmail(email.Id, email.AttemptCount, email.Recipient, "Xác nhận đặt bàn", email.PayloadJson, email.MessageType, email.ReservationId);
         }
 
         public Task CompleteAsync(long emailId, int attemptNumber, bool succeeded, string? error, CancellationToken cancellationToken = default)
@@ -195,7 +201,7 @@ internal static class EmailRetryTests
         public ReservationEmailRecord Record(long id)
         {
             var e = Email(id);
-            return new ReservationEmailRecord(e.Id, e.ReservationId, e.MessageType, "khach@example.com", e.Status, e.AttemptCount,
+            return new ReservationEmailRecord(e.Id, e.ReservationId, e.MessageType, e.Recipient, e.Status, e.AttemptCount,
                 e.LastAttemptAtUtc, e.NextAttemptAtUtc, e.SentAtUtc, e.LastError, e.CreatedAtUtc, e.Attempts.ToArray());
         }
     }
