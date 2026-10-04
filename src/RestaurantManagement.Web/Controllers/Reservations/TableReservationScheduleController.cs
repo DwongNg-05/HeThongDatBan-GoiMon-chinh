@@ -128,6 +128,12 @@ public sealed class TableReservationScheduleController(IConfiguration configurat
         }
     }
 
+    [HttpPost("{id:long}/Cancel"), ValidateAntiForgeryToken]
+    public Task<IActionResult> Cancel(long id, DateOnly? date) => ReleaseAsync("dbo.usp_CancelManagedTableReservation", id, date);
+
+    [HttpPost("{id:long}/NoShow"), ValidateAntiForgeryToken]
+    public Task<IActionResult> MarkNoShow(long id, DateOnly? date) => ReleaseAsync("dbo.usp_MarkManagedReservationNoShow", id, date);
+
     private async Task LoadTablesAsync(ManagedTableReservationCreateViewModel model)
     {
         const string sql = """
@@ -163,6 +169,28 @@ public sealed class TableReservationScheduleController(IConfiguration configurat
         await connection.OpenAsync();
         await using var reader = await command.ExecuteReaderAsync();
         while (await reader.ReadAsync()) model.SuggestedStartTimes.Add(reader.GetString(0));
+    }
+
+    private async Task<IActionResult> ReleaseAsync(string procedure, long reservationId, DateOnly? date)
+    {
+        if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var actorUserId)) return Forbid();
+        try
+        {
+            await using var connection = new SqlConnection(ConnectionString);
+            await using var command = new SqlCommand(procedure, connection) { CommandType = CommandType.StoredProcedure };
+            command.Parameters.Add("@ReservationId", SqlDbType.BigInt).Value = reservationId;
+            command.Parameters.Add("@ActorUserId", SqlDbType.Int).Value = actorUserId;
+            await connection.OpenAsync();
+            await command.ExecuteNonQueryAsync();
+            TempData["Success"] = procedure.EndsWith("NoShow", StringComparison.Ordinal)
+                ? "Đã đánh dấu khách không tới. Khung giờ đã được giải phóng."
+                : "Đã huỷ lượt đặt. Khung giờ đã được giải phóng.";
+        }
+        catch (SqlException ex) when (ex.Number is 51064 or 51065)
+        {
+            TempData["Error"] = ex.Message;
+        }
+        return RedirectToAction(nameof(Index), new { date = date?.ToString("yyyy-MM-dd") });
     }
 
     private static void Normalize(ManagedTableReservationCreateViewModel model)

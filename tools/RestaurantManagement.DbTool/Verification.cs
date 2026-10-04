@@ -26,6 +26,7 @@ internal static class Verification
             await VerifyAreas(connection);
             await VerifyTableReservationSchedule(connection);
             await VerifyManagedReservationConcurrencyAndSuggestions(connection);
+            await VerifyManagedReservationRelease(connection);
             await BookingConcurrency(connection);
             await DatabaseTool.Execute(connection, "EXEC dbo.usp_OpenShift @Name=N'Test',@OpeningCash=100000,@ActorUserId=4; EXEC dbo.usp_OpenSession @TableId=1,@GuestCount=2,@ActorUserId=2;");
             const string items = """[{"MenuItemId":1,"Quantity":2,"Notes":"ít cay"},{"MenuItemId":1,"Quantity":1,"Notes":"không hành"}]""";
@@ -232,6 +233,22 @@ internal static class Verification
         await using var reader = await cmd.ExecuteReaderAsync();
         while (await reader.ReadAsync()) slots.Add(reader.GetString(0));
         return slots;
+    }
+
+    private static async Task VerifyManagedReservationRelease(string connection)
+    {
+        await DatabaseTool.Execute(connection, "EXEC dbo.usp_CreateManagedTableReservation @TableId=58,@StartsAt='2030-03-01T19:00:00',@CustomerName=N'Huỷ chờ',@Phone='0972000301',@InitialStatus='Pending',@ActorUserId=1; DECLARE @id bigint=(SELECT Id FROM dbo.Reservations WHERE CustomerName=N'Huỷ chờ'); EXEC dbo.usp_CancelManagedTableReservation @ReservationId=@id,@ActorUserId=1; EXEC dbo.usp_CreateManagedTableReservation @TableId=58,@StartsAt='2030-03-01T19:00:00',@CustomerName=N'Đặt lại',@Phone='0972000302',@InitialStatus='Pending',@ActorUserId=1;");
+        await Check(connection, "Cancelled pending reservation frees the table and preserves history", "SELECT CASE WHEN EXISTS(SELECT 1 FROM dbo.Reservations WHERE CustomerName=N'Huỷ chờ' AND Status='Cancelled') AND EXISTS(SELECT 1 FROM dbo.ReservationEvents e JOIN dbo.Reservations r ON r.Id=e.ReservationId WHERE r.CustomerName=N'Huỷ chờ' AND e.ToStatus='Cancelled') AND EXISTS(SELECT 1 FROM dbo.Reservations WHERE CustomerName=N'Đặt lại' AND Status='Pending') THEN 1 ELSE 0 END;");
+        await Reject(connection, "Cancelling twice is rejected clearly", "DECLARE @id bigint=(SELECT Id FROM dbo.Reservations WHERE CustomerName=N'Huỷ chờ'); EXEC dbo.usp_CancelManagedTableReservation @ReservationId=@id,@ActorUserId=1;", 51064);
+
+        await DatabaseTool.Execute(connection, "EXEC dbo.usp_CreateManagedTableReservation @TableId=59,@StartsAt='2030-03-01T19:00:00',@CustomerName=N'Huỷ xác nhận',@Phone='0972000303',@InitialStatus='Confirmed',@ActorUserId=1; DECLARE @id bigint=(SELECT Id FROM dbo.Reservations WHERE CustomerName=N'Huỷ xác nhận'); EXEC dbo.usp_CancelManagedTableReservation @ReservationId=@id,@ActorUserId=1; EXEC dbo.usp_CreateManagedTableReservation @TableId=59,@StartsAt='2030-03-01T19:00:00',@CustomerName=N'Đặt lại xác nhận',@Phone='0972000304',@InitialStatus='Confirmed',@ActorUserId=1;");
+        await Check(connection, "Cancelled confirmed reservation frees the table", "SELECT CASE WHEN EXISTS(SELECT 1 FROM dbo.Reservations WHERE CustomerName=N'Huỷ xác nhận' AND Status='Cancelled') AND EXISTS(SELECT 1 FROM dbo.Reservations WHERE CustomerName=N'Đặt lại xác nhận' AND Status='Confirmed') THEN 1 ELSE 0 END;");
+
+        await DatabaseTool.Execute(connection, "DECLARE @start datetime2(3)=DATEADD(minute,-60,DATEADD(minute,DATEDIFF(minute,0,SYSUTCDATETIME()),0)); EXEC dbo.usp_CreateManagedTableReservation @TableId=60,@StartsAt=@start,@CustomerName=N'Không tới',@Phone='0972000305',@InitialStatus='Confirmed',@ActorUserId=1; DECLARE @id bigint=(SELECT Id FROM dbo.Reservations WHERE CustomerName=N'Không tới'); EXEC dbo.usp_MarkManagedReservationNoShow @ReservationId=@id,@ActorUserId=1; EXEC dbo.usp_CreateManagedTableReservation @TableId=60,@StartsAt=@start,@CustomerName=N'Đặt sau không tới',@Phone='0972000306',@InitialStatus='Pending',@ActorUserId=1;");
+        await Check(connection, "No-show after appointment frees the table immediately", "SELECT CASE WHEN EXISTS(SELECT 1 FROM dbo.Reservations WHERE CustomerName=N'Không tới' AND Status='NoShow' AND NoShowAt IS NOT NULL) AND EXISTS(SELECT 1 FROM dbo.Reservations WHERE CustomerName=N'Đặt sau không tới' AND Status='Pending') THEN 1 ELSE 0 END;");
+        await DatabaseTool.Execute(connection, "DECLARE @start datetime2(3)=DATEADD(day,10,DATEADD(minute,DATEDIFF(minute,0,SYSUTCDATETIME()),0)); EXEC dbo.usp_CreateManagedTableReservation @TableId=44,@StartsAt=@start,@CustomerName=N'Chưa đến giờ',@Phone='0972000307',@InitialStatus='Pending',@ActorUserId=1;");
+        await Reject(connection, "No-show before appointment is rejected", "DECLARE @id bigint=(SELECT Id FROM dbo.Reservations WHERE CustomerName=N'Chưa đến giờ'); EXEC dbo.usp_MarkManagedReservationNoShow @ReservationId=@id,@ActorUserId=1;", 51065);
+        await Reject(connection, "No-show after cancellation is rejected", "DECLARE @id bigint=(SELECT Id FROM dbo.Reservations WHERE CustomerName=N'Huỷ chờ'); EXEC dbo.usp_MarkManagedReservationNoShow @ReservationId=@id,@ActorUserId=1;", 51064);
     }
 
     private static async Task MergeAndQr(string connection)
