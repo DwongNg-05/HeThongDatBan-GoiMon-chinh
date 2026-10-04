@@ -6,6 +6,10 @@
 
 <h2>Sửa món</h2>
 
+<form id="removeDishImageForm" method="post" asp-page-handler="RemoveImage">
+    <input type="hidden" name="id" value="@Model.Dish.Id" />
+</form>
+
 <form method="post" enctype="multipart/form-data">
     <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
     <input type="hidden" asp-for="Dish.Id" />
@@ -48,6 +52,11 @@
         <div class="mb-2">
             <img id="dish-image-preview" src="@(Model.CurrentImage.StartsWith('/') ? Url.Content("~" + Model.CurrentImage) : Model.CurrentImage)" alt="Ảnh hiện tại của món" class="rounded border" style="max-width:160px;max-height:160px;object-fit:cover" onerror="this.onerror=null;this.src='@Url.Content("~" + RestaurantManagement.Web.Services.DishImage.DefaultImage)';" />
         </div>
+        @if (Model.HasDishImage)
+        {
+            <button type="submit" form="removeDishImageForm" class="btn btn-outline-danger btn-sm mb-2"
+                    onclick="return confirm('Bạn có chắc muốn xoá ảnh riêng của món này?');">Xoá ảnh riêng</button>
+        }
         <input asp-for="ImageFile" type="file" class="form-control" accept="@RestaurantManagement.Web.Services.DishImageRules.AcceptHtml" data-image-preview="dish-image-preview" />
         <div class="form-text">Chọn ảnh mới (JPG hoặc PNG, tối đa 5 MB) để thay ảnh hiện tại. Bỏ trống để giữ nguyên.</div>
         <span asp-validation-for="ImageFile" class="text-danger"></span>
