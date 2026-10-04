@@ -40,6 +40,27 @@ public class ReservationsController : Controller
         [Bind("Code,Phone")]
         ReservationLookupViewModel model)
     {
+        var ipAddress =
+            GetClientIpAddress();
+
+        // Kiểm tra IP trước khi tra cứu.
+        var rateLimitStatus =
+            await _store
+                .GetLookupRateLimitStatusAsync(
+                    ipAddress);
+
+        if (rateLimitStatus.IsBlocked)
+        {
+            await AddBlockedMessageAsync(
+                rateLimitStatus.RemainingSeconds);
+
+            return View("Index", model);
+        }
+
+        /*
+         * Hiện tại lỗi định dạng không tính
+         * là một lần tra cứu sai.
+         */
         if (!ModelState.IsValid)
             return View("Index", model);
 
@@ -47,6 +68,22 @@ public class ReservationsController : Controller
             await _store.LookupAsync(
                 model.Code,
                 model.Phone);
+
+        var attempt =
+            await _store.RecordLookupAttemptAsync(
+                ipAddress,
+                model.Result is not null);
+
+        // Sai lần vượt ngưỡng thì block ngay.
+        if (attempt.IsBlocked)
+        {
+            model.Result = null;
+
+            await AddBlockedMessageAsync(
+                attempt.RemainingSeconds);
+
+            return View("Index", model);
+        }
 
         if (model.Result is null)
         {
@@ -64,6 +101,27 @@ public class ReservationsController : Controller
         [Bind("Code,Phone")]
         ReservationLookupViewModel model)
     {
+        var ipAddress =
+            GetClientIpAddress();
+
+        /*
+         * Task 3:
+         * IP đang bị chặn thì thao tác huỷ
+         * cũng bị từ chối.
+         */
+        var rateLimitStatus =
+            await _store
+                .GetLookupRateLimitStatusAsync(
+                    ipAddress);
+
+        if (rateLimitStatus.IsBlocked)
+        {
+            await AddBlockedMessageAsync(
+                rateLimitStatus.RemainingSeconds);
+
+            return View("Index", model);
+        }
+
         if (!ModelState.IsValid)
             return View("Index", model);
 
@@ -72,6 +130,21 @@ public class ReservationsController : Controller
             await _store.LookupAsync(
                 model.Code,
                 model.Phone);
+
+        var attempt =
+            await _store.RecordLookupAttemptAsync(
+                ipAddress,
+                model.Result is not null);
+
+        if (attempt.IsBlocked)
+        {
+            model.Result = null;
+
+            await AddBlockedMessageAsync(
+                attempt.RemainingSeconds);
+
+            return View("Index", model);
+        }
 
         if (model.Result is null)
         {
@@ -100,10 +173,6 @@ public class ReservationsController : Controller
 
         try
         {
-            // SQL tự kiểm tra lại trạng thái,
-            // thời gian, huỷ đặt bàn,
-            // ghi ReservationEvents,
-            // giải phóng bàn và queue email.
             await _store.CancelAsync(
                 model.Code,
                 model.Phone);
@@ -113,9 +182,23 @@ public class ReservationsController : Controller
         {
             model.Result = null;
 
-            ModelState.AddModelError(
-                "",
-                PairError);
+            var failedAttempt =
+                await _store
+                    .RecordLookupAttemptAsync(
+                        ipAddress,
+                        false);
+
+            if (failedAttempt.IsBlocked)
+            {
+                await AddBlockedMessageAsync(
+                    failedAttempt.RemainingSeconds);
+            }
+            else
+            {
+                ModelState.AddModelError(
+                    "",
+                    PairError);
+            }
 
             return View("Index", model);
         }
@@ -135,7 +218,8 @@ public class ReservationsController : Controller
             }
             else
             {
-                model.Result.CanCancel = false;
+                model.Result.CanCancel =
+                    false;
 
                 model.Result.CancellationMessage ??=
                     "Không thể huỷ đặt bàn lúc này. " +
@@ -146,7 +230,7 @@ public class ReservationsController : Controller
             return View("Index", model);
         }
 
-        // Ghi Audit Log sau khi huỷ thành công.
+        // Audit log sau khi huỷ thành công.
         var username =
             User.Identity?.IsAuthenticated == true
                 ? User.Identity.Name
@@ -158,19 +242,12 @@ public class ReservationsController : Controller
                 ? "User"
                 : "Guest";
 
-        var ipAddress =
-            HttpContext.Connection
-                .RemoteIpAddress?
-                .ToString()
-            ?? "Unknown";
-
         await _auditLogService.LogAsync(
             username,
             role,
             $"Cancel reservation {model.Code}",
             ipAddress);
 
-        // Đọc lại trạng thái mới nhất.
         model.Result =
             await _store.LookupAsync(
                 model.Code,
@@ -185,14 +262,69 @@ public class ReservationsController : Controller
         return View("Index", model);
     }
 
+    private string GetClientIpAddress()
+    {
+        var ipAddress =
+            HttpContext.Connection
+                .RemoteIpAddress?
+                .MapToIPv4()
+                .ToString();
+
+        if (string.IsNullOrWhiteSpace(
+                ipAddress))
+        {
+            return "Unknown";
+        }
+
+        return ipAddress.Length <= 45
+            ? ipAddress
+            : ipAddress[..45];
+    }
+
+    private async Task AddBlockedMessageAsync(
+        int remainingSeconds)
+    {
+        remainingSeconds =
+            Math.Max(
+                1,
+                remainingSeconds);
+
+        var minutes =
+            remainingSeconds / 60;
+
+        var seconds =
+            remainingSeconds % 60;
+
+        var remainingText =
+            minutes > 0
+                ? $"{minutes} phút {seconds} giây"
+                : $"{seconds} giây";
+
+        var restaurantPhone =
+            await _store
+                .GetRestaurantPhoneAsync();
+
+        var phoneText =
+            string.IsNullOrWhiteSpace(
+                restaurantPhone)
+                ? "số điện thoại của nhà hàng"
+                : restaurantPhone;
+
+        ModelState.AddModelError(
+            "",
+            "Địa chỉ IP của bạn tạm thời bị chặn " +
+            "do có quá nhiều lần tra cứu không chính xác. " +
+            $"Vui lòng thử lại sau {remainingText}. " +
+            $"Nếu cần hỗ trợ, vui lòng gọi nhà hàng: " +
+            $"{phoneText}.");
+    }
+
     private async Task SetEmailDeliveryMessageAsync(
         ReservationLookupViewModel model)
     {
         if (model.Result is null)
             return;
 
-        // Đặt bàn không có email:
-        // huỷ vẫn thành công và không báo lỗi.
         if (string.IsNullOrWhiteSpace(
                 model.Result.Email))
         {
