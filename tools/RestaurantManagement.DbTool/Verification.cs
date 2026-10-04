@@ -25,6 +25,7 @@ internal static class Verification
             await EmailVerificationVerification.Run(connection, password);
             await VerifyAreas(connection);
             await VerifyTableReservationSchedule(connection);
+            await VerifyManagedReservationConcurrencyAndSuggestions(connection);
             await BookingConcurrency(connection);
             await DatabaseTool.Execute(connection, "EXEC dbo.usp_OpenShift @Name=N'Test',@OpeningCash=100000,@ActorUserId=4; EXEC dbo.usp_OpenSession @TableId=1,@GuestCount=2,@ActorUserId=2;");
             const string items = """[{"MenuItemId":1,"Quantity":2,"Notes":"ít cay"},{"MenuItemId":1,"Quantity":1,"Notes":"không hành"}]""";
@@ -166,6 +167,71 @@ internal static class Verification
         await Reject(connection, "Direct SQL insert cannot bypass table hold", "INSERT dbo.Reservations(Code,CustomerName,Phone,GuestCount,TableId,StartsAt,EndsAt,Status) VALUES('S23D02',N'Trùng trực tiếp','0981000011',1,48,'2030-01-01T20:00:00','2030-01-01T21:30:00','Confirmed');", 51060);
         await DatabaseTool.Execute(connection, "INSERT dbo.Reservations(Code,CustomerName,Phone,GuestCount,TableId,StartsAt,EndsAt,Status) VALUES('S23C01',N'Đã huỷ','0981000012',1,49,'2030-01-01T19:00:00','2030-01-01T20:30:00','Cancelled'),('S23N01',N'Không tới','0981000013',1,49,'2030-01-01T19:00:00','2030-01-01T20:30:00','NoShow'); EXEC dbo.usp_CreateManagedTableReservation @TableId=49,@StartsAt='2030-01-01T19:00:00',@CustomerName=N'Được nhận',@Phone='0981000014',@InitialStatus='Pending',@ActorUserId=1;");
         await Check(connection, "Managed schedule stores table, status, duration and cleanup boundary", "SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.Reservations WHERE TableId=45 AND StartsAt>='2030-01-01T19:00:00' AND Status IN ('Pending','Confirmed'))=3 AND EXISTS(SELECT 1 FROM dbo.Reservations WHERE TableId=49 AND CustomerName=N'Được nhận' AND Status='Pending') THEN 1 ELSE 0 END;");
+    }
+
+    private static async Task VerifyManagedReservationConcurrencyAndSuggestions(string connection)
+    {
+        const string start = "2030-02-04T19:00:00";
+        var race = await Task.WhenAll(Enumerable.Range(0, 10).Select(async index =>
+        {
+            try
+            {
+                await Call(connection, "usp_CreateManagedTableReservation",
+                    ("TableId", 53), ("StartsAt", DateTime.Parse(start)), ("CustomerName", "Race " + index),
+                    ("Phone", "09720000" + index.ToString("00")), ("InitialStatus", "Pending"), ("ActorUserId", 1));
+                return true;
+            }
+            catch (SqlException ex) when (ex.Number == 51060) { return false; }
+        }));
+        if (race.Count(result => result) != 1) throw new InvalidOperationException("Concurrent same-table reservation invariant failed.");
+        Console.WriteLine("PASS: 10 simultaneous managed reservations, exactly one succeeds.");
+
+        await Task.WhenAll(
+            Call(connection, "usp_CreateManagedTableReservation", ("TableId", 54), ("StartsAt", DateTime.Parse(start)), ("CustomerName", "Table 54"), ("Phone", "0972000101"), ("InitialStatus", "Pending"), ("ActorUserId", 1)),
+            Call(connection, "usp_CreateManagedTableReservation", ("TableId", 55), ("StartsAt", DateTime.Parse(start)), ("CustomerName", "Table 55"), ("Phone", "0972000102"), ("InitialStatus", "Confirmed"), ("ActorUserId", 1)));
+        Console.WriteLine("PASS: Concurrent reservations on different tables both succeed.");
+
+        var partialRace = await Task.WhenAll(new[] { "2030-02-05T19:00:00", "2030-02-05T19:30:00" }.Select(async time =>
+        {
+            try
+            {
+                await Call(connection, "usp_CreateManagedTableReservation", ("TableId", 56), ("StartsAt", DateTime.Parse(time)),
+                    ("CustomerName", "Partial " + time), ("Phone", time.EndsWith("00") ? "0972000103" : "0972000104"),
+                    ("InitialStatus", "Pending"), ("ActorUserId", 1));
+                return true;
+            }
+            catch (SqlException ex) when (ex.Number == 51060) { return false; }
+        }));
+        if (partialRace.Count(result => result) != 1) throw new InvalidOperationException("Concurrent partial-overlap invariant failed.");
+        Console.WriteLine("PASS: Concurrent partial overlap, exactly one succeeds.");
+
+        await DatabaseTool.Execute(connection, "EXEC dbo.usp_CreateManagedTableReservation @TableId=52,@StartsAt='2030-02-06T19:00:00',@CustomerName=N'Gợi ý',@Phone='0972000105',@InitialStatus='Pending',@ActorUserId=1;");
+        var suggestions = await ReadSuggestions(connection, 52, new DateTime(2030, 2, 6), new TimeSpan(19, 0, 0));
+        if (!suggestions.SequenceEqual(["20:45", "17:00", "21:00"]))
+            throw new InvalidOperationException("Suggestions were not ordered by nearest valid start time.");
+        Console.WriteLine("PASS: Suggestions respect cleanup, closing time and nearest-first order.");
+
+        var fullDayTimes = new[] { "08:00", "09:45", "11:30", "13:15", "15:00", "16:45", "18:30", "20:15" };
+        for (var index = 0; index < fullDayTimes.Length; index++)
+            await DatabaseTool.Execute(connection, $"EXEC dbo.usp_CreateManagedTableReservation @TableId=57,@StartsAt='2030-02-07T{fullDayTimes[index]}:00',@CustomerName=N'Kín ngày',@Phone='09720002{index:00}',@InitialStatus='Pending',@ActorUserId=1;");
+        if ((await ReadSuggestions(connection, 57, new DateTime(2030, 2, 7), new TimeSpan(19, 0, 0))).Count != 0)
+            throw new InvalidOperationException("A full-day table returned an unavailable suggestion.");
+        Console.WriteLine("PASS: Full-day table returns no suggestions.");
+    }
+
+    private static async Task<List<string>> ReadSuggestions(string connection, int tableId, DateTime date, TimeSpan desiredStart)
+    {
+        var slots = new List<string>();
+        await using var cn = new SqlConnection(connection);
+        await cn.OpenAsync();
+        await using var cmd = new SqlCommand("dbo.usp_GetManagedTableReservationSuggestions", cn) { CommandType = CommandType.StoredProcedure };
+        cmd.Parameters.AddWithValue("@TableId", tableId);
+        cmd.Parameters.AddWithValue("@ReservationDate", date.Date);
+        cmd.Parameters.AddWithValue("@DesiredStart", desiredStart);
+        cmd.Parameters.AddWithValue("@MaxSuggestions", 3);
+        await using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync()) slots.Add(reader.GetString(0));
+        return slots;
     }
 
     private static async Task MergeAndQr(string connection)

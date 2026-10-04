@@ -117,6 +117,8 @@ public sealed class TableReservationScheduleController(IConfiguration configurat
         catch (SqlException ex) when (ex.Number == 51060)
         {
             ModelState.AddModelError(string.Empty, "Bàn vừa có người đặt trong khung giờ này. Vui lòng chọn giờ khác.");
+            model.HasConflict = true;
+            await LoadSuggestionsAsync(model);
             return View(model);
         }
         catch (SqlException ex) when (ex.Number is 51002 or 51061 or 51062 or 51063)
@@ -144,6 +146,23 @@ public sealed class TableReservationScheduleController(IConfiguration configurat
                 Id = reader.GetInt32(0), Code = reader.GetString(1),
                 AreaName = reader.GetString(2), MaxCapacity = reader.GetInt32(3)
             });
+    }
+
+    private async Task LoadSuggestionsAsync(ManagedTableReservationCreateViewModel model)
+    {
+        if (!model.TableId.HasValue || !model.ReservationDate.HasValue || !model.StartTime.HasValue) return;
+        await using var connection = new SqlConnection(ConnectionString);
+        await using var command = new SqlCommand("dbo.usp_GetManagedTableReservationSuggestions", connection)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+        command.Parameters.Add("@TableId", SqlDbType.Int).Value = model.TableId.Value;
+        command.Parameters.Add("@ReservationDate", SqlDbType.Date).Value = model.ReservationDate.Value.ToDateTime(TimeOnly.MinValue);
+        command.Parameters.Add("@DesiredStart", SqlDbType.Time).Value = model.StartTime.Value.ToTimeSpan();
+        command.Parameters.Add("@MaxSuggestions", SqlDbType.Int).Value = 3;
+        await connection.OpenAsync();
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync()) model.SuggestedStartTimes.Add(reader.GetString(0));
     }
 
     private static void Normalize(ManagedTableReservationCreateViewModel model)
