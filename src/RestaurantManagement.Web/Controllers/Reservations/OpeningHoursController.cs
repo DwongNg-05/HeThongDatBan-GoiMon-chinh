@@ -1,4 +1,5 @@
 using System.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using RestaurantManagement.Web.Models;
@@ -6,6 +7,7 @@ using RestaurantManagement.Web.Security;
 
 namespace RestaurantManagement.Web.Controllers;
 
+[Authorize(Roles = "Manager")]
 public class OpeningHoursController(IConfiguration configuration, ICurrentUser currentUser) : Controller
 {
     private string ConnectionString => configuration.GetConnectionString("DefaultConnection")

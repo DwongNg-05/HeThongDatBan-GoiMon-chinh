@@ -1,4 +1,5 @@
 using System.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.Data.SqlClient;
@@ -10,9 +11,9 @@ namespace RestaurantManagement.Web.Controllers;
 
 /// <summary>Quản lý danh mục bàn và mã QR công khai của từng bàn.</summary>
 /// <remarks>
-/// S1-07 is deliberately independent from login. Until S1-04 is merged,
-/// QR operations use the configured development actor permitted by the database.
+/// Các thao tác quản lý bàn và QR luôn dùng tài khoản Quản lý đang đăng nhập.
 /// </remarks>
+[Authorize(Roles = "Manager")]
 public class TablesController(
     IConfiguration configuration,
     TableQrService qrService,
@@ -36,7 +37,7 @@ public class TablesController(
         var actorUserId = await GetActorUserIdAsync();
         if (actorUserId is null)
         {
-            ModelState.AddModelError(string.Empty, "Chưa cấu hình tài khoản thực hiện thao tác QR.");
+            ModelState.AddModelError(string.Empty, "Không xác định được tài khoản quản lý đang đăng nhập. Vui lòng đăng nhập lại.");
             return View(await PopulateAreas(model));
         }
 
@@ -142,7 +143,7 @@ public class TablesController(
         var actorUserId = await GetActorUserIdAsync();
         if (actorUserId is null)
         {
-            TempData["Error"] = "Chưa cấu hình tài khoản thực hiện thao tác QR.";
+            TempData["Error"] = "Không xác định được tài khoản quản lý đang đăng nhập. Vui lòng đăng nhập lại.";
             return BackToArea(areaId);
         }
 
@@ -183,7 +184,7 @@ public class TablesController(
         var actorUserId = await GetActorUserIdAsync();
         if (actorUserId is null)
         {
-            TempData["Error"] = "Chưa cấu hình tài khoản thực hiện thao tác QR.";
+            TempData["Error"] = "Không xác định được tài khoản quản lý đang đăng nhập. Vui lòng đăng nhập lại.";
             return RedirectToAction(nameof(Details), new { id });
         }
         try
