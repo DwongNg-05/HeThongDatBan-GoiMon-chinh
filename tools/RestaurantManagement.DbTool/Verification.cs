@@ -1,5 +1,6 @@
 using System.Data;
 using System.Security.Cryptography;
+using System.Diagnostics;
 using Microsoft.Data.SqlClient;
 
 namespace RestaurantManagement.DbTool;
@@ -21,6 +22,7 @@ internal static class Verification
             await Check(connection, "Seed", "SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.MenuItems)=60 AND (SELECT COUNT(*) FROM dbo.DiningTables)=25 AND (SELECT COUNT(*) FROM dbo.Reservations)=20 THEN 1 ELSE 0 END");
             await BookingConcurrency(connection);
             await DatabaseTool.Execute(connection, "EXEC dbo.usp_OpenShift @Name=N'Test',@OpeningCash=100000,@ActorUserId=4; EXEC dbo.usp_OpenSession @TableId=1,@GuestCount=2,@ActorUserId=2;");
+            await TemporaryOutFlow(connection);
             const string items = """[{"MenuItemId":1,"Quantity":2,"Notes":"ít cay"},{"MenuItemId":1,"Quantity":1,"Notes":"không hành"}]""";
             var request = Guid.NewGuid();
             await Call(connection, "usp_SubmitOrder", ("SessionId", 1L), ("RequestId", request), ("ItemsJson", items), ("ActorUserId", 2));
@@ -66,6 +68,30 @@ internal static class Verification
             drop.Parameters.AddWithValue("@name", name);
             await drop.ExecuteNonQueryAsync();
         }
+    }
+
+    private static async Task TemporaryOutFlow(string connection)
+    {
+        var timer = Stopwatch.StartNew();
+        await Call(connection, "usp_SetMenuTemporarilyOut", ("MenuItemId", 1), ("IsTemporarilyOut", true), ("ActorUserId", 3));
+        await Check(connection, "Kitchen can mark temporary out; menu surfaces match", "SELECT CASE WHEN (SELECT IsTemporarilyOut FROM dbo.MenuItems WHERE Id=1)=1 AND (SELECT IsTemporarilyOut FROM dbo.vw_PublicMenu WHERE Id=1)=1 THEN 1 ELSE 0 END");
+        if (timer.Elapsed > TimeSpan.FromSeconds(5)) throw new InvalidOperationException("Temporary out state was not reflected within five seconds.");
+        Console.WriteLine("PASS: temporary out state reflected within five seconds.");
+        await Reject(connection, "Waiter cannot toggle temporary out", "EXEC dbo.usp_SetMenuTemporarilyOut @MenuItemId=1,@IsTemporarilyOut=0,@ActorUserId=2;", 51001);
+        await Reject(connection, "Temporarily unavailable item rejected for ordering", "EXEC dbo.usp_SubmitOrder @SessionId=1,@RequestId='a1010101-0101-0101-0101-010101010101',@ItemsJson=N'[{\"MenuItemId\":1,\"Quantity\":1}]',@ActorUserId=2;", 51028);
+        await DatabaseTool.Execute(connection, "EXEC dbo.usp_SetMenuTemporarilyOut @MenuItemId=1,@IsTemporarilyOut=0,@ActorUserId=1;");
+        await Check(connection, "Manager can reopen item and event history records both transitions", "SELECT CASE WHEN (SELECT IsTemporarilyOut FROM dbo.MenuItems WHERE Id=1)=0 AND (SELECT COUNT(*) FROM dbo.MenuTemporaryOutEvents WHERE MenuItemId=1)=2 AND (SELECT COUNT(*) FROM dbo.MenuTemporaryOutEvents WHERE MenuItemId=1 AND ChangedBy IN (1,3))=2 THEN 1 ELSE 0 END");
+
+        await DatabaseTool.Execute(connection, "EXEC dbo.usp_SetMenuTemporarilyOut @MenuItemId=5,@IsTemporarilyOut=1,@ActorUserId=3; EXEC dbo.usp_SetMenuTemporarilyOut @MenuItemId=5,@IsTemporarilyOut=0,@ActorUserId=3; EXEC dbo.usp_SetMenuTemporarilyOut @MenuItemId=5,@IsTemporarilyOut=1,@ActorUserId=1; EXEC dbo.usp_SetMenuTemporarilyOut @MenuItemId=5,@IsTemporarilyOut=0,@ActorUserId=1; EXEC dbo.usp_SetMenuTemporarilyOut @MenuItemId=5,@IsTemporarilyOut=0,@ActorUserId=1;");
+        await Check(connection, "Rapid on/off cycles retain exactly four state-change events", "SELECT CASE WHEN COUNT(*)=4 AND MIN(CONVERT(int,OldIsTemporarilyOut))=0 AND MAX(CONVERT(int,OldIsTemporarilyOut))=1 AND MIN(CONVERT(int,IsTemporarilyOut))=0 AND MAX(CONVERT(int,IsTemporarilyOut))=1 THEN 1 ELSE 0 END FROM dbo.MenuTemporaryOutEvents WHERE MenuItemId=5");
+
+        await DatabaseTool.Execute(connection, "EXEC dbo.usp_SetMenuTemporarilyOut @MenuItemId=10,@IsTemporarilyOut=1,@ActorUserId=3; EXEC dbo.usp_SetMenuTemporarilyOut @MenuItemId=11,@IsTemporarilyOut=1,@ActorUserId=1;");
+        await Check(connection, "Reset schedule key is midnight Asia/Ho_Chi_Minh", "SELECT CASE WHEN DATEPART(hour,DATEADD(hour,7,DATEADD(hour,-7,CONVERT(datetime2(3),CONVERT(date,DATEADD(hour,7,SYSUTCDATETIME()))))))=0 THEN 1 ELSE 0 END");
+        await DatabaseTool.Execute(connection, "DECLARE @scheduled datetime2(3)=DATEADD(hour,-7,CONVERT(datetime2(3),CONVERT(date,DATEADD(hour,7,SYSUTCDATETIME())))); EXEC dbo.usp_ResetTemporarilyOutMenuItems @ScheduledFor=@scheduled;");
+        await Check(connection, "Daily reset restores all unavailable items, preserves available items and records system events", "SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.MenuItems WHERE Id IN (10,11) AND IsTemporarilyOut=0)=2 AND (SELECT IsTemporarilyOut FROM dbo.MenuItems WHERE Id=12)=0 AND (SELECT COUNT(*) FROM dbo.MenuTemporaryOutEvents WHERE MenuItemId IN (10,11) AND OldIsTemporarilyOut=1 AND IsTemporarilyOut=0 AND ChangedBy IS NULL)=2 THEN 1 ELSE 0 END");
+        await DatabaseTool.Execute(connection, "DECLARE @scheduled datetime2(3)=DATEADD(hour,-7,CONVERT(datetime2(3),CONVERT(date,DATEADD(hour,7,SYSUTCDATETIME())))); EXEC dbo.usp_ResetTemporarilyOutMenuItems @ScheduledFor=@scheduled;");
+        await Check(connection, "Daily reset is idempotent", "SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.MenuTemporaryOutEvents WHERE MenuItemId IN (10,11))=4 THEN 1 ELSE 0 END");
+        Console.WriteLine("PASS: full temporary-out flow checks.");
     }
 
     private static async Task BookingConcurrency(string connection)
@@ -117,4 +143,3 @@ internal static class Verification
         await cmd.ExecuteNonQueryAsync();
     }
 }
-
