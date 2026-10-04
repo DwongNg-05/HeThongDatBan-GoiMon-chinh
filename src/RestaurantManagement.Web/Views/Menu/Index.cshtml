@@ -1,9 +1,10 @@
 @{
     ViewData["Title"] = "Thực đơn hôm nay";
     var canManage = User.Identity?.IsAuthenticated == true && (User.IsInRole("Kitchen") || User.IsInRole("Manager"));
+    var canViewHistory = User.Identity?.IsAuthenticated == true && User.IsInRole("Manager");
 }
 
-<section class="menu-page" data-can-manage="@canManage.ToString().ToLowerInvariant()">
+<section class="menu-page" data-can-manage="@canManage.ToString().ToLowerInvariant()" data-can-view-history="@canViewHistory.ToString().ToLowerInvariant()">
     <header class="menu-heading">
         <div>
             <p class="eyebrow">NHÀ HÀNG · THỰC ĐƠN HÔM NAY</p>
@@ -15,6 +16,23 @@
     <div id="menu-status" class="alert alert-info" role="status" hidden></div>
     <div id="menu-list" class="menu-grid" aria-live="polite" aria-busy="true"></div>
     @Html.AntiForgeryToken()
+
+    <!-- History modal -->
+    <div class="modal fade" id="historyModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Lịch sử tạm hết <span id="history-item-name"></span></h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div id="history-list" class="table-responsive">
+              <table class="table table-sm"><thead><tr><th>Thời điểm</th><th>Người thao tác</th><th>Trước</th><th>Sau</th></tr></thead><tbody></tbody></table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 </section>
 
 @section Scripts {
@@ -22,7 +40,9 @@
 (() => {
     const list = document.getElementById('menu-list');
     const notice = document.getElementById('menu-status');
-    const canManage = document.querySelector('.menu-page').dataset.canManage === 'true';
+    const page = document.querySelector('.menu-page');
+    const canManage = page.dataset.canManage === 'true';
+    const canViewHistory = page.dataset.canViewHistory === 'true';
     const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
     let lastState = '';
     const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -42,8 +62,11 @@
                     ${item.description ? `<p class="menu-description">${escapeHtml(item.description)}</p>` : ''}
                     <div class="menu-card-footer"><strong>${Number(item.price).toLocaleString('vi-VN')} ₫ <small>/ ${escapeHtml(item.unit)}</small></strong>
                     ${item.isTemporarilyOut ? '<span class="temporarily-out-badge">Tạm hết tạm thời</span>' : (item.isSoldOut ? '<span class="sold-out-badge">Đã hết</span>' : '<span class="available-badge">Đang phục vụ</span>')}</div>
-                    ${canManage ? `<form class="availability-form" method="post" action="/menu/${item.id}/availability"><input type="hidden" name="__RequestVerificationToken" value="${escapeHtml(token)}"><input type="hidden" name="isSoldOut" value="${!item.isSoldOut}"><button class="availability-toggle ${item.isSoldOut ? 'restore' : ''}" type="submit">${item.isSoldOut ? 'Bật bán lại' : 'Tạm hết'}</button></form>
-                    <form class="temporarily-form" method="post" action="/menu/${item.id}/temporarily-out"><input type="hidden" name="__RequestVerificationToken" value="${escapeHtml(token)}"><input type="hidden" name="isTemporarilyOut" value="${!item.isTemporarilyOut}"><button class="temporarily-toggle ${item.isTemporarilyOut ? 'restore' : ''}" type="submit">${item.isTemporarilyOut ? 'Bật bán lại' : 'Tạm hết tạm thời'}</button></form>` : ''}</div></article>`).join('');
+                    ${canManage ? `<div class="d-grid gap-2">
+                        <form class="availability-form" method="post" action="/menu/${item.id}/availability"><input type="hidden" name="__RequestVerificationToken" value="${escapeHtml(token)}"><input type="hidden" name="isSoldOut" value="${!item.isSoldOut}"><button class="availability-toggle ${item.isSoldOut ? 'restore' : ''}" type="submit">${item.isSoldOut ? 'Bật bán lại' : 'Tạm hết'}</button></form>
+                        <form class="temporarily-form" method="post" action="/menu/${item.id}/temporarily-out"><input type="hidden" name="__RequestVerificationToken" value="${escapeHtml(token)}"><input type="hidden" name="isTemporarilyOut" value="${!item.isTemporarilyOut}"><button class="temporarily-toggle ${item.isTemporarilyOut ? 'restore' : ''}" type="submit">${item.isTemporarilyOut ? 'Bật bán lại' : 'Tạm hết tạm thời'}</button></form>
+                        ${canViewHistory ? `<button class="btn btn-outline-secondary history-button" data-menu-id="${item.id}">Xem lịch sử</button>` : ''}
+                    </div>` : ''}</div></article>`).join('');
                 list.setAttribute('aria-busy', 'false');
             }
         } catch (error) {
@@ -67,6 +90,28 @@
             notice.textContent = error.message;
             notice.hidden = false;
         } finally { button.disabled = false; }
+    });
+
+    // History button handling (delegated click)
+    document.addEventListener('click', async e => {
+        const btn = (e.target.closest && e.target.closest('.history-button'));
+        if (!btn) return;
+        e.preventDefault();
+        const id = btn.dataset.menuId;
+        if (!id) return;
+        try {
+            const resp = await fetch(`/menu/${id}/temporarily-history`);
+            if (!resp.ok) throw new Error('Không thể tải lịch sử.');
+            const rows = await resp.json();
+            const tbody = document.querySelector('#history-list tbody');
+            document.getElementById('history-item-name').textContent = rows.length ? `· ${rows[0].menuItemName}` : '';
+            tbody.innerHTML = rows.map(r => `<tr><td>${new Date(r.changedAt).toLocaleString()}</td><td>${r.changedByName ?? ('#' + (r.changedBy ?? ''))}</td><td>${r.oldState === null ? '-' : (r.oldState ? 'Tạm hết' : 'Phục vụ')}</td><td>${r.newState ? 'Tạm hết' : 'Phục vụ'}</td></tr>`).join('');
+            var modal = new bootstrap.Modal(document.getElementById('historyModal'));
+            modal.show();
+        } catch (err) {
+            notice.textContent = err.message;
+            notice.hidden = false;
+        }
     });
 
     refresh();

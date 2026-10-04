@@ -35,6 +35,34 @@ public sealed class MenuController(IConfiguration configuration) : Controller
                 items.Add(new { id = reader.GetInt32(0), category = reader.GetString(1), name = reader.GetString(2), price = reader.GetDecimal(3), unit = reader.GetString(4), description = reader.IsDBNull(5) ? null : reader.GetString(5), imagePath = reader.IsDBNull(6) ? null : reader.GetString(6), isSoldOut = reader.GetBoolean(7), isTemporarilyOut = reader.GetBoolean(8) });
             return Json(items);
         }
+        catch (InvalidOperationException ex) { return Problem(ex.Message, statusCode: StatusCodes.Status503ServiceUnavailable); }
+        catch (SqlException) { return Problem("Không thể tải thực đơn lúc này.", statusCode: StatusCodes.Status503ServiceUnavailable); }
+    }
+
+    [Authorize(Roles = "Manager,Kitchen")]
+    [HttpPost("{id:int}/availability")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetAvailability(int id, [FromForm] bool isSoldOut, CancellationToken cancellationToken)
+    {
+        if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var actorUserId))
+            return Forbid();
+
+        try
+        {
+            await using var connection = new SqlConnection(ConnectionString);
+            await connection.OpenAsync(cancellationToken);
+            await using var command = new SqlCommand("dbo.usp_SetMenuAvailability", connection) { CommandType = CommandType.StoredProcedure };
+            command.Parameters.Add("@MenuItemId", SqlDbType.Int).Value = id;
+            command.Parameters.Add("@IsSoldOut", SqlDbType.Bit).Value = isSoldOut;
+            command.Parameters.Add("@ActorUserId", SqlDbType.Int).Value = actorUserId;
+            await command.ExecuteNonQueryAsync(cancellationToken);
+            return Ok(new { id, isSoldOut });
+        }
+        catch (SqlException ex) when (ex.Number == 51001) { return Forbid(); }
+        catch (SqlException ex) when (ex.Number == 51040) { return NotFound(); }
+        catch (SqlException) { return Problem("Không thể cập nhật trạng thái món lúc này.", statusCode: StatusCodes.Status503ServiceUnavailable); }
+        catch (InvalidOperationException ex) { return Problem(ex.Message, statusCode: StatusCodes.Status503ServiceUnavailable); }
+    }
 
     [Authorize(Roles = "Manager,Kitchen")]
     [HttpPost("{id:int}/temporarily-out")]
@@ -60,33 +88,39 @@ public sealed class MenuController(IConfiguration configuration) : Controller
         catch (SqlException) { return Problem("Không thể cập nhật trạng thái món tạm hết lúc này.", statusCode: StatusCodes.Status503ServiceUnavailable); }
         catch (InvalidOperationException ex) { return Problem(ex.Message, statusCode: StatusCodes.Status503ServiceUnavailable); }
     }
-        catch (InvalidOperationException ex) { return Problem(ex.Message, statusCode: StatusCodes.Status503ServiceUnavailable); }
-        catch (SqlException) { return Problem("Không thể tải thực đơn lúc này.", statusCode: StatusCodes.Status503ServiceUnavailable); }
-    }
 
-    [Authorize(Roles = "Manager,Kitchen")]
-    [HttpPost("{id:int}/availability")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> SetAvailability(int id, [FromForm] bool isSoldOut, CancellationToken cancellationToken)
+    [Authorize(Roles = "Manager")]
+    [HttpGet("{id:int}/temporarily-history")]
+    public async Task<IActionResult> TemporarilyHistory(int id, CancellationToken cancellationToken)
     {
-        if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var actorUserId))
-            return Forbid();
-
         try
         {
             await using var connection = new SqlConnection(ConnectionString);
             await connection.OpenAsync(cancellationToken);
-            await using var command = new SqlCommand("dbo.usp_SetMenuAvailability", connection) { CommandType = CommandType.StoredProcedure };
+            await using var command = new SqlCommand(@"SELECT e.Id,e.MenuItemId,m.Name,e.OldIsTemporarilyOut,e.IsTemporarilyOut,e.ChangedBy,e.ChangedAt,u.FullName AS ChangedByName
+FROM dbo.MenuTemporaryOutEvents e
+JOIN dbo.MenuItems m ON m.Id=e.MenuItemId
+LEFT JOIN dbo.Users u ON u.Id=e.ChangedBy
+WHERE e.MenuItemId=@MenuItemId ORDER BY e.ChangedAt DESC,e.Id DESC;", connection);
             command.Parameters.Add("@MenuItemId", SqlDbType.Int).Value = id;
-            command.Parameters.Add("@IsSoldOut", SqlDbType.Bit).Value = isSoldOut;
-            command.Parameters.Add("@ActorUserId", SqlDbType.Int).Value = actorUserId;
-            await command.ExecuteNonQueryAsync(cancellationToken);
-            // broadcast via SignalR hub if available (best-effort: client script will poll/refresh anyway)
-            return Ok(new { id, isSoldOut });
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            var rows = new List<object>();
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                rows.Add(new
+                {
+                    id = reader.GetInt64(0),
+                    menuItemId = reader.GetInt32(1),
+                    menuItemName = reader.GetString(2),
+                    oldState = reader.IsDBNull(3) ? (bool?)null : reader.GetBoolean(3),
+                    newState = reader.GetBoolean(4),
+                    changedBy = reader.IsDBNull(5) ? (int?)null : reader.GetInt32(5),
+                    changedAt = DateTime.SpecifyKind(reader.GetDateTime(6), DateTimeKind.Utc),
+                    changedByName = reader.IsDBNull(7) ? null : reader.GetString(7)
+                });
+            }
+            return Json(rows);
         }
-        catch (SqlException ex) when (ex.Number == 51001) { return Forbid(); }
-        catch (SqlException ex) when (ex.Number == 51040) { return NotFound(); }
-        catch (SqlException) { return Problem("Không thể cập nhật trạng thái món lúc này.", statusCode: StatusCodes.Status503ServiceUnavailable); }
-        catch (InvalidOperationException ex) { return Problem(ex.Message, statusCode: StatusCodes.Status503ServiceUnavailable); }
+        catch (SqlException) { return Problem("Không thể tải lịch sử tạm hết lúc này.", statusCode: StatusCodes.Status503ServiceUnavailable); }
     }
 }
