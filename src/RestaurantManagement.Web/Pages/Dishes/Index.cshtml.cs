@@ -22,6 +22,7 @@ public class IndexModel : PageModel
 
     public IEnumerable<Dish> Dishes { get; set; } = Enumerable.Empty<Dish>();
     public Dictionary<int, string> CategoryNames { get; set; } = new();
+    public Dictionary<int, string?> CategoryDefaultImages { get; set; } = new();
 
     /// <summary>Chỉ Quản lý: món nào đang "tạm hết" hôm nay (theo mã món).</summary>
     public Dictionary<int, bool> SoldOut { get; private set; } = new();
@@ -34,7 +35,10 @@ public class IndexModel : PageModel
     public async Task OnGetAsync()
     {
         Dishes = _store.GetAllDishes();
-        CategoryNames = _store.GetAllCategories().ToDictionary(n => n.Id, n => n.Name);
+        var categories = _store.GetAllCategories().ToList();
+        CategoryNames = categories.ToDictionary(n => n.Id, n => n.Name);
+        CategoryDefaultImages = categories.ToDictionary(n => n.Id,
+            n => n.DefaultImagePath ?? DishImage.DefaultForCategory(n.Name));
 
         IsManager = User.IsInRole("Manager");
         if (!IsManager) return;

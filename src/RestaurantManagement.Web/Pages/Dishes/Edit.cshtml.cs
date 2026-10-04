@@ -48,7 +48,9 @@ public class EditModel : PageModel
             Status = dish.Status,
             ImagePath = dish.ImagePath
         };
-        CurrentImage = DishImage.Resolve(dish.ImagePath);
+        var categoryDefault = Categories.FirstOrDefault(n => n.Id == dish.CategoryId);
+        CurrentImage = DishImage.Resolve(dish.ImagePath,
+            categoryDefault?.DefaultImagePath ?? DishImage.DefaultForCategory(categoryDefault?.Name));
         return Page();
     }
 
@@ -60,7 +62,9 @@ public class EditModel : PageModel
         if (existing == null) return NotFound();
         // Ảnh cũ lấy từ dữ liệu đã lưu, không nhận đường dẫn ảnh từ biểu mẫu.
         var oldImage = existing.ImagePath;
-        CurrentImage = DishImage.Resolve(oldImage);
+        var categoryForSelection = Categories.FirstOrDefault(n => n.Id == Dish.CategoryId);
+        CurrentImage = DishImage.Resolve(oldImage,
+            categoryForSelection?.DefaultImagePath ?? DishImage.DefaultForCategory(categoryForSelection?.Name));
 
         // Reject unauthenticated saves before the store throws an exception.
         var currentUser = HttpContext.RequestServices.GetRequiredService<RestaurantManagement.Web.Security.ICurrentUser>();

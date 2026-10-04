@@ -35,6 +35,7 @@ namespace RestaurantManagement.Web.Services
             if (category.SortOrder < 0)
                 throw new ValidationException("Thứ tự hiển thị phải là số nguyên không âm.");
             category.Name = name;
+            category.DefaultImagePath ??= DishImage.DefaultForCategory(name);
             _db.DishCategories.Add(category);
             _db.SaveChanges();
             return category;
@@ -46,6 +47,7 @@ namespace RestaurantManagement.Web.Services
             if (category == null) return false;
 
             category.Name = ValidateCategoryName(name, id);
+            category.DefaultImagePath ??= DishImage.DefaultForCategory(category.Name);
             _db.SaveChanges();
             return true;
         }
@@ -133,7 +135,8 @@ namespace RestaurantManagement.Web.Services
                 .ToLookup(m => m.CategoryId);
 
             return GetActiveCategories()
-                .Select(n => new CategoryWithDishes(n.Id, n.Name, onSaleDishes[n.Id].ToArray()))
+                .Select(n => new CategoryWithDishes(n.Id, n.Name,
+                    n.DefaultImagePath ?? DishImage.DefaultForCategory(n.Name), onSaleDishes[n.Id].ToArray()))
                 .ToList();
         }
 
@@ -141,7 +144,7 @@ namespace RestaurantManagement.Web.Services
         // ảnh = ảnh món hoặc ảnh mặc định của nhóm, IsSoldOut chỉ đúng trong ngày nghiệp vụ UTC+7 hiện tại.
         public IReadOnlyList<PublicMenuCategory> GetPublicMenu()
         {
-            var category = GetActiveCategories().Select(n => (n.Id, n.Name)).ToList();
+            var category = GetActiveCategories().Select(n => (n.Id, n.Name, n.DefaultImagePath)).ToList();
             var dish = _db.Database.SqlQuery<PublicMenuRow>($"""
                 SELECT Id, CategoryId, Name, CAST(Price AS int) AS Price, Unit, Description,
                        ImagePath, SortOrder, IsSoldOut

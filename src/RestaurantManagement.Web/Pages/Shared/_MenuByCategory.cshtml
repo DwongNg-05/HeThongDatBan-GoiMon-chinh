@@ -1,9 +1,9 @@
 @model System.Collections.Generic.IReadOnlyList<RestaurantManagement.Web.Services.CategoryWithDishes>
 @{
-    // Ảnh món (đường dẫn lưu trong MenuItems.ImagePath); món chưa có ảnh dùng ảnh mặc định.
-    string ImageSrc(string? path)
+    // Món chưa có ảnh riêng dùng ảnh mặc định của nhóm, rồi tới ảnh mặc định chung.
+    string ImageSrc(string? path, string? categoryDefault)
     {
-        var image = RestaurantManagement.Web.Services.DishImage.Resolve(path);
+        var image = RestaurantManagement.Web.Services.DishImage.Resolve(path, categoryDefault);
         return image.StartsWith('/') ? Url.Content("~" + image) : image;
     }
     var defaultImage = Url.Content("~" + RestaurantManagement.Web.Services.DishImage.DefaultImage);
@@ -38,7 +38,7 @@
     {
         <div class="col-md-4 mb-3 menu-item" data-search="@item.Name">
             <div class="card menu-item-card">
-                <img class="menu-item-photo" src="@ImageSrc(item.ImagePath)" alt="Ảnh món @item.Name" width="112" height="112" loading="lazy"
+                <img class="menu-item-photo" src="@ImageSrc(item.ImagePath, category.DefaultImagePath)" alt="Ảnh món @item.Name" width="112" height="112" loading="lazy"
                      onerror="this.onerror=null;this.src='@defaultImage';" />
                 <div class="card-body">
                     <h3 class="card-title h5">@item.Name</h3>

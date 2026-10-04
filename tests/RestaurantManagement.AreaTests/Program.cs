@@ -21,6 +21,12 @@ if (args.Contains("--image-only"))
     Console.WriteLine($"{count} image tests passed.");
     return;
 }
+if (args.Contains("--category-image-only"))
+{
+    PublicMenuTests.Run(Check);
+    Console.WriteLine($"{count} category image tests passed.");
+    return;
+}
 bool Valid(string name, int? order)
 {
     var model = new AreaFormViewModel { Name = name, SortOrder = order };
