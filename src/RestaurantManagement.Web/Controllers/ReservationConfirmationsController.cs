@@ -11,6 +11,32 @@ namespace RestaurantManagement.Web.Controllers;
 public sealed class ReservationConfirmationsController(ReservationConfirmationService service) : Controller
 {
     private int Actor => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier),out var id)?id:0;
+    [HttpPost,ValidateAntiForgeryToken]
+    public async Task<IActionResult> ChangeTable(long id,int? newTableId,int? expectedTableId,string? changeReason,CancellationToken ct)
+    {
+        if(newTableId is null or <=0 || expectedTableId is null or <=0)
+            ModelState.AddModelError("","Vui lòng chọn bàn thay thế hợp lệ.");
+        if(changeReason?.Length>500) ModelState.AddModelError("","Lý do đổi bàn tối đa 500 ký tự.");
+        try
+        {
+            if(ModelState.IsValid)
+            {
+                await service.ChangeTable(Actor,id,newTableId!.Value,expectedTableId!.Value,changeReason,ct);
+                TempData["Success"]="Đã đổi bàn và ghi lại lịch sử. Bàn cũ đã được giải phóng cho khung giờ của lượt đặt.";
+                return RedirectToAction(nameof(Details),new {id});
+            }
+        }
+        catch(SqlException ex) when(ex.Number==51001) { return Forbid(); }
+        catch(SqlException ex) when(ex.Number==51701) { return NotFound(); }
+        catch(SqlException ex) when(ex.Number is 51702 or 51703 or 51704 or 51705 or 51706 or 51008 or 51009 or 51100)
+        { ModelState.AddModelError("",ex.Number==51100?"Bàn vừa được giữ. Vui lòng chọn bàn khác.":ex.Message); }
+        try
+        {
+            var model=await service.Details(Actor,id,ct);
+            return model is null?NotFound():View("Details",model);
+        }
+        catch(SqlException ex) when(ex.Number==51001) { return Forbid(); }
+    }
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken ct)
     {

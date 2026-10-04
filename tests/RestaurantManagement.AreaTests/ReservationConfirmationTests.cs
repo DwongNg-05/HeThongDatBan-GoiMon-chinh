@@ -78,10 +78,11 @@ internal static class ReservationConfirmationTests
             Check(await dispatcher.DispatchOne(default),"failed delivery processed");
             Check(Convert.ToInt32(await Sql("SELECT COUNT(*) FROM dbo.EmailOutbox o JOIN dbo.Reservations r ON r.Id=o.ReservationId WHERE o.MessageType='BookingConfirmed' AND o.AttemptCount=1 AND o.LastError IS NOT NULL AND r.Status='Confirmed'"))==1,"delivery failure recorded while confirmation remains valid");
             await Sql("UPDATE dbo.EmailOutbox SET NextAttemptAt=DATEADD(day,1,SYSUTCDATETIME()) WHERE Status='Pending' AND LastError IS NULL;");
-            for(var i=0;i<3;i++) { await Sql("UPDATE dbo.EmailOutbox SET NextAttemptAt=SYSUTCDATETIME() WHERE Status='Pending' AND LastError IS NOT NULL;"); await dispatcher.DispatchOne(default); }
+            for(var i=0;i<3;i++) { await Sql("UPDATE dbo.EmailOutbox SET NextAttemptAt=DATEADD(second,-1,SYSUTCDATETIME()) WHERE Status='Pending' AND LastError IS NOT NULL;"); await dispatcher.DispatchOne(default); }
             Check(Convert.ToInt32(await Sql("SELECT COUNT(*) FROM dbo.EmailOutbox WHERE AttemptCount=4 AND Status='Failed'"))==1,"delivery retries stop after four failures");
             await Http(connection,password,await Booking(1200),t4,Sql);
             await ReservationRejectionTests.Run(service,Sql,t4,id);
+            await ReservationTableChangeTests.Run(service,Sql);
             await Smtp();
             await DatabaseTool.SeedConfirmationDemo(connection);
             await DatabaseTool.SeedConfirmationDemo(connection);
@@ -145,6 +146,7 @@ internal static class ReservationConfirmationTests
             await sql($"UPDATE dbo.Reservations SET GuestCount=20 WHERE Id={staleId}");
             Check((await Get(stalePath)).Contains("Không có bàn trống đủ chỗ"),"empty suggestions screen explains no suitable tables");
             await ReservationRejectionTests.Http(client,sql);
+            await ReservationTableChangeTests.Http(client,sql,id,table);
         }
         finally { if(!web.HasExited) {web.Kill(true);await web.WaitForExitAsync();} }
     }
@@ -185,4 +187,3 @@ internal static class ReservationConfirmationTests
         finally { listener.Stop(); }
     }
 }
-

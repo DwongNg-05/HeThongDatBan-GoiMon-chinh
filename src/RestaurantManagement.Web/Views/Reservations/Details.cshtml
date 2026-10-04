@@ -12,3 +12,7 @@
     <dt class="col-sm-3">Trạng thái</dt><dd class="col-sm-9">@Model.Status</dd>
 </dl>
 <a asp-action="Index" class="btn btn-secondary">Quay lại danh sách</a>
+@if(User.IsInRole("Manager") || User.IsInRole("Waiter"))
+{
+<a asp-controller="ReservationConfirmations" asp-action="Details" asp-route-id="@Model.Id" class="btn btn-primary">Xử lý đặt bàn và lịch sử đổi bàn</a>
+}

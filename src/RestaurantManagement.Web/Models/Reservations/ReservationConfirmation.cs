@@ -28,6 +28,10 @@ public sealed class ReservationConfirmation
     public string Status { get; init; } = "";
     public string? AreaName { get; init; }
     public string? TableCode { get; init; }
+    public int? TableId { get; set; }
+    public List<SuggestedTable> ReplacementTables { get; } = [];
+    public List<ReservationTableChange> TableChanges { get; } = [];
+    public bool CanChangeTable => Status == "Confirmed" && StartsAt > VietnamTime.Now;
     public string? RejectionReason { get; init; }
     public string? EmailStatus { get; init; }
     public string? EmailError { get; init; }
@@ -51,3 +55,4 @@ public sealed class ReservationConfirmation
         "Pending" => "Email đang chờ gửi", "Cancelled" => "Đã dừng gửi", _ => "Chưa có thông báo xác nhận"
     };
 }
+public sealed record ReservationTableChange(long Id,string OldTableCode,string NewTableCode,string ActorName,DateTime ChangedAt,string? Reason);

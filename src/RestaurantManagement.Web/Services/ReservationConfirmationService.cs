@@ -45,12 +45,31 @@ public sealed class ReservationConfirmationService(IConfiguration configuration)
             CustomerName=r.GetString(r.GetOrdinal("CustomerName")), Phone=r.GetString(r.GetOrdinal("Phone")),
             Email=Optional(r,"Email"), GuestCount=r.GetInt32(r.GetOrdinal("GuestCount")),
             StartsAt=Local(r,"StartsAt"), EndsAt=Local(r,"EndsAt"), Status=r.GetString(r.GetOrdinal("Status")),
+            TableId=r.IsDBNull(r.GetOrdinal("TableId"))?null:r.GetInt32(r.GetOrdinal("TableId")),
             AreaName=Optional(r,"AreaName"), TableCode=Optional(r,"TableCode"), RejectionReason=Optional(r,"RejectionReason"), EmailStatus=Optional(r,"EmailStatus"),
             EmailError=Optional(r,"EmailError"), AttemptCount=r.IsDBNull(r.GetOrdinal("AttemptCount"))?0:r.GetInt32(r.GetOrdinal("AttemptCount"))
         };
         await r.NextResultAsync(ct);
         while(await r.ReadAsync(ct)) model.Tables.Add(new(r.GetInt32(0),r.GetString(1),r.GetInt32(2),r.GetString(3)));
+        await r.CloseAsync();
+        await using var changes=Command(cn,"dbo.usp_ReservationTableChangeDetails",actor);
+        changes.Parameters.Add("@ReservationId",SqlDbType.BigInt).Value=id;
+        await using var cr=await changes.ExecuteReaderAsync(ct);
+        while(await cr.ReadAsync(ct)) model.ReplacementTables.Add(new(cr.GetInt32(0),cr.GetString(1),cr.GetInt32(2),cr.GetString(3)));
+        await cr.NextResultAsync(ct);
+        while(await cr.ReadAsync(ct)) model.TableChanges.Add(new(cr.GetInt64(0),cr.GetString(1),cr.GetString(2),cr.GetString(3),VietnamTime.FromUtc(cr.GetDateTime(4)),cr.IsDBNull(5)?null:cr.GetString(5)));
         return model;
+    }
+    public async Task ChangeTable(int actor,long id,int tableId,int expectedTableId,string? reason,CancellationToken ct=default)
+    {
+        await using var cn=new SqlConnection(ConnectionString);
+        await using var cmd=Command(cn,"dbo.usp_ChangeReservationTable",actor);
+        cmd.Parameters.Add("@ReservationId",SqlDbType.BigInt).Value=id;
+        cmd.Parameters.Add("@TableId",SqlDbType.Int).Value=tableId;
+        cmd.Parameters.Add("@ExpectedTableId",SqlDbType.Int).Value=expectedTableId;
+        cmd.Parameters.Add("@Reason",SqlDbType.NVarChar,-1).Value=(object?)reason??DBNull.Value;
+        await cn.OpenAsync(ct);
+        await cmd.ExecuteNonQueryAsync(ct);
     }
     public async Task Confirm(int actor,long id,int tableId,CancellationToken ct = default)
     {

@@ -61,6 +61,36 @@ else if (Model.Status == "Pending") { <div class="alert alert-warning">Giờ h�
 </details>
 }
 <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary">Làm mới</a>
+@if(Model.CanChangeTable)
+{
+<details class="my-4 border rounded p-3"><summary>Đổi bàn</summary>
+@if(Model.ReplacementTables.Count==0) { <p class="alert alert-warning mt-3">Không có bàn thay thế còn trống và đủ chỗ trong khung giờ này.</p> }
+else
+{
+<form asp-action="ChangeTable" asp-route-id="@Model.Id" method="post" class="mt-3">
+<input type="hidden" name="expectedTableId" value="@Model.TableId" />
+<label for="new-table" class="form-label">Bàn thay thế</label>
+<select id="new-table" name="newTableId" class="form-select" required><option value="">-- Chọn bàn --</option>
+@foreach(var table in Model.ReplacementTables) { <option value="@table.Id">Bàn @table.Code — @table.MaxCapacity chỗ — @table.AreaName</option> }
+</select>
+<label for="change-reason" class="form-label mt-3">Lý do đổi (không bắt buộc)</label>
+<textarea id="change-reason" name="changeReason" maxlength="500" class="form-control"></textarea>
+<p>Chỉ được đổi trước giờ hẹn. Không gửi thông báo tự động cho khách.</p>
+<button class="btn btn-primary mt-2" type="submit">Xác nhận đổi bàn</button>
+</form>
+}
+</details>
+}
+else if(Model.Status=="Confirmed") { <p class="alert alert-warning mt-3">Đã đến hoặc quá giờ hẹn. Không thể đổi bàn.</p> }
+<section class="mt-4" aria-labelledby="table-history"><h2 id="table-history" class="h4">Lịch sử đổi bàn</h2>
+@if(Model.TableChanges.Count==0) { <p>Chưa có lần đổi bàn nào.</p> }
+else
+{
+<div class="table-responsive"><table class="table"><thead><tr><th>Thời điểm (Việt Nam)</th><th>Bàn cũ</th><th>Bàn mới</th><th>Người đổi</th><th>Lý do</th></tr></thead><tbody>
+@foreach(var change in Model.TableChanges) { <tr><td>@change.ChangedAt.ToString("dd/MM/yyyy HH:mm:ss")</td><td>@change.OldTableCode</td><td>@change.NewTableCode</td><td>@change.ActorName</td><td>@(change.Reason??"Không ghi lý do")</td></tr> }
+</tbody></table></div>
+}
+</section>
 <a asp-action="Index" class="btn btn-outline-secondary">Danh sách chờ</a>
 <a asp-action="Schedule" asp-route-day="@Model.StartsAt.ToString("yyyy-MM-dd")" class="btn btn-outline-primary">Xem lịch giữ bàn</a>
 @section Scripts { <script src="~/js/reservation-rejection.js" asp-append-version="true"></script> }
