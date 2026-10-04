@@ -11,8 +11,10 @@ internal static class ReservationCapacityPolicyTests
             "Reservation capacity hides a slot when its last table is held");
         check(ReservationCapacityPolicy.HasAvailableTable([1, 2], held, start, end),
             "Reservation capacity keeps a slot when another suitable table remains");
-        check(ReservationCapacityPolicy.HasAvailableTable([1], held, end, end.AddMinutes(90)),
-            "Reservation capacity releases a table at the end of its hold interval");
+        check(!ReservationCapacityPolicy.HasAvailableTable([1], held, end, end.AddMinutes(90)),
+            "Reservation capacity keeps a table unavailable during the 15-minute cleanup");
+        check(ReservationCapacityPolicy.HasAvailableTable([1], held, end.AddMinutes(15), end.AddMinutes(105)),
+            "Reservation capacity releases a table exactly at the cleanup boundary");
         check(!ReservationCapacityPolicy.HasAvailableTable([1], held, start.AddMinutes(30), end.AddMinutes(30)),
             "Reservation capacity rejects overlapping holds on the same table");
     }

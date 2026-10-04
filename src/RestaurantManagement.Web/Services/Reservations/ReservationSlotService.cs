@@ -61,7 +61,7 @@ public sealed class ReservationSlotService(IConfiguration configuration)
                 WHERE t.IsActive=1 AND a.IsActive=1 AND t.MaxCapacity>=@GuestCount
                   AND (@PreferredAreaId IS NULL OR t.AreaId=@PreferredAreaId);
                 SELECT r.TableId, r.StartsAt, r.EndsAt FROM dbo.Reservations r JOIN dbo.DiningTables t ON t.Id=r.TableId
-                WHERE r.Status IN ('Pending','Confirmed','Arrived') AND r.StartsAt<@DayEnd AND r.EndsAt>@DayStart
+                WHERE r.Status IN ('Pending','Confirmed','Arrived') AND r.StartsAt<@DayEnd AND DATEADD(minute, 15, r.EndsAt)>@DayStart
                   AND t.IsActive=1 AND t.MaxCapacity>=@GuestCount
                   AND (@PreferredAreaId IS NULL OR t.AreaId=@PreferredAreaId);
                 SELECT DefaultBookingMinutes FROM dbo.RestaurantSettings WHERE Id=1;
