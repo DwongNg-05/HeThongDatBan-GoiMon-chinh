@@ -1,7 +1,12 @@
 @model PublicMenuViewModel
 @{
     ViewData["Title"] = "Thực đơn";
+    // S2-01 Task 4: trang khách không cần jQuery/Bootstrap JS (xem _Layout.cshtml).
+    ViewData["LightweightScripts"] = true;
     string ImageSrc(string url) => url.StartsWith('/') ? Url.Content("~" + url) : url;
+    // Chỉ vài ảnh đầu trang tải ngay; các ảnh còn lại tải khi khách cuộn tới (loading="lazy").
+    const int EagerImages = 4;
+    var imageIndex = 0;
 }
 @section Styles {
     <link rel="stylesheet" href="~/css/public-menu.css" asp-append-version="true" />
@@ -71,7 +76,7 @@
                             @* S2-01 Task 3: món hết trong ngày vẫn hiển thị, có nhãn "Tạm hết" và bị làm mờ (CSS theo data-sold-out). *@
                             <li class="public-dish" data-mon-id="@dish.Id" data-sold-out="@(dish.IsTemporarilyUnavailable ? "true" : "false")">
                                 <img class="public-dish-image" src="@ImageSrc(dish.ImageUrl)" alt="Ảnh món @dish.Name"
-                                     width="96" height="96" loading="lazy" decoding="async" />
+                                     width="88" height="88" loading="@(imageIndex++ < EagerImages ? "eager" : "lazy")" decoding="async" />
                                 <div class="public-dish-body">
                                     @if (dish.IsTemporarilyUnavailable)
                                     {
@@ -80,7 +85,7 @@
                                     <h3 class="public-dish-name">@dish.Name</h3>
                                     @if (!string.IsNullOrEmpty(dish.ShortDescription))
                                     {
-                                        <p class="public-dish-desc">@dish.ShortDescription</p>
+                                        <p class="public-dish-desc">@dish.DescriptionPreview</p>
                                     }
                                     <p class="public-dish-price"><data value="@dish.PriceVnd">@dish.DisplayPrice</data><span class="public-dish-unit"> / @dish.Unit</span></p>
                                 </div>

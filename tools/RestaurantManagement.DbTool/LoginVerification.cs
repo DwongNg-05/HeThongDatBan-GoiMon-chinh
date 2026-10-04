@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Text.RegularExpressions;
@@ -48,6 +48,8 @@ internal static partial class LoginVerification
             Assert((await client.GetAsync("/admin/employee-accounts")).StatusCode == HttpStatusCode.Redirect, "Anonymous employee account access denied");
             Assert((await client.GetAsync("/Ordering")).StatusCode == HttpStatusCode.Redirect, "Anonymous staff ordering page still requires login");
             await PublicMenuVerification.Run(connection, client);
+            // S2-01 Task 4: 200 món, thời gian tải dưới 2 giây, tìm kiếm trong 200 món.
+            await MenuPerformanceVerification.Run(connection, client);
             await SecurityAuditVerification.Run(connection, password, client);
 
             async Task<HttpResponseMessage> Login(string identifier, string secret)

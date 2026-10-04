@@ -40,6 +40,8 @@ builder.Services.AddScoped(_ => new EmailVerificationStore(sqlConnectionString))
 builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
 builder.Services.AddScoped<EmailVerificationService>();
 builder.Services.AddScoped<IEmployeeAccountStore>(_ => new SqlEmployeeAccountStore(sqlConnectionString));
+// S2-09 Task 3: trạng thái email xác nhận của từng lượt đặt bàn (dbo.EmailOutbox).
+builder.Services.AddScoped<IReservationEmailStatusStore>(_ => new SqlReservationEmailStatusStore(sqlConnectionString));
 builder.Services.AddControllersWithViews(options => options.Filters.Add<SessionActivityFilter>());
 // Support Razor Pages
 builder.Services.AddRazorPages();
@@ -86,6 +88,18 @@ builder.Services.AddAuthentication("Cookies")
         options.EventsType = typeof(IdleSessionEvents);
     });
 
+// S2-01 Task 4: nén HTML/JSON của thực đơn công khai (200 món ~ vài trăm KB còn vài chục KB).
+// Chỉ áp dụng cho /Menu và /api/menu khi khách chưa đăng nhập (xem UseWhen bên dưới):
+// trang có ô tìm kiếm phản hồi lại từ khoá, nên không nén khi trang có thể chứa token của nhân viên (tránh BREACH).
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProvider>();
+    options.Providers.Add<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProvider>();
+});
+builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProviderOptions>(o => o.Level = System.IO.Compression.CompressionLevel.Fastest);
+builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProviderOptions>(o => o.Level = System.IO.Compression.CompressionLevel.Fastest);
+
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
@@ -111,6 +125,11 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<EmailVerificationMiddleware>();
 app.UseMiddleware<RequiredPasswordChangeMiddleware>();
+
+app.UseWhen(
+    context => context.User.Identity?.IsAuthenticated != true
+        && (context.Request.Path.StartsWithSegments("/Menu") || context.Request.Path.StartsWithSegments("/api/menu")),
+    branch => branch.UseResponseCompression());
 
 app.MapStaticAssets().AllowAnonymous();
 

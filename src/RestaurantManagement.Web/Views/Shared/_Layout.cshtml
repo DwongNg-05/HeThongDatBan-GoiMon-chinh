@@ -96,8 +96,13 @@
         </main>
     </div>
 
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    @* S2-01 Task 4: trang công khai nhẹ (thực đơn) không tải jQuery/Bootstrap JS cho khách chưa đăng nhập;
+       nhân viên đã đăng nhập vẫn cần Bootstrap JS cho menu điều hướng. *@
+    @if (signedIn || ViewData["LightweightScripts"] is not true)
+    {
+        <script src="~/lib/jquery/dist/jquery.min.js"></script>
+        <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    }
     <script src="~/js/site.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>

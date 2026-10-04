@@ -120,6 +120,7 @@ MenuTests.Run(Check);
 PublicMenuTests.Run(Check);
 MenuSearchTests.Run(Check);
 SoldOutTests.Run(Check);
+MenuPerformanceTests.Run(Check);
 await MenuImageTests.Run(Check);
 SecurityAuditTests.Run(Check);
 await AuditReadOnlyTests.Run(Check);

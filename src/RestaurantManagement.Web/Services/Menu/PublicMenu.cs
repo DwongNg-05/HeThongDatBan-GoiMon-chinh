@@ -23,6 +23,28 @@ public sealed record PublicMenuDish(
 
     /// <summary>Nhãn trạng thái hiển thị cho khách; rỗng khi món còn phục vụ.</summary>
     public string AvailabilityLabel => SoldOutToday ? SoldOutDisplay.Label : string.Empty;
+
+    /// <summary>
+    /// S2-01 Task 4: mô tả rút gọn cho trang thực đơn. Trên điện thoại chỉ hiện tối đa 3 dòng,
+    /// nên không gửi phần mô tả dài hơn mức này xuống trình duyệt (API vẫn trả mô tả đầy đủ).
+    /// </summary>
+    public string DescriptionPreview => MenuText.Preview(ShortDescription, MenuText.DescriptionPreviewLength);
+}
+
+public static class MenuText
+{
+    /// <summary>Khoảng 3 dòng chữ trên màn hình rộng 360px.</summary>
+    public const int DescriptionPreviewLength = 140;
+
+    /// <summary>Cắt chuỗi tại ranh giới từ gần nhất và thêm dấu "…" khi dài hơn <paramref name="maxLength"/>.</summary>
+    public static string Preview(string? text, int maxLength)
+    {
+        var value = text?.Trim() ?? string.Empty;
+        if (value.Length <= maxLength) return value;
+        var cut = value.LastIndexOf(' ', maxLength);
+        if (cut < maxLength / 2) cut = maxLength;
+        return value[..cut].TrimEnd(' ', ',', ';', ':', '.') + "…";
+    }
 }
 
 /// <summary>S2-01 Task 3: chữ hiển thị cho món hết trong ngày.</summary>

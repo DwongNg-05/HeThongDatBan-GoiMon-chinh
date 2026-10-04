@@ -47,3 +47,32 @@
 .public-dish[data-sold-out="true"] .public-dish-price { opacity: .55; }
 
 .public-menu-no-result { flex: 1 1 100%; padding: 28px 16px; text-align: center; background: #fff; border: 1px dashed #ead5d8; border-radius: 12px; }
+
+/* S2-01 Task 4 — điện thoại từ 360px và danh sách 200 món. */
+.public-menu { min-width: 0; overflow-wrap: anywhere; }
+.public-menu-group h2,
+.public-menu-search-status p,
+.public-menu-no-result { overflow-wrap: anywhere; }
+.public-dish-body { min-width: 0; }
+.public-dish-price { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 4px; }
+/* Trình duyệt bỏ qua việc vẽ các nhóm món nằm ngoài màn hình cho tới khi khách cuộn tới. */
+.public-menu-group { content-visibility: auto; contain-intrinsic-size: auto 900px; }
+.public-menu-search-input::-webkit-search-cancel-button { cursor: pointer; }
+
+@media (max-width: 400px) {
+    .public-menu-hero { padding: 14px 14px; margin-bottom: 10px; }
+    .public-menu-hero h1 { font-size: 24px; }
+    .public-menu-hero p { font-size: 13px; }
+    .public-menu-search { gap: 6px; }
+    .public-menu-search-input { padding: 8px 12px; }
+    .public-menu-search-button { padding: 8px 14px; }
+    .public-menu-tabs { gap: 6px; padding: 8px 0; margin: 0 0 6px; }
+    .public-menu-tabs a { padding: 6px 12px; font-size: 13px; }
+    .public-menu-group { padding: 12px; margin-bottom: 12px; scroll-margin-top: 58px; }
+    .public-menu-group h2 { font-size: 18px; }
+    .public-dish { grid-template-columns: 72px minmax(0, 1fr); gap: 12px; padding: 12px 0; }
+    .public-dish-image { width: 72px; height: 72px; }
+    .public-dish-name { font-size: 16px; }
+    .public-dish-desc { font-size: 13px; }
+    .public-dish-price data { font-size: 16px; }
+}
