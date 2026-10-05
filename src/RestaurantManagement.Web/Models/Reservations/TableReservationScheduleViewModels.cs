@@ -58,6 +58,12 @@ public sealed class ManagedTableReservationCreateViewModel
     public string InitialStatus { get; set; } = "Pending";
 
     public List<ManagedTableOptionViewModel> Tables { get; } = [];
+
+    [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]
+    public bool HasConflict { get; set; }
+
+    [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]
+    public List<string> SuggestedStartTimes { get; } = [];
 }
 
 public sealed class ManagedTableOptionViewModel
