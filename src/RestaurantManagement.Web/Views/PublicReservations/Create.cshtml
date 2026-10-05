@@ -1,0 +1,16 @@
+@model RestaurantManagement.Web.Models.Reservations.ReservationCreateViewModel
+@{ ViewData["Title"] = "Đặt bàn"; }
+<div class="container mt-4"><div class="row justify-content-center"><div class="col-md-8"><div class="card shadow-sm"><div class="card-body">
+    <h2 class="mb-4">Đặt bàn</h2>
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+    <form asp-controller="PublicReservations" asp-action="Create" method="post" novalidate>
+        @Html.AntiForgeryToken()
+        <div class="mb-3"><label asp-for="CustomerName" class="form-label"></label><input asp-for="CustomerName" class="form-control" placeholder="Nguyễn Văn A" /><span asp-validation-for="CustomerName" class="text-danger"></span></div>
+        <div class="mb-3"><label asp-for="Phone" class="form-label"></label><input asp-for="Phone" class="form-control" placeholder="0912345678" inputmode="numeric" autocomplete="tel" /><span asp-validation-for="Phone" class="text-danger"></span></div>
+        <div class="mb-3"><label asp-for="GuestCount" class="form-label"></label><input asp-for="GuestCount" type="number" min="1" max="20" class="form-control" /><span asp-validation-for="GuestCount" class="text-danger"></span></div>
+        <div class="row"><div class="col-md-6 mb-3"><label asp-for="ReservationDate" class="form-label"></label><input asp-for="ReservationDate" type="date" class="form-control" /><span asp-validation-for="ReservationDate" class="text-danger"></span></div><div class="col-md-6 mb-3"><label asp-for="ReservationTime" class="form-label"></label><input asp-for="ReservationTime" type="time" step="1800" class="form-control" /><div class="form-text">Các khung giờ cách nhau 30 phút.</div><span asp-validation-for="ReservationTime" class="text-danger"></span></div></div>
+        <div class="mb-3"><label asp-for="PreferredAreaId" class="form-label">Khu vực mong muốn</label><select asp-for="PreferredAreaId" class="form-select"><option value="">-- Không yêu cầu khu vực --</option>@foreach (var area in Model.Areas) { <option value="@area.Id">@area.Name</option> }</select><span asp-validation-for="PreferredAreaId" class="text-danger"></span></div>
+        <div class="mb-3"><label asp-for="Notes" class="form-label"></label><textarea asp-for="Notes" class="form-control" rows="4" placeholder="Ví dụ: Muốn ngồi gần cửa sổ"></textarea><span asp-validation-for="Notes" class="text-danger"></span></div>
+        <button type="submit" class="btn btn-primary">Đặt bàn</button>
+    </form>
+</div></div></div></div></div>
