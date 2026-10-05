@@ -4,6 +4,26 @@ using RestaurantManagement.Web.ViewModels;
 
 namespace RestaurantManagement.Web.Services;
 
+public sealed class LookupRateLimitStatus
+{
+	public bool IsBlocked { get; set; }
+
+	public DateTimeOffset? BlockedUntilUtc { get; set; }
+
+	public int RemainingSeconds { get; set; }
+}
+
+public sealed class LookupAttemptResult
+{
+	public int FailureCount { get; set; }
+
+	public bool IsBlocked { get; set; }
+
+	public DateTimeOffset? BlockedUntilUtc { get; set; }
+
+	public int RemainingSeconds { get; set; }
+}
+
 public class ReservationStore
 {
 	private readonly string _connectionString;
@@ -26,7 +46,6 @@ public class ReservationStore
 		var normalizedCode =
 			code.Trim().ToUpperInvariant();
 
-		// Không để SQL tự cắt mã quá dài thành một mã hợp lệ.
 		if (normalizedPhone is null ||
 			normalizedCode.Length != 6)
 		{
@@ -268,5 +287,163 @@ public class ReservationStore
 			   value == DBNull.Value
 			? null
 			: Convert.ToString(value);
+	}
+
+	public async Task<LookupRateLimitStatus>
+		GetLookupRateLimitStatusAsync(
+			string ipAddress)
+	{
+		await using var connection =
+			new SqlConnection(_connectionString);
+
+		await connection.OpenAsync();
+
+		await using var command =
+			new SqlCommand(
+				"dbo.usp_GetReservationLookupRateLimit",
+				connection)
+			{
+				CommandType =
+					CommandType.StoredProcedure
+			};
+
+		command.Parameters
+			.Add(
+				"@IpAddress",
+				SqlDbType.VarChar,
+				45)
+			.Value = ipAddress;
+
+		await using var reader =
+			await command.ExecuteReaderAsync();
+
+		if (!await reader.ReadAsync())
+		{
+			return new LookupRateLimitStatus();
+		}
+
+		var result =
+			new LookupRateLimitStatus
+			{
+				IsBlocked =
+					reader.GetBoolean(0),
+
+				RemainingSeconds =
+					reader.IsDBNull(2)
+						? 0
+						: reader.GetInt32(2)
+			};
+
+		if (!reader.IsDBNull(1))
+		{
+			var blockedUntil =
+				DateTime.SpecifyKind(
+					reader.GetDateTime(1),
+					DateTimeKind.Utc);
+
+			result.BlockedUntilUtc =
+				new DateTimeOffset(
+					blockedUntil);
+		}
+
+		return result;
+	}
+
+	public async Task<LookupAttemptResult>
+		RecordLookupAttemptAsync(
+			string ipAddress,
+			bool succeeded)
+	{
+		await using var connection =
+			new SqlConnection(_connectionString);
+
+		await connection.OpenAsync();
+
+		await using var command =
+			new SqlCommand(
+				"dbo.usp_RecordReservationLookupAttempt",
+				connection)
+			{
+				CommandType =
+					CommandType.StoredProcedure
+			};
+
+		command.Parameters
+			.Add(
+				"@IpAddress",
+				SqlDbType.VarChar,
+				45)
+			.Value = ipAddress;
+
+		command.Parameters
+			.Add(
+				"@Succeeded",
+				SqlDbType.Bit)
+			.Value = succeeded;
+
+		await using var reader =
+			await command.ExecuteReaderAsync();
+
+		if (!await reader.ReadAsync())
+		{
+			return new LookupAttemptResult();
+		}
+
+		var result =
+			new LookupAttemptResult
+			{
+				FailureCount =
+					reader.IsDBNull(0)
+						? 0
+						: reader.GetInt32(0),
+
+				IsBlocked =
+					reader.GetBoolean(1),
+
+				RemainingSeconds =
+					reader.IsDBNull(3)
+						? 0
+						: reader.GetInt32(3)
+			};
+
+		if (!reader.IsDBNull(2))
+		{
+			var blockedUntil =
+				DateTime.SpecifyKind(
+					reader.GetDateTime(2),
+					DateTimeKind.Utc);
+
+			result.BlockedUntilUtc =
+				new DateTimeOffset(
+					blockedUntil);
+		}
+
+		return result;
+	}
+
+	public async Task<string>
+		GetRestaurantPhoneAsync()
+	{
+		await using var connection =
+			new SqlConnection(_connectionString);
+
+		await connection.OpenAsync();
+
+		const string sql = """
+            SELECT Phone
+            FROM dbo.RestaurantSettings
+            WHERE Id = 1;
+            """;
+
+		await using var command =
+			new SqlCommand(sql, connection);
+
+		var value =
+			await command.ExecuteScalarAsync();
+
+		return value is null ||
+			   value == DBNull.Value
+			? ""
+			: Convert.ToString(value) ?? "";
 	}
 }
