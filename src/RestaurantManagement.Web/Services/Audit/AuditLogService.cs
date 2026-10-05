@@ -12,20 +12,30 @@ namespace RestaurantManagement.Web.Services
             _context = context;
         }
 
+        // Hàm mới dùng cho các chức năng cần ghi log chi tiết
         public async Task LogAsync(
-            string username,
-            string role,
+            int? actorUserId,
+            string? actorRole,
             string action,
-            string ipAddress)
+            string entityType,
+            string? entityId,
+            string? oldValues,
+            string? newValues,
+            string? reason,
+            string? ipAddress)
         {
-            // Cắt theo độ dài cột để tên đăng nhập quá dài không làm lỗi lưu (HTTP 500)
             var log = new AuditLog
             {
-                CreatedAt = DateTime.Now,
-                Username = Truncate(username, 100),
-                Role = Truncate(role, 50),
-                Action = Truncate(action, 100),
-                IpAddress = Truncate(ipAddress, 45)
+                ActorUserId = actorUserId,
+                ActorRole = Truncate(actorRole, 20),
+                Action = Truncate(action, 80) ?? "",
+                EntityType = Truncate(entityType, 60) ?? "",
+                EntityId = Truncate(entityId, 60),
+                OldValues = oldValues,
+                NewValues = newValues,
+                Reason = Truncate(reason, 500),
+                IpAddress = Truncate(ipAddress, 45),
+                OccurredAt = DateTime.UtcNow
             };
 
             _context.AuditLogs.Add(log);
@@ -33,10 +43,33 @@ namespace RestaurantManagement.Web.Services
             await _context.SaveChangesAsync();
         }
 
-        private static string Truncate(string? value, int maxLength)
+        // Hàm giữ tương thích với code cũ trong AccountController
+        public async Task LogAsync(
+            string username,
+            string role,
+            string action,
+            string ipAddress)
         {
-            value ??= "";
-            return value.Length <= maxLength ? value : value.Substring(0, maxLength);
+            await LogAsync(
+                actorUserId: null,
+                actorRole: role,
+                action: action,
+                entityType: "Account",
+                entityId: username,
+                oldValues: null,
+                newValues: null,
+                reason: null,
+                ipAddress: ipAddress);
+        }
+
+        private static string? Truncate(string? value, int maxLength)
+        {
+            if (string.IsNullOrEmpty(value))
+                return value;
+
+            return value.Length <= maxLength
+                ? value
+                : value.Substring(0, maxLength);
         }
     }
 }

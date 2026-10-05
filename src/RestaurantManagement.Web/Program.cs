@@ -17,6 +17,7 @@ builder.Configuration["ConnectionStrings:DefaultConnection"] = sqlConnectionStri
 
 builder.Services.AddScoped<AuditLogService>();
 builder.Services.AddScoped<RestaurantManagement.Web.Services.Reservations.ReservationSlotService>();
+builder.Services.AddScoped<ReservationStore>();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(
@@ -38,9 +39,22 @@ builder.Services.AddScoped(_ => new PasswordChangeStore(sqlConnectionString));
 builder.Services.Configure<EmailVerificationOptions>(builder.Configuration.GetSection(EmailVerificationOptions.Section));
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailOptions.Section));
 builder.Services.AddScoped(_ => new EmailVerificationStore(sqlConnectionString));
-builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
+builder.Services.AddSingleton<IEmailSender, RestaurantManagement.Web.Services.EmailVerification.SmtpEmailSender>();
 builder.Services.AddScoped<EmailVerificationService>();
 builder.Services.AddScoped<IEmployeeAccountStore>(_ => new SqlEmployeeAccountStore(sqlConnectionString));
+
+builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
+builder.Services.AddSingleton<RestaurantManagement.Web.Services.SmtpEmailSender>();
+var smtpUsername = builder.Configuration["Smtp:Username"];
+var smtpPassword = builder.Configuration["Smtp:Password"];
+var smtpFromEmail = builder.Configuration["Smtp:FromEmail"];
+if (!string.IsNullOrWhiteSpace(smtpUsername) &&
+    !string.IsNullOrWhiteSpace(smtpPassword) &&
+    !string.IsNullOrWhiteSpace(smtpFromEmail))
+{
+    builder.Services.AddHostedService<EmailWorker>();
+}
+
 builder.Services.AddControllersWithViews(options => options.Filters.Add<SessionActivityFilter>());
 // Support Razor Pages
 builder.Services.AddRazorPages();

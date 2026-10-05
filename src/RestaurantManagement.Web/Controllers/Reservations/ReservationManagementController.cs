@@ -14,7 +14,6 @@ public class ReservationManagementController(IConfiguration configuration) : Con
         ?? throw new InvalidOperationException("Chưa cấu hình ConnectionStrings:DefaultConnection.");
 
     [HttpGet("")]
-    [HttpGet("/Reservations")]
     public async Task<IActionResult> Index()
     {
         var reservations = new List<ReservationListItemViewModel>();
@@ -27,7 +26,6 @@ public class ReservationManagementController(IConfiguration configuration) : Con
     }
 
     [HttpGet("Details/{id:long}")]
-    [HttpGet("/Reservations/Details/{id:long}")]
     public async Task<IActionResult> Details(long id)
     {
         await using var connection = new SqlConnection(ConnectionString);
