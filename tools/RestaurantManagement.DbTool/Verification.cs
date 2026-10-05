@@ -24,6 +24,9 @@ internal static class Verification
             await LoginVerification.Run(connection, password);
             await EmailVerificationVerification.Run(connection, password);
             await VerifyAreas(connection);
+            await VerifyTableReservationSchedule(connection);
+            await VerifyManagedReservationConcurrencyAndSuggestions(connection);
+            await VerifyManagedReservationRelease(connection);
             await BookingConcurrency(connection);
             await DatabaseTool.Execute(connection, "EXEC dbo.usp_OpenShift @Name=N'Test',@OpeningCash=100000,@ActorUserId=4; EXEC dbo.usp_OpenSession @TableId=1,@GuestCount=2,@ActorUserId=2;");
             const string items = """[{"MenuItemId":1,"Quantity":2,"Notes":"ít cay"},{"MenuItemId":1,"Quantity":1,"Notes":"không hành"}]""";
@@ -121,7 +124,7 @@ internal static class Verification
         Console.WriteLine("PASS: Rename normalizes without creating a new row");
         await DatabaseTool.Execute(connection, """
             DECLARE @id int=(SELECT Id FROM dbo.Areas WHERE Name=N'Lifecycle renamed');
-            INSERT dbo.DiningTables(AreaId,Code,MinCapacity,MaxCapacity,SortOrder) VALUES(@id,'LIFE01',1,4,0);
+            INSERT dbo.DiningTables(AreaId,Code,MinCapacity,MaxCapacity,SortOrder) VALUES(@id,'LIFE01',1,4,0),(@id,'LIFE02',1,4,1);
             DECLARE @start datetime2(3)=DATEADD(hour,3,CONVERT(datetime2(3),CONVERT(date,DATEADD(day,20,SYSUTCDATETIME()))));
             EXEC dbo.usp_CreateReservation @CustomerName=N'Lifecycle 1',@Phone='0981111111',@GuestCount=2,@StartsAt=@start,@PreferredAreaId=@id;
             EXEC dbo.usp_CreateReservation @CustomerName=N'Lifecycle 2',@Phone='0982222222',@GuestCount=2,@StartsAt=@start,@PreferredAreaId=@id;
@@ -139,7 +142,7 @@ internal static class Verification
 
     private static async Task BookingConcurrency(string connection)
     {
-        await DatabaseTool.Execute(connection, "DECLARE @n int=1,@start datetime2(3)=DATEADD(day,14,CONVERT(datetime2(3),CONVERT(date,SYSUTCDATETIME()))); WHILE @n<=50 BEGIN INSERT dbo.Reservations(Code,CustomerName,Phone,GuestCount,TableId,StartsAt,EndsAt) VALUES(CONCAT('T',RIGHT(CONCAT('00000',@n),5)),N'Test','0999999999',2,25,@start,DATEADD(minute,90,@start)); SET @n+=1; END;");
+        await DatabaseTool.Execute(connection, "DECLARE @n int=1,@start datetime2(3)=DATEADD(day,14,CONVERT(datetime2(3),CONVERT(date,SYSUTCDATETIME()))); WHILE @n<=50 BEGIN INSERT dbo.Reservations(Code,CustomerName,Phone,GuestCount,StartsAt,EndsAt) VALUES(CONCAT('T',RIGHT(CONCAT('00000',@n),5)),N'Test','0999999999',2,@start,DATEADD(minute,90,@start)); SET @n+=1; END;");
         var results = await Task.WhenAll(Enumerable.Range(21, 50).Select(async id =>
         {
             try { await Call(connection, "usp_ConfirmReservation", ("ReservationId", (long)id), ("TableId", 25), ("ActorUserId", 2)); return true; }
@@ -147,7 +150,105 @@ internal static class Verification
         }));
         if (results.Count(x => x) != 1) throw new InvalidOperationException("Concurrent booking invariant failed.");
         Console.WriteLine("PASS: 50 concurrent bookings, exactly one confirmed.");
-        await Reject(connection, "Direct SQL overlap guard", "UPDATE dbo.Reservations SET Status='Confirmed' WHERE Id BETWEEN 21 AND 70;", 51100);
+        await Reject(connection, "Direct SQL overlap guard", "UPDATE dbo.Reservations SET Status='Confirmed',TableId=25 WHERE Id BETWEEN 21 AND 70;", 51060);
+    }
+
+    private static async Task VerifyTableReservationSchedule(string connection)
+    {
+        const string firstStart = "2030-01-01T19:00:00";
+        await DatabaseTool.Execute(connection, $"EXEC dbo.usp_CreateManagedTableReservation @TableId=45,@StartsAt='{firstStart}',@CustomerName=N'Lịch bàn',@Phone='0981000001',@InitialStatus='Pending',@ActorUserId=1;");
+        await Reject(connection, "Managed table reservation rejects full overlap", $"EXEC dbo.usp_CreateManagedTableReservation @TableId=45,@StartsAt='{firstStart}',@CustomerName=N'Trùng toàn phần',@Phone='0981000002',@InitialStatus='Pending',@ActorUserId=1;", 51060);
+        await Reject(connection, "Managed table reservation rejects overlap at start", "EXEC dbo.usp_CreateManagedTableReservation @TableId=45,@StartsAt='2030-01-01T20:00:00',@CustomerName=N'Giao đầu',@Phone='0981000003',@InitialStatus='Confirmed',@ActorUserId=1;", 51060);
+        await Reject(connection, "Managed table reservation rejects cleanup interval", "EXEC dbo.usp_CreateManagedTableReservation @TableId=45,@StartsAt='2030-01-01T20:40:00',@CustomerName=N'Dọn bàn',@Phone='0981000004',@InitialStatus='Pending',@ActorUserId=1;", 51060);
+        await DatabaseTool.Execute(connection, "EXEC dbo.usp_CreateManagedTableReservation @TableId=45,@StartsAt='2030-01-01T20:45:00',@CustomerName=N'Đúng mốc',@Phone='0981000005',@InitialStatus='Confirmed',@ActorUserId=1;");
+        await DatabaseTool.Execute(connection, $"EXEC dbo.usp_CreateManagedTableReservation @TableId=46,@StartsAt='{firstStart}',@CustomerName=N'Bàn khác',@Phone='0981000006',@InitialStatus='Pending',@ActorUserId=1; EXEC dbo.usp_CreateManagedTableReservation @TableId=45,@StartsAt='2030-01-02T19:00:00',@CustomerName=N'Ngày khác',@Phone='0981000007',@InitialStatus='Pending',@ActorUserId=1;");
+        await DatabaseTool.Execute(connection, "EXEC dbo.usp_CreateManagedTableReservation @TableId=47,@StartsAt='2030-01-01T19:00:00',@CustomerName=N'Đã xác nhận',@Phone='0981000008',@InitialStatus='Confirmed',@ActorUserId=1;");
+        await Reject(connection, "Confirmed reservation blocks pending reservation", "EXEC dbo.usp_CreateManagedTableReservation @TableId=47,@StartsAt='2030-01-01T19:00:00',@CustomerName=N'Đơn chờ',@Phone='0981000009',@InitialStatus='Pending',@ActorUserId=1;", 51060);
+        await DatabaseTool.Execute(connection, "INSERT dbo.Reservations(Code,CustomerName,Phone,GuestCount,TableId,StartsAt,EndsAt,Status) VALUES('S23D01',N'Ghi trực tiếp','0981000010',1,48,'2030-01-01T19:00:00','2030-01-01T20:30:00','Pending');");
+        await Reject(connection, "Direct SQL insert cannot bypass table hold", "INSERT dbo.Reservations(Code,CustomerName,Phone,GuestCount,TableId,StartsAt,EndsAt,Status) VALUES('S23D02',N'Trùng trực tiếp','0981000011',1,48,'2030-01-01T20:00:00','2030-01-01T21:30:00','Confirmed');", 51060);
+        await DatabaseTool.Execute(connection, "INSERT dbo.Reservations(Code,CustomerName,Phone,GuestCount,TableId,StartsAt,EndsAt,Status) VALUES('S23C01',N'Đã huỷ','0981000012',1,49,'2030-01-01T19:00:00','2030-01-01T20:30:00','Cancelled'),('S23N01',N'Không tới','0981000013',1,49,'2030-01-01T19:00:00','2030-01-01T20:30:00','NoShow'); EXEC dbo.usp_CreateManagedTableReservation @TableId=49,@StartsAt='2030-01-01T19:00:00',@CustomerName=N'Được nhận',@Phone='0981000014',@InitialStatus='Pending',@ActorUserId=1;");
+        await Check(connection, "Managed schedule stores table, status, duration and cleanup boundary", "SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.Reservations WHERE TableId=45 AND StartsAt>='2030-01-01T19:00:00' AND Status IN ('Pending','Confirmed'))=3 AND EXISTS(SELECT 1 FROM dbo.Reservations WHERE TableId=49 AND CustomerName=N'Được nhận' AND Status='Pending') THEN 1 ELSE 0 END;");
+    }
+
+    private static async Task VerifyManagedReservationConcurrencyAndSuggestions(string connection)
+    {
+        const string start = "2030-02-04T19:00:00";
+        var race = await Task.WhenAll(Enumerable.Range(0, 10).Select(async index =>
+        {
+            try
+            {
+                await Call(connection, "usp_CreateManagedTableReservation",
+                    ("TableId", 53), ("StartsAt", DateTime.Parse(start)), ("CustomerName", "Race " + index),
+                    ("Phone", "09720000" + index.ToString("00")), ("InitialStatus", "Pending"), ("ActorUserId", 1));
+                return true;
+            }
+            catch (SqlException ex) when (ex.Number == 51060) { return false; }
+        }));
+        if (race.Count(result => result) != 1) throw new InvalidOperationException("Concurrent same-table reservation invariant failed.");
+        Console.WriteLine("PASS: 10 simultaneous managed reservations, exactly one succeeds.");
+
+        await Task.WhenAll(
+            Call(connection, "usp_CreateManagedTableReservation", ("TableId", 54), ("StartsAt", DateTime.Parse(start)), ("CustomerName", "Table 54"), ("Phone", "0972000101"), ("InitialStatus", "Pending"), ("ActorUserId", 1)),
+            Call(connection, "usp_CreateManagedTableReservation", ("TableId", 55), ("StartsAt", DateTime.Parse(start)), ("CustomerName", "Table 55"), ("Phone", "0972000102"), ("InitialStatus", "Confirmed"), ("ActorUserId", 1)));
+        Console.WriteLine("PASS: Concurrent reservations on different tables both succeed.");
+
+        var partialRace = await Task.WhenAll(new[] { "2030-02-05T19:00:00", "2030-02-05T19:30:00" }.Select(async time =>
+        {
+            try
+            {
+                await Call(connection, "usp_CreateManagedTableReservation", ("TableId", 56), ("StartsAt", DateTime.Parse(time)),
+                    ("CustomerName", "Partial " + time), ("Phone", time.EndsWith("00") ? "0972000103" : "0972000104"),
+                    ("InitialStatus", "Pending"), ("ActorUserId", 1));
+                return true;
+            }
+            catch (SqlException ex) when (ex.Number == 51060) { return false; }
+        }));
+        if (partialRace.Count(result => result) != 1) throw new InvalidOperationException("Concurrent partial-overlap invariant failed.");
+        Console.WriteLine("PASS: Concurrent partial overlap, exactly one succeeds.");
+
+        await DatabaseTool.Execute(connection, "EXEC dbo.usp_CreateManagedTableReservation @TableId=52,@StartsAt='2030-02-06T19:00:00',@CustomerName=N'Gợi ý',@Phone='0972000105',@InitialStatus='Pending',@ActorUserId=1;");
+        var suggestions = await ReadSuggestions(connection, 52, new DateTime(2030, 2, 6), new TimeSpan(19, 0, 0));
+        if (!suggestions.SequenceEqual(["20:45", "17:00", "21:00"]))
+            throw new InvalidOperationException("Suggestions were not ordered by nearest valid start time.");
+        Console.WriteLine("PASS: Suggestions respect cleanup, closing time and nearest-first order.");
+
+        var fullDayTimes = new[] { "08:00", "09:45", "11:30", "13:15", "15:00", "16:45", "18:30", "20:15" };
+        for (var index = 0; index < fullDayTimes.Length; index++)
+            await DatabaseTool.Execute(connection, $"EXEC dbo.usp_CreateManagedTableReservation @TableId=57,@StartsAt='2030-02-07T{fullDayTimes[index]}:00',@CustomerName=N'Kín ngày',@Phone='09720002{index:00}',@InitialStatus='Pending',@ActorUserId=1;");
+        if ((await ReadSuggestions(connection, 57, new DateTime(2030, 2, 7), new TimeSpan(19, 0, 0))).Count != 0)
+            throw new InvalidOperationException("A full-day table returned an unavailable suggestion.");
+        Console.WriteLine("PASS: Full-day table returns no suggestions.");
+    }
+
+    private static async Task<List<string>> ReadSuggestions(string connection, int tableId, DateTime date, TimeSpan desiredStart)
+    {
+        var slots = new List<string>();
+        await using var cn = new SqlConnection(connection);
+        await cn.OpenAsync();
+        await using var cmd = new SqlCommand("dbo.usp_GetManagedTableReservationSuggestions", cn) { CommandType = CommandType.StoredProcedure };
+        cmd.Parameters.AddWithValue("@TableId", tableId);
+        cmd.Parameters.AddWithValue("@ReservationDate", date.Date);
+        cmd.Parameters.AddWithValue("@DesiredStart", desiredStart);
+        cmd.Parameters.AddWithValue("@MaxSuggestions", 3);
+        await using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync()) slots.Add(reader.GetString(0));
+        return slots;
+    }
+
+    private static async Task VerifyManagedReservationRelease(string connection)
+    {
+        await DatabaseTool.Execute(connection, "EXEC dbo.usp_CreateManagedTableReservation @TableId=58,@StartsAt='2030-03-01T19:00:00',@CustomerName=N'Huỷ chờ',@Phone='0972000301',@InitialStatus='Pending',@ActorUserId=1; DECLARE @id bigint=(SELECT Id FROM dbo.Reservations WHERE CustomerName=N'Huỷ chờ'); EXEC dbo.usp_CancelManagedTableReservation @ReservationId=@id,@ActorUserId=1; EXEC dbo.usp_CreateManagedTableReservation @TableId=58,@StartsAt='2030-03-01T19:00:00',@CustomerName=N'Đặt lại',@Phone='0972000302',@InitialStatus='Pending',@ActorUserId=1;");
+        await Check(connection, "Cancelled pending reservation frees the table and preserves history", "SELECT CASE WHEN EXISTS(SELECT 1 FROM dbo.Reservations WHERE CustomerName=N'Huỷ chờ' AND Status='Cancelled') AND EXISTS(SELECT 1 FROM dbo.ReservationEvents e JOIN dbo.Reservations r ON r.Id=e.ReservationId WHERE r.CustomerName=N'Huỷ chờ' AND e.ToStatus='Cancelled') AND EXISTS(SELECT 1 FROM dbo.Reservations WHERE CustomerName=N'Đặt lại' AND Status='Pending') THEN 1 ELSE 0 END;");
+        await Reject(connection, "Cancelling twice is rejected clearly", "DECLARE @id bigint=(SELECT Id FROM dbo.Reservations WHERE CustomerName=N'Huỷ chờ'); EXEC dbo.usp_CancelManagedTableReservation @ReservationId=@id,@ActorUserId=1;", 51064);
+
+        await DatabaseTool.Execute(connection, "EXEC dbo.usp_CreateManagedTableReservation @TableId=59,@StartsAt='2030-03-01T19:00:00',@CustomerName=N'Huỷ xác nhận',@Phone='0972000303',@InitialStatus='Confirmed',@ActorUserId=1; DECLARE @id bigint=(SELECT Id FROM dbo.Reservations WHERE CustomerName=N'Huỷ xác nhận'); EXEC dbo.usp_CancelManagedTableReservation @ReservationId=@id,@ActorUserId=1; EXEC dbo.usp_CreateManagedTableReservation @TableId=59,@StartsAt='2030-03-01T19:00:00',@CustomerName=N'Đặt lại xác nhận',@Phone='0972000304',@InitialStatus='Confirmed',@ActorUserId=1;");
+        await Check(connection, "Cancelled confirmed reservation frees the table", "SELECT CASE WHEN EXISTS(SELECT 1 FROM dbo.Reservations WHERE CustomerName=N'Huỷ xác nhận' AND Status='Cancelled') AND EXISTS(SELECT 1 FROM dbo.Reservations WHERE CustomerName=N'Đặt lại xác nhận' AND Status='Confirmed') THEN 1 ELSE 0 END;");
+
+        await DatabaseTool.Execute(connection, "DECLARE @start datetime2(3)=DATEADD(minute,-60,DATEADD(minute,DATEDIFF(minute,0,SYSUTCDATETIME()),0)); EXEC dbo.usp_CreateManagedTableReservation @TableId=60,@StartsAt=@start,@CustomerName=N'Không tới',@Phone='0972000305',@InitialStatus='Confirmed',@ActorUserId=1; DECLARE @id bigint=(SELECT Id FROM dbo.Reservations WHERE CustomerName=N'Không tới'); EXEC dbo.usp_MarkManagedReservationNoShow @ReservationId=@id,@ActorUserId=1; EXEC dbo.usp_CreateManagedTableReservation @TableId=60,@StartsAt=@start,@CustomerName=N'Đặt sau không tới',@Phone='0972000306',@InitialStatus='Pending',@ActorUserId=1;");
+        await Check(connection, "No-show after appointment frees the table immediately", "SELECT CASE WHEN EXISTS(SELECT 1 FROM dbo.Reservations WHERE CustomerName=N'Không tới' AND Status='NoShow' AND NoShowAt IS NOT NULL) AND EXISTS(SELECT 1 FROM dbo.Reservations WHERE CustomerName=N'Đặt sau không tới' AND Status='Pending') THEN 1 ELSE 0 END;");
+        await DatabaseTool.Execute(connection, "DECLARE @start datetime2(3)=DATEADD(day,10,DATEADD(minute,DATEDIFF(minute,0,SYSUTCDATETIME()),0)); EXEC dbo.usp_CreateManagedTableReservation @TableId=44,@StartsAt=@start,@CustomerName=N'Chưa đến giờ',@Phone='0972000307',@InitialStatus='Pending',@ActorUserId=1;");
+        await Reject(connection, "No-show before appointment is rejected", "DECLARE @id bigint=(SELECT Id FROM dbo.Reservations WHERE CustomerName=N'Chưa đến giờ'); EXEC dbo.usp_MarkManagedReservationNoShow @ReservationId=@id,@ActorUserId=1;", 51065);
+        await Reject(connection, "No-show after cancellation is rejected", "DECLARE @id bigint=(SELECT Id FROM dbo.Reservations WHERE CustomerName=N'Huỷ chờ'); EXEC dbo.usp_MarkManagedReservationNoShow @ReservationId=@id,@ActorUserId=1;", 51064);
     }
 
     private static async Task MergeAndQr(string connection)

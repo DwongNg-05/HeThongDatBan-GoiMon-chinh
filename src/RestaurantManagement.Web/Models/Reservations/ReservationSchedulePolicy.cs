@@ -33,7 +33,10 @@ public sealed record TableReservationInterval(int TableId, DateTime StartsAtUtc,
 
 public static class ReservationCapacityPolicy
 {
+    public const int CleanupMinutes = 15;
+
     public static bool HasAvailableTable(IEnumerable<int> tableIds, IEnumerable<TableReservationInterval> reservations, DateTime startsAtUtc, DateTime endsAtUtc) =>
         tableIds.Any(tableId => !reservations.Any(reservation => reservation.TableId == tableId
-            && reservation.StartsAtUtc < endsAtUtc && reservation.EndsAtUtc > startsAtUtc));
+            && reservation.StartsAtUtc < endsAtUtc.AddMinutes(CleanupMinutes)
+            && startsAtUtc < reservation.EndsAtUtc.AddMinutes(CleanupMinutes)));
 }

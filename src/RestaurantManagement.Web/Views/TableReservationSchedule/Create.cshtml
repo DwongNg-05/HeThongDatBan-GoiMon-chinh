@@ -1,0 +1,37 @@
+@model RestaurantManagement.Web.Models.Reservations.ManagedTableReservationCreateViewModel
+@{ ViewData["Title"] = "Tạo lượt đặt bàn"; }
+<div class="container mt-4"><div class="row justify-content-center"><div class="col-lg-7"><div class="card shadow-sm"><div class="card-body">
+    <h2 class="mb-3">Tạo lượt đặt bàn</h2><p class="text-muted">Một lượt mặc định kéo dài 90 phút và giữ thêm 15 phút để dọn bàn.</p>
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+    @if (Model.HasConflict)
+    {
+        <div class="alert alert-warning">
+            <strong>Bàn vừa có người đặt.</strong>
+            @if (Model.SuggestedStartTimes.Count > 0)
+            {
+                <span> Các giờ gần nhất còn trống:</span>
+                <div class="d-flex flex-wrap gap-2 mt-2">
+                @foreach (var time in Model.SuggestedStartTimes) { <button type="button" class="btn btn-outline-primary btn-sm" data-suggested-time="@time">@time</button> }
+                </div>
+            }
+            else { <span> Không còn khung giờ nào phù hợp trong ngày này.</span> }
+            <a asp-action="Index" asp-route-date="@(Model.ReservationDate?.ToString("yyyy-MM-dd"))" class="d-block mt-2">Xem lịch bàn đã cập nhật</a>
+        </div>
+    }
+    <form method="post">
+        <div class="mb-3"><label asp-for="TableId" class="form-label"></label><select asp-for="TableId" class="form-select"><option value="">-- Chọn bàn --</option>@foreach (var table in Model.Tables) { <option value="@table.Id">Bàn @table.Code · @table.AreaName · tối đa @table.MaxCapacity khách</option> }</select><span asp-validation-for="TableId" class="text-danger"></span></div>
+        <div class="row"><div class="col-md-6 mb-3"><label asp-for="ReservationDate" class="form-label"></label><input asp-for="ReservationDate" type="date" class="form-control" /><span asp-validation-for="ReservationDate" class="text-danger"></span></div><div class="col-md-6 mb-3"><label asp-for="StartTime" class="form-label"></label><input asp-for="StartTime" type="time" step="1800" class="form-control" /><span asp-validation-for="StartTime" class="text-danger"></span></div></div>
+        <div class="mb-3"><label asp-for="CustomerName" class="form-label"></label><input asp-for="CustomerName" class="form-control" /><span asp-validation-for="CustomerName" class="text-danger"></span></div>
+        <div class="mb-3"><label asp-for="Phone" class="form-label"></label><input asp-for="Phone" class="form-control" inputmode="numeric" /><span asp-validation-for="Phone" class="text-danger"></span></div>
+        <div class="mb-4"><label asp-for="InitialStatus" class="form-label"></label><select asp-for="InitialStatus" class="form-select"><option value="Pending">Chờ xác nhận</option><option value="Confirmed">Đã xác nhận</option></select><span asp-validation-for="InitialStatus" class="text-danger"></span></div>
+        <button class="btn btn-primary" type="submit">Tạo lượt đặt</button><a asp-action="Index" asp-route-date="@(Model.ReservationDate?.ToString("yyyy-MM-dd"))" class="btn btn-outline-secondary ms-2">Quay lại lịch</a>
+    </form>
+</div></div></div></div></div>
+@section Scripts {
+    <script>
+        document.querySelectorAll("[data-suggested-time]").forEach(button => button.addEventListener("click", () => {
+            const time = document.getElementById("StartTime");
+            if (time) { time.value = button.dataset.suggestedTime; time.focus(); }
+        }));
+    </script>
+}
