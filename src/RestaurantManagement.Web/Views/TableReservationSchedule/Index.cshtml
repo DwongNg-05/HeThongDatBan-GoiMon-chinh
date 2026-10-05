@@ -1,0 +1,38 @@
+@model RestaurantManagement.Web.Models.Reservations.TableReservationScheduleViewModel
+@{ ViewData["Title"] = "Lịch đặt bàn"; }
+<div class="container mt-4">
+    <div class="d-flex flex-wrap gap-3 justify-content-between align-items-end mb-3">
+        <div><h2 class="mb-1">Lịch bàn theo ngày</h2><p class="text-muted mb-0">Mỗi lượt giữ bàn thêm 15 phút để dọn bàn. Thời gian hiển thị theo giờ Việt Nam.</p></div>
+        <a asp-action="Create" asp-route-date="@Model.Date.ToString("yyyy-MM-dd")" class="btn btn-primary">+ Tạo lượt đặt bàn</a>
+    </div>
+    <form method="get" class="row row-cols-lg-auto g-2 align-items-end mb-4">
+        <div class="col"><label class="form-label" for="schedule-date">Ngày xem lịch</label><input id="schedule-date" name="date" type="date" value="@Model.Date.ToString("yyyy-MM-dd")" class="form-control" /></div>
+        <div class="col"><button class="btn btn-outline-primary" type="submit">Xem lịch</button></div>
+    </form>
+    @if (TempData["Success"] is string success) { <div class="alert alert-success">@success</div> }
+    @if (Model.Tables.Count == 0) { <div class="alert alert-info">Chưa có bàn đang hoạt động.</div> }
+    @foreach (var table in Model.Tables)
+    {
+        <section class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center"><strong>Bàn @table.TableCode · @table.AreaName</strong><span class="text-muted">Tối đa @table.MaxCapacity khách</span></div>
+            <div class="card-body">
+                @if (table.Reservations.Count == 0)
+                {
+                    <span class="text-success">Trống trong ngày này.</span>
+                }
+                else
+                {
+                    <div class="row g-2">
+                    @foreach (var reservation in table.Reservations)
+                    {
+                        <div class="col-md-6 col-xl-4"><article class="border rounded p-3 h-100">
+                            <div class="d-flex justify-content-between gap-2"><strong>@reservation.StartsAt.ToString("HH:mm") – @reservation.EndsAt.ToString("HH:mm")</strong><span class="badge @(reservation.Status == "Confirmed" ? "text-bg-success" : reservation.Status == "Pending" ? "text-bg-warning" : "text-bg-secondary")">@reservation.Status</span></div>
+                            <div class="mt-2">@reservation.CustomerName · @reservation.Phone</div><small class="text-muted">Mã @reservation.Code · Dọn bàn đến @reservation.EndsAt.AddMinutes(15).ToString("HH:mm")</small>
+                        </article></div>
+                    }
+                    </div>
+                }
+            </div>
+        </section>
+    }
+</div>

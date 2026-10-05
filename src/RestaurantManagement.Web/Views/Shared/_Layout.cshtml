@@ -38,6 +38,10 @@
                 <ul class="sidebar-links">
                         @if (User.Identity?.IsAuthenticated == true)
                         {
+                        @if (User.IsInRole("Manager"))
+                        {
+                        <li class="nav-item"><a class="sidebar-link @(IsCurrent("TableReservationSchedule", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("TableReservationSchedule", "Index") ? "page" : null)" asp-controller="TableReservationSchedule" asp-action="Index">Lịch đặt bàn</a></li>
+                        }
                         <li class="nav-item"><a class="sidebar-link @(IsCurrent("ReservationManagement", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("ReservationManagement", "Index") ? "page" : null)" asp-controller="ReservationManagement" asp-action="Index">Đặt bàn</a></li>
                         <li class="nav-item"><a class="sidebar-link @(IsCurrent("Areas", "Index") || IsCurrent("Tables", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("Areas", "Index") || IsCurrent("Tables", "Index") ? "page" : null)" asp-controller="Areas" asp-action="Index">Khu vực &amp; bàn</a></li>
                         <li class="nav-item"><a class="sidebar-link @(IsCurrent("Home", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("Home", "Index") ? "page" : null)" asp-controller="Home" asp-action="Index">Sơ đồ bàn</a></li>
