@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace RestaurantManagement.Web.Models.Reservations;
 
@@ -48,6 +48,11 @@ public class ReservationCreateViewModel
 
     /// <summary>Bàn còn trống cho giờ, số khách và khu vực đang chọn.</summary>
     public List<BookingTableOption> Tables { get; set; } = new();
+    [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]
+    public DateOnly MinimumReservationDate { get; set; }
+
+    [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]
+    public DateOnly MaximumReservationDate { get; set; }
 }
 
 public class BookingTableOption
