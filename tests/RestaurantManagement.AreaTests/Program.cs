@@ -117,6 +117,7 @@ Check(RestaurantManagement.Web.Models.Reservations.BookingTime.NextStart(day.Add
 Check(RestaurantManagement.Web.Models.Reservations.BookingTime.NextStart(day.AddHours(21).AddMinutes(30)) == day.AddDays(1).AddHours(8), "Late default moves to next morning");
 Check(RestaurantManagement.Web.Models.Reservations.BookingTime.NextStart(day.AddHours(23).AddMinutes(50)) == day.AddDays(1).AddHours(8), "Midnight rollover");
 ReservationInputValidationTests.Run(Check);
+PendingReservationLimitTests.Run(Check);
 MenuTests.Run(Check);
 PublicMenuTests.Run(Check);
 GuestMenuEntryTests.Run(Check);
