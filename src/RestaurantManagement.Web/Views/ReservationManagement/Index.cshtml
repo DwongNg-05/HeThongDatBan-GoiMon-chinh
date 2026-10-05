@@ -7,17 +7,15 @@
          data-url="@Url.Action("Daily")"
          data-date="@Model.ToString("yyyy-MM-dd")"
          data-follow-today="true">
+    <partial name="_ReservationManagementTabs" />
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
         <div>
             <h1 class="h3">Danh sách đặt bàn</h1>
             <p class="text-muted mb-0">Xem lịch hẹn để chuẩn bị bàn đầu ca.</p>
         </div>
         <div class="d-flex gap-2">
-            @if (User.IsInRole("Manager"))
-            {
-                <a asp-controller="TableReservationSchedule" asp-action="Index" class="btn btn-outline-primary">Lịch bàn</a>
-            }
-            <a asp-controller="PublicReservations" asp-action="Create" class="btn btn-primary">+ Đặt bàn mới</a>
+            <a asp-controller="ReservationConfirmations" asp-action="Index" class="btn btn-outline-primary">Xử lý đơn chờ</a>
+            @if (User.IsInRole("Manager")) { <a asp-controller="TableReservationSchedule" asp-action="Create" class="btn btn-primary">+ Tạo lượt thủ công</a> }
         </div>
     </div>
 

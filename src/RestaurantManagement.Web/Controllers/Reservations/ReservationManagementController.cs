@@ -6,7 +6,7 @@ using System.Data;
 
 namespace RestaurantManagement.Web.Controllers;
 
-[Authorize]
+[Authorize(Roles = "Manager,Waiter")]
 [Route("ReservationManagement")]
 public class ReservationManagementController(IConfiguration configuration) : Controller
 {

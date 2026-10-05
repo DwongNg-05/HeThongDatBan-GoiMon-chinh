@@ -1,5 +1,6 @@
 @model RestaurantManagement.Web.Models.Reservations.ReservationConfirmation
 @{ ViewData["Title"] = "Xác nhận đặt bàn " + Model.Code; }
+<partial name="_ReservationManagementTabs" />
 <h1>Lượt đặt @Model.Code</h1>
 @if (TempData["Success"] is string success) { <div class="alert alert-success" role="status">@success</div> }
 <div asp-validation-summary="All" class="text-danger" role="alert"></div>
@@ -90,5 +91,5 @@ else
 }
 </section>
 <a asp-action="Index" class="btn btn-outline-secondary">Danh sách chờ</a>
-<a asp-action="Schedule" asp-route-day="@Model.StartsAt.ToString("yyyy-MM-dd")" class="btn btn-outline-primary">Xem lịch giữ bàn</a>
+@if (User.IsInRole("Manager")) { <a asp-controller="TableReservationSchedule" asp-action="Index" asp-route-date="@Model.StartsAt.ToString("yyyy-MM-dd")" class="btn btn-outline-primary">Xem lịch bàn theo ngày</a> }
 @section Scripts { <script src="~/js/reservation-rejection.js" asp-append-version="true"></script> }
