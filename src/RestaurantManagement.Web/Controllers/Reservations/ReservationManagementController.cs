@@ -14,15 +14,28 @@ public class ReservationManagementController(IConfiguration configuration) : Con
         ?? throw new InvalidOperationException("Chưa cấu hình ConnectionStrings:DefaultConnection.");
 
     [HttpGet("")]
-    public async Task<IActionResult> Index()
+    public IActionResult Index() => View(DailyReservationRules.Today(DateTime.UtcNow));
+
+    [HttpGet("Daily")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public async Task<IActionResult> Daily(string? date, CancellationToken cancellationToken, string? status = null)
     {
-        var reservations = new List<ReservationListItemViewModel>();
-        await using var connection = new SqlConnection(ConnectionString);
-        await using var command = new SqlCommand(Query + " ORDER BY r.StartsAt DESC, r.Id DESC;", connection);
-        await connection.OpenAsync();
-        await using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync()) reservations.Add(Read(reader));
-        return View(reservations);
+        var now = DateTime.UtcNow;
+        var selected = DailyReservationRules.Today(now);
+        if (date is not null && (!DateOnly.TryParseExact(date, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None, out selected) || selected.Year is < 1900 or > 9998))
+            return BadRequest(new { message = "Ngày xem không hợp lệ." });
+        if (!DailyReservationRules.IsSupportedFilter(status))
+            return BadRequest(new { message = "Trạng thái lọc không hợp lệ." });
+
+        try
+        {
+            return Json(await new DailyReservationStore(ConnectionString).Read(selected, cancellationToken, status, now));
+        }
+        catch (SqlException)
+        {
+            return StatusCode(503, new { message = "Không thể tải danh sách đặt bàn. Vui lòng thử lại." });
+        }
     }
 
     [HttpGet("Details/{id:long}")]

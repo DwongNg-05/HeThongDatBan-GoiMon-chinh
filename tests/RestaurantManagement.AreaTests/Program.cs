@@ -120,6 +120,8 @@ ReservationInputValidationTests.Run(Check);
 PendingReservationLimitTests.Run(Check);
 ReservationSlotPolicyTests.Run(Check);
 ReservationCapacityPolicyTests.Run(Check);
+DailyReservationTests.Run(Check);
+if (args.Contains("--daily-reservations-sql")) await DailyReservationTests.Sql(Check);
 MenuTests.Run(Check);
 PublicMenuTests.Run(Check);
 MenuSearchTests.Run(Check);
