@@ -71,7 +71,8 @@ public class ReservationStore
                 settings.Phone AS RestaurantPhone,
                 settings.CancelCutoffMinutes,
                 SYSUTCDATETIME() AS ServerNow,
-                r.Email
+                r.Email,
+                r.RejectionReason
             FROM dbo.Reservations r
             LEFT JOIN dbo.Areas preferredArea
                 ON preferredArea.Id = r.PreferredAreaId
@@ -141,7 +142,12 @@ public class ReservationStore
 			Email =
 				reader.IsDBNull(9)
 					? null
-					: reader.GetString(9)
+					: reader.GetString(9),
+
+			RejectionReason =
+				reader.IsDBNull(10)
+					? null
+					: reader.GetString(10)
 		};
 
 		var allowedStatus =
@@ -168,7 +174,7 @@ public class ReservationStore
 					"Đặt bàn này đã được ghi nhận vắng mặt.",
 
 				"Rejected" =>
-					"Đặt bàn này đã bị từ chối.",
+					result.RejectionMessage ?? "Đặt bàn này đã bị từ chối.",
 
 				"Pending" or "Confirmed"
 					when !enoughTime =>

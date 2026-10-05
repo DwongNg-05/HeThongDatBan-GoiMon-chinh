@@ -1,0 +1,94 @@
+@model RestaurantManagement.Web.Models.Reservations.ReservationConfirmation
+@{ ViewData["Title"] = "Xác nhận đặt bàn " + Model.Code; }
+<h1>Lượt đặt @Model.Code</h1>
+@if (TempData["Success"] is string success) { <div class="alert alert-success" role="status">@success</div> }
+<div asp-validation-summary="All" class="text-danger" role="alert"></div>
+<dl class="row">
+<dt class="col-sm-3">Khách hàng</dt><dd class="col-sm-9">@Model.CustomerName — @Model.Phone</dd>
+<dt class="col-sm-3">Số khách</dt><dd class="col-sm-9">@Model.GuestCount</dd>
+<dt class="col-sm-3">Khung giờ (Việt Nam)</dt><dd class="col-sm-9">@Model.StartsAt.ToString("dd/MM/yyyy HH:mm") – @Model.EndsAt.ToString("dd/MM/yyyy HH:mm")</dd>
+<dt class="col-sm-3">Khu vực mong muốn</dt><dd class="col-sm-9">@(Model.AreaName ?? "Không yêu cầu")</dd>
+<dt class="col-sm-3">Trạng thái</dt><dd class="col-sm-9">@Model.StatusLabel</dd>
+@if (Model.TableCode != null) { <dt class="col-sm-3">Bàn đã giữ</dt><dd class="col-sm-9">@Model.TableCode — Đã đặt trước trong khung giờ trên</dd> }
+</dl>
+@if(Model.Status=="Rejected")
+{
+<div class="alert alert-info"><strong>Lý do từ chối:</strong> @RestaurantManagement.Web.Models.Reservations.RejectionReasons.CustomerText(Model.RejectionReason)</div>
+}
+@if (Model.Status == "Confirmed" || Model.EmailStatus != null)
+{
+<div class="alert alert-info" role="status"><strong>@Model.NotificationLabel</strong>
+@if (Model.EmailError != null) { <p>@Model.EmailError</p> }
+</div>
+}
+@if (Model.CanConfirm)
+{
+<h2>Chọn bàn</h2>
+<p>Đơn khách đã giữ bàn từ khi tạo. Xác nhận sẽ giữ nguyên bàn đó; các đơn cũ chưa có bàn mới hiển thị danh sách gợi ý.</p>
+@if (Model.Tables.Count == 0) { <div class="alert alert-warning">Không có bàn trống đủ chỗ trong khung giờ này. Vui lòng làm mới để kiểm tra lại.</div> }
+else
+{
+<form asp-action="Confirm" asp-route-id="@Model.Id" method="post">
+<fieldset><legend class="fs-6">Bàn còn trống, đủ chỗ</legend>
+@foreach (var table in Model.Tables)
+{
+<div class="form-check mb-2"><input class="form-check-input" type="radio" asp-for="SelectedTableId" value="@table.Id" id="table-@table.Id" required /><label class="form-check-label" for="table-@table.Id">Bàn @table.Code — @table.MaxCapacity chỗ — @table.AreaName</label></div>
+}
+</fieldset>
+<button type="submit" class="btn btn-primary my-3">Xác nhận lượt đặt</button>
+</form>
+}
+}
+else if (Model.Status == "Pending") { <div class="alert alert-warning">Giờ hẹn đã qua. Không thể xác nhận lượt đặt này.</div> }
+@if(Model.Status=="Pending")
+{
+<details class="my-4 border rounded p-3">
+<summary class="text-danger">Từ chối lượt đặt</summary>
+<form asp-action="Reject" asp-route-id="@Model.Id" method="post" class="mt-3">
+<label for="rejection-reason" class="form-label">Lý do từ chối (bắt buộc)</label>
+<select name="reason" id="rejection-reason" class="form-select" required>
+<option value="">-- Chọn lý do --</option>
+@foreach(var reason in RestaurantManagement.Web.Models.Reservations.RejectionReasons.Labels)
+{
+<option value="@reason.Key">@reason.Value</option>
+}
+</select>
+<p class="text-muted mt-2">Khách sẽ thấy lý do này khi tra cứu lượt đặt. Không gửi thông báo tự động.</p>
+<button id="submit-rejection" class="btn btn-danger" type="submit" disabled>Gửi từ chối</button>
+</form>
+</details>
+}
+<a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary">Làm mới</a>
+@if(Model.CanChangeTable)
+{
+<details class="my-4 border rounded p-3"><summary>Đổi bàn</summary>
+@if(Model.ReplacementTables.Count==0) { <p class="alert alert-warning mt-3">Không có bàn thay thế còn trống và đủ chỗ trong khung giờ này.</p> }
+else
+{
+<form asp-action="ChangeTable" asp-route-id="@Model.Id" method="post" class="mt-3">
+<input type="hidden" name="expectedTableId" value="@Model.TableId" />
+<label for="new-table" class="form-label">Bàn thay thế</label>
+<select id="new-table" name="newTableId" class="form-select" required><option value="">-- Chọn bàn --</option>
+@foreach(var table in Model.ReplacementTables) { <option value="@table.Id">Bàn @table.Code — @table.MaxCapacity chỗ — @table.AreaName</option> }
+</select>
+<label for="change-reason" class="form-label mt-3">Lý do đổi (không bắt buộc)</label>
+<textarea id="change-reason" name="changeReason" maxlength="500" class="form-control"></textarea>
+<p>Chỉ được đổi trước giờ hẹn. Không gửi thông báo tự động cho khách.</p>
+<button class="btn btn-primary mt-2" type="submit">Xác nhận đổi bàn</button>
+</form>
+}
+</details>
+}
+else if(Model.Status=="Confirmed") { <p class="alert alert-warning mt-3">Đã đến hoặc quá giờ hẹn. Không thể đổi bàn.</p> }
+<section class="mt-4" aria-labelledby="table-history"><h2 id="table-history" class="h4">Lịch sử đổi bàn</h2>
+@if(Model.TableChanges.Count==0) { <p>Chưa có lần đổi bàn nào.</p> }
+else
+{
+<div class="table-responsive"><table class="table"><thead><tr><th>Thời điểm (Việt Nam)</th><th>Bàn cũ</th><th>Bàn mới</th><th>Người đổi</th><th>Lý do</th></tr></thead><tbody>
+@foreach(var change in Model.TableChanges) { <tr><td>@change.ChangedAt.ToString("dd/MM/yyyy HH:mm:ss")</td><td>@change.OldTableCode</td><td>@change.NewTableCode</td><td>@change.ActorName</td><td>@(change.Reason??"Không ghi lý do")</td></tr> }
+</tbody></table></div>
+}
+</section>
+<a asp-action="Index" class="btn btn-outline-secondary">Danh sách chờ</a>
+<a asp-action="Schedule" asp-route-day="@Model.StartsAt.ToString("yyyy-MM-dd")" class="btn btn-outline-primary">Xem lịch giữ bàn</a>
+@section Scripts { <script src="~/js/reservation-rejection.js" asp-append-version="true"></script> }

@@ -23,6 +23,8 @@ public class ReservationDetailsViewModel
 
 	public string? CancellationMessage { get; set; }
 
+	public string? RejectionReason { get; set; }
+
 	public string StatusLabel => Status switch
 	{
 		"Pending" => "Chờ xác nhận",
@@ -65,4 +67,12 @@ public class ReservationDetailsViewModel
 			return $"{localPart[0]}{new string('*', Math.Max(3, localPart.Length - 1))}{domain}";
 		}
 	}
+
+	public string? RejectionMessage => RejectionReason switch
+	{
+		"NoTable" => "Nhà hàng đã hết bàn phù hợp trong khung giờ bạn chọn.",
+		"OutsideHours" => "Thời gian đặt bàn nằm ngoài giờ phục vụ.",
+		"Unreachable" => "Nhà hàng không liên lạc được với bạn để xác nhận đặt bàn.",
+		_ => null
+	};
 }

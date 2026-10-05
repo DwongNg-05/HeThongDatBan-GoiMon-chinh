@@ -18,6 +18,7 @@ builder.Configuration["ConnectionStrings:DefaultConnection"] = sqlConnectionStri
 builder.Services.AddScoped<AuditLogService>();
 builder.Services.AddScoped<RestaurantManagement.Web.Services.Reservations.ReservationSlotService>();
 builder.Services.AddScoped<ReservationStore>();
+builder.Services.AddScoped<ReservationConfirmationService>();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(

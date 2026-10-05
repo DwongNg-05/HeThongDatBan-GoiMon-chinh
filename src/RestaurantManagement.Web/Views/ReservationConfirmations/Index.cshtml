@@ -1,0 +1,16 @@
+@model List<RestaurantManagement.Web.Models.Reservations.PendingReservation>
+@{ ViewData["Title"] = "Lượt đặt chờ xác nhận"; }
+<h1>Lượt đặt chờ xác nhận</h1>
+@if(TempData["Success"] is string success) { <div class="alert alert-success" role="status">@success</div> }
+<p>Giờ hẹn theo giờ Việt Nam. Mỗi đơn chờ đã giữ một bàn phù hợp; mở chi tiết để xác nhận hoặc từ chối.</p>
+<a asp-action="Schedule" class="btn btn-outline-primary mb-3">Lịch bàn đã đặt trước</a>
+@if (Model.Count == 0) { <div class="alert alert-info">Không có lượt đặt đang chờ xử lý.</div> }
+else
+{
+<div class="table-responsive"><table class="table"><thead><tr><th>Mã đặt</th><th>Khách hàng</th><th>Số khách</th><th>Khung giờ</th><th>Khu vực mong muốn</th><th></th></tr></thead><tbody>
+@foreach (var row in Model)
+{
+<tr><td>@row.Code</td><td>@row.CustomerName</td><td>@row.GuestCount</td><td>@row.StartsAt.ToString("dd/MM/yyyy HH:mm") – @row.EndsAt.ToString("HH:mm")</td><td>@(row.AreaName ?? "Không yêu cầu")</td><td><a asp-action="Details" asp-route-id="@row.Id">Xử lý đơn</a></td></tr>
+}
+</tbody></table></div>
+}
