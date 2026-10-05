@@ -55,7 +55,7 @@
 
     <div class="mb-3">
         <label asp-for="Dish.PrepMinutes" class="form-label">Thời gian chế biến (phút)</label>
-        <input asp-for="Dish.PrepMinutes" class="form-control" />
+        <input asp-for="Dish.PrepMinutes" type="number" min="1" max="240" class="form-control" />
         <span asp-validation-for="Dish.PrepMinutes" class="text-danger"></span>
     </div>
 

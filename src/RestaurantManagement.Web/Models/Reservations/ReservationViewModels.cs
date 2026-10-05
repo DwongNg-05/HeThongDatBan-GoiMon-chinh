@@ -5,42 +5,54 @@ namespace RestaurantManagement.Web.Models.Reservations;
 public class ReservationCreateViewModel
 {
     [Required(ErrorMessage = "Vui lòng nhập tên khách hàng.")]
-    [StringLength(100)]
+    [StringLength(100, ErrorMessage = "Họ tên không được vượt quá 100 ký tự.")]
     [Display(Name = "Tên khách hàng")]
     public string CustomerName { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Vui lòng nhập số điện thoại.")]
-    [RegularExpression(
-        @"^0[0-9]{9}$",
-        ErrorMessage = "Số điện thoại phải gồm 10 chữ số.")]
+    [RegularExpression(@"^0\d{9}$", ErrorMessage = "Số điện thoại phải gồm đúng 10 chữ số và bắt đầu bằng 0.")]
     [Display(Name = "Số điện thoại")]
     public string Phone { get; set; } = string.Empty;
 
-    [Range(
-        1,
-        20,
-        ErrorMessage = "Số khách phải từ 1 đến 20.")]
+    [Required(ErrorMessage = "Vui lòng nhập số khách.")]
+    [Range(1, 20, ErrorMessage = "Số khách phải là số nguyên từ 1 đến 20. Đoàn trên 20 khách, vui lòng liên hệ trực tiếp nhà hàng.")]
     [Display(Name = "Số khách")]
-    public int GuestCount { get; set; } = 2;
+    public int? GuestCount { get; set; } = 2;
 
-    [Required(ErrorMessage = "Vui lòng chọn thời gian đặt bàn.")]
-    [Display(Name = "Thời gian")]
-    [Microsoft.AspNetCore.Mvc.ModelBinder(BinderType = typeof(VietnamBookingTimeBinder))]
-    public DateTime StartsAt { get; set; }
+    [Required(ErrorMessage = "Vui lòng chọn ngày đặt bàn.")]
+    [Display(Name = "Ngày đặt bàn")]
+    public DateOnly? ReservationDate { get; set; }
+
+    [Required(ErrorMessage = "Vui lòng chọn khung giờ.")]
+    [Display(Name = "Khung giờ")]
+    public TimeOnly? ReservationTime { get; set; }
 
     [Display(Name = "Khu vực")]
     public int? PreferredAreaId { get; set; }
 
-    [EmailAddress(
-        ErrorMessage = "Email không hợp lệ.")]
-    [Display(Name = "Email")]
-    public string? Email { get; set; }
-
-    [StringLength(500)]
+    [StringLength(500, ErrorMessage = "Ghi chú không được vượt quá 500 ký tự.")]
     [Display(Name = "Ghi chú")]
     public string? Notes { get; set; }
 
     public List<BookingAreaOption> Areas { get; set; } = new();
+
+    [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]
+    public DateOnly MinimumReservationDate { get; set; }
+
+    [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]
+    public DateOnly MaximumReservationDate { get; set; }
+}
+
+public class ReservationConfirmationViewModel
+{
+    public string Code { get; init; } = string.Empty;
+    public string CustomerName { get; init; } = string.Empty;
+    public string Phone { get; init; } = string.Empty;
+    public int GuestCount { get; init; }
+    public DateOnly ReservationDate { get; init; }
+    public TimeOnly ReservationTime { get; init; }
+    public string AreaName { get; init; } = "Không yêu cầu";
+    public string? Notes { get; init; }
 }
 
 public class BookingAreaOption
@@ -71,4 +83,6 @@ public class ReservationListItemViewModel
     public DateTime EndsAt { get; set; }
 
     public string Status { get; set; } = string.Empty;
+
+    public string? Notes { get; set; }
 }
