@@ -20,14 +20,22 @@ public class ReservationStore
 		string code,
 		string phone)
 	{
-		var normalizedPhone = ReservationPhoneNormalizer.Normalize(phone);
-		var normalizedCode = code.Trim().ToUpperInvariant();
+		var normalizedPhone =
+			ReservationPhoneNormalizer.Normalize(phone);
+
+		var normalizedCode =
+			code.Trim().ToUpperInvariant();
 
 		// Không để SQL tự cắt mã quá dài thành một mã hợp lệ.
-		if (normalizedPhone is null || normalizedCode.Length != 6)
+		if (normalizedPhone is null ||
+			normalizedCode.Length != 6)
+		{
 			return null;
+		}
 
-		await using var connection = new SqlConnection(_connectionString);
+		await using var connection =
+			new SqlConnection(_connectionString);
+
 		await connection.OpenAsync();
 
 		const string sql = """
@@ -36,11 +44,15 @@ public class ReservationStore
                 r.Status,
                 r.StartsAt,
                 r.GuestCount,
-                COALESCE(preferredArea.Name, tableArea.Name) AS AreaName,
+                COALESCE(
+                    preferredArea.Name,
+                    tableArea.Name
+                ) AS AreaName,
                 t.Code AS TableCode,
                 settings.Phone AS RestaurantPhone,
                 settings.CancelCutoffMinutes,
-                SYSUTCDATETIME() AS ServerNow
+                SYSUTCDATETIME() AS ServerNow,
+                r.Email
             FROM dbo.Reservations r
             LEFT JOIN dbo.Areas preferredArea
                 ON preferredArea.Id = r.PreferredAreaId
@@ -54,15 +66,19 @@ public class ReservationStore
                 AND r.Phone = @Phone;
             """;
 
-		await using var command = new SqlCommand(sql, connection);
+		await using var command =
+			new SqlCommand(sql, connection);
 
-		command.Parameters.Add("@Code", SqlDbType.Char, 6)
+		command.Parameters
+			.Add("@Code", SqlDbType.Char, 6)
 			.Value = normalizedCode;
 
-		command.Parameters.Add("@Phone", SqlDbType.VarChar, 10)
+		command.Parameters
+			.Add("@Phone", SqlDbType.VarChar, 10)
 			.Value = normalizedPhone;
 
-		await using var reader = await command.ExecuteReaderAsync();
+		await using var reader =
+			await command.ExecuteReaderAsync();
 
 		if (!await reader.ReadAsync())
 			return null;
@@ -75,76 +91,182 @@ public class ReservationStore
 			reader.GetDateTime(8),
 			DateTimeKind.Utc);
 
-		var cutoffMinutes = reader.GetInt32(7);
+		var cutoffMinutes =
+			reader.GetInt32(7);
 
 		var result = new ReservationDetailsViewModel
 		{
 			Code = reader.GetString(0).Trim(),
+
 			Status = reader.GetString(1),
-			StartsAtUtc = new DateTimeOffset(startsAt),
-			GuestCount = reader.GetInt32(3),
-			AreaName = reader.IsDBNull(4) ? null : reader.GetString(4),
-			TableCode = reader.IsDBNull(5) ? null : reader.GetString(5),
-			RestaurantPhone = reader.GetString(6)
+
+			StartsAtUtc =
+				new DateTimeOffset(startsAt),
+
+			GuestCount =
+				reader.GetInt32(3),
+
+			AreaName =
+				reader.IsDBNull(4)
+					? null
+					: reader.GetString(4),
+
+			TableCode =
+				reader.IsDBNull(5)
+					? null
+					: reader.GetString(5),
+
+			RestaurantPhone =
+				reader.GetString(6),
+
+			Email =
+				reader.IsDBNull(9)
+					? null
+					: reader.GetString(9)
 		};
 
 		var allowedStatus =
 			result.Status is "Pending" or "Confirmed";
 
 		var enoughTime =
-			startsAt >= serverNow.AddMinutes(cutoffMinutes);
+			startsAt >=
+			serverNow.AddMinutes(cutoffMinutes);
 
-		result.CanCancel = allowedStatus && enoughTime;
+		result.CanCancel =
+			allowedStatus && enoughTime;
 
-		result.CancellationMessage = result.Status switch
-		{
-			"Cancelled" => "Đặt bàn này đã được huỷ.",
-			"Arrived" =>
-				"Bạn đã đến quán. Vui lòng liên hệ nhân viên để được hỗ trợ.",
-			"NoShow" =>
-				"Đặt bàn này đã được ghi nhận vắng mặt.",
-			"Rejected" =>
-				"Đặt bàn này đã bị từ chối.",
-			"Pending" or "Confirmed" when !enoughTime =>
-				$"Đặt bàn còn dưới {cutoffMinutes} phút đến giờ hẹn. " +
-				"Vui lòng gọi trực tiếp cho quán để được hỗ trợ.",
-			"Pending" or "Confirmed" => null,
-			_ => "Trạng thái hiện tại không cho phép huỷ."
-		};
+		result.CancellationMessage =
+			result.Status switch
+			{
+				"Cancelled" =>
+					"Đặt bàn này đã được huỷ.",
+
+				"Arrived" =>
+					"Bạn đã đến quán. " +
+					"Vui lòng liên hệ nhân viên để được hỗ trợ.",
+
+				"NoShow" =>
+					"Đặt bàn này đã được ghi nhận vắng mặt.",
+
+				"Rejected" =>
+					"Đặt bàn này đã bị từ chối.",
+
+				"Pending" or "Confirmed"
+					when !enoughTime =>
+					$"Đặt bàn còn dưới {cutoffMinutes} phút " +
+					"đến giờ hẹn. Vui lòng gọi trực tiếp " +
+					"cho quán để được hỗ trợ.",
+
+				"Pending" or "Confirmed" =>
+					null,
+
+				_ =>
+					"Trạng thái hiện tại không cho phép huỷ."
+			};
 
 		return result;
 	}
 
-	public async Task CancelAsync(string code, string phone)
+	public async Task CancelAsync(
+		string code,
+		string phone)
 	{
-		var normalizedPhone = ReservationPhoneNormalizer.Normalize(phone);
-		var normalizedCode = code.Trim().ToUpperInvariant();
+		var normalizedPhone =
+			ReservationPhoneNormalizer.Normalize(phone);
 
-		if (normalizedPhone is null || normalizedCode.Length != 6)
+		var normalizedCode =
+			code.Trim().ToUpperInvariant();
+
+		if (normalizedPhone is null ||
+			normalizedCode.Length != 6)
 		{
 			throw new ArgumentException(
 				"Mã đặt bàn hoặc số điện thoại không hợp lệ.");
 		}
 
-		await using var connection = new SqlConnection(_connectionString);
+		await using var connection =
+			new SqlConnection(_connectionString);
+
 		await connection.OpenAsync();
 
-		await using var command = new SqlCommand(
-			"dbo.usp_CancelReservation",
-			connection)
-		{
-			CommandType = CommandType.StoredProcedure
-		};
+		await using var command =
+			new SqlCommand(
+				"dbo.usp_CancelReservation",
+				connection)
+			{
+				CommandType =
+					CommandType.StoredProcedure
+			};
 
-		command.Parameters.Add("@Code", SqlDbType.Char, 6)
+		command.Parameters
+			.Add("@Code", SqlDbType.Char, 6)
 			.Value = normalizedCode;
 
-		command.Parameters.Add("@Phone", SqlDbType.VarChar, 10)
+		command.Parameters
+			.Add("@Phone", SqlDbType.VarChar, 10)
 			.Value = normalizedPhone;
 
-		command.Parameters.Add("@Reason", SqlDbType.NVarChar, 500)
-			.Value = "Khách huỷ trực tuyến";
+		command.Parameters
+			.Add(
+				"@Reason",
+				SqlDbType.NVarChar,
+				500)
+			.Value =
+				"Khách huỷ trực tuyến";
 
 		await command.ExecuteNonQueryAsync();
+	}
+
+	public async Task<string?> GetCancellationEmailStatusAsync(
+		string code,
+		string phone)
+	{
+		var normalizedPhone =
+			ReservationPhoneNormalizer.Normalize(phone);
+
+		var normalizedCode =
+			code.Trim().ToUpperInvariant();
+
+		if (normalizedPhone is null ||
+			normalizedCode.Length != 6)
+		{
+			return null;
+		}
+
+		await using var connection =
+			new SqlConnection(_connectionString);
+
+		await connection.OpenAsync();
+
+		const string sql = """
+            SELECT TOP (1)
+                o.Status
+            FROM dbo.EmailOutbox o
+            INNER JOIN dbo.Reservations r
+                ON r.Id = o.ReservationId
+            WHERE r.Code = @Code
+                AND r.Phone = @Phone
+                AND o.MessageType = 'BookingCancelled'
+            ORDER BY o.Id DESC;
+            """;
+
+		await using var command =
+			new SqlCommand(sql, connection);
+
+		command.Parameters
+			.Add("@Code", SqlDbType.Char, 6)
+			.Value = normalizedCode;
+
+		command.Parameters
+			.Add("@Phone", SqlDbType.VarChar, 10)
+			.Value = normalizedPhone;
+
+		var value =
+			await command.ExecuteScalarAsync();
+
+		return value is null ||
+			   value == DBNull.Value
+			? null
+			: Convert.ToString(value);
 	}
 }
