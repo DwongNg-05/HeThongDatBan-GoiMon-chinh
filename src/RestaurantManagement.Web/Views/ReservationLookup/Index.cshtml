@@ -12,7 +12,7 @@
             Nhập mã đặt bàn và số điện thoại đã dùng khi đặt bàn.
         </p>
 
-        <form asp-controller="Reservations"
+        <form asp-controller="ReservationLookup"
               asp-action="Lookup"
               method="post"
               class="card card-body mb-4">
@@ -144,7 +144,7 @@
                                 cho @result.GuestCount khách?
                             </p>
 
-                            <form asp-controller="Reservations"
+                            <form asp-controller="ReservationLookup"
                                   asp-action="Cancel"
                                   method="post"
                                   id="cancelForm">

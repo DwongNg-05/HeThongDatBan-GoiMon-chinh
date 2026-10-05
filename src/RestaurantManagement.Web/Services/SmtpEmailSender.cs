@@ -5,11 +5,11 @@ using MimeKit;
 
 namespace RestaurantManagement.Web.Services
 {
-    public class SmtpEmailSender
+    public class CancellationSmtpEmailSender
     {
         private readonly SmtpOptions _options;
 
-        public SmtpEmailSender(IOptions<SmtpOptions> options)
+        public CancellationSmtpEmailSender(IOptions<SmtpOptions> options)
         {
             _options = options.Value;
         }

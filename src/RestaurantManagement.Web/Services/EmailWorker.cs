@@ -8,12 +8,12 @@ namespace RestaurantManagement.Web.Services
     public class EmailWorker : BackgroundService
     {
         private readonly IConfiguration _configuration;
-        private readonly SmtpEmailSender _emailSender;
+        private readonly CancellationSmtpEmailSender _emailSender;
         private readonly ILogger<EmailWorker> _logger;
 
         public EmailWorker(
             IConfiguration configuration,
-            SmtpEmailSender emailSender,
+            CancellationSmtpEmailSender emailSender,
             ILogger<EmailWorker> logger)
         {
             _configuration = configuration;

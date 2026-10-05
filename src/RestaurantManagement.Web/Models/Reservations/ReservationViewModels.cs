@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace RestaurantManagement.Web.Models.Reservations;
 
-public class ReservationCreateViewModel
+public class ReservationCreateViewModel : IValidatableObject
 {
     [Required(ErrorMessage = "Vui lòng nhập tên khách hàng.")]
     [StringLength(100)]
@@ -27,6 +27,15 @@ public class ReservationCreateViewModel
     [Display(Name = "Thời gian")]
     [Microsoft.AspNetCore.Mvc.ModelBinder(BinderType = typeof(VietnamBookingTimeBinder))]
     public DateTime StartsAt { get; set; }
+
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        if (StartsAt == default && (!ReservationDate.HasValue || !ReservationTime.HasValue))
+            yield return new ValidationResult("Vui lòng chọn ngày và khung giờ đặt bàn.", new[] { nameof(ReservationDate), nameof(ReservationTime) });
+    }
+
+    public DateOnly? ReservationDate { get; set; }
+    public TimeOnly? ReservationTime { get; set; }
 
     [Display(Name = "Khu vực")]
     public int? PreferredAreaId { get; set; }
@@ -97,6 +106,15 @@ public class ReservationListItemViewModel
 
     public DateTime StartsAt { get; set; }
 
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        if (StartsAt == default && (!ReservationDate.HasValue || !ReservationTime.HasValue))
+            yield return new ValidationResult("Vui lòng chọn ngày và khung giờ đặt bàn.", new[] { nameof(ReservationDate), nameof(ReservationTime) });
+    }
+
+    public DateOnly? ReservationDate { get; set; }
+    public TimeOnly? ReservationTime { get; set; }
+
     public DateTime EndsAt { get; set; }
 
     public string Status { get; set; } = string.Empty;
@@ -141,4 +159,16 @@ public class ReservationListItemViewModel
 
     /// <summary>Quản lý chỉ xoá hẳn được lượt đã kết thúc: đã huỷ, bị từ chối, khách không đến.</summary>
     public bool CanDelete => Status is "Cancelled" or "Rejected" or "NoShow";
+}
+
+public class ReservationConfirmationViewModel
+{
+    public string Code { get; init; } = string.Empty;
+    public string CustomerName { get; init; } = string.Empty;
+    public string Phone { get; init; } = string.Empty;
+    public int GuestCount { get; init; }
+    public DateOnly ReservationDate { get; init; }
+    public TimeOnly ReservationTime { get; init; }
+    public string AreaName { get; init; } = "Không yêu cầu";
+    public string? Notes { get; init; }
 }

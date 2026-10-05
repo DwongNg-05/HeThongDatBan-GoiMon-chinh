@@ -18,6 +18,12 @@ builder.Configuration["ConnectionStrings:DefaultConnection"] = sqlConnectionStri
 builder.Services.AddScoped<AuditLogService>();
 builder.Services.AddScoped<RestaurantManagement.Web.Services.Reservations.ReservationSlotService>();
 builder.Services.AddScoped<ReservationStore>();
+builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
+builder.Services.AddSingleton<RestaurantManagement.Web.Services.CancellationSmtpEmailSender>();
+if (!string.IsNullOrWhiteSpace(builder.Configuration["Smtp:Username"] ) &&
+    !string.IsNullOrWhiteSpace(builder.Configuration["Smtp:Password"] ) &&
+    !string.IsNullOrWhiteSpace(builder.Configuration["Smtp:FromEmail"] ))
+    builder.Services.AddHostedService<EmailWorker>();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(
@@ -39,7 +45,7 @@ builder.Services.AddScoped(_ => new PasswordChangeStore(sqlConnectionString));
 builder.Services.Configure<EmailVerificationOptions>(builder.Configuration.GetSection(EmailVerificationOptions.Section));
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection(EmailOptions.Section));
 builder.Services.AddScoped(_ => new EmailVerificationStore(sqlConnectionString));
-builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
+builder.Services.AddSingleton<IEmailSender, RestaurantManagement.Web.Services.EmailVerification.SmtpEmailSender>();
 builder.Services.AddScoped<EmailVerificationService>();
 builder.Services.AddScoped<IEmployeeAccountStore>(_ => new SqlEmployeeAccountStore(sqlConnectionString));
 // S2-09 Task 3: trạng thái email xác nhận của từng lượt đặt bàn (dbo.EmailOutbox).

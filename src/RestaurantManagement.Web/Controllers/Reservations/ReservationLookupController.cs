@@ -10,7 +10,7 @@ namespace RestaurantManagement.Web.Controllers;
 [ResponseCache(
     Location = ResponseCacheLocation.None,
     NoStore = true)]
-public class ReservationsController : Controller
+public class ReservationLookupController : Controller
 {
     private readonly ReservationStore _store;
     private readonly AuditLogService _auditLogService;
@@ -19,7 +19,7 @@ public class ReservationsController : Controller
         "Không tìm thấy đặt bàn khớp với mã và số điện thoại " +
         "bạn cung cấp. Vui lòng kiểm tra lại.";
 
-    public ReservationsController(
+    public ReservationLookupController(
         ReservationStore store,
         AuditLogService auditLogService)
     {

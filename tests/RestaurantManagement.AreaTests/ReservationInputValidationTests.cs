@@ -12,7 +12,7 @@ internal static class ReservationInputValidationTests
         {
             CustomerName = "Nguyễn Văn A",
             Phone = phone,
-            GuestCount = guests,
+            GuestCount = guests ?? 0,
             ReservationDate = new DateOnly(2026, 10, 5),
             ReservationTime = new TimeOnly(18, 30)
         };

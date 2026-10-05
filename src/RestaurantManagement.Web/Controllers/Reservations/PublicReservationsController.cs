@@ -9,7 +9,7 @@ using System.Text.Json;
 namespace RestaurantManagement.Web.Controllers;
 
 [AllowAnonymous]
-[Route("Reservations")]
+[Route("PublicReservations")]
 public class PublicReservationsController(IConfiguration configuration, ReservationSlotService slotService) : Controller
 {
     private string ConnectionString => configuration.GetConnectionString("DefaultConnection")
@@ -54,7 +54,7 @@ public class PublicReservationsController(IConfiguration configuration, Reservat
             await using var command = new SqlCommand("dbo.usp_CreateReservation", connection) { CommandType = CommandType.StoredProcedure };
             command.Parameters.Add(new SqlParameter("@CustomerName", SqlDbType.NVarChar, 100) { Value = model.CustomerName.Trim() });
             command.Parameters.Add(new SqlParameter("@Phone", SqlDbType.VarChar, 50) { Value = model.Phone.Trim() });
-            command.Parameters.Add(new SqlParameter("@GuestCount", SqlDbType.Int) { Value = model.GuestCount!.Value });
+            command.Parameters.Add(new SqlParameter("@GuestCount", SqlDbType.Int) { Value = model.GuestCount });
             command.Parameters.Add(new SqlParameter("@StartsAt", SqlDbType.DateTime2) { Value = VietnamTime.ToUtc(localTime) });
             command.Parameters.Add(new SqlParameter("@PreferredAreaId", SqlDbType.Int) { Value = (object?)model.PreferredAreaId ?? DBNull.Value });
             command.Parameters.Add(new SqlParameter("@Notes", SqlDbType.NVarChar, 500)
@@ -70,7 +70,7 @@ public class PublicReservationsController(IConfiguration configuration, Reservat
                 Code = reader.GetString(reader.GetOrdinal("Code")),
                 CustomerName = model.CustomerName.Trim(),
                 Phone = model.Phone.Trim(),
-                GuestCount = model.GuestCount.Value,
+                GuestCount = model.GuestCount,
                 ReservationDate = model.ReservationDate.Value,
                 ReservationTime = model.ReservationTime.Value,
                 AreaName = model.PreferredAreaId.HasValue ? model.Areas.Single(area => area.Id == model.PreferredAreaId.Value).Name : "Không yêu cầu",
