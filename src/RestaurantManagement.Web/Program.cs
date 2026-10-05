@@ -19,6 +19,7 @@ builder.Services.AddScoped<AuditLogService>();
 builder.Services.AddScoped<RestaurantManagement.Web.Services.Reservations.ReservationSlotService>();
 builder.Services.AddScoped<ReservationStore>();
 builder.Services.AddScoped<ReservationConfirmationService>();
+builder.Services.AddScoped<ITableMapReader, SqlTableMapReader>();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(

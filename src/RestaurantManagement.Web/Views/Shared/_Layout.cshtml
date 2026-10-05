@@ -48,7 +48,10 @@
                         }
                         <li class="nav-item"><a class="sidebar-link @(IsCurrent("ReservationManagement", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("ReservationManagement", "Index") ? "page" : null)" asp-controller="ReservationManagement" asp-action="Index">Đặt bàn</a></li>
                         <li class="nav-item"><a class="sidebar-link @(IsCurrent("Areas", "Index") || IsCurrent("Tables", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("Areas", "Index") || IsCurrent("Tables", "Index") ? "page" : null)" asp-controller="Areas" asp-action="Index">Khu vực &amp; bàn</a></li>
-                        <li class="nav-item"><a class="sidebar-link @(IsCurrent("Home", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("Home", "Index") ? "page" : null)" asp-controller="Home" asp-action="Index">Sơ đồ bàn</a></li>
+                        @if (User.IsInRole("Manager") || User.IsInRole("Waiter"))
+                        {
+                            <li class="nav-item"><a class="sidebar-link @(IsCurrent("TableMap", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("TableMap", "Index") ? "page" : null)" asp-controller="TableMap" asp-action="Index">Sơ đồ bàn</a></li>
+                        }
                         <li class="nav-item"><a class="sidebar-link @(IsCurrent("OpeningHours", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("OpeningHours", "Index") ? "page" : null)" asp-controller="OpeningHours" asp-action="Index">Giờ hoạt động</a></li>
                         <li class="nav-item"><a class="sidebar-link @(IsCurrent("Home", "Privacy") ? "is-active" : "")" aria-current="@(IsCurrent("Home", "Privacy") ? "page" : null)" asp-controller="Home" asp-action="Privacy">Thông tin</a></li>
                         <li class="nav-item"><a class="sidebar-link @(IsCurrentPage("/DishCategories/Index") ? "is-active" : "")" aria-current="@(IsCurrentPage("/DishCategories/Index") ? "page" : null)" asp-page="/DishCategories/Index">Quản lý nhóm món</a></li>
@@ -96,7 +99,7 @@
             else
             {
                 <a class="sidebar-brand" asp-area="" asp-controller="Home" asp-action="Index"><span class="brand-mark" aria-hidden="true">B</span><strong>Bếp Nhà</strong></a>
-                <a asp-area="" asp-controller="ReservationLookup" asp-action="Index">Tra cứu đặt bàn</a>
+                <a asp-area="" asp-controller="Reservations" asp-action="Index">Tra cứu đặt bàn</a>
                 <a asp-area="" asp-controller="Account" asp-action="Login">Đăng nhập nhân viên</a>
             }
         </header>

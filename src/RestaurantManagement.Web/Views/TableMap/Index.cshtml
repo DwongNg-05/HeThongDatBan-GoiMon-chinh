@@ -1,0 +1,28 @@
+@model RestaurantManagement.Web.Services.TableMapSnapshot
+@{ ViewData["Title"] = "Sơ đồ bàn"; }
+@section Styles { <link rel="stylesheet" href="~/css/table-map-snapshot.css" asp-append-version="true" /> }
+<section class="snapshot-map map-page" data-table-count="@Model.TotalCount" data-changes-url="@Url.Content("~/api/table-map/changes")" data-details-url="@Url.Content("~/api/table-map")" data-cursor="@Model.Cursor" data-load-failed="@Model.LoadFailed.ToString().ToLowerInvariant()">
+    <div class="map-heading"><div><h1>Sơ đồ bàn</h1><p>@Model.TotalCount bàn đang hoạt động trong nhà hàng</p></div><a class="btn btn-outline-secondary" asp-action="Index">Tải lại sơ đồ</a></div>
+    <div class="map-sync-notice alert alert-warning" role="status" aria-live="polite" hidden></div>
+    <p class="map-sync-time text-muted">Đồng bộ gần nhất: @if (Model.LoadFailed) { <span>Chưa đồng bộ được dữ liệu</span> } else { <time datetime="@Model.SyncedAtUtc.ToString("O")">@Model.SyncedAtUtc.ToOffset(TimeSpan.FromHours(7)).ToString("dd/MM/yyyy HH:mm:ss")</time><span> (giờ Việt Nam)</span> }</p>
+    <div class="snapshot-legend" aria-label="Chú giải trạng thái bàn">
+        @foreach (var status in new[] { "Available", "Reserved", "Serving", "Cleaning" }) { var display = RestaurantManagement.Web.Models.TableStatusDisplay.From(status); <span class="snapshot-key status-@display.CssClass"><i aria-hidden="true"></i>@display.Label</span> }
+    </div>
+    @if (Model.LoadFailed) { <div class="alert alert-danger" role="alert">Không tải được sơ đồ bàn. Vui lòng tải lại để thử lại.</div> }
+    else if (Model.Areas.Count == 0) { <div class="empty-state"><h2>Chưa có khu vực nào</h2><p>Vui lòng cấu hình khu vực và bàn trước.</p></div> }
+    else
+    {
+        @for (var index = 0; index < Model.Areas.Count; index++)
+        {
+            var area = Model.Areas[index];
+            <section class="area-section" aria-labelledby="snapshot-area-@index">
+                <div class="area-heading"><h2 id="snapshot-area-@index">@area.Name</h2><span><span data-area-available>@area.AvailableCount</span> bàn trống / @area.Tables.Count bàn</span></div>
+                @if (area.Tables.Count == 0) { <p class="alert alert-light">Khu vực này chưa có bàn.</p> }
+                else { <div class="table-grid">@foreach (var table in area.Tables) { <article class="table-card status-@table.StatusClass" data-table-code="@table.Code" data-status="@table.Status" aria-label="Bàn @table.Code, @table.Capacity chỗ, @table.StatusLabel"><button class="table-detail-trigger" type="button" data-open-details="@table.Code" aria-haspopup="dialog" aria-label="Xem chi tiết bàn @table.Code"><span class="table-status"><i aria-hidden="true"></i><span class="table-status-label">@table.StatusLabel</span></span><strong class="table-code">@table.Code</strong><span class="table-capacity">Sức chứa: @table.Capacity người</span></button></article> }</div> }
+            </section>
+        }
+    }
+    <p class="mt-3 text-muted">Trạng thái tự đồng bộ khi màn hình đang mở. Việc xem sơ đồ không giữ phiên đăng nhập hoạt động.</p>
+</section>
+<partial name="_TableDetails" />
+@section Scripts { <script src="~/js/table-map-sync.js" asp-append-version="true"></script><script src="~/js/table-details.js" asp-append-version="true"></script><script src="~/js/table-map-performance.js" asp-append-version="true"></script> }
