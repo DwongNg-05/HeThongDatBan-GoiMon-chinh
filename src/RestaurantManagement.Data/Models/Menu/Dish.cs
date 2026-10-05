@@ -34,8 +34,8 @@ namespace RestaurantManagement.Data.Models
 
         // Thời gian ước tính chế biến (phút)
         [Required(ErrorMessage = "Thời gian chế biến là bắt buộc")]
-        [Range(1, 10_000, ErrorMessage = "Thời gian chế biến phải là số phút hợp lệ")]
-        public int PrepMinutes { get; set; }
+        [Range(1, 240, ErrorMessage = "Thời gian chế biến phải từ 1 đến 240 phút")]
+        public int PrepMinutes { get; set; } = 15;
 
         public DishStatus Status { get; set; } = DishStatus.OnSale;
 

@@ -1,12 +1,15 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using RestaurantManagement.Web.Models.Areas;
 using RestaurantManagement.Web.Models.Tables;
+using RestaurantManagement.Web.Security;
 using System.Data;
 
 namespace RestaurantManagement.Web.Controllers;
 
-public class AreasController(IConfiguration configuration) : Controller
+[Authorize(Roles = "Manager")]
+public class AreasController(IConfiguration configuration, ICurrentUser? currentUser = null) : Controller
 {
     private string ConnectionString => configuration.GetConnectionString("DefaultConnection")
         ?? throw new InvalidOperationException("Chưa cấu hình ConnectionStrings:DefaultConnection.");
@@ -64,12 +67,20 @@ public class AreasController(IConfiguration configuration) : Controller
     private async Task<IActionResult> Save(AreaFormViewModel model, bool editing)
     {
         if (!ModelState.IsValid) return View(editing ? "Edit" : "Create", model);
+
+        var actorUserId = await GetActorUserIdAsync();
+        if (actorUserId is null)
+        {
+            ModelState.AddModelError(string.Empty, "Không xác định được tài khoản quản lý đang đăng nhập. Vui lòng đăng nhập lại.");
+            return View(editing ? "Edit" : "Create", model);
+        }
+
         try
         {
             await using var connection = new SqlConnection(ConnectionString);
             await using var command = new SqlCommand(editing ? "dbo.usp_UpdateArea" : "dbo.usp_CreateArea", connection)
                 { CommandType = CommandType.StoredProcedure };
-            command.Parameters.Add("@ActorUserId", SqlDbType.Int).Value = GetActorUserId();
+            command.Parameters.Add("@ActorUserId", SqlDbType.Int).Value = actorUserId.Value;
             if (editing) command.Parameters.Add("@AreaId", SqlDbType.Int).Value = model.Id;
             command.Parameters.Add("@Name", SqlDbType.NVarChar, -1).Value = model.Name;
             command.Parameters.Add("@SortOrder", SqlDbType.Int).Value = model.SortOrder!.Value;
@@ -82,7 +93,7 @@ public class AreasController(IConfiguration configuration) : Controller
         catch (SqlException ex) when (ex.Number == 51404) { return NotFound(); }
         catch (SqlException ex) when (ex.Number == 51001)
         {
-            ModelState.AddModelError(string.Empty, "Tài khoản hiện tại không có quyền quản lý khu vực. Vui lòng kiểm tra tài khoản và cấu hình ActorUserId.");
+            ModelState.AddModelError(string.Empty, "Tài khoản hiện tại không có quyền quản lý khu vực.");
             return View(editing ? "Edit" : "Create", model);
         }
         catch (SqlException ex) when (ex.Number is 51401 or 51402 or 51403 or 51405 or 2601 or 2627)
@@ -112,12 +123,19 @@ public class AreasController(IConfiguration configuration) : Controller
 
     private async Task<IActionResult> ChangeState(int id, bool deleting, bool reactivating = false)
     {
+        var actorUserId = await GetActorUserIdAsync();
+        if (actorUserId is null)
+        {
+            TempData["Error"] = "Không xác định được tài khoản quản lý đang đăng nhập. Vui lòng đăng nhập lại.";
+            return RedirectToAction(nameof(Index));
+        }
+
         try
         {
             await using var connection = new SqlConnection(ConnectionString);
             await using var command = new SqlCommand(reactivating ? "dbo.usp_ReactivateArea" : deleting ? "dbo.usp_DeleteArea" : "dbo.usp_DeactivateArea", connection)
                 { CommandType = CommandType.StoredProcedure };
-            command.Parameters.Add("@ActorUserId", SqlDbType.Int).Value = GetActorUserId();
+            command.Parameters.Add("@ActorUserId", SqlDbType.Int).Value = actorUserId.Value;
             command.Parameters.Add("@AreaId", SqlDbType.Int).Value = id;
             await connection.OpenAsync();
             await command.ExecuteNonQueryAsync();
@@ -126,7 +144,7 @@ public class AreasController(IConfiguration configuration) : Controller
         catch (SqlException ex) when (ex.Number == 51404) { return NotFound(); }
         catch (SqlException ex) when (ex.Number == 51001)
         {
-            TempData["Error"] = "Tài khoản hiện tại không có quyền quản lý khu vực. Vui lòng kiểm tra tài khoản và cấu hình ActorUserId.";
+            TempData["Error"] = "Tài khoản hiện tại không có quyền quản lý khu vực.";
         }
         catch (SqlException ex) when (ex.Number is 51007 or 51008 or 547)
         {
@@ -156,8 +174,16 @@ public class AreasController(IConfiguration configuration) : Controller
         IsActive = reader.GetBoolean(reader.GetOrdinal("IsActive"))
     };
 
-    // Demo actor until the application's authentication story is implemented.
-    private int GetActorUserId() => int.TryParse(configuration["AreaManagement:ActorUserId"], out var id) && id > 0 ? id : 0;
+    private async Task<int?> GetActorUserIdAsync()
+    {
+        if (currentUser is null || !currentUser.IsAuthenticated || string.IsNullOrWhiteSpace(currentUser.UserName)) return null;
+
+        await using var connection = new SqlConnection(ConnectionString);
+        await using var command = new SqlCommand(
+            "SELECT Id FROM dbo.Users WHERE UserName=@UserName AND IsActive=1;", connection);
+        command.Parameters.Add("@UserName", SqlDbType.NVarChar, 100).Value = currentUser.UserName;
+        await connection.OpenAsync();
+        var id = await command.ExecuteScalarAsync();
+        return id is null ? null : Convert.ToInt32(id);
+    }
 }
-
-

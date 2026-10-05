@@ -39,7 +39,7 @@ public class PublicReservationsController(IConfiguration configuration, Reservat
             return View(model);
         }
 
-        var slots = await slotService.GetSlotsAsync(model.ReservationDate!.Value);
+        var slots = await slotService.GetSlotsAsync(model.ReservationDate!.Value, model.GuestCount, model.PreferredAreaId);
         var selectedTime = model.ReservationTime!.Value.ToString("HH:mm");
         if (!slots.Slots.Contains(selectedTime))
         {
@@ -83,6 +83,11 @@ public class PublicReservationsController(IConfiguration configuration, Reservat
             ModelState.AddModelError(nameof(model.Phone), PendingReservationLimit.ReachedMessage);
             return View(model);
         }
+        catch (SqlException ex) when (ex.Number == 51006)
+        {
+            ModelState.AddModelError(nameof(model.ReservationTime), ex.Message);
+            return View(model);
+        }
         catch (SqlException ex) when (ex.Number is 51003 or 51004 or 51410 or 51411 or 51412 or 51413 or 51414)
         {
             ModelState.AddModelError(nameof(model.ReservationTime), ex.Message);
@@ -114,10 +119,10 @@ public class PublicReservationsController(IConfiguration configuration, Reservat
     }
 
     [HttpGet("/api/reservation-slots")]
-    public async Task<IActionResult> Slots(DateOnly? date)
+    public async Task<IActionResult> Slots(DateOnly? date, int? guestCount, int? preferredAreaId)
     {
         if (date is null) return BadRequest(new { message = "Vui lòng chọn ngày đặt bàn." });
-        return Ok(await slotService.GetSlotsAsync(date.Value));
+        return Ok(await slotService.GetSlotsAsync(date.Value, guestCount, preferredAreaId));
     }
 
     private async Task LoadActiveAreas(ReservationCreateViewModel model)
@@ -156,7 +161,7 @@ public class PublicReservationsController(IConfiguration configuration, Reservat
         for (var offset = 0; offset <= ReservationSchedulePolicy.MaximumAdvanceDays; offset++)
         {
             var date = ReservationSchedulePolicy.Today.AddDays(offset);
-            var slots = await slotService.GetSlotsAsync(date);
+            var slots = await slotService.GetSlotsAsync(date, model.GuestCount, model.PreferredAreaId);
             if (slots.Slots.Count == 0) continue;
             model.ReservationDate = date;
             model.ReservationTime = TimeOnly.Parse(slots.Slots[0]);

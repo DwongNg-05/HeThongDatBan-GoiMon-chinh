@@ -1,6 +1,8 @@
 (() => {
     const date = document.getElementById("ReservationDate");
     const time = document.getElementById("ReservationTime");
+    const guestCount = document.getElementById("GuestCount");
+    const preferredArea = document.getElementById("PreferredAreaId");
     const message = document.querySelector("[data-reservation-slots-message]");
     if (!date || !time || !message) return;
 
@@ -20,7 +22,10 @@
         }
         time.disabled = true;
         try {
-            const response = await fetch(`/api/reservation-slots?date=${encodeURIComponent(date.value)}`, { headers: { Accept: "application/json" } });
+            const parameters = new URLSearchParams({ date: date.value });
+            if (guestCount?.value) parameters.set("guestCount", guestCount.value);
+            if (preferredArea?.value) parameters.set("preferredAreaId", preferredArea.value);
+            const response = await fetch(`/api/reservation-slots?${parameters}`, { headers: { Accept: "application/json" } });
             const result = await response.json();
             if (!response.ok) throw new Error(result.message || "Không thể tải khung giờ.");
             render(result.slots || [], selectedTime);
@@ -32,5 +37,7 @@
     };
 
     date.addEventListener("change", () => loadSlots(false));
+    guestCount?.addEventListener("change", () => loadSlots(false));
+    preferredArea?.addEventListener("change", () => loadSlots(false));
     loadSlots(true);
 })();
