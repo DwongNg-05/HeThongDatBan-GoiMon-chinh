@@ -33,6 +33,7 @@ public class PublicReservationsController(IConfiguration configuration) : Contro
     public async Task<IActionResult> Create(ReservationCreateViewModel model)
     {
         await LoadActiveAreas(model);
+        ReplaceGuestCountBindingError(model);
         if (!ModelState.IsValid) return View(model);
         if (model.PreferredAreaId.HasValue && !model.Areas.Any(area => area.Id == model.PreferredAreaId.Value))
         {
@@ -111,5 +112,13 @@ public class PublicReservationsController(IConfiguration configuration) : Contro
                 Name = reader.GetString(reader.GetOrdinal("Name")),
                 SortOrder = reader.GetInt32(reader.GetOrdinal("SortOrder"))
             });
+    }
+
+    private void ReplaceGuestCountBindingError(ReservationCreateViewModel model)
+    {
+        var field = nameof(model.GuestCount);
+        if (!ModelState.TryGetValue(field, out var state) || !state.Errors.Any(error => error.Exception is not null)) return;
+        state.Errors.Clear();
+        state.Errors.Add("Số khách phải là số nguyên từ 1 đến 20. Đoàn trên 20 khách, vui lòng liên hệ trực tiếp nhà hàng.");
     }
 }
