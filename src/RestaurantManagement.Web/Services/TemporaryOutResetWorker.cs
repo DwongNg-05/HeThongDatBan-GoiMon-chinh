@@ -6,7 +6,7 @@ public sealed class TemporaryOutResetWorker(IConfiguration configuration, ILogge
 {
     private static readonly TimeZoneInfo VietnamTimeZone = FindVietnamTimeZone();
     private string ConnectionString => Environment.GetEnvironmentVariable("RM_CONNECTION_STRING")
-        ?? configuration.GetConnectionString("RestaurantManagement")
+        ?? configuration.GetConnectionString("DefaultConnection")
         ?? throw new InvalidOperationException("Set RM_CONNECTION_STRING to connect the daily menu reset worker to SQL Server.");
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

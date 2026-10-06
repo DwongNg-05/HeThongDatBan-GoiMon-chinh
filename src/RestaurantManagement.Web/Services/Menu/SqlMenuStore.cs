@@ -146,9 +146,9 @@ namespace RestaurantManagement.Web.Services
         {
             var category = GetActiveCategories().Select(n => (n.Id, n.Name, n.DefaultImagePath)).ToList();
             var dish = _db.Database.SqlQuery<PublicMenuRow>($"""
-                SELECT Id, CategoryId, Name, CAST(Price AS int) AS Price, Unit, Description,
-                       ImagePath, SortOrder, IsSoldOut
-                FROM dbo.vw_PublicMenu
+                SELECT v.Id, v.CategoryId, v.Name, CAST(v.Price AS int) AS Price, v.Unit, v.Description,
+                       v.ImagePath, v.SortOrder, CONVERT(bit, CASE WHEN v.IsSoldOut=1 OR m.IsTemporarilyOut=1 THEN 1 ELSE 0 END) AS IsSoldOut
+                FROM dbo.vw_PublicMenu v JOIN dbo.MenuItems m ON m.Id=v.Id
                 """)
                 .AsEnumerable()
                 .Select(m => new OnSaleDishRow(m.Id, m.CategoryId, m.Name, m.Description, m.Price,

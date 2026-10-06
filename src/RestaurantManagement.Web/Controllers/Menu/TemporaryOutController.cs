@@ -6,15 +6,14 @@ using Microsoft.Data.SqlClient;
 
 namespace RestaurantManagement.Web.Controllers;
 
+[Authorize(Roles = "Manager")]
 [Route("menu")]
-public sealed class MenuController(IConfiguration configuration) : Controller
+public sealed class TemporaryOutController(IConfiguration configuration) : Controller
 {
     private string ConnectionString => Environment.GetEnvironmentVariable("RM_CONNECTION_STRING")
-        ?? configuration.GetConnectionString("RestaurantManagement")
+        ?? configuration.GetConnectionString("DefaultConnection")
         ?? throw new InvalidOperationException("Set RM_CONNECTION_STRING to connect the menu to SQL Server.");
 
-    [HttpGet("")]
-    public IActionResult Index() => View();
 
     [HttpGet("availability")]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
@@ -39,7 +38,7 @@ public sealed class MenuController(IConfiguration configuration) : Controller
         catch (SqlException) { return Problem("Không thể tải thực đơn lúc này.", statusCode: StatusCodes.Status503ServiceUnavailable); }
     }
 
-    [Authorize(Roles = "Manager,Kitchen")]
+    [Authorize(Roles = "Manager")]
     [HttpPost("{id:int}/availability")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SetAvailability(int id, [FromForm] bool isSoldOut, CancellationToken cancellationToken)
@@ -64,7 +63,7 @@ public sealed class MenuController(IConfiguration configuration) : Controller
         catch (InvalidOperationException ex) { return Problem(ex.Message, statusCode: StatusCodes.Status503ServiceUnavailable); }
     }
 
-    [Authorize(Roles = "Manager,Kitchen")]
+    [Authorize(Roles = "Manager")]
     [HttpPost("{id:int}/temporarily-out")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SetTemporarilyOut(int id, [FromForm] bool isTemporarilyOut, CancellationToken cancellationToken)
