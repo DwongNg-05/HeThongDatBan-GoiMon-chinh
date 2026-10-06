@@ -1,0 +1,14 @@
+@{
+    var controller = ViewContext.RouteData.Values["controller"]?.ToString();
+    var isList = string.Equals(controller, "ReservationManagement", StringComparison.OrdinalIgnoreCase);
+    var isPending = string.Equals(controller, "ReservationConfirmations", StringComparison.OrdinalIgnoreCase);
+    var isSchedule = string.Equals(controller, "TableReservationSchedule", StringComparison.OrdinalIgnoreCase);
+}
+<nav class="nav nav-pills gap-2 mb-4" aria-label="Quản lý đặt bàn">
+    <a class="nav-link @(isList ? "active" : "")" asp-controller="ReservationManagement" asp-action="Index">Danh sách đơn</a>
+    <a class="nav-link @(isPending ? "active" : "")" asp-controller="ReservationConfirmations" asp-action="Index">Đơn chờ xử lý</a>
+    @if (User.IsInRole("Manager"))
+    {
+        <a class="nav-link @(isSchedule ? "active" : "")" asp-controller="TableReservationSchedule" asp-action="Index">Lịch bàn theo ngày</a>
+    }
+</nav>

@@ -38,13 +38,15 @@
                 <ul class="sidebar-links">
                         @if (User.Identity?.IsAuthenticated == true)
                         {
-                        @if (User.IsInRole("Manager"))
+                        @if (User.IsInRole("Manager") || User.IsInRole("Waiter"))
                         {
-                        <li class="nav-item"><a class="sidebar-link @(IsCurrent("TableReservationSchedule", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("TableReservationSchedule", "Index") ? "page" : null)" asp-controller="TableReservationSchedule" asp-action="Index">Lịch đặt bàn</a></li>
+                            <li class="nav-item"><a class="sidebar-link @(IsCurrent("ReservationManagement", "Index") || IsCurrent("ReservationConfirmations", "Index") || IsCurrent("TableReservationSchedule", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("ReservationManagement", "Index") || IsCurrent("ReservationConfirmations", "Index") || IsCurrent("TableReservationSchedule", "Index") ? "page" : null)" asp-controller="ReservationManagement" asp-action="Index">Quản lý đặt bàn</a></li>
                         }
-                        <li class="nav-item"><a class="sidebar-link @(IsCurrent("ReservationManagement", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("ReservationManagement", "Index") ? "page" : null)" asp-controller="ReservationManagement" asp-action="Index">Đặt bàn</a></li>
                         <li class="nav-item"><a class="sidebar-link @(IsCurrent("Areas", "Index") || IsCurrent("Tables", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("Areas", "Index") || IsCurrent("Tables", "Index") ? "page" : null)" asp-controller="Areas" asp-action="Index">Khu vực &amp; bàn</a></li>
-                        <li class="nav-item"><a class="sidebar-link @(IsCurrent("Home", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("Home", "Index") ? "page" : null)" asp-controller="Home" asp-action="Index">Sơ đồ bàn</a></li>
+                        @if (User.IsInRole("Manager") || User.IsInRole("Waiter"))
+                        {
+                            <li class="nav-item"><a class="sidebar-link @(IsCurrent("TableMap", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("TableMap", "Index") ? "page" : null)" asp-controller="TableMap" asp-action="Index">Sơ đồ bàn</a></li>
+                        }
                         <li class="nav-item"><a class="sidebar-link @(IsCurrent("OpeningHours", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("OpeningHours", "Index") ? "page" : null)" asp-controller="OpeningHours" asp-action="Index">Giờ hoạt động</a></li>
                         <li class="nav-item"><a class="sidebar-link @(IsCurrent("Home", "Privacy") ? "is-active" : "")" aria-current="@(IsCurrent("Home", "Privacy") ? "page" : null)" asp-controller="Home" asp-action="Privacy">Thông tin</a></li>
                         <li class="nav-item"><a class="sidebar-link @(IsCurrentPage("/DishCategories/Index") ? "is-active" : "")" aria-current="@(IsCurrentPage("/DishCategories/Index") ? "page" : null)" asp-page="/DishCategories/Index">Quản lý nhóm món</a></li>
@@ -91,12 +93,9 @@
             }
             else
             {
-                @* S2-01 Task 1: khách chưa đăng nhập luôn có đường tới thực đơn công khai. *@
-                <a class="sidebar-brand" asp-area="" asp-controller="Menu" asp-action="Index"><span class="brand-mark" aria-hidden="true">B</span><strong>Bếp Nhà</strong></a>
-                <nav class="guest-links" aria-label="Điều hướng khách">
-                    <a asp-area="" asp-controller="Menu" asp-action="Index" aria-current="@(IsCurrent("Menu", "Index") ? "page" : null)">Thực đơn</a>
-                    <a asp-area="" asp-controller="Account" asp-action="Login" aria-current="@(IsCurrent("Account", "Login") ? "page" : null)">Đăng nhập</a>
-                </nav>
+                <a class="sidebar-brand" asp-area="" asp-controller="Home" asp-action="Index"><span class="brand-mark" aria-hidden="true">B</span><strong>Bếp Nhà</strong></a>
+                <a asp-area="" asp-controller="ReservationLookup" asp-action="Index">Tra cứu đặt bàn</a>
+                <a asp-area="" asp-controller="Account" asp-action="Login">Đăng nhập nhân viên</a>
             }
         </header>
         <main id="main-content" class="workspace-content" tabindex="-1">
@@ -104,13 +103,8 @@
         </main>
     </div>
 
-    @* S2-01 Task 4: trang công khai nhẹ (thực đơn) không tải jQuery/Bootstrap JS cho khách chưa đăng nhập;
-       nhân viên đã đăng nhập vẫn cần Bootstrap JS cho menu điều hướng. *@
-    @if (signedIn || ViewData["LightweightScripts"] is not true)
-    {
-        <script src="~/lib/jquery/dist/jquery.min.js"></script>
-        <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    }
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>

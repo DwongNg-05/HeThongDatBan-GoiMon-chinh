@@ -1,4 +1,5 @@
 using System.Net;
+using System.Globalization;
 
 namespace RestaurantManagement.Web.Services.EmailVerification;
 
@@ -10,7 +11,8 @@ public static class VerificationEmail
     public static EmailMessage Create(string to, string fullName, string code, int validMinutes, DateTime sentAtUtc)
     {
         var name = WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(fullName) ? "bạn" : fullName);
-        var sentAt = sentAtUtc.AddHours(7).ToString("HH:mm 'ngày' dd/MM/yyyy");
+        // Quote the separators so the Vietnamese display is stable on every server culture.
+        var sentAt = sentAtUtc.AddHours(7).ToString("HH:mm 'ngày' dd'/'MM'/'yyyy", CultureInfo.InvariantCulture);
         var boxes = string.Concat(code.Select(c =>
             $"<td style=\"padding:0 4px\"><div style=\"width:46px;height:58px;line-height:58px;border:2px solid #c92d3e;border-radius:10px;" +
             $"background:#fff3f4;color:#1f1a1b;font-family:'Courier New',Consolas,monospace;font-size:34px;font-weight:700;text-align:center\">{c}</div></td>"));

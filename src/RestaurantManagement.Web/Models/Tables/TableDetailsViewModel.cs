@@ -21,4 +21,9 @@ public sealed record TableDetailsViewModel(
     long? ServiceElapsedMinutes,
     decimal? CurrentSubtotal,
     bool HasActiveSession,
-    bool IsDemoData);
+    bool IsDemoData)
+{
+    public int UpcomingReservationCount { get; init; }
+    public DateTimeOffset SyncedAtUtc { get; init; } = DateTimeOffset.UtcNow;
+    public string SubtotalExplanation => "Tổng món hiện tại, chưa trừ giảm giá hoặc phụ thu.";
+}

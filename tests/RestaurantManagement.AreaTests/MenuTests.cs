@@ -12,7 +12,7 @@ internal static class MenuTests
         check(menu.All(n => n.Dishes.Count > 0 && n.Dishes.All(m => m.CategoryId == n.Id)), "Menu: sample dishes belong to their displayed group");
         check(menu.All(n => store.GetDishesByCategory(n.Id).All(m => m.CategoryId == n.Id)), "Menu: query dishes by group");
         var publicMenu = new RestaurantManagement.Web.Controllers.MenuController(store);
-        int[] PublicIds() => ((IReadOnlyList<PublicMenuCategory>)((Microsoft.AspNetCore.Mvc.ViewResult)publicMenu.Index()).Model!).Select(n => n.Id).ToArray();
+        int[] PublicIds() => ((RestaurantManagement.Web.Models.PublicMenuViewModel)((Microsoft.AspNetCore.Mvc.ViewResult)publicMenu.Index()).Model!).Categories.Select(n => n.Id).ToArray();
         var orderPage = new RestaurantManagement.Web.Pages.Ordering.IndexModel(store);
         orderPage.OnGet();
         check(PublicIds().SequenceEqual(orderPage.Categories.Select(n => n.Id)), "Menu: public and ordering pages have identical group order");

@@ -80,7 +80,7 @@ public sealed class TableDetailsService(
             startedAt is null ? null : (long)Math.Max(0, (DateTimeOffset.UtcNow - startedAt.Value).TotalMinutes),
             subtotal,
             hasActiveSession,
-            false);
+            false) { UpcomingReservationCount = reservation is null ? 0 : 1 };
     }
 
     private TableDetailsViewModel? GetDemoDetails(string code)
@@ -106,7 +106,7 @@ public sealed class TableDetailsService(
             serving ? 42 : null,
             serving ? 245000 : null,
             serving,
-            true);
+            true) { UpcomingReservationCount = upcoming is null ? 0 : 1 };
     }
 
     private static DateTimeOffset AsUtc(DateTime value) => new(DateTime.SpecifyKind(value, DateTimeKind.Utc));

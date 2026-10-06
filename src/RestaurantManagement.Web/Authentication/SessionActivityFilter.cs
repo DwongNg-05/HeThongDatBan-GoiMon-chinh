@@ -20,6 +20,8 @@ public sealed class SessionActivityFilter(LoginSessionStore sessions) : IAsyncAc
             && endpoint?.Metadata.GetMetadata<IAuthorizeData>() is not null
             && endpoint.Metadata.GetMetadata<IAllowAnonymous>() is null)
         {
+            if (endpoint.Metadata.GetMetadata<PassiveSessionReadAttribute>() is not null)
+                return;
             // Never revive a session that expired while an action was running.
             if (!await sessions.Check(context.HttpContext.User, touch: true))
             {

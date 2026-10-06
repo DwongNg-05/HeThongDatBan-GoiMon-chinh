@@ -56,7 +56,14 @@ internal static class AuditReadOnlyTests
         const string fakeDb = "Server=127.0.0.1,1;Database=None;Connect Timeout=1;Encrypt=False";
         await using (var appDb = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlServer(fakeDb).Options))
         {
-            var log = new RestaurantManagement.Data.Models.AuditLog { Id = 1, OccurredAt = DateTime.UtcNow, EntityId = "manager", ActorRole = "Manager", Action = "Login" };
+            var log = new RestaurantManagement.Data.Models.AuditLog
+            {
+                Id = 1,
+                OccurredAt = DateTime.UtcNow,
+                ActorRole = "Manager",
+                Action = "Login",
+                EntityType = "Authentication"
+            };
             appDb.Attach(log);
             appDb.Entry(log).State = EntityState.Modified;
             check(Throws(() => appDb.SaveChanges()) && await ThrowsAsync(() => appDb.SaveChangesAsync()), "Read-only: EF refuses to update an audit log row");

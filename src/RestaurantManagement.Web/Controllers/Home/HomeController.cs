@@ -7,13 +7,10 @@ namespace RestaurantManagement.Web.Controllers;
 
 public class HomeController : Controller
 {
-    private readonly DemoTableCatalog _tableCatalog;
-
-    public HomeController(DemoTableCatalog tableCatalog) => _tableCatalog = tableCatalog;
-
+    [Microsoft.AspNetCore.Authorization.Authorize]
     public IActionResult Index()
     {
-        return View(_tableCatalog.Get(Request.Query["area"]));
+        return RedirectToAction("Index", User.IsInRole("Manager") || User.IsInRole("Waiter") ? "TableMap" : "Menu");
     }
 
     public IActionResult Privacy()
