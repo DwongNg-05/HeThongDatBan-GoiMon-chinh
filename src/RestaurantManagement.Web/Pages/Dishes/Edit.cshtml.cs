@@ -28,6 +28,7 @@ public class EditModel : PageModel
 
     /// <summary>Ảnh đang hiển thị của món (ảnh riêng hoặc ảnh mặc định).</summary>
     public string CurrentImage { get; private set; } = DishImage.DefaultImage;
+    public bool HasDishImage => !string.IsNullOrWhiteSpace(Dish.ImagePath);
 
     public IEnumerable<DishCategory> Categories { get; set; } = Enumerable.Empty<DishCategory>();
 
@@ -126,5 +127,26 @@ public class EditModel : PageModel
             _imageStorage.Delete(oldImage);
 
         return RedirectToPage("/Dishes/Index");
+    }
+
+    public IActionResult OnPostRemoveImage(int id)
+    {
+        var currentUser = HttpContext.RequestServices.GetRequiredService<RestaurantManagement.Web.Security.ICurrentUser>();
+        if (!currentUser.IsAuthenticated) return Unauthorized();
+        if (!string.Equals(currentUser.Role, "Manager", StringComparison.Ordinal)) return Forbid();
+
+        var dish = _store.GetDish(id);
+        if (dish is null) return NotFound();
+
+        var oldImage = dish.ImagePath;
+        if (string.IsNullOrWhiteSpace(oldImage))
+            return RedirectToPage("/Dishes/Edit", new { id });
+
+        dish.ImagePath = null;
+        if (_store.UpdateDish(dish) is null) return NotFound();
+
+        // File.Delete is idempotent for missing files. The storage implementation rejects paths outside uploads.
+        _imageStorage.Delete(oldImage);
+        return RedirectToPage("/Dishes/Edit", new { id });
     }
 }

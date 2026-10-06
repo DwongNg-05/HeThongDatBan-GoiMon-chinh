@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 using RestaurantManagement.Data.Models;
+using RestaurantManagement.Web.Security;
 using RestaurantManagement.Web.Services;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Jpeg;
@@ -108,11 +111,97 @@ internal static class MenuImageTests
                 && invalid.ModelState[nameof(invalid.ImageFile)]?.Errors.Single().ErrorMessage == DishImageRules.FormatError
                 && store.GetAllDishes().All(m => m.Name != "Món GIF") && Directory.GetFiles(folder).Length == filesBefore,
                 "Dish image: invalid image shows error, saves neither dish nor file");
+
+            var filesBeforeRemoval = Directory.GetFiles(folder).Select(Path.GetFileName).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var removableImage = await storage.SaveAsync(File(Jpeg, "anh-can-xoa.jpg"));
+            var removableDish = store.AddDish(new Dish
+            {
+                Name = "Món có ảnh cần xoá", CategoryId = category.Id, PriceVnd = 65000, Unit = "Phần",
+                ShortDescription = "Kiểm tra xoá ảnh", PrepMinutes = 10, ImagePath = removableImage
+            });
+            var cancelMarkup = await System.IO.File.ReadAllTextAsync(Path.Combine(Directory.GetCurrentDirectory(),
+                "src", "RestaurantManagement.Web", "Pages", "Dishes", "Edit.cshtml"));
+            check(cancelMarkup.Contains("confirm('Bạn có chắc muốn xoá ảnh riêng của món này?')", StringComparison.Ordinal),
+                "Dish image removal: browser asks for confirmation, so cancel submits no delete request");
+            check(store.GetDish(removableDish.Id)?.ImagePath == removableImage
+                && System.IO.File.Exists(Path.Combine(folder, Path.GetFileName(removableImage))),
+                "Dish image removal: cancelling confirmation leaves the link and file intact");
+
+            var removePage = EditPage(store, storage, new TestCurrentUser(isAuthenticated: true, role: "Manager"));
+            var removed = removePage.OnPostRemoveImage(removableDish.Id);
+            var afterRemoval = store.GetDish(removableDish.Id)!;
+            check(removed is RedirectToPageResult && afterRemoval.ImagePath is null
+                && !System.IO.File.Exists(Path.Combine(folder, Path.GetFileName(removableImage))),
+                "Dish image removal: confirmed request clears the link and deletes the stored file");
+            check(store.GetPublicMenu().SelectMany(n => n.Dishes).Single(m => m.Id == removableDish.Id).ImageUrl
+                == "/images/thuc-don/khai-vi.svg", "Dish image removal: category default is displayed after deletion");
+
+            var reupload = EditPage(store, storage, new TestCurrentUser(isAuthenticated: true, role: "Manager"));
+            reupload.Dish = Copy(store.GetDish(removableDish.Id)!);
+            reupload.ImageFile = File(Png, "anh-moi.png", "image/png");
+            check(await reupload.OnPostAsync(CancellationToken.None) is RedirectToPageResult
+                && store.GetDish(removableDish.Id)?.ImagePath is { } replacement
+                && System.IO.File.Exists(Path.Combine(folder, Path.GetFileName(replacement)))
+                && Directory.GetFiles(folder).Select(Path.GetFileName)
+                    .Except(filesBeforeRemoval, StringComparer.OrdinalIgnoreCase).Count() == 1,
+                "Dish image removal: reupload after deletion leaves only the replacement file");
+
+            var missingFilePath = "/uploads/mon-an/00000000000000000000000000000000.jpg";
+            var staleDish = store.AddDish(new Dish
+            {
+                Name = "Món có liên kết ảnh cũ", CategoryId = category.Id, PriceVnd = 66000, Unit = "Phần",
+                ShortDescription = "Tệp đã mất", PrepMinutes = 10, ImagePath = missingFilePath
+            });
+            check(EditPage(store, storage, new TestCurrentUser(isAuthenticated: true, role: "Manager"))
+                    .OnPostRemoveImage(staleDish.Id) is RedirectToPageResult
+                && store.GetDish(staleDish.Id)?.ImagePath is null,
+                "Dish image removal: stale database link can be cleared when the file is already missing");
+
+            var unauthenticatedRemove = EditPage(store, storage, new TestCurrentUser(isAuthenticated: false, role: null));
+            staleDish.ImagePath = missingFilePath;
+            store.UpdateDish(staleDish);
+            check(unauthenticatedRemove.OnPostRemoveImage(staleDish.Id) is UnauthorizedResult
+                && store.GetDish(staleDish.Id)?.ImagePath == missingFilePath,
+                "Dish image removal: unauthenticated request leaves the dish unchanged");
+            check(EditPage(store, storage, new TestCurrentUser(isAuthenticated: true, role: "Waiter"))
+                    .OnPostRemoveImage(staleDish.Id) is ForbidResult
+                && store.GetDish(staleDish.Id)?.ImagePath == missingFilePath,
+                "Dish image removal: non-manager request is forbidden");
         }
         finally
         {
             try { Directory.Delete(folder, recursive: true); } catch (IOException) { }
         }
+    }
+
+    private static RestaurantManagement.Web.Pages.Dishes.EditModel EditPage(InMemoryMenuStore store,
+        IDishImageStorage storage, ICurrentUser user)
+    {
+        var page = new RestaurantManagement.Web.Pages.Dishes.EditModel(store, storage);
+        var services = new ServiceCollection().AddSingleton(user).BuildServiceProvider();
+        var httpContext = new DefaultHttpContext { RequestServices = services };
+        page.PageContext = new PageContext
+        {
+            HttpContext = httpContext,
+            RouteData = new RouteData(),
+            ActionDescriptor = new CompiledPageActionDescriptor()
+        };
+        return page;
+    }
+
+    private static Dish Copy(Dish source) => new()
+    {
+        Id = source.Id, Name = source.Name, CategoryId = source.CategoryId, PriceVnd = source.PriceVnd,
+        Unit = source.Unit, ShortDescription = source.ShortDescription, PrepMinutes = source.PrepMinutes,
+        Status = source.Status, ImagePath = source.ImagePath
+    };
+
+    private sealed class TestCurrentUser(bool isAuthenticated, string? role) : ICurrentUser
+    {
+        public bool IsAuthenticated { get; } = isAuthenticated;
+        public string? UserName => IsAuthenticated ? "test-manager" : null;
+        public string? Role { get; } = role;
+        public string IpAddress => "127.0.0.1";
     }
 
     private static async Task CheckOptimized(Action<bool, string> check, IDishImageStorage storage, string folder, byte[] input, string name,

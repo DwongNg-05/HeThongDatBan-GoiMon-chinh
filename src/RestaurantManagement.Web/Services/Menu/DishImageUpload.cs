@@ -135,7 +135,7 @@ public sealed class DiskDishImageStorage : IDishImageStorage
         var fileName = path[DishImageRules.WebFolder.Length..];
         // Chỉ nhận đúng một tên tệp, không có thư mục con hay "..".
         if (fileName.Length == 0 || fileName != Path.GetFileName(fileName) || fileName.Contains("..")) return;
-        TryDelete(Path.Combine(_folder, fileName));
+        File.Delete(Path.Combine(_folder, fileName));
     }
 
     private static void TryDelete(string path)
