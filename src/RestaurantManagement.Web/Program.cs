@@ -68,6 +68,7 @@ builder.Services.AddScoped<RestaurantManagement.Web.Services.TableDetailsService
 builder.Services.AddScoped<RestaurantManagement.Web.Services.TableQrService>();
 builder.Services.AddSingleton<RestaurantManagement.Web.Services.TableQrPdfBuilder>();
 builder.Services.AddHostedService<RestaurantManagement.Web.Services.TableStatusOutboxWorker>();
+builder.Services.AddHostedService<RestaurantManagement.Web.Services.Tables.ReservationTableStatusSyncWorker>();
 
 // Use the same SQL Server database as the controllers and background worker.
 builder.Services.AddDbContext<RestaurantManagement.Data.Data.RestaurantDbContext>(options =>
