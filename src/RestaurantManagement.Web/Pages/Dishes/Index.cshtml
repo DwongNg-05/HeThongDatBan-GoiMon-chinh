@@ -2,11 +2,13 @@
 @model RestaurantManagement.Web.Pages.Dishes.IndexModel
 @{
     ViewData["Title"] = "Quản lý món";
-    string ImageSrc(string? path)
+    string ImageSrc(string? path, int categoryId)
     {
-        var image = RestaurantManagement.Web.Services.DishImage.Resolve(path);
+        Model.CategoryDefaultImages.TryGetValue(categoryId, out var categoryDefault);
+        var image = RestaurantManagement.Web.Services.DishImage.Resolve(path, categoryDefault);
         return image.StartsWith('/') ? Url.Content("~" + image) : image;
     }
+    var fallbackImage = Url.Content("~" + RestaurantManagement.Web.Services.DishImage.DefaultImage);
 }
 
 <div class="d-flex flex-wrap gap-3 justify-content-between align-items-start mt-3 mb-3">
@@ -57,7 +59,7 @@
     {
         <tr>
             <td>@idx</td>
-            <td><img src="@ImageSrc(item.ImagePath)" alt="Ảnh món @item.Name" width="56" height="56" style="object-fit:cover;border-radius:8px" loading="lazy" /></td>
+            <td><img src="@ImageSrc(item.ImagePath, item.CategoryId)" alt="Ảnh món @item.Name" width="56" height="56" style="object-fit:cover;border-radius:8px" loading="lazy" onerror="this.onerror=null;this.src='@fallbackImage';" /></td>
             <td>@item.Name</td>
             <td class="text-nowrap fw-semibold">@(item.PriceVnd.ToString("N0")) VND</td>
             <td>@item.Unit</td>

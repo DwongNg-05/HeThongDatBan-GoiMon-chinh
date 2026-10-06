@@ -15,5 +15,9 @@ namespace RestaurantManagement.Data.Models
 
         [Range(0, int.MaxValue)]
         public int SortOrder { get; set; }
+
+        /// <summary>Đường dẫn ảnh dùng cho các món trong nhóm chưa có ảnh riêng.</summary>
+        [StringLength(500)]
+        public string? DefaultImagePath { get; set; }
     }
 }

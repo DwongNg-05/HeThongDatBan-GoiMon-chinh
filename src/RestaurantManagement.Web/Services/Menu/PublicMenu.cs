@@ -88,17 +88,33 @@ public static class DishImage
 {
     public const string DefaultImage = "/images/thuc-don/mac-dinh.svg";
 
+    /// <summary>Ảnh mặc định của năm nhóm món đã thống nhất; nhóm chưa được cấu hình dùng ảnh chung.</summary>
+    public static string? DefaultForCategory(string? categoryName) => categoryName?.Trim() switch
+    {
+        var name when string.Equals(name, "Khai vị", StringComparison.OrdinalIgnoreCase) => "/images/thuc-don/khai-vi.svg",
+        var name when string.Equals(name, "Món chính", StringComparison.OrdinalIgnoreCase) => "/images/thuc-don/mon-chinh.svg",
+        var name when string.Equals(name, "Lẩu", StringComparison.OrdinalIgnoreCase) => "/images/thuc-don/lau.svg",
+        var name when string.Equals(name, "Tráng miệng", StringComparison.OrdinalIgnoreCase) => "/images/thuc-don/trang-mieng.svg",
+        var name when string.Equals(name, "Đồ uống", StringComparison.OrdinalIgnoreCase) => "/images/thuc-don/do-uong.svg",
+        _ => null
+    };
+
     /// <summary>
-    /// Chọn ảnh hiển thị: ảnh món, nếu không có thì ảnh mặc định chung.
+    /// Chọn ảnh hiển thị: ảnh món, ảnh mặc định của nhóm, cuối cùng là ảnh mặc định chung.
     /// Chỉ chấp nhận đường dẫn nội bộ ("/...") hoặc https để tránh URL lạ trong thẻ img.
     /// </summary>
-    public static string Resolve(string? path)
+    public static string Resolve(string? path, string? categoryDefault = null)
+    {
+        return ResolveAllowed(path) ?? ResolveAllowed(categoryDefault) ?? DefaultImage;
+    }
+
+    private static string? ResolveAllowed(string? path)
     {
         var value = path?.Trim();
-        if (string.IsNullOrEmpty(value)) return DefaultImage;
+        if (string.IsNullOrEmpty(value)) return null;
         if (value.StartsWith('/') && !value.StartsWith("//") && !value.Contains('\\')) return value;
         if (Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps) return uri.ToString();
-        return DefaultImage;
+        return null;
     }
 }
 
@@ -109,7 +125,7 @@ public static class PublicMenuBuilder
     /// Nhóm đang sử dụng nhưng chưa có món vẫn được trả về để khách thấy danh mục đầy đủ.
     /// </summary>
     public static IReadOnlyList<PublicMenuCategory> Build(
-        IEnumerable<(int Id, string Name)> activeCategories,
+        IEnumerable<(int Id, string Name, string? DefaultImagePath)> activeCategories,
         IEnumerable<OnSaleDishRow> onSaleDishes)
     {
         var byCategory = onSaleDishes.ToLookup(m => m.CategoryId);
@@ -122,7 +138,7 @@ public static class PublicMenuBuilder
                     m.ShortDescription?.Trim() ?? string.Empty,
                     m.PriceVnd,
                     m.Unit,
-                    DishImage.Resolve(m.ImagePath),
+                    DishImage.Resolve(m.ImagePath, n.DefaultImagePath ?? DishImage.DefaultForCategory(n.Name)),
                     m.SoldOutToday))
                 .ToArray()))
             .ToArray();

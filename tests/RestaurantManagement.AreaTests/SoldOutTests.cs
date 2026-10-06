@@ -62,7 +62,7 @@ internal static class SoldOutTests
         check(!store.SetSoldOutToday(99999, true), "Sold out: unknown dish rejected");
 
         // Dữ liệu SQL: cờ hết trong ngày đi qua builder.
-        var built = PublicMenuBuilder.Build(new[] { (1, "Nhóm") }, new[]
+        var built = PublicMenuBuilder.Build(new[] { (1, "Nhóm", (string?)null) }, new[]
         {
             new OnSaleDishRow(1, 1, "A", "a", 10000, "Ly", null, 1, true),
             new OnSaleDishRow(2, 1, "B", "b", 20000, "Ly", null, 2, false)

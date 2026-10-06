@@ -32,12 +32,12 @@ namespace RestaurantManagement.Web.Services
             for (var index = 0; index < defaults.Length; index++)
             {
                 var (categoryName, dishName, price, unit, description, image) = defaults[index];
-                var category = AddCategory(new DishCategory { Name = categoryName, SortOrder = index + 1 });
+                var category = AddCategory(new DishCategory { Name = categoryName, SortOrder = index + 1, DefaultImagePath = image });
                 AddDish(new Dish
                 {
                     Name = dishName, CategoryId = category.Id, PriceVnd = price,
                     Unit = unit, PrepMinutes = 15,
-                    ShortDescription = description, ImagePath = image
+                    ShortDescription = description
                 });
             }
         }
@@ -63,7 +63,8 @@ namespace RestaurantManagement.Web.Services
                     var category = _categories[ids[i]];
                     _categories[ids[i]] = new DishCategory
                     {
-                        Id = category.Id, Name = category.Name, IsActive = category.IsActive, SortOrder = i + 1
+                        Id = category.Id, Name = category.Name, IsActive = category.IsActive,
+                        SortOrder = i + 1, DefaultImagePath = category.DefaultImagePath
                     };
                 }
             }
@@ -79,7 +80,8 @@ namespace RestaurantManagement.Web.Services
             var onSaleDishes = GetAllDishes().Where(m => m.Status == DishStatus.OnSale)
                 .ToLookup(m => m.CategoryId);
             return GetActiveCategories()
-                .Select(n => new CategoryWithDishes(n.Id, n.Name, onSaleDishes[n.Id].ToArray())).ToArray();
+                .Select(n => new CategoryWithDishes(n.Id, n.Name,
+                    n.DefaultImagePath ?? DishImage.DefaultForCategory(n.Name), onSaleDishes[n.Id].ToArray())).ToArray();
         }
 
         // S2-01 Task 3: món hết trong ngày (bản SQL lưu ở MenuItems.IsSoldOut + SoldOutBusinessDate).
@@ -99,7 +101,7 @@ namespace RestaurantManagement.Web.Services
 
         public IReadOnlyList<PublicMenuCategory> GetPublicMenu() =>
             PublicMenuBuilder.Build(
-                GetActiveCategories().Select(n => (n.Id, n.Name)),
+                GetActiveCategories().Select(n => (n.Id, n.Name, n.DefaultImagePath)),
                 GetAllDishes().Where(m => m.Status == DishStatus.OnSale)
                     .Select(m => new OnSaleDishRow(m.Id, m.CategoryId, m.Name, m.ShortDescription, m.PriceVnd,
                         m.Unit, m.ImagePath, 0, IsSoldOutToday(m.Id))));
@@ -116,6 +118,7 @@ namespace RestaurantManagement.Web.Services
                     throw new ValidationException("Thứ tự hiển thị phải là số nguyên không âm.");
                 category.Id = ++_nextCategoryId;
                 category.Name = name;
+                category.DefaultImagePath ??= DishImage.DefaultForCategory(name);
                 _categories[category.Id] = category;
                 return category;
             }
@@ -132,7 +135,7 @@ namespace RestaurantManagement.Web.Services
                 _categories[id] = new DishCategory
                 {
                     Id = id, Name = validName,
-                    IsActive = category.IsActive, SortOrder = category.SortOrder
+                    IsActive = category.IsActive, SortOrder = category.SortOrder, DefaultImagePath = category.DefaultImagePath
                 };
                 return true;
             }
@@ -145,7 +148,8 @@ namespace RestaurantManagement.Web.Services
                 if (!_categories.TryGetValue(id, out var category)) return false;
                 _categories[id] = new DishCategory
                 {
-                    Id = id, Name = category.Name, SortOrder = category.SortOrder, IsActive = isActive
+                    Id = id, Name = category.Name, SortOrder = category.SortOrder, IsActive = isActive,
+                    DefaultImagePath = category.DefaultImagePath
                 };
                 return true;
             }

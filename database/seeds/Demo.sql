@@ -32,8 +32,12 @@ BEGIN
   1,CASE WHEN @n%10=0 THEN 8 WHEN @n%3=0 THEN 6 ELSE 4 END,@n);
  SET @n+=1;
 END;
-
-INSERT dbo.MenuCategories(Name,SortOrder) VALUES(N'Khai vị',1),(N'Món chính',2),(N'Lẩu',3),(N'Tráng miệng',4),(N'Đồ uống',5);
+INSERT dbo.MenuCategories(Name,SortOrder,DefaultImagePath) VALUES
+ (N'Khai vị',1,N'/images/thuc-don/khai-vi.svg'),
+ (N'Món chính',2,N'/images/thuc-don/mon-chinh.svg'),
+ (N'Lẩu',3,N'/images/thuc-don/lau.svg'),
+ (N'Tráng miệng',4,N'/images/thuc-don/trang-mieng.svg'),
+ (N'Đồ uống',5,N'/images/thuc-don/do-uong.svg');
 SET @n=1;
 WHILE @n<=60
 BEGIN

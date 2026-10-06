@@ -39,6 +39,7 @@ namespace RestaurantManagement.Data.Data
                 entity.Property(n => n.Name).HasColumnName("Name").HasMaxLength(50);
                 entity.Property(n => n.IsActive).HasColumnName("IsActive");
                 entity.Property(n => n.SortOrder).HasColumnName("SortOrder");
+                entity.Property(n => n.DefaultImagePath).HasColumnName("DefaultImagePath").HasMaxLength(500).IsRequired(false);
             });
             modelBuilder.Entity<Dish>(entity =>
             {
