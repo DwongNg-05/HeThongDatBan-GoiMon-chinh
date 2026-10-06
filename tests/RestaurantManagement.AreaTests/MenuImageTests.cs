@@ -3,13 +3,16 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using RestaurantManagement.Data.Models;
 using RestaurantManagement.Web.Services;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.Formats.Png;
+using SixLabors.ImageSharp.PixelFormats;
 
 /// <summary>Tải ảnh món khi tạo món: chỉ JPG/PNG, tối đa 5 MB, đường dẫn ảnh được ghi vào dữ liệu món.</summary>
 internal static class MenuImageTests
 {
-    internal static readonly byte[] Png = Convert.FromBase64String(
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==");
-    internal static readonly byte[] Jpeg = [0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0xFF, 0xD9];
+    internal static readonly byte[] Png = CreateImage(1, 1, png: true);
+    internal static readonly byte[] Jpeg = CreateImage(1, 1, png: false);
 
     internal static IFormFile File(byte[] bytes, string fileName, string contentType = "application/octet-stream", long? length = null) =>
         new FormFile(new MemoryStream(bytes), 0, length ?? bytes.Length, "ImageFile", fileName)
@@ -35,11 +38,33 @@ internal static class MenuImageTests
         try
         {
             var storage = new DiskDishImageStorage(folder);
+            await CheckOptimized(check, storage, folder, CreateImage(640, 480, png: true), "small.png", 640, 480,
+                "Dish image optimization: small PNG keeps its dimensions and reloads");
+            await CheckOptimized(check, storage, folder, CreateImage(2048, 1024, png: false), "wide.jpg", 1024, 512,
+                "Dish image optimization: wide image shrinks to 1024 and preserves its ratio");
+            await CheckOptimized(check, storage, folder, CreateImage(900, 1800, png: true), "tall.png", 512, 1024,
+                "Dish image optimization: tall image shrinks to 1024 and preserves its ratio");
+
+            var largeJpeg = CreateImage(1800, 1200, png: false, noisy: true, jpegQuality: 100);
+            var optimizedPath = await storage.SaveAsync(File(largeJpeg, "large.jpg"));
+            var optimizedFile = Path.Combine(folder, Path.GetFileName(optimizedPath));
+            using (var optimized = await Image.LoadAsync(optimizedFile))
+            {
+                var ratioError = Math.Abs((double)optimized.Width / optimized.Height - 1.5);
+                check(Math.Max(optimized.Width, optimized.Height) <= DishImageRules.MaxDimension && ratioError < 0.002,
+                    "Dish image optimization: both large edges shrink within 1024 and preserve ratio");
+            }
+            check(new FileInfo(optimizedFile).Length < largeJpeg.Length,
+                "Dish image optimization: JPEG is recompressed to a smaller stored file");
+
             var path = await storage.SaveAsync(File(Png, "../../evil name.png"));
             var fileName = path[DishImageRules.WebFolder.Length..];
             check(path.StartsWith("/uploads/mon-an/") && path.EndsWith(".png") && !path.Contains("evil") && !fileName.Contains('/'),
                 "Dish image: saved under /uploads/mon-an with a random name, ignoring client file name");
-            check(System.IO.File.ReadAllBytes(Path.Combine(folder, fileName)).SequenceEqual(Png), "Dish image: file content stored unchanged");
+            var storedBytes = System.IO.File.ReadAllBytes(Path.Combine(folder, fileName));
+            using (var storedImage = await Image.LoadAsync(Path.Combine(folder, fileName)))
+                check(storedImage.Width == 1 && storedImage.Height == 1 && !storedBytes.SequenceEqual(Png),
+                    "Dish image: optimized PNG is re-encoded and remains readable");
             storage.Delete("/images/thuc-don/lau.svg");
             storage.Delete("/uploads/mon-an/../../appsettings.json");
             check(System.IO.File.Exists(Path.Combine(folder, fileName)), "Dish image: delete ignores paths outside upload folder");
@@ -88,5 +113,34 @@ internal static class MenuImageTests
         {
             try { Directory.Delete(folder, recursive: true); } catch (IOException) { }
         }
+    }
+
+    private static async Task CheckOptimized(Action<bool, string> check, IDishImageStorage storage, string folder, byte[] input, string name,
+        int expectedWidth, int expectedHeight, string label)
+    {
+        var path = await storage.SaveAsync(File(input, name));
+        using var decoded = await Image.LoadAsync(Path.Combine(folder, Path.GetFileName(path)));
+        var ratioError = Math.Abs((double)decoded.Width / decoded.Height - (double)expectedWidth / expectedHeight);
+        var dimensionsAreCorrect = decoded.Width == expectedWidth && decoded.Height == expectedHeight;
+        if (Math.Max(expectedWidth, expectedHeight) <= DishImageRules.MaxDimension)
+            dimensionsAreCorrect &= Math.Max(decoded.Width, decoded.Height) <= DishImageRules.MaxDimension;
+        check(dimensionsAreCorrect && ratioError < 0.002, label);
+    }
+
+    private static byte[] CreateImage(int width, int height, bool png, bool noisy = false, int jpegQuality = 100)
+    {
+        using var image = new Image<Rgb24>(width, height);
+        var random = new Random(42);
+        for (var y = 0; y < height; y++)
+        for (var x = 0; x < width; x++)
+        {
+            var value = noisy ? (byte)random.Next(256) : (byte)90;
+            image[x, y] = new Rgb24(value, noisy ? (byte)random.Next(256) : (byte)150, noisy ? (byte)random.Next(256) : (byte)210);
+        }
+
+        using var stream = new MemoryStream();
+        if (png) image.SaveAsPng(stream, new PngEncoder());
+        else image.SaveAsJpeg(stream, new JpegEncoder { Quality = jpegQuality });
+        return stream.ToArray();
     }
 }

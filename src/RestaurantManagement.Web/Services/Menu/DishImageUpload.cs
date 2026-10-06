@@ -1,4 +1,8 @@
 using System.ComponentModel.DataAnnotations;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.Formats.Png;
+using SixLabors.ImageSharp.Processing;
 
 namespace RestaurantManagement.Web.Services;
 
@@ -15,6 +19,7 @@ public sealed record ImageCheckResult(string? Error, string? Extension)
 public static class DishImageRules
 {
     public const long MaxBytes = 5 * 1024 * 1024;
+    public const int MaxDimension = 1024;
     public const string WebFolder = "/uploads/mon-an/";
     public const string AcceptHtml = ".jpg,.jpeg,.png,image/jpeg,image/png";
 
@@ -63,7 +68,7 @@ public interface IDishImageStorage
     void Delete(string? path);
 }
 
-/// <summary>Lưu ảnh vào wwwroot/uploads/mon-an với tên ngẫu nhiên; không dùng tên tệp người dùng gửi.</summary>
+/// <summary>Lưu ảnh đã thu nhỏ và nén vào wwwroot/uploads/mon-an; không dùng tên tệp người dùng gửi.</summary>
 public sealed class DiskDishImageStorage : IDishImageStorage
 {
     private readonly string _folder;
@@ -86,7 +91,35 @@ public sealed class DiskDishImageStorage : IDishImageStorage
         try
         {
             await using var target = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-            await file.CopyToAsync(target, cancellationToken);
+            using var source = file.OpenReadStream();
+            using var image = await Image.LoadAsync(source, cancellationToken);
+
+            image.Mutate(operation => operation.AutoOrient());
+            var scale = Math.Min(1d, (double)DishImageRules.MaxDimension / Math.Max(image.Width, image.Height));
+            if (scale < 1d)
+            {
+                var width = Math.Max(1, (int)Math.Round(image.Width * scale));
+                var height = Math.Max(1, (int)Math.Round(image.Height * scale));
+                image.Mutate(operation => operation.Resize(width, height, KnownResamplers.Lanczos3));
+            }
+
+            if (result.Extension == ".jpg")
+                await image.SaveAsJpegAsync(target, new JpegEncoder { Quality = 82, SkipMetadata = true }, cancellationToken);
+            else
+                await image.SaveAsPngAsync(target, new PngEncoder { CompressionLevel = PngCompressionLevel.BestCompression, SkipMetadata = true }, cancellationToken);
+
+            if (Math.Max(image.Width, image.Height) > DishImageRules.MaxDimension)
+                throw new InvalidDataException("Ảnh sau khi tối ưu vẫn vượt quá kích thước cho phép.");
+        }
+        catch (UnknownImageFormatException ex)
+        {
+            TryDelete(filePath);
+            throw new ValidationException(DishImageRules.ContentError, ex);
+        }
+        catch (InvalidImageContentException ex)
+        {
+            TryDelete(filePath);
+            throw new ValidationException(DishImageRules.ContentError, ex);
         }
         catch
         {

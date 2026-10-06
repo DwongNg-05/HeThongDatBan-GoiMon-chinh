@@ -15,6 +15,12 @@ void Check(bool condition, string label)
     if (!condition) throw new Exception("FAIL: " + label);
     Console.WriteLine("PASS: " + label); count++;
 }
+if (args.Contains("--image-only"))
+{
+    await MenuImageTests.Run(Check);
+    Console.WriteLine($"{count} image tests passed.");
+    return;
+}
 bool Valid(string name, int? order)
 {
     var model = new AreaFormViewModel { Name = name, SortOrder = order };
