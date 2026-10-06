@@ -115,6 +115,7 @@ builder.Services.AddResponseCompression(options =>
 builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProviderOptions>(o => o.Level = System.IO.Compression.CompressionLevel.Fastest);
 builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProviderOptions>(o => o.Level = System.IO.Compression.CompressionLevel.Fastest);
 
+builder.Services.AddHostedService<TemporaryOutResetWorker>();
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
