@@ -13,6 +13,22 @@
         <p class="alert alert-secondary">Bạn đang xem màn hình bếp; chỉ tài khoản Bếp được chuyển trạng thái chế biến.</p>
     }
 
+    @if (Model.StoppedOrders.Count > 0)
+    {
+        <section class="alert alert-danger" aria-label="Món cần dừng" aria-live="polite">
+            <h3>Dừng món — đã huỷ có tính tiền</h3>
+            <p>Không tiếp tục chế biến hoặc mang ra các món dưới đây. Thông báo được giữ trong ca đang mở.</p>
+            <ul>
+            @foreach (var stopped in Model.StoppedOrders)
+            {
+                <li data-stopped-order="@stopped.Id">
+                    <strong>Bàn @stopped.TableCode · @stopped.ItemName · @stopped.Quantity @stopped.Unit</strong>
+                    — @stopped.Reason · @stopped.Actor · @stopped.CancelledAt.ToString("HH:mm:ss")
+                </li>
+            }
+            </ul>
+        </section>
+    }
     @if (Model.Items.Count == 0)
     {
         <p class="text-muted">Chưa có món nào cần chế biến.</p>

@@ -37,3 +37,7 @@ public static class Vnd
 {
     public static string Format(decimal value) => value.ToString("#,0", System.Globalization.CultureInfo.GetCultureInfo("vi-VN")) + " ₫";
 }
+
+public sealed record InvoiceLineDetail(long OrderItemId, string ItemName, string Unit, int Quantity,
+    decimal UnitPrice, decimal LineTotal, string TableCode, bool IsChargedCancellation);
+public sealed record InvoiceDetailsViewModel(InvoiceRow Invoice, IReadOnlyList<InvoiceLineDetail> Lines);

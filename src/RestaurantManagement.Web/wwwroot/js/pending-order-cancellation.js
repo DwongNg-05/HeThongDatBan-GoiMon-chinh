@@ -4,6 +4,7 @@
     const area = root.querySelector('[data-order-lines]'), dialog = root.querySelector('dialog');
     const form = root.querySelector('[data-cancel-form]'), submit = form.querySelector('[data-cancel-submit]');
     const notice = root.querySelector('[data-order-message]'), error = form.querySelector('[data-cancel-message]');
+    const canCancelPrepared = root.dataset.canCancelPrepared === 'true';
     let selected, requestId, busy = false, polling = false, blocked = false, lines = [];
     const money = value => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
     const reasons = { ChangedMind: 'Khách đổi ý', Mistake: 'Gọi nhầm', SoldOut: 'Hết nguyên liệu', ManagerOverride: 'Quản lý huỷ · Vẫn tính tiền' };
@@ -33,13 +34,19 @@
                 const row = node('tr'); row.dataset.orderItem = item.id; row.dataset.status = item.status;
                 row.append(node('td', item.itemName), node('td', `${item.quantity} ${item.unit}`),
                     node('td', money(item.unitPrice)), node('td', item.statusLabel + (item.cancelReason ? ` · ${reasons[item.cancelReason] || item.cancelReason}` : '')));
-                const action = node('td'), button = node('button', 'Huỷ món', 'btn btn-sm btn-outline-danger');
-                button.type = 'button'; button.disabled = item.status !== 'Pending';
+                const prepared = canCancelPrepared && ['Preparing', 'Ready'].includes(item.status);
+                const action = node('td'), button = node('button', prepared ? 'Huỷ có tính tiền' : 'Huỷ món', 'btn btn-sm btn-outline-danger');
+                button.type = 'button'; button.disabled = item.status !== 'Pending' && !prepared;
                 if (button.disabled) action.append(node('small', item.status === 'Cancelled' ? 'Món đã huỷ.' : 'Chỉ được huỷ món còn chờ bếp.', 'd-block text-muted'));
                 button.addEventListener('click', () => {
+                    if (button.disabled) return;
                     selected = item; requestId = crypto.randomUUID(); blocked = false; form.reset(); error.textContent = '';
                     form.elements.quantity.value = item.quantity; form.elements.quantity.max = item.quantity;
                     root.querySelector('[data-cancel-name]').textContent = `${item.itemName} · ${item.quantity} ${item.unit}`;
+                    const charged = form.elements.confirmCharged;
+                    charged.disabled = !prepared; charged.required = prepared; charged.checked = false;
+                    root.querySelector('[data-charged-confirmation]').hidden = !prepared;
+                    submit.textContent = prepared ? 'Xác nhận huỷ có tính tiền' : 'Xác nhận huỷ';
                     validity(); dialog.showModal();
                 });
                 action.append(button); row.append(action); body.append(row);
@@ -47,15 +54,24 @@
             table.append(body); section.append(table); area.append(section);
         }
     }
-    async function refresh() {
-        if (polling) return;
-        polling = true;
-        try {
-            const response = await fetch('/Ordering/Sent/Snapshot', { cache: 'no-store', headers: { 'X-Requested-With': 'XMLHttpRequest' }, signal: AbortSignal.timeout(4000) });
-            if (!response.ok) throw new Error('Không tải được trạng thái mới nhất. Vui lòng thử lại.');
-            lines = await response.json(); render();
-        } catch (ex) { notice.textContent = ex.message; }
-        finally { polling = false; }
+    async function refresh(force = false) {
+        if (polling) { await polling; if (!force) return; }
+        polling = (async () => {
+            try {
+                const response = await fetch('/Ordering/Sent/Snapshot', { cache: 'no-store', headers: { 'X-Requested-With': 'XMLHttpRequest' }, signal: AbortSignal.timeout(4000) });
+                if (!response.ok || response.redirected) throw new Error('Không tải được trạng thái mới nhất. Vui lòng thử lại.');
+                lines = await response.json(); render();
+                if (dialog.open && selected && !busy) {
+                    const latest = lines.find(line => line.id === selected.id);
+                    if (!latest || latest.status !== selected.status || latest.quantity !== selected.quantity) {
+                        blocked = true;
+                        error.textContent = 'Trạng thái hoặc số lượng món đã thay đổi. Đóng hộp xác nhận và kiểm tra lại dòng món.';
+                        form.elements.reason.disabled = true; validity();
+                    }
+                }
+            } catch (ex) { notice.textContent = ex.message; }
+        })();
+        try { await polling; } finally { polling = false; }
     }
     form.addEventListener('input', validity); form.addEventListener('change', validity);
     root.querySelector('[data-cancel-close]').addEventListener('click', () => { if (!busy) dialog.close(); });
@@ -64,17 +80,19 @@
         event.preventDefault(); if (busy || blocked || !selected || !form.reportValidity()) return;
         busy = true; validity(); error.textContent = '';
         const data = new FormData(form); data.set('requestId', requestId);
+        const prepared = selected.status !== 'Pending';
+        if (prepared) data.set('expectedStatus', selected.status);
         try {
-            const response = await fetch(`/Ordering/Sent/${selected.id}/Cancel`, {
+            const response = await fetch(`/Ordering/Sent/${selected.id}/${prepared ? 'CancelPrepared' : 'Cancel'}`, {
                 method: 'POST', body: data, headers: { 'X-Requested-With': 'XMLHttpRequest' }, signal: AbortSignal.timeout(10000)
             });
             const result = await response.json();
             if (!response.ok) { error.textContent = result.message || 'Không huỷ được món.'; }
             else { notice.textContent = result.message; dialog.close(); }
-            await refresh();
+            await refresh(true);
             if (!response.ok) {
                 const latest = lines.find(line => line.id === selected.id);
-                if (!latest || latest.status !== 'Pending') { blocked = true; form.elements.quantity.disabled = true; form.elements.reason.disabled = true; }
+                if (!latest || latest.status !== selected.status || latest.quantity !== selected.quantity) { blocked = true; form.elements.quantity.disabled = true; form.elements.reason.disabled = true; }
                 else { form.elements.quantity.max = latest.quantity; }
             }
         } catch { error.textContent = 'Chưa xác nhận được kết quả. Bạn có thể thử lại; cùng yêu cầu sẽ không huỷ thêm.'; }
@@ -82,5 +100,5 @@
     });
     // Re-enable controls when opening another cancellation after a conflict.
     dialog.addEventListener('close', () => { form.elements.quantity.disabled = false; form.elements.reason.disabled = false; });
-    refresh(); setInterval(refresh, 2000);
+    refresh(); setInterval(() => refresh(), 2000);
 })();

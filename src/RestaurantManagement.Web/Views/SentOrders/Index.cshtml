@@ -1,8 +1,9 @@
 @model IReadOnlyList<RestaurantManagement.Web.Services.SentOrderLine>
 @{ ViewData["Title"] = "Món đã gửi bếp"; }
-<div data-sent-orders>
+<div data-sent-orders data-can-cancel-prepared="@(User.IsInRole("Manager") ? "true" : "false")">
     <h1>Món đã gửi bếp</h1>
     <p>Huỷ toàn bộ số lượng trên dòng món còn chờ bếp. Món huỷ trước chế biến không tính tiền.</p>
+    @if (User.IsInRole("Manager")) { <p>Quản lý được huỷ món đang chế biến hoặc chờ mang ra; món vẫn được tính tiền.</p> }
     <a href="/Ordering" class="btn btn-outline-secondary mb-3">Tiếp tục gọi món</a>
     <p role="status" aria-live="polite" data-order-message></p>
     <div data-order-lines></div>
@@ -21,6 +22,10 @@
                     <option value="Mistake">Gọi nhầm</option>
                     <option value="SoldOut">Hết nguyên liệu</option>
                 </select>
+            </label>
+            <label data-charged-confirmation hidden class="mb-3">
+                <input name="confirmCharged" type="checkbox" value="true" />
+                Tôi xác nhận huỷ món và vẫn tính toàn bộ tiền món trên tạm tính, hoá đơn.
             </label>
             <p data-cancel-message role="alert"></p>
             <button type="button" data-cancel-close class="btn btn-secondary">Đóng</button>

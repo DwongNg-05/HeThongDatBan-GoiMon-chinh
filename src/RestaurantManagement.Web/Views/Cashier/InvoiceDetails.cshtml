@@ -1,0 +1,26 @@
+@model RestaurantManagement.Web.Models.Cashier.InvoiceDetailsViewModel
+@using RestaurantManagement.Web.Models.Cashier
+@{ ViewData["Title"] = "Chi tiết hoá đơn"; }
+<section data-invoice-details="@Model.Invoice.Id">
+    <h1>Hoá đơn @Model.Invoice.InvoiceNumber</h1>
+    <p>Bàn @Model.Invoice.Tables · @Model.Invoice.GuestCount khách · @Model.Invoice.IssuedAt.ToString("dd/MM/yyyy HH:mm") · @Model.Invoice.StatusLabel</p>
+    <a asp-action="Invoices" class="btn btn-outline-secondary mb-3">Danh sách hoá đơn</a>
+    <div class="table-responsive">
+        <table class="table table-bordered">
+            <thead><tr><th>Món</th><th>Bàn</th><th>Số lượng</th><th>Đơn giá</th><th>Thành tiền</th><th>Trạng thái</th></tr></thead>
+            <tbody>
+            @foreach (var line in Model.Lines)
+            {
+                <tr data-invoice-order-item="@line.OrderItemId">
+                    <td>@line.ItemName</td><td>@line.TableCode</td><td>@line.Quantity @line.Unit</td>
+                    <td>@Vnd.Format(line.UnitPrice)</td><td>@Vnd.Format(line.LineTotal)</td>
+                    <td>@if (line.IsChargedCancellation) { <strong class="text-danger">Đã huỷ có tính tiền</strong> }</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+    <p>Tạm tính: <strong>@Vnd.Format(Model.Invoice.Subtotal)</strong></p>
+    <p>Giảm giá: @Vnd.Format(Model.Invoice.DiscountAmount)</p>
+    <p>Tổng: <strong>@Vnd.Format(Model.Invoice.Total)</strong> · @Model.Invoice.MethodLabel</p>
+</section>

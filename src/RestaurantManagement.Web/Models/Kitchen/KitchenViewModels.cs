@@ -30,4 +30,9 @@ public sealed record TemporaryOutHistoryViewModel(int? DishId, string? DishName,
     IReadOnlyList<RestaurantManagement.Web.Services.DailyDish> Dishes,
     IReadOnlyList<RestaurantManagement.Web.Services.TemporaryOutLogEntry> Entries);
 
-public sealed record KitchenScreenViewModel(IReadOnlyList<KitchenOrderItem> Items, bool CanChangeStatus);
+public sealed record KitchenStoppedOrder(long Id, string TableCode, string ItemName, int Quantity,
+    DateTime CancelledAt, string Reason, string Actor, string Unit);
+public sealed record KitchenScreenViewModel(IReadOnlyList<KitchenOrderItem> Items, bool CanChangeStatus)
+{
+    public IReadOnlyList<KitchenStoppedOrder> StoppedOrders { get; init; } = [];
+}

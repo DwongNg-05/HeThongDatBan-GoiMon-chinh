@@ -25,7 +25,7 @@
                 @foreach (var i in Model.Invoices)
                 {
                     <tr data-invoice="@i.InvoiceNumber">
-                        <td class="fw-bold">@i.InvoiceNumber</td>
+                        <td class="fw-bold"><a asp-action="InvoiceDetails" asp-route-id="@i.Id">@i.InvoiceNumber</a></td>
                         <td>@i.Tables</td>
                         <td>@i.GuestCount</td>
                         <td>@i.IssuedAt.ToString("HH:mm")</td>

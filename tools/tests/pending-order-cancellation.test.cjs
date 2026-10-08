@@ -5,11 +5,11 @@ const source=fs.readFileSync('src/RestaurantManagement.Web/wwwroot/js/pending-or
 const flush=()=>new Promise(r=>setImmediate(r));
 const reply=(data,ok=true)=>({ok,json:async()=>data});
 const line=(status='Pending',subtotal=75000)=>({id:1,sessionId:1,tableCode:'A01',itemName:'Cơm',unit:'phần',quantity:3,unitPrice:25000,status,statusLabel:status,subtotal});
-function setup(fetch){
+function setup(fetch,manager=false){
  const selectors={},timers=[];
- function el(tag){return {tag,children:[],dataset:{},listeners:{},disabled:false,value:'',append(...v){this.children.push(...v)},replaceChildren(){this.children=[]},addEventListener(k,v){this.listeners[k]=v},showModal(){this.open=true},close(){this.open=false;this.listeners.close?.()},querySelector(k){return selectors[k]??=el()},checkValidity(){return !!this.elements.reason.value},reportValidity(){return this.checkValidity()},reset(){this.elements.reason.value=''}}}
- const root=el(),form=root.querySelector('[data-cancel-form]');
- form.elements={quantity:el(),reason:el()};
+ function el(tag){return {tag,children:[],dataset:{},listeners:{},disabled:false,value:'',append(...v){this.children.push(...v)},replaceChildren(){this.children=[]},addEventListener(k,v){this.listeners[k]=v},showModal(){this.open=true},close(){this.open=false;this.listeners.close?.()},querySelector(k){return selectors[k]??=el()},checkValidity(){return !!this.elements.reason.value && (!this.elements.confirmCharged.required || this.elements.confirmCharged.checked)},reportValidity(){return this.checkValidity()},reset(){this.elements.reason.value=''}}}
+ const root=el();root.dataset.canCancelPrepared=String(manager);const form=root.querySelector('[data-cancel-form]');
+ form.elements={quantity:el(),reason:el(),confirmCharged:el()};
  vm.runInNewContext(source,{document:{querySelector:()=>root,createElement:el},fetch,Intl,Map,crypto:{randomUUID:()=> 'request-1'},AbortSignal:{timeout:()=>undefined},FormData:class{constructor(f){this.data=new Map(Object.entries(f.elements).map(([k,v])=>[k,v.value]))}set(k,v){this.data.set(k,v)}get(k){return this.data.get(k)}},setInterval(f,ms){timers.push({f,ms})}});
  return {selectors,form,timers};
 }
@@ -57,4 +57,36 @@ test('kitchen auto refresh replaces queue after cancellation',async()=>{
  DOMParser:class{parseFromString(){return {querySelector:()=>({})}}},AbortSignal:{timeout(){}},
  setInterval(f,ms){timers.push({f,ms})}});
  assert.equal(timers[0].ms,2000);await timers[0].f();assert.equal(replaced,true);
+});
+
+test('manager confirms charged cancellation for preparing and ready, served remains disabled',async()=>{
+ let posts=0,state='Preparing';const s=setup(async(url,o)=>{
+  if(o.method==='POST'){
+   posts++;assert.ok(url.endsWith('/CancelPrepared'));
+   assert.equal(o.body.get('expectedStatus'),'Preparing');
+   state='Cancelled';return reply({message:'Đã huỷ có tính tiền'});
+  }
+  return reply([line(state),{...line('Ready'),id:2},{...line('Served'),id:3}]);
+ },true);
+ await flush();
+ const buttons=all(s.selectors['[data-order-lines]']).filter(e=>e.tag==='button');
+ assert.equal(buttons[0].disabled,false);assert.equal(buttons[1].disabled,false);assert.equal(buttons[2].disabled,true);
+ assert.equal(buttons[0].textContent,'Huỷ có tính tiền');
+ buttons[0].listeners.click();
+ assert.equal(s.selectors['[data-charged-confirmation]'].hidden,false);
+ s.form.elements.reason.value='SoldOut';
+ await s.form.listeners.submit({preventDefault(){}});assert.equal(posts,0);
+ s.form.elements.confirmCharged.checked=true;
+ await s.form.listeners.submit({preventDefault(){}});assert.equal(posts,1);
+ assert.ok(all(s.selectors['[data-order-lines]']).some(e=>/Tạm tính: 75/.test(e.textContent)));
+});
+test('polling detects a preparing-to-ready change before charged confirmation',async()=>{
+ let state='Preparing',posts=0;
+ const s=setup(async(url,o)=>{if(o.method==='POST')posts++;return reply([line(state)])},true);
+ await flush();all(s.selectors['[data-order-lines]']).find(e=>e.tag==='button').listeners.click();
+ s.form.elements.reason.value='Mistake';s.form.elements.confirmCharged.checked=true;
+ state='Ready';await s.timers[0].f();
+ assert.equal(s.selectors['[data-cancel-submit]'].disabled,true);
+ assert.match(s.selectors['[data-cancel-message]'].textContent,/đã thay đổi/);
+ await s.form.listeners.submit({preventDefault(){}});assert.equal(posts,0);
 });

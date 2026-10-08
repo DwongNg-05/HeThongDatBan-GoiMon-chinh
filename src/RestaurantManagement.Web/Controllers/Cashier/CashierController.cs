@@ -35,7 +35,7 @@ public sealed class CashierController(IConfiguration configuration) : Controller
                    (SELECT SUM(x.GuestCount) FROM dbo.DiningSessions x WHERE x.Id=s.Id OR x.BillingSessionId=s.Id) AS Guests,
                    s.Status,s.OpenedAt,
                    (SELECT COUNT(*) FROM dbo.OrderItems i JOIN dbo.OrderBatches b ON b.Id=i.BatchId JOIN dbo.DiningSessions x ON x.Id=b.SessionId
-                     WHERE (x.Id=s.Id OR x.BillingSessionId=s.Id) AND i.Status<>'Cancelled') AS Items,
+                     WHERE (x.Id=s.Id OR x.BillingSessionId=s.Id) AND (i.Status<>'Cancelled' OR i.ChargeWhenCancelled=1)) AS Items,
                    (SELECT COUNT(*) FROM dbo.OrderItems i JOIN dbo.OrderBatches b ON b.Id=i.BatchId JOIN dbo.DiningSessions x ON x.Id=b.SessionId
                      WHERE (x.Id=s.Id OR x.BillingSessionId=s.Id) AND i.Status NOT IN ('Served','Cancelled')) AS Unserved,
                    (SELECT COALESCE(SUM(i.LineTotal),0) FROM dbo.OrderItems i JOIN dbo.OrderBatches b ON b.Id=i.BatchId JOIN dbo.DiningSessions x ON x.Id=b.SessionId
@@ -106,6 +106,27 @@ public sealed class CashierController(IConfiguration configuration) : Controller
         return View(new InvoicesViewModel(day, invoices));
     }
 
+    [HttpGet("Invoices/{id:long}")]
+    public async Task<IActionResult> InvoiceDetails(long id, CancellationToken ct)
+    {
+        await using var cn = new SqlConnection(ConnectionString); await cn.OpenAsync(ct);
+        await using var cmd = new SqlCommand("""
+            SELECT i.Id,i.InvoiceNumber,i.TableLabels,i.GuestCount,i.IssuedAt,i.Subtotal,i.DiscountAmount,i.Total,p.Method,i.Status
+            FROM dbo.Invoices i JOIN dbo.Payments p ON p.InvoiceId=i.Id WHERE i.Id=@id;
+            SELECT OrderItemId,ItemName,Unit,Quantity,UnitPrice,LineTotal,OriginalTableCode,IsChargedCancellation
+            FROM dbo.InvoiceLines WHERE InvoiceId=@id ORDER BY Id;
+            """, cn);
+        cmd.Parameters.Add("@id", SqlDbType.BigInt).Value = id;
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        if (!await reader.ReadAsync(ct)) return NotFound();
+        var invoice = new InvoiceRow(reader.GetInt64(0),reader.GetString(1),reader.GetString(2),reader.GetInt32(3),
+            VietnamTime.FromUtc(reader.GetDateTime(4)),reader.GetDecimal(5),reader.GetDecimal(6),reader.GetDecimal(7),reader.GetString(8),reader.GetString(9));
+        await reader.NextResultAsync(ct); var lines = new List<InvoiceLineDetail>();
+        while (await reader.ReadAsync(ct))
+            lines.Add(new(reader.GetInt64(0),reader.GetString(1),reader.GetString(2),reader.GetInt32(3),
+                reader.GetDecimal(4),reader.GetDecimal(5),reader.GetString(6),reader.GetBoolean(7)));
+        return View(new InvoiceDetailsViewModel(invoice, lines));
+    }
     // ---------------- Chốt ca ----------------
 
     [HttpGet("Shift")]

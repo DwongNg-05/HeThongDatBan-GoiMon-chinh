@@ -16,7 +16,7 @@ internal static partial class DatabaseTool
             var connection = Environment.GetEnvironmentVariable("RM_CONNECTION_STRING");
             if (command == "help" || string.IsNullOrWhiteSpace(connection))
             {
-                Console.WriteLine("Commands: migrate | seed-demo | seed-login-demo | seed-menu-demo | seed-confirmation-demo | seed-menu-200 | hide-menu-200 | email-retry-now | verify | verify-pending-cancellation | verify-shift-cancellations | seed-shift-cancellation-demo | verify-booking-email | verify-api-permissions | verify-temporary-out | maintenance | check\nSet RM_CONNECTION_STRING first. seed-demo and seed-login-demo also require RM_DEMO_PASSWORD.\nseed-login-demo accepts RM_DEMO_USERNAME and RM_DEMO_PHONE; existing accounts are preserved.\nverify creates and removes its own uniquely named test database.");
+                Console.WriteLine("Commands: migrate | seed-demo | seed-login-demo | seed-menu-demo | seed-confirmation-demo | seed-menu-200 | hide-menu-200 | email-retry-now | verify | verify-pending-cancellation | verify-shift-cancellations | verify-prepared-cancellation | seed-shift-cancellation-demo | verify-booking-email | verify-api-permissions | verify-temporary-out | maintenance | check\nSet RM_CONNECTION_STRING first. seed-demo and seed-login-demo also require RM_DEMO_PASSWORD.\nseed-login-demo accepts RM_DEMO_USERNAME and RM_DEMO_PHONE; existing accounts are preserved.\nverify creates and removes its own uniquely named test database.");
                 Environment.ExitCode = command == "help" ? 0 : 1;
                 return;
             }
@@ -31,6 +31,7 @@ internal static partial class DatabaseTool
                 case "hide-menu-200": await HideMenu200(connection); break;
                 case "verify": await Verification.Run(connection); break;
                 case "seed-shift-cancellation-demo": await Execute(connection, await File.ReadAllTextAsync(Path.Combine(Root, "database", "seeds", "ShiftCancellationDemo.sql"))); break;
+                case "verify-prepared-cancellation": await PreparedCancellationVerification.Run(connection); break;
                 case "verify-shift-cancellations":
                 case "verify-pending-cancellation": await PendingCancellationVerification.Run(connection); break;
                 // S2-09 Task 3: chỉ nghiệm thu luồng đặt bàn + email (database tạm, cần build Debug trước).

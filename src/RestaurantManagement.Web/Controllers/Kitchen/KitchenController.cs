@@ -37,6 +37,12 @@ public sealed class KitchenController(IConfiguration configuration) : Controller
             JOIN dbo.DiningTables t ON t.Id=i.OriginalTableId
             WHERE s.Status<>'Closed' AND i.Status IN ('Pending','Preparing','Ready')
             ORDER BY CASE i.Status WHEN 'Pending' THEN 0 WHEN 'Preparing' THEN 1 ELSE 2 END, i.SubmittedAt, i.Id;
+            SELECT i.Id,t.Code,i.ItemName,i.Quantity,i.CancelledAt,i.CancelReason,u.FullName,i.Unit
+            FROM dbo.OrderItems i JOIN dbo.OrderBatches b ON b.Id=i.BatchId
+            JOIN dbo.DiningSessions s ON s.Id=b.SessionId JOIN dbo.Shifts sh ON sh.Id=s.ShiftId
+            JOIN dbo.DiningTables t ON t.Id=i.OriginalTableId LEFT JOIN dbo.Users u ON u.Id=i.CancelledBy
+            WHERE i.Status='Cancelled' AND i.ChargeWhenCancelled=1 AND sh.Status='Open'
+            ORDER BY i.CancelledAt DESC,i.Id DESC;
             """, connection);
         await connection.OpenAsync(cancellationToken);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -44,7 +50,13 @@ public sealed class KitchenController(IConfiguration configuration) : Controller
             items.Add(new KitchenOrderItem(
                 reader.GetInt64(0), reader.GetString(1), reader.GetString(2), reader.GetString(3), reader.GetInt32(4),
                 reader.IsDBNull(5) ? null : reader.GetString(5), reader.GetString(6), VietnamTime.FromUtc(reader.GetDateTime(7)), reader.GetInt32(8)));
-        return View(new KitchenScreenViewModel(items, User.IsInRole(AppRoles.Kitchen)));
+        await reader.NextResultAsync(cancellationToken);
+        var stopped = new List<KitchenStoppedOrder>();
+        while (await reader.ReadAsync(cancellationToken))
+            stopped.Add(new(reader.GetInt64(0),reader.GetString(1),reader.GetString(2),reader.GetInt32(3),
+                VietnamTime.FromUtc(reader.GetDateTime(4)),ShiftCancellationReportStore.ReasonLabel(reader.GetString(5)),
+                reader.IsDBNull(6) ? "Quản lý" : reader.GetString(6),reader.GetString(7)));
+        return View(new KitchenScreenViewModel(items, User.IsInRole(AppRoles.Kitchen)) { StoppedOrders = stopped });
     }
 
     /// <summary>S2-08 Task 1: danh sách món trong ngày, mỗi món có nút bật/tắt "Tạm hết".</summary>
