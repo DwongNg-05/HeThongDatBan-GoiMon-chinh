@@ -27,9 +27,9 @@ internal static class RoleNavigationTests
             && RoleNavigation.For(User("Cashier")).Select(i => i.Title).SequenceEqual(new[] { "Thanh toán", "Hoá đơn", "Chốt ca" }),
             "Navigation: kitchen and cashier items have Vietnamese titles");
         // S1-04 Task 1: Phục vụ thấy đúng 3 mục — đặt bàn, sơ đồ bàn, gọi món.
-        check(Keys("Waiter").SequenceEqual(new[] { "reservations", "table-map", "ordering" })
-            && RoleNavigation.For(User("Waiter")).Select(i => i.Title).SequenceEqual(new[] { "Danh sách đặt bàn", "Sơ đồ bàn", "Gọi món" }),
-            "Navigation: waiter sees exactly 3 items (reservations, table map, ordering)");
+        check(Keys("Waiter").SequenceEqual(new[] { "reservations", "table-map", "ordering", "ready-dishes" })
+            && RoleNavigation.For(User("Waiter")).Select(i => i.Title).SequenceEqual(new[] { "Danh sách đặt bàn", "Sơ đồ bàn", "Gọi món", "Chờ mang ra" }),
+            "Navigation: waiter sees 4 items (reservations, table map, ordering, ready dishes)");
         check(Keys("Manager").Length == RoleNavigation.Items.Count, "Navigation: manager sees every item");
         check(Keys(null).Length == 0 && Keys("Guest").Length == 0, "Navigation: anonymous and unknown roles see nothing");
         foreach (var (role, expected) in ApiAuthorizationVerification.ExpectedNavigation)
@@ -74,7 +74,7 @@ internal static class RoleNavigationTests
             "Server scope: cooking status is Kitchen only; payments are not for Kitchen; sold-out-today only in dish management (Manager); \"Tạm hết\" toggle for Kitchen and Manager; table map and dish management are not for Kitchen/Cashier");
 
         // S1-04 Task 1: Phục vụ chỉ gọi được API sơ đồ bàn, đặt bàn, gọi món (và tài khoản của chính mình).
-        var waiterExtra = Allowed("Waiter").Where(k => !Own(k, "Account.", "Home.Index", "TableDetails.", "TableStatus.", "TableMap.", "Reservations.", "ReservationConfirmations.", "ReservationManagement.", "Page /Ordering/", "Page /Orders/")).ToArray();
+        var waiterExtra = Allowed("Waiter").Where(k => !Own(k, "Kitchen.Ready GET", "Kitchen.Snapshot GET", "Account.", "Home.Index", "TableDetails.", "TableStatus.", "TableMap.", "Reservations.", "ReservationConfirmations.", "ReservationManagement.", "Page /Ordering/", "Page /Orders/")).ToArray();
         check(waiterExtra.Length == 0, "Server scope: waiter can only call table map, reservation and ordering APIs and its own account" + (waiterExtra.Length > 0 ? ": " + string.Join(", ", waiterExtra) : ""));
         ApiEndpoint Api(string key) => ApiAccessMatrix.All.Single(e => e.Key == key);
         var waiterBlocked = new[]
@@ -99,8 +99,8 @@ internal static class RoleNavigationTests
         // S1-04 Task 1: đăng nhập thành công trả về vai trò; mã lỗi quyền là dữ liệu JSON thuần.
         var waiter = RoleNavigation.Describe(User("Waiter"));
         check(waiter.Role == "Waiter" && waiter.RoleName == "Phục vụ" && waiter.LandingPath == "/" && waiter.FullName == "Nhân viên thử"
-            && waiter.Navigation.Select(n => n.Key).SequenceEqual(new[] { "reservations", "table-map", "ordering" }),
-            "Login info: waiter gets role Waiter (Phục vụ), landing page and its 3 screens");
+            && waiter.Navigation.Select(n => n.Key).SequenceEqual(new[] { "reservations", "table-map", "ordering", "ready-dishes" }),
+            "Login info: waiter gets role Waiter (Phục vụ), landing page and its 4 screens");
         check(AppRoles.DisplayName("Manager") == "Quản lý" && AppRoles.DisplayName("Kitchen") == "Bếp" && AppRoles.DisplayName("Cashier") == "Thu ngân"
             && AppRoles.DisplayName("Guest") == "Không xác định", "Login info: every role has a Vietnamese name");
         var forbidden = IdleSessionEvents.Serialize(IdleSessionEvents.ErrorFor(403, User("Waiter"), "/Dishes"));

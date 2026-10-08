@@ -1,0 +1,10 @@
+@{ ViewData["Title"] = "Chờ mang ra"; }
+<div id="kitchen-board" data-can-edit="false">
+    <h1>Chờ mang ra</h1>
+    <p>Món xong trước hiển thị trước. Danh sách tự cập nhật mỗi giây.</p>
+    <p id="kitchen-message" role="status" aria-live="polite"></p>
+    <div hidden>@Html.AntiForgeryToken()</div>
+    <div id="kitchen-queue" hidden></div>
+    <div id="kitchen-ready">Đang tải món…</div>
+</div>
+@section Scripts { <script src="~/js/kitchen.js" asp-append-version="true"></script> }

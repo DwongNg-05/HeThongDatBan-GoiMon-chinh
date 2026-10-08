@@ -28,7 +28,7 @@ internal static class ApiAuthorizationVerification
     {
         ["reservations"] = "/ReservationManagement", ["areas"] = "/Areas", ["table-map"] = "/", ["opening-hours"] = "/OpeningHours",
         ["privacy"] = "/Home/Privacy", ["dish-categories"] = "/DishCategories", ["dishes"] = "/Dishes", ["menu"] = "/Menu",
-        ["ordering"] = "/Ordering", ["kitchen-orders"] = "/Kitchen", ["daily-dishes"] = "/Kitchen/Dishes",
+        ["ready-dishes"] = "/Kitchen/Ready", ["ordering"] = "/Ordering", ["kitchen-orders"] = "/Kitchen", ["daily-dishes"] = "/Kitchen/Dishes",
         ["cashier-payments"] = "/Cashier", ["cashier-invoices"] = "/Cashier/Invoices", ["cashier-shift"] = "/Cashier/Shift",
         ["employee-accounts"] = "/admin/employee-accounts", ["audit-logs"] = "/AuditLogs"
     };
@@ -51,8 +51,8 @@ internal static class ApiAuthorizationVerification
     internal static readonly Dictionary<string, (string Landing, string[] Nav)> ExpectedNavigation = new()
     {
         ["Manager"] = ("/", new[] { "reservations", "areas", "table-map", "opening-hours", "privacy", "dish-categories", "dishes", "menu", "ordering",
-            "kitchen-orders", "daily-dishes", "cashier-payments", "cashier-invoices", "cashier-shift", "employee-accounts", "audit-logs" }),
-        ["Waiter"] = ("/", new[] { "reservations", "table-map", "ordering" }),
+            "kitchen-orders", "ready-dishes", "daily-dishes", "cashier-payments", "cashier-invoices", "cashier-shift", "employee-accounts", "audit-logs" }),
+        ["Waiter"] = ("/", new[] { "reservations", "table-map", "ordering", "ready-dishes" }),
         ["Kitchen"] = ("/Kitchen", new[] { "kitchen-orders", "daily-dishes" }),
         ["Cashier"] = ("/Cashier", new[] { "cashier-payments", "cashier-invoices", "cashier-shift" })
     };

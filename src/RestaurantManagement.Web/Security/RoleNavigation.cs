@@ -35,6 +35,7 @@ public static class RoleNavigation
         new("menu", "Thực đơn", "/Menu", M),
         new("ordering", "Gọi món", "/Ordering", M, W),
         new("kitchen-orders", "Màn hình bếp", "/Kitchen", M, K),
+        new("ready-dishes", "Chờ mang ra", "/Kitchen/Ready", M, W),
         new("daily-dishes", "Món trong ngày", "/Kitchen/Dishes", M, K),
         new("cashier-payments", "Thanh toán", "/Cashier", M, C),
         new("cashier-invoices", "Hoá đơn", "/Cashier/Invoices", M, C),

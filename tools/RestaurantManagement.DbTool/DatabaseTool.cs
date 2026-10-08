@@ -30,6 +30,7 @@ internal static partial class DatabaseTool
                 case "seed-menu-200": await SeedMenu200(connection); break;
                 case "hide-menu-200": await HideMenu200(connection); break;
                 case "verify": await Verification.Run(connection); break;
+                case "verify-kitchen": await KitchenLineVerification.RunIsolated(connection); break;
                 // S2-09 Task 3: chỉ nghiệm thu luồng đặt bàn + email (database tạm, cần build Debug trước).
                 case "verify-booking-email": await Verification.RunBookingEmail(connection); break;
                 // S1-04 Task 4: chỉ kiểm thử phân quyền toàn bộ API theo vai trò (database tạm, cần build Debug trước).

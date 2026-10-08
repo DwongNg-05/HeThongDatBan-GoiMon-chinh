@@ -17,34 +17,46 @@ namespace RestaurantManagement.Web.Controllers;
 /// ("Báo hết" trong ngày ở Quản lý món /Dishes vẫn chỉ Quản lý.)
 /// </summary>
 [Route("Kitchen")]
-public sealed class KitchenController(IConfiguration configuration) : Controller
+[ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
+public sealed class KitchenController(IConfiguration configuration, KitchenStore store) : Controller
 {
     private string ConnectionString => configuration.GetConnectionString("DefaultConnection")
         ?? throw new InvalidOperationException("Chưa cấu hình kết nối database.");
 
+    [HttpGet("Ready")]
+    [Authorize(Roles = AppRoles.Manager + "," + AppRoles.Waiter)]
+    public IActionResult Ready() => View();
+
+    [HttpGet("Snapshot"), PassiveSessionRead]
+    [Authorize(Roles = AppRoles.KitchenReaders + "," + AppRoles.Waiter)]
+    [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
+    public async Task<IActionResult> Snapshot(CancellationToken ct)
+    {
+        try
+        {
+            var lines = await store.Read(User.ActorUserId(), ct);
+            return Json(User.IsInRole(AppRoles.Waiter) ? lines.Where(i => i.Status == "Ready") : lines);
+        }
+        catch (SqlException ex) when (ex.Number == 51001) { return Forbid(); }
+    }
+
+    [HttpPost("Transition"), ValidateAntiForgeryToken]
+    [Authorize(Roles = AppRoles.KitchenWorkers)]
+    public async Task<IActionResult> Transition(long id, string from, string to, string version, CancellationToken ct)
+    {
+        byte[] bytes;
+        try { bytes = Convert.FromBase64String(version ?? ""); }
+        catch (FormatException) { return BadRequest(new { message = "Phiên bản món không hợp lệ." }); }
+        if (!ModelState.IsValid || id <= 0 || bytes.Length != 8)
+            return BadRequest(new { message = "Dữ liệu dòng món không hợp lệ. Hãy tải lại danh sách." });
+        try { await store.Transition(id, from, to, bytes, User.ActorUserId(), ct); return Ok(); }
+        catch (SqlException ex) when (ex.Number == 51001) { return Forbid(); }
+        catch (SqlException ex) when (ex.Number is 51029 or 51030) { return Conflict(new { message = ex.Message }); }
+    }
+
     [HttpGet("")]
     [Authorize(Roles = AppRoles.KitchenReaders)]
-    public async Task<IActionResult> Index(CancellationToken cancellationToken)
-    {
-        var items = new List<KitchenOrderItem>();
-        await using var connection = new SqlConnection(ConnectionString);
-        await using var command = new SqlCommand("""
-            SELECT i.Id,t.Code AS TableCode,i.ItemName,i.Unit,i.Quantity,i.Notes,i.Status,i.SubmittedAt,i.EstimatedPrepMinutes
-            FROM dbo.OrderItems i
-            JOIN dbo.OrderBatches b ON b.Id=i.BatchId
-            JOIN dbo.DiningSessions s ON s.Id=b.SessionId
-            JOIN dbo.DiningTables t ON t.Id=i.OriginalTableId
-            WHERE s.Status<>'Closed' AND i.Status IN ('Pending','Preparing','Ready')
-            ORDER BY CASE i.Status WHEN 'Pending' THEN 0 WHEN 'Preparing' THEN 1 ELSE 2 END, i.SubmittedAt, i.Id;
-            """, connection);
-        await connection.OpenAsync(cancellationToken);
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
-            items.Add(new KitchenOrderItem(
-                reader.GetInt64(0), reader.GetString(1), reader.GetString(2), reader.GetString(3), reader.GetInt32(4),
-                reader.IsDBNull(5) ? null : reader.GetString(5), reader.GetString(6), VietnamTime.FromUtc(reader.GetDateTime(7)), reader.GetInt32(8)));
-        return View(new KitchenScreenViewModel(items, User.IsInRole(AppRoles.Kitchen)));
-    }
+    public IActionResult Index() => View();
 
     /// <summary>S2-08 Task 1: danh sách món trong ngày, mỗi món có nút bật/tắt "Tạm hết".</summary>
     [HttpGet("Dishes")]
@@ -104,6 +116,7 @@ public sealed class KitchenController(IConfiguration configuration) : Controller
     [Authorize(Roles = AppRoles.KitchenWorkers)]
     public async Task<IActionResult> Advance(long id, string? toStatus)
     {
+        // Legacy form requests must also use the timestamp-free, version-checked Task 1 workflow.
         if (toStatus is not ("Preparing" or "Ready"))
         {
             TempData["Error"] = "Trạng thái món không hợp lệ.";
@@ -111,13 +124,9 @@ public sealed class KitchenController(IConfiguration configuration) : Controller
         }
         try
         {
-            await using var connection = new SqlConnection(ConnectionString);
-            await using var command = new SqlCommand("dbo.usp_TransitionOrderItem", connection) { CommandType = CommandType.StoredProcedure };
-            command.Parameters.Add("@OrderItemId", SqlDbType.BigInt).Value = id;
-            command.Parameters.Add("@ToStatus", SqlDbType.VarChar, 20).Value = toStatus;
-            command.Parameters.Add("@ActorUserId", SqlDbType.Int).Value = User.ActorUserId();
-            await connection.OpenAsync();
-            await command.ExecuteNonQueryAsync();
+            var line = (await store.Read(User.ActorUserId(), HttpContext.RequestAborted)).FirstOrDefault(i => i.Id == id);
+            if (line is null) { TempData["Error"] = "Món không tồn tại hoặc phiên đã đóng."; return RedirectToAction(nameof(Index)); }
+            await store.Transition(id, line.Status, toStatus, Convert.FromBase64String(line.Version), User.ActorUserId(), HttpContext.RequestAborted);
             TempData["Success"] = toStatus == "Preparing" ? "Đã chuyển món sang Đang nấu." : "Món đã xong, chờ phục vụ mang ra.";
         }
         catch (SqlException ex) when (ex.Number is >= 51000 and < 51500)

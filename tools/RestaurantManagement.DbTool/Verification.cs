@@ -36,6 +36,7 @@ internal static class Verification
             await Call(connection, "usp_SubmitOrder", ("SessionId", 1L), ("RequestId", request), ("ItemsJson", items), ("ActorUserId", 2));
             await Call(connection, "usp_SubmitOrder", ("SessionId", 1L), ("RequestId", request), ("ItemsJson", items), ("ActorUserId", 2));
             await Check(connection, "Order retry and separate notes", "SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.OrderBatches)=1 AND (SELECT COUNT(*) FROM dbo.OrderItems)=2 THEN 1 ELSE 0 END");
+            await KitchenLineVerification.Run(connection);
             await DatabaseTool.Execute(connection, "EXEC dbo.usp_UpdateMenuPrice @MenuItemId=1,@Price=99999,@ActorUserId=1;");
             await Check(connection, "Price snapshot", "SELECT CASE WHEN MIN(UnitPrice)=25000 AND MAX(UnitPrice)=25000 THEN 1 ELSE 0 END FROM dbo.OrderItems");
             await Reject(connection, "No skipped kitchen states", "EXEC dbo.usp_TransitionOrderItem @OrderItemId=1,@ToStatus='Ready',@ActorUserId=3;", 51030);

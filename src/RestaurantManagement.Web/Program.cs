@@ -8,6 +8,12 @@ using RestaurantManagement.Web.Services;
 using RestaurantManagement.Web.Services.EmailVerification;
 
 var builder = WebApplication.CreateBuilder(args);
+if (builder.Environment.IsDevelopment())
+{
+    builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: false);
+    builder.Configuration.AddEnvironmentVariables();
+    builder.Configuration.AddCommandLine(args);
+}
 var sqlConnectionString = Environment.GetEnvironmentVariable("RM_CONNECTION_STRING");
 if (string.IsNullOrWhiteSpace(sqlConnectionString))
     sqlConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -16,6 +22,7 @@ if (string.IsNullOrWhiteSpace(sqlConnectionString))
 builder.Configuration["ConnectionStrings:DefaultConnection"] = sqlConnectionString;
 
 builder.Services.AddScoped<AuditLogService>();
+builder.Services.AddScoped<KitchenStore>();
 builder.Services.AddScoped<RestaurantManagement.Web.Services.Reservations.ReservationSlotService>();
 builder.Services.AddScoped<ReservationStore>();
 builder.Services.AddScoped<ReservationConfirmationService>();

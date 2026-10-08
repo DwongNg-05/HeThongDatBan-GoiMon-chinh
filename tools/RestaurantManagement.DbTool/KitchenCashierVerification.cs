@@ -47,7 +47,8 @@ internal static class KitchenCashierVerification
 
         // 3. Bếp: thấy món trên màn hình bếp, chuyển Đang nấu rồi Xong.
         var kitchenPage = await Html(kitchen, "/Kitchen");
-        Assert(kitchenPage.Contains($"data-order-item=\"{itemId}\" data-status=\"Pending\"") && kitchenPage.Contains("S104 ít cay") && kitchenPage.Contains("Bắt đầu nấu"),
+        var kitchenSnapshot = await kitchen.GetStringAsync("/Kitchen/Snapshot");
+        Assert(kitchenPage.Contains("kitchen-board") && kitchenSnapshot.Contains($"\"id\":{itemId},") && kitchenSnapshot.Contains("\"status\":\"Pending\""),
             "Kitchen: the new dish appears on the kitchen screen");
         foreach (var next in new[] { "Preparing", "Ready" })
         {
