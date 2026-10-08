@@ -1,6 +1,7 @@
 using RestaurantManagement.Web.Models;
 using RestaurantManagement.Web.Authentication;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.DataProtection;
 using RestaurantManagement.Data.Data;
 using RestaurantManagement.Data.Models;
 using RestaurantManagement.Data;
@@ -81,6 +82,11 @@ builder.Services.AddDbContext<RestaurantManagement.Data.Data.RestaurantDbContext
 // Register IHttpContextAccessor to capture current user in the SQL store
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddDistributedMemoryCache();
+var dataProtectionKeyFolder = Path.Combine(builder.Environment.ContentRootPath, "App_Data", "data-protection-keys");
+Directory.CreateDirectory(dataProtectionKeyFolder);
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeyFolder))
+    .SetApplicationName("RestaurantManagement.Web");
 builder.Services.AddSession();
 builder.Services.AddScoped<RestaurantManagement.Web.Security.ICurrentUser, RestaurantManagement.Web.Security.SessionCurrentUser>();
 
