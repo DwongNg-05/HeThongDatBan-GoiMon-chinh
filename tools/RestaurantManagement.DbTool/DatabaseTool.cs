@@ -16,7 +16,7 @@ internal static partial class DatabaseTool
             var connection = Environment.GetEnvironmentVariable("RM_CONNECTION_STRING");
             if (command == "help" || string.IsNullOrWhiteSpace(connection))
             {
-                Console.WriteLine("Commands: migrate | seed-demo | verify | maintenance | check\nSet RM_CONNECTION_STRING first. seed-demo also requires RM_DEMO_PASSWORD.\nverify creates and removes its own uniquely named test database.");
+                Console.WriteLine("Commands: migrate | seed-demo | seed-login-demo | seed-menu-demo | seed-confirmation-demo | seed-menu-200 | hide-menu-200 | email-retry-now | verify | verify-pending-cancellation | verify-shift-cancellations | verify-prepared-cancellation | seed-shift-cancellation-demo | verify-booking-email | verify-api-permissions | verify-temporary-out | maintenance | check\nSet RM_CONNECTION_STRING first. seed-demo and seed-login-demo also require RM_DEMO_PASSWORD.\nseed-login-demo accepts RM_DEMO_USERNAME and RM_DEMO_PHONE; existing accounts are preserved.\nverify creates and removes its own uniquely named test database.");
                 Environment.ExitCode = command == "help" ? 0 : 1;
                 return;
             }
@@ -24,13 +24,44 @@ internal static partial class DatabaseTool
             {
                 case "migrate": await Migrate(connection); break;
                 case "seed-demo": await Seed(connection); break;
+                case "seed-login-demo": await SeedLoginDemo(connection); break;
+                case "seed-menu-demo": await SeedMenuDemo(connection); break;
+                case "seed-confirmation-demo": await SeedConfirmationDemo(connection); break;
+                case "seed-menu-200": await SeedMenu200(connection); break;
+                case "hide-menu-200": await HideMenu200(connection); break;
                 case "verify": await Verification.Run(connection); break;
+                case "seed-shift-cancellation-demo": await Execute(connection, await File.ReadAllTextAsync(Path.Combine(Root, "database", "seeds", "ShiftCancellationDemo.sql"))); break;
+                case "verify-prepared-cancellation": await PreparedCancellationVerification.Run(connection); break;
+                case "verify-shift-cancellations":
+                case "verify-pending-cancellation": await PendingCancellationVerification.Run(connection); break;
+                // S2-09 Task 3: chỉ nghiệm thu luồng đặt bàn + email (database tạm, cần build Debug trước).
+                case "verify-booking-email": await Verification.RunBookingEmail(connection); break;
+                // S1-04 Task 4: chỉ kiểm thử phân quyền toàn bộ API theo vai trò (database tạm, cần build Debug trước).
+                case "verify-api-permissions": await Verification.RunApiPermissions(connection); break;
+                // S2-08 Task 4: nghiệm thu toàn bộ luồng "Tạm hết" (database tạm, cần build Debug trước).
+                case "verify-temporary-out": await Verification.RunTemporaryOut(connection); break;
                 case "maintenance": await Execute(connection, "EXEC dbo.usp_RunMaintenance;"); break;
+                // S2-09 Task 2 (demo): không chờ 5 phút, cho các email đặt bàn đang chờ gửi lại tới giờ gửi lại ngay.
+                case "email-retry-now": await EmailRetryNow(connection); break;
                 case "check": await Execute(connection, "SELECT TOP(1) Name FROM dbo.SchemaVersions;"); Console.WriteLine("Database connected."); break;
                 default: throw new ArgumentException("Unknown command.");
             }
         }
         catch (Exception ex) { Console.Error.WriteLine($"Operation failed ({ex.GetType().Name}): {ex.Message}"); Environment.ExitCode = 1; }
+    }
+
+    /// <summary>Demo S2-09 Task 2: đưa giờ gửi lại của email đặt bàn đang chờ thử lại về hiện tại (web gửi lại trong vòng 30 giây).</summary>
+    internal static async Task EmailRetryNow(string connection)
+    {
+        await using var cn = new SqlConnection(connection);
+        await cn.OpenAsync();
+        await using var cmd = new SqlCommand("""
+            UPDATE dbo.EmailOutbox SET NextAttemptAt=SYSUTCDATETIME()
+            WHERE Status='Pending' AND AttemptCount BETWEEN 1 AND 3 AND MessageType IN ('BookingReceived','BookingCancelled');
+            SELECT @@ROWCOUNT;
+            """, cn);
+        var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+        Console.WriteLine($"{count} email đặt bàn sẽ được gửi lại ở lượt kiểm tra kế tiếp của web (tối đa 30 giây).");
     }
 
     internal static async Task Migrate(string connection)
@@ -118,7 +149,7 @@ internal static partial class DatabaseTool
             await using var marker = new SqlCommand("INSERT dbo.SchemaVersions(Name,Sha256) VALUES('DEMO_DATA',REPLICATE('0',64));", cn, tx);
             await marker.ExecuteNonQueryAsync();
             await tx.CommitAsync();
-            Console.WriteLine("Demo seeded: 4 accounts, 3 areas, 25 tables, 60 menu items, 20 bookings. Password not logged.");
+            Console.WriteLine("Demo seeded: 4 accounts, 3 areas, 60 tables, 60 menu items, 20 bookings. Password not logged.");
         }
         catch { await tx.RollbackAsync(); throw; }
     }
@@ -147,4 +178,3 @@ internal static partial class DatabaseTool
     [GeneratedRegex(@"^[A-Za-z][A-Za-z0-9_]{0,100}$")] private static partial Regex DatabaseName();
     [GeneratedRegex(@"^\s*GO\s*(?:--[^\r\n]*)?$", RegexOptions.Multiline | RegexOptions.IgnoreCase)] private static partial Regex GoSeparator();
 }
-

@@ -1,0 +1,30 @@
+@model RestaurantManagement.Web.Models.Areas.AreaViewModel
+@{
+    ViewData["Title"] = "Ngừng sử dụng khu vực";
+    var backUrl = Url.Action("Index") + "#khu-vuc-" + Model.Id;
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/area-tables.css" asp-append-version="true" />
+}
+
+<div class="at-form-card">
+    <h1>Ngừng sử dụng khu vực</h1>
+    @if (Model.IsActive)
+    {
+        <p class="at-lead">Bạn có chắc muốn ngừng sử dụng khu vực <strong>@Model.Name</strong>?</p>
+        <ul>
+            <li>Khu vực sẽ <strong>không còn được chọn</strong> khi đặt bàn mới.</li>
+            <li>Các bàn và các đặt bàn đã có <strong>vẫn được giữ lại</strong>.</li>
+            <li>Bạn có thể bấm <strong>“Sử dụng lại”</strong> bất cứ lúc nào.</li>
+        </ul>
+        <form asp-action="Deactivate" asp-route-id="@Model.Id" method="post" class="at-form-actions">
+            <button type="submit" class="btn btn-warning">Xác nhận ngừng sử dụng</button>
+            <a href="@backUrl" class="btn btn-outline-secondary">Hủy</a>
+        </form>
+    }
+    else
+    {
+        <p class="at-lead">Khu vực <strong>@Model.Name</strong> đã ngừng sử dụng.</p>
+        <div class="at-form-actions"><a href="@backUrl" class="btn btn-outline-secondary">Quay lại</a></div>
+    }
+</div>

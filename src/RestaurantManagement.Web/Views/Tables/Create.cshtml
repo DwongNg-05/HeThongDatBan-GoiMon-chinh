@@ -1,0 +1,24 @@
+@model RestaurantManagement.Web.Models.Tables.DiningTableFormViewModel
+@{
+    ViewData["Title"] = "Thêm bàn";
+    var backUrl = Url.Action("Index", "Areas") + (Model.AreaId > 0 ? "#khu-vuc-" + Model.AreaId : "");
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/area-tables.css" asp-append-version="true" />
+}
+
+<a href="@backUrl" class="at-back">← Quay lại Khu vực &amp; bàn</a>
+<div class="at-form-card">
+    <h1>Thêm bàn mới</h1>
+    <p class="at-lead">Điền thông tin bàn rồi bấm “Lưu bàn”. Mã QR cho bàn sẽ được tạo để in dán lên bàn.</p>
+    <form asp-action="Create" method="post">
+        @Html.AntiForgeryToken()
+        <partial name="_Form" model="Model" />
+        <div class="at-form-actions">
+            <button class="btn btn-primary" type="submit">Lưu bàn</button>
+            <a href="@backUrl" class="btn btn-outline-secondary">Quay lại</a>
+        </div>
+    </form>
+</div>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /><script src="~/js/table-form.js" asp-append-version="true"></script> }

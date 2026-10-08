@@ -1,0 +1,136 @@
+@page
+@model RestaurantManagement.Web.Pages.Dishes.IndexModel
+@{
+    ViewData["Title"] = "Quản lý món";
+    string ImageSrc(string? path, int categoryId)
+    {
+        Model.CategoryDefaultImages.TryGetValue(categoryId, out var categoryDefault);
+        var image = RestaurantManagement.Web.Services.DishImage.Resolve(path, categoryDefault);
+        return image.StartsWith('/') ? Url.Content("~" + image) : image;
+    }
+    var fallbackImage = Url.Content("~" + RestaurantManagement.Web.Services.DishImage.DefaultImage);
+}
+
+<div class="d-flex flex-wrap gap-3 justify-content-between align-items-start mt-3 mb-3">
+    <div>
+        <h1 class="h2 mb-1">Quản lý món</h1>
+        <p class="text-muted mb-0">Muốn đổi tên, ảnh hoặc <strong>giá bán</strong> của món, bấm <strong>“Sửa”</strong> ở dòng món đó.
+            @if (Model.IsManager)
+            {
+                <span>Mọi lần đổi giá đều được ghi lại ở mục <a href="#nhat-ky-gia">Nhật ký thay đổi giá</a> bên dưới.</span>
+            }
+        </p>
+    </div>
+    <a asp-page="/Dishes/Create" class="btn btn-primary btn-lg">+ Tạo món mới</a>
+</div>
+
+@if (TempData["Success"] is string success)
+{
+    <div class="alert alert-success" role="status">✔ @success</div>
+}
+@if (TempData["Error"] is string error)
+{
+    <div class="alert alert-danger" role="alert">⚠ @error</div>
+}
+
+<div class="table-responsive">
+<table class="table table-striped align-middle">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Ảnh</th>
+            <th>Tên món</th>
+            <th>Giá bán</th>
+            <th>Đơn vị</th>
+            <th>Thời gian (phút)</th>
+            <th>Trạng thái</th>
+            @if (Model.IsManager)
+            {
+                <th>Hôm nay</th>
+            }
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+    @{
+        int idx = 1;
+    }
+    @foreach(var item in Model.Dishes)
+    {
+        <tr>
+            <td>@idx</td>
+            <td><img src="@ImageSrc(item.ImagePath, item.CategoryId)" alt="Ảnh món @item.Name" width="56" height="56" style="object-fit:cover;border-radius:8px" loading="lazy" onerror="this.onerror=null;this.src='@fallbackImage';" /></td>
+            <td>@item.Name</td>
+            <td class="text-nowrap fw-semibold">@(item.PriceVnd.ToString("N0")) VND</td>
+            <td>@item.Unit</td>
+            <td>@item.PrepMinutes</td>
+            <td>
+                @if(item.Status == RestaurantManagement.Data.Models.DishStatus.OnSale)
+                {
+                    <span class="badge bg-success">Đang bán</span>
+                }
+                else
+                {
+                    <span class="badge bg-secondary">Ngưng bán</span>
+                }
+            </td>
+            @if (Model.IsManager)
+            {
+                var soldOut = Model.SoldOut.TryGetValue(item.Id, out var isSoldOut) && isSoldOut;
+                <td>
+                    <form asp-controller="Management" asp-action="Availability" method="post" class="d-flex flex-wrap align-items-center gap-2">
+                        <input type="hidden" name="id" value="@item.Id" />
+                        <input type="hidden" name="soldOut" value="@((!soldOut).ToString().ToLowerInvariant())" />
+                        <span class="badge @(soldOut ? "bg-warning text-dark" : "bg-light text-dark border")">@(soldOut ? "Tạm hết" : "Còn món")</span>
+                        <button type="submit" class="btn btn-sm btn-outline-secondary text-nowrap">@(soldOut ? "Mở bán lại" : "Báo hết")</button>
+                    </form>
+                    @if (Model.TemporarilyOut.Contains(item.Id))
+                    {
+                        @* S2-08 Task 4: trạng thái "Tạm hết" đồng nhất với Món trong ngày, thực đơn công khai và màn hình gọi món. *@
+                        <a asp-controller="Kitchen" asp-action="Dishes" class="badge bg-warning text-dark text-decoration-none mt-1" data-temporarily-out="@item.Id"
+                           title="Bật/tắt ở Món trong ngày">Tạm hết (Món trong ngày)</a>
+                    }
+                </td>
+            }
+            <td class="text-nowrap">
+                <a asp-page="/Dishes/Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary">Sửa</a>
+                @if (Model.IsManager)
+                {
+                    <a asp-page="/Dishes/PriceHistory" asp-route-id="@item.Id" class="btn btn-sm btn-outline-secondary ms-1">Lịch sử giá</a>
+                }
+            </td>
+        </tr>
+        idx++;
+    }
+    </tbody>
+</table>
+</div>
+
+@if (Model.IsManager)
+{
+    <section id="nhat-ky-gia" class="mt-4" aria-labelledby="tieu-de-nhat-ky-gia">
+        <h2 id="tieu-de-nhat-ky-gia" class="h4 mb-1">Nhật ký thay đổi giá</h2>
+        <p class="text-muted">@RestaurantManagement.Web.Pages.Dishes.IndexModel.PriceHistoryRows lần đổi giá gần nhất. Nhật ký chỉ để xem, được ghi tự động mỗi khi giá món thay đổi và không thể chỉnh sửa.</p>
+        <div class="table-responsive">
+        <table class="table align-middle" id="bang-nhat-ky-gia">
+            <thead><tr><th>Thời gian (UTC+7)</th><th>Người sửa</th><th>Món</th><th>Giá cũ</th><th>Giá mới</th></tr></thead>
+            <tbody>
+            @if (Model.PriceChanges.Count == 0)
+            {
+                <tr><td colspan="5" class="text-muted">Chưa có lần đổi giá nào. Khi bạn đổi giá ở trang “Sửa”, thay đổi sẽ hiện tại đây.</td></tr>
+            }
+            @foreach (var e in Model.PriceChanges)
+            {
+                <tr>
+                    <td class="text-nowrap">@e.ChangedAt.AddHours(7).ToString("dd/MM/yyyy HH:mm:ss")</td>
+                    <td>@e.ChangedBy</td>
+                    <td>@e.DishName</td>
+                    <td class="text-nowrap">@e.OldPriceVnd.ToString("N0") VND</td>
+                    <td class="text-nowrap fw-semibold">@e.NewPriceVnd.ToString("N0") VND <span class="@(e.NewPriceVnd > e.OldPriceVnd ? "text-danger" : "text-success")">@(e.NewPriceVnd > e.OldPriceVnd ? "▲" : "▼")</span></td>
+                </tr>
+            }
+            </tbody>
+        </table>
+        </div>
+    </section>
+}

@@ -1,0 +1,86 @@
+@page "{id:int}"
+@model RestaurantManagement.Web.Pages.Dishes.EditModel
+@{
+    ViewData["Title"] = "Sửa món";
+}
+
+<h2>Sửa món</h2>
+
+<form id="removeDishImageForm" method="post" asp-page-handler="RemoveImage">
+    <input type="hidden" name="id" value="@Model.Dish.Id" />
+</form>
+
+<form method="post" enctype="multipart/form-data">
+    <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+    <input type="hidden" asp-for="Dish.Id" />
+
+    <div class="mb-3">
+        <label asp-for="Dish.Name" class="form-label">Tên món</label>
+        <input asp-for="Dish.Name" class="form-control" />
+        <span asp-validation-for="Dish.Name" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Nhóm món</label>
+        <select asp-for="Dish.CategoryId" class="form-select" asp-items="@(new Microsoft.AspNetCore.Mvc.Rendering.SelectList(Model.Categories, "Id", "Name"))">
+            <option value="">-- Chọn nhóm --</option>
+        </select>
+        <span asp-validation-for="Dish.CategoryId" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Dish.PriceVnd" class="form-label">Giá bán (VND)</label>
+        <input asp-for="Dish.PriceVnd" class="form-control" />
+        <div class="form-text">Đổi giá trực tiếp tại đây. Mỗi lần đổi giá sẽ được ghi vào Nhật ký thay đổi giá trong Quản lý món.</div>
+        <span asp-validation-for="Dish.PriceVnd" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Dish.Unit" class="form-label">Đơn vị tính</label>
+        <input asp-for="Dish.Unit" class="form-control" placeholder="ví dụ: cái, phần, tô" />
+        <span asp-validation-for="Dish.Unit" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Dish.ShortDescription" class="form-label">Mô tả ngắn</label>
+        <input asp-for="Dish.ShortDescription" class="form-control" />
+        <span asp-validation-for="Dish.ShortDescription" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="ImageFile" class="form-label">Ảnh món</label>
+        <div class="mb-2">
+            <img id="dish-image-preview" src="@(Model.CurrentImage.StartsWith('/') ? Url.Content("~" + Model.CurrentImage) : Model.CurrentImage)" alt="Ảnh hiện tại của món" class="rounded border" style="max-width:160px;max-height:160px;object-fit:cover" onerror="this.onerror=null;this.src='@Url.Content("~" + RestaurantManagement.Web.Services.DishImage.DefaultImage)';" />
+        </div>
+        @if (Model.HasDishImage)
+        {
+            <button type="submit" form="removeDishImageForm" class="btn btn-outline-danger btn-sm mb-2"
+                    onclick="return confirm('Bạn có chắc muốn xoá ảnh riêng của món này?');">Xoá ảnh riêng</button>
+        }
+        <input asp-for="ImageFile" type="file" class="form-control" accept="@RestaurantManagement.Web.Services.DishImageRules.AcceptHtml" data-image-preview="dish-image-preview" />
+        <div class="form-text">Chọn ảnh mới (JPG hoặc PNG, tối đa 5 MB) để thay ảnh hiện tại. Bỏ trống để giữ nguyên.</div>
+        <span asp-validation-for="ImageFile" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Dish.PrepMinutes" class="form-label">Thời gian chế biến (phút)</label>
+        <input asp-for="Dish.PrepMinutes" type="number" min="1" max="240" class="form-control" />
+        <span asp-validation-for="Dish.PrepMinutes" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Dish.Status" class="form-label">Trạng thái</label>
+        <select asp-for="Dish.Status" class="form-select">
+            <option value="0">Đang bán</option>
+            <option value="1">Ngưng bán</option>
+        </select>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Lưu</button>
+    <a asp-page="/Dishes/Index" class="btn btn-secondary">Hủy</a>
+</form>
+
+@section Scripts{
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/dish-image-preview.js" asp-append-version="true"></script>
+}

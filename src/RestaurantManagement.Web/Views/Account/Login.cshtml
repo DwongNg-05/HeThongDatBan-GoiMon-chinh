@@ -1,0 +1,41 @@
+@model LoginModel
+@{ ViewData["Title"] = "Đăng nhập"; }
+<div class="row justify-content-center mt-5">
+    <section class="col-md-8 col-lg-5 auth-card">
+        <h1>Đăng nhập nhân viên</h1>
+        <p class="auth-lead">Dành cho Quản lý, Phục vụ, Bếp và Thu ngân.</p>
+        @if (Model.SessionExpired)
+        {
+            <div class="alert alert-warning" role="alert">Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.</div>
+        }
+        <form asp-action="Login" method="post">
+            <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
+            <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+            @if (Model.RemainingSeconds > 0)
+            {
+                <div class="alert alert-warning" role="status">
+                    <span id="lockout-message">Đã có nhiều lần đăng nhập không thành công. Vui lòng thử lại sau</span>
+                    <strong id="lockout-countdown" data-seconds="@Model.RemainingSeconds">@(TimeSpan.FromSeconds(Model.RemainingSeconds).ToString(@"mm\:ss"))</strong>.
+                    <div class="small">Thời gian chờ tối đa 15 phút. Gửi lại yêu cầu trong thời gian chờ không kéo dài thời gian khóa.</div>
+                </div>
+            }
+            <div class="mb-3">
+                <label asp-for="Identifier" class="form-label">Tên đăng nhập hoặc số điện thoại</label>
+                <input asp-for="Identifier" class="form-control" autocomplete="username" maxlength="50" required autofocus />
+            </div>
+            <div class="mb-3">
+                <label asp-for="Password" class="form-label">Mật khẩu</label>
+                <input type="password" id="Password" name="Password" class="form-control" autocomplete="current-password" maxlength="72" required />
+            </div>
+            <button class="btn btn-primary w-100" type="submit">Đăng nhập</button>
+        </form>
+        @* S2-01 Task 1: khách hàng không cần đăng nhập để xem thực đơn. *@
+        <div class="guest-menu-callout mt-4" data-guest-menu-link>
+            <p class="mb-3">Bạn là khách? Xem món và giá không cần đăng nhập.</p>
+            <a class="btn btn-outline-primary w-100" asp-controller="Menu" asp-action="Index">Xem thực đơn</a>
+        </div>
+    </section>
+</div>
+@section Scripts {
+    <script src="~/js/login-lockout.js" asp-append-version="true"></script>
+}

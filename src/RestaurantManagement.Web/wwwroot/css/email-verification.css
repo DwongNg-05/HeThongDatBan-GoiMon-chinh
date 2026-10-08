@@ -1,0 +1,17 @@
+.ev-wrap { display: flex; justify-content: center; padding: 32px 0; }
+.ev-card { width: 100%; max-width: 460px; background: #fff; border: 1px solid var(--line, #eee3e5); border-radius: 18px; padding: 28px 24px; box-shadow: 0 4px 18px rgba(48, 40, 42, .07); text-align: center; }
+.ev-icon { width: 64px; height: 64px; margin: 0 auto 12px; border-radius: 50%; background: var(--soft, #fff3f4); color: var(--brand, #c92d3e); font-size: 32px; line-height: 64px; }
+.ev-card h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 10px; }
+.ev-lead { color: var(--muted, #766b6e); line-height: 1.6; }
+.ev-email { color: var(--ink, #30282a); }
+.ev-form { text-align: left; margin-top: 18px; }
+.ev-form .form-label { font-weight: 600; }
+.ev-code { font-family: 'Courier New', Consolas, monospace; font-size: 2rem; font-weight: 700; letter-spacing: .4em; text-align: center; text-transform: uppercase; min-height: 64px; }
+.ev-code::placeholder { font-size: 1.1rem; letter-spacing: .1em; font-weight: 400; }
+.ev-resend { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center; margin: 20px 0 8px; color: var(--muted, #766b6e); }
+.ev-resend .btn { min-height: 44px; font-weight: 600; }
+.ev-help { text-align: left; margin-top: 12px; padding: 10px 14px; border-radius: 12px; background: #fafafa; }
+.ev-help summary { cursor: pointer; font-weight: 600; }
+.ev-help ul { margin: 8px 0 0; padding-left: 20px; line-height: 1.6; }
+.ev-logout { margin-top: 16px; }
+.ev-logout .btn-link { color: var(--muted, #766b6e); }

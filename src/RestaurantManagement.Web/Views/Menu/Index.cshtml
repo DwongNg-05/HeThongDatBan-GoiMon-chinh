@@ -1,0 +1,105 @@
+@model PublicMenuViewModel
+@{
+    ViewData["Title"] = "Thực đơn";
+    // S2-01 Task 4: trang khách không cần jQuery/Bootstrap JS (xem _Layout.cshtml).
+    ViewData["LightweightScripts"] = true;
+    string ImageSrc(string url) => url.StartsWith('/') ? Url.Content("~" + url) : url;
+    // Chỉ vài ảnh đầu trang tải ngay; các ảnh còn lại tải khi khách cuộn tới (loading="lazy").
+    const int EagerImages = 4;
+    var imageIndex = 0;
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/public-menu.css" asp-append-version="true" />
+}
+
+@* S2-08 Task 1: nhãn "Tạm hết" tự cập nhật mỗi 3 giây (menu-availability.js), không cần tải lại trang. *@
+<div class="public-menu" data-availability-url="@Url.Content("~/api/menu/availability")" data-availability-interval="@RestaurantManagement.Web.Services.TemporaryOutRules.PollIntervalMs"
+     data-availability-text="@RestaurantManagement.Web.Services.SoldOutDisplay.Label" data-availability-note="@RestaurantManagement.Web.Services.SoldOutDisplay.ScreenReaderNote">
+    <header class="public-menu-hero">
+        <h1>Thực đơn</h1>
+        <p>Giá niêm yết bằng đồng Việt Nam (VND).</p>
+    </header>
+
+    @if (Model.MenuIsEmpty)
+    {
+        <p class="public-menu-empty">Thực đơn đang được cập nhật. Vui lòng quay lại sau.</p>
+    }
+    else
+    {
+        @* S2-01 Task 2: tìm món theo tên, không phân biệt hoa/thường và dấu tiếng Việt. *@
+        <form class="public-menu-search" role="search" method="get" asp-controller="Menu" asp-action="Index"
+              data-keyword="@Model.Keyword">
+            <label class="visually-hidden" for="menu-search">Tìm món theo tên</label>
+            <input id="menu-search" class="public-menu-search-input" type="search" name="q" value="@Model.Keyword"
+                   maxlength="@RestaurantManagement.Web.Services.MenuSearch.MaxKeywordLength"
+                   placeholder="Tìm món, ví dụ: com rang" autocomplete="off" enterkeyhint="search" />
+            <button class="public-menu-search-button" type="submit">Tìm</button>
+        </form>
+
+        @if (Model.IsSearching)
+        {
+            <div class="public-menu-search-status" role="status">
+                @if (Model.NoResults)
+                {
+                    <p class="public-menu-no-result">Không tìm thấy món nào phù hợp với “@Model.Keyword”. Hãy thử từ khóa khác.</p>
+                }
+                else
+                {
+                    <p>Tìm thấy @Model.DishCount món phù hợp với “@Model.Keyword”.</p>
+                }
+                <a class="public-menu-search-clear" asp-controller="Menu" asp-action="Index">Xem toàn bộ thực đơn</a>
+            </div>
+        }
+
+        @if (Model.Categories.Count > 0)
+        {
+            <nav class="public-menu-tabs" aria-label="Nhóm món">
+                @foreach (var category in Model.Categories)
+                {
+                    <a href="#nhom-@category.Id">@category.Name</a>
+                }
+            </nav>
+        }
+
+        @foreach (var category in Model.Categories)
+        {
+            <section class="public-menu-group" id="nhom-@category.Id" aria-labelledby="tieu-de-nhom-@category.Id" data-nhom-id="@category.Id">
+                <h2 id="tieu-de-nhom-@category.Id">@category.Name</h2>
+                @if (category.Dishes.Count == 0)
+                {
+                    <p class="public-menu-group-empty">Nhóm này chưa có món.</p>
+                }
+                else
+                {
+                    <ul class="public-menu-list">
+                        @foreach (var dish in category.Dishes)
+                        {
+                            @* S2-01 Task 3: món hết trong ngày vẫn hiển thị, có nhãn "Tạm hết" và bị làm mờ (CSS theo data-sold-out). *@
+                            <li class="public-dish" data-mon-id="@dish.Id" data-availability-id="@dish.Id" data-sold-out="@(dish.IsTemporarilyUnavailable ? "true" : "false")">
+                                <img class="public-dish-image" src="@ImageSrc(dish.ImageUrl)" alt="Ảnh món @dish.Name"
+                                     width="88" height="88" loading="@(imageIndex++ < EagerImages ? "eager" : "lazy")" decoding="async" />
+                                <div class="public-dish-body">
+                                    @if (dish.IsTemporarilyUnavailable)
+                                    {
+                                        <span class="public-dish-status">@dish.AvailabilityLabel<span class="visually-hidden"> – @RestaurantManagement.Web.Services.SoldOutDisplay.ScreenReaderNote</span></span>
+                                    }
+                                    <h3 class="public-dish-name">@dish.Name</h3>
+                                    @if (!string.IsNullOrEmpty(dish.ShortDescription))
+                                    {
+                                        <p class="public-dish-desc">@dish.DescriptionPreview</p>
+                                    }
+                                    <p class="public-dish-price"><data value="@dish.PriceVnd">@dish.DisplayPrice</data><span class="public-dish-unit"> / @dish.Unit</span></p>
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                }
+            </section>
+        }
+    }
+</div>
+
+@section Scripts {
+    <script src="~/js/menu-search.js" asp-append-version="true"></script>
+    <script src="~/js/menu-availability.js" asp-append-version="true"></script>
+}

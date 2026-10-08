@@ -1,0 +1,6 @@
+@model RestaurantManagement.Web.Models.Reservations.ReservationListItemViewModel
+@{ ViewData["Title"] = "Chi tiết đặt bàn"; }
+<partial name="_ReservationManagementTabs" />
+<h2>Đặt bàn @Model.Code</h2><p class="text-muted">Thời gian hiển thị theo giờ Việt Nam · Asia/Ho_Chi_Minh (UTC+7).</p><dl class="row">
+<dt class="col-sm-3">Khách hàng</dt><dd class="col-sm-9">@Model.CustomerName</dd><dt class="col-sm-3">Số điện thoại</dt><dd class="col-sm-9">@Model.Phone</dd><dt class="col-sm-3">Số khách</dt><dd class="col-sm-9">@Model.GuestCount</dd><dt class="col-sm-3">Khu vực khi đặt bàn</dt><dd class="col-sm-9">@(Model.AreaName ?? "Không yêu cầu")</dd><dt class="col-sm-3">Bắt đầu</dt><dd class="col-sm-9">@Model.StartsAt.ToString("dd/MM/yyyy HH:mm")</dd><dt class="col-sm-3">Kết thúc</dt><dd class="col-sm-9">@Model.EndsAt.ToString("dd/MM/yyyy HH:mm")</dd><dt class="col-sm-3">Ghi chú</dt><dd class="col-sm-9">@(string.IsNullOrWhiteSpace(Model.Notes) ? "Không có" : Model.Notes)</dd><dt class="col-sm-3">Trạng thái</dt><dd class="col-sm-9">@Model.Status</dd>
+</dl><a asp-action="Index" class="btn btn-secondary">Quay lại danh sách</a>

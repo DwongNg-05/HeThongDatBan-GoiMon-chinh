@@ -1,0 +1,29 @@
+@model RestaurantManagement.Web.Models.DailyBookingCalendarViewModel
+@{ ViewData["Title"] = "Khung giờ đặt bàn theo ngày"; }
+<h1 class="h3">Khung giờ đặt bàn theo ngày</h1>
+<p class="text-muted">Giờ Việt Nam (UTC+7). <a asp-action="Index">← Về Giờ hoạt động</a></p>
+<form method="get" asp-action="Calendar" class="oh-inline-form mb-3">
+    <div asp-validation-summary="All" class="text-danger" role="alert"></div>
+    <label asp-for="Date" class="form-label visually-hidden"></label>
+    <input asp-for="Date" type="date" required class="form-control" />
+    <button type="submit" class="btn btn-primary">Xem khung giờ</button>
+</form>
+@if (Model.Date is not null && ViewData.ModelState.IsValid)
+{
+    var dayName = Model.Date.Value.DayOfWeek == DayOfWeek.Sunday ? "Chủ nhật" : $"Thứ {(int)Model.Date.Value.DayOfWeek + 1}";
+    <h2 class="h5">@dayName, @Model.Date.Value.ToString("dd/MM/yyyy")</h2>
+    @if (Model.HolidayName is not null)
+    {
+        <div class="alert alert-warning">Ngày nghỉ đặc biệt: <strong>@Model.HolidayName</strong>. Không nhận đặt bàn trong ngày này.</div>
+    }
+    else if (Model.Slots.Count == 0)
+    {
+        <div class="alert alert-secondary">Ngày này nhà hàng nghỉ theo lịch tuần, không nhận đặt bàn.</div>
+    }
+    else
+    {
+        <p>Mở cửa <strong>@Model.WeeklyDay!.OpensAt</strong> – đóng cửa <strong>@Model.WeeklyDay.ClosesAt</strong> · khách có thể chọn <strong>@Model.Slots.Count</strong> giờ:</p>
+        <div class="daily-booking-slots oh-slot-list">@foreach (var slot in Model.Slots)
+        { <span class="badge bg-light text-dark border">@slot</span> }</div>
+    }
+}

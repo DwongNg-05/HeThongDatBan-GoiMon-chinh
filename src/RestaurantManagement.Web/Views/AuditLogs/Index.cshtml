@@ -1,0 +1,173 @@
+@using RestaurantManagement.Web.Models
+@model SecurityAuditViewModel
+@{
+    ViewData["Title"] = "Nhật ký hệ thống";
+    var filter = Model.Filter;
+    var items = Model.Page.Items;
+    var paging = Model.Page;
+    // Giữ nguyên bộ lọc khi chuyển trang. Bộ lọc mặc định không ghi ngày vào link để "7 ngày gần nhất" vẫn tính theo hôm nay.
+    Dictionary<string, string> PageRoute(int pageNumber)
+    {
+        var route = new Dictionary<string, string>();
+        if (!filter.IsDefault)
+        {
+            route["fromDate"] = filter.FromDate.ToString("yyyy-MM-dd");
+            route["toDate"] = filter.ToDate.ToString("yyyy-MM-dd");
+        }
+        if (filter.UserId is { } uid) route["userId"] = uid.ToString();
+        if (pageNumber > 1) route["page"] = pageNumber.ToString();
+        return route;
+    }
+    string BadgeClass(string action) => action switch
+    {
+        SecurityAuditEntry.LoginSucceeded => "bg-success",
+        SecurityAuditEntry.LoginFailed => "bg-danger",
+        SecurityAuditEntry.PriceChanged => "bg-primary",
+        _ => "bg-secondary"
+    };
+}
+
+<h1 class="h3">Nhật ký hệ thống</h1>
+<p class="text-muted">
+    Đăng nhập thành công, đăng nhập thất bại và sửa giá món; mới nhất lên đầu. Ngày và giờ theo giờ Việt Nam (UTC+7).
+    Nhật ký chỉ để xem, không thể sửa hoặc xoá.
+</p>
+
+<form method="get" asp-controller="AuditLogs" asp-action="Index" id="audit-filter" class="row g-3 align-items-end mb-3" novalidate>
+    <div class="col-sm-6 col-lg-3">
+        <label for="fromDate" class="form-label">Từ ngày</label>
+        <input type="date" id="fromDate" name="fromDate" class="form-control" value="@filter.FromDate.ToString("yyyy-MM-dd")" />
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <label for="toDate" class="form-label">Đến ngày</label>
+        <input type="date" id="toDate" name="toDate" class="form-control" value="@filter.ToDate.ToString("yyyy-MM-dd")" />
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <label for="userId" class="form-label">Tài khoản</label>
+        <select id="userId" name="userId" class="form-select">
+            <option value="" selected="@(filter.UserId is null)">Tất cả tài khoản</option>
+            @foreach (var account in Model.Accounts)
+            {
+                <option value="@account.Id" selected="@(filter.UserId == account.Id)">@account.Label</option>
+            }
+            <option value="@SecurityAuditFilter.UnknownAccountsValue" selected="@filter.UnknownAccounts">@SecurityAuditFilter.UnknownAccountsLabel</option>
+        </select>
+    </div>
+    <div class="col-sm-6 col-lg-3 d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Lọc</button>
+        <a asp-controller="AuditLogs" asp-action="Index" class="btn btn-outline-secondary" id="audit-filter-reset">7 ngày gần nhất</a>
+    </div>
+    <div class="col-12 form-text mt-1">
+        Khoảng ngày tính cả hai đầu, tối đa @SecurityAuditFilter.MaxDays ngày. Mở màn hình không chọn gì sẽ hiển thị @SecurityAuditFilter.DefaultDays ngày gần nhất (hôm nay và @(SecurityAuditFilter.DefaultDays - 1) ngày trước).
+    </div>
+</form>
+
+@if (!filter.IsValid)
+{
+    <div class="alert alert-danger" role="alert" id="audit-filter-errors">
+        @foreach (var error in filter.Errors)
+        {
+            <div>@error</div>
+        }
+    </div>
+}
+else
+{
+    <p id="audit-filter-summary" role="status" data-from="@filter.FromDate.ToString("yyyy-MM-dd")" data-to="@filter.ToDate.ToString("yyyy-MM-dd")" data-total="@Model.Page.TotalCount">
+        @(filter.IsDefault ? "Mặc định 7 ngày gần nhất: " : "Kết quả lọc: ")
+        <strong>@Model.Page.TotalCount</strong> sự kiện từ @filter.FromDate.ToString("dd/MM/yyyy") đến @filter.ToDate.ToString("dd/MM/yyyy"),
+        tài khoản: <strong>@Model.AccountLabel</strong>.
+    </p>
+    @if (paging.TotalCount > 0)
+    {
+        <p class="text-muted small" id="audit-page-info" data-page="@paging.PageNumber" data-pages="@paging.TotalPages">
+            Đang xem sự kiện @paging.FirstRow.ToString("N0")–@paging.LastRow.ToString("N0") trên tổng số @paging.TotalCount.ToString("N0")
+            (trang @paging.PageNumber/@paging.TotalPages, @paging.PageSize sự kiện mỗi trang).
+        </p>
+    }
+}
+
+<div class="table-responsive">
+    <table class="table align-middle" id="security-audit-table">
+        <thead>
+            <tr>
+                <th scope="col">Thời điểm</th>
+                <th scope="col">Tài khoản</th>
+                <th scope="col">Vai trò</th>
+                <th scope="col">Hành động</th>
+                <th scope="col">Địa chỉ IP</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (items.Count == 0)
+            {
+                <tr id="audit-empty">
+                    <td colspan="5" class="text-center text-muted">
+                        @(filter.IsValid ? "Không có sự kiện nào khớp điều kiện lọc." : "Chưa hiển thị dữ liệu vì điều kiện lọc không hợp lệ.")
+                    </td>
+                </tr>
+            }
+            @foreach (var log in items)
+            {
+                <tr data-audit-id="@log.Id" data-action="@log.Action">
+                    <td class="text-nowrap"><time datetime="@log.OccurredAtUtc.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")">@log.OccurredAtVietnam.ToString("dd/MM/yyyy HH:mm:ss")</time></td>
+                    <td>@log.UserName</td>
+                    <td>@log.RoleLabel</td>
+                    <td>
+                        <span class="badge @BadgeClass(log.Action)">@log.ActionLabel</span>
+                        @if (!string.IsNullOrEmpty(log.Detail))
+                        {
+                            <div class="small text-muted mt-1">@log.Detail</div>
+                        }
+                    </td>
+                    <td class="text-nowrap"><code>@log.IpAddress</code></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@if (filter.IsValid && paging.TotalPages > 1)
+{
+    <nav aria-label="Phân trang nhật ký" id="audit-pagination">
+        <ul class="pagination flex-wrap justify-content-center">
+            <li class="page-item @(paging.HasPrevious ? "" : "disabled")">
+                @if (paging.HasPrevious)
+                {
+                    <a class="page-link" asp-controller="AuditLogs" asp-action="Index" asp-all-route-data="PageRoute(paging.PageNumber - 1)" rel="prev">&laquo; Trước</a>
+                }
+                else
+                {
+                    <span class="page-link">&laquo; Trước</span>
+                }
+            </li>
+            @foreach (var number in paging.PageLinks())
+            {
+                if (number is null)
+                {
+                    <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+                }
+                else if (number == paging.PageNumber)
+                {
+                    <li class="page-item active" aria-current="page"><span class="page-link">@number</span></li>
+                }
+                else
+                {
+                    <li class="page-item">
+                        <a class="page-link" asp-controller="AuditLogs" asp-action="Index" asp-all-route-data="PageRoute(number.Value)">@number</a>
+                    </li>
+                }
+            }
+            <li class="page-item @(paging.HasNext ? "" : "disabled")">
+                @if (paging.HasNext)
+                {
+                    <a class="page-link" asp-controller="AuditLogs" asp-action="Index" asp-all-route-data="PageRoute(paging.PageNumber + 1)" rel="next">Sau &raquo;</a>
+                }
+                else
+                {
+                    <span class="page-link">Sau &raquo;</span>
+                }
+            </li>
+        </ul>
+    </nav>
+}

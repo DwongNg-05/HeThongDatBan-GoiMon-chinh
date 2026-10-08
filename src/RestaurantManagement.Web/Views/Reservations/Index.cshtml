@@ -1,0 +1,137 @@
+@model List<RestaurantManagement.Web.Models.Reservations.ReservationListItemViewModel>
+
+@{
+    ViewData["Title"] = "Danh sách đặt bàn";
+}
+
+<div class="container mt-4">
+    <p class="text-muted">Thời gian hiển thị theo giờ Việt Nam · Asia/Ho_Chi_Minh (UTC+7).</p>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+
+        <h2>
+            Danh sách đặt bàn
+        </h2>
+
+        @if (User.IsInRole("Manager") || User.IsInRole("Waiter"))
+        {
+            <a asp-action="Create"
+               class="btn btn-primary">
+                + Đặt bàn mới
+            </a>
+        }
+
+    </div>
+
+    @if (TempData["Success"] is string success)
+    {
+        <div class="alert alert-success" role="status">@success</div>
+    }
+    @if (TempData["Error"] is string error)
+    {
+        <div class="alert alert-danger" role="alert">@error</div>
+    }
+
+    <table class="table table-bordered table-hover">
+
+        <thead>
+
+            <tr>
+
+                <th>Mã đặt bàn (mã bàn)</th>
+
+                <th>Khách hàng</th>
+
+                <th>Số khách</th>
+
+                <th>Khu vực</th>
+
+                <th>Thời gian</th>
+
+                <th>Trạng thái đặt bàn</th>
+
+                <th>Ghi chú</th>
+
+            </tr>
+
+        </thead>
+
+        <tbody>
+
+        @if (Model.Count == 0)
+        {
+            <tr>
+
+                <td colspan="7"
+                    class="text-center">
+
+                    Chưa có đặt bàn.
+
+                </td>
+
+            </tr>
+        }
+        else
+        {
+            foreach (var reservation in Model)
+            {
+                <tr>
+
+                    <td class="fw-bold">
+                        @if (reservation.TableCode is null)
+                        {
+                            <a asp-action="Details" asp-route-id="@reservation.Id" class="fw-normal">Chưa có bàn</a>
+                        }
+                        else
+                        {
+                            <a asp-action="Details" asp-route-id="@reservation.Id" data-table-code="@reservation.TableCode">@reservation.TableCode</a>
+                        }
+                    </td>
+
+
+                    <td>
+                        @reservation.CustomerName
+                    </td>
+
+                    <td>
+                        @reservation.GuestCount
+                    </td>
+
+                    <td>
+                        @(reservation.AreaName ?? "Không yêu cầu")
+                    </td>
+
+                    <td>
+                        @reservation.StartsAt.ToString(
+                            "dd/MM/yyyy HH:mm")
+                    </td>
+
+                    <td>
+                        @reservation.StatusLabel
+                        @if (reservation.ConfirmationEmailLabel is string emailLabel)
+                        {
+                            <small class="d-block text-muted reservation-email-summary" data-confirmation-email="@reservation.ConfirmationEmailStatus">@emailLabel</small>
+                        }
+                        @if (User.IsInRole("Manager") && reservation.CanDelete)
+                        {
+                            <form asp-action="Delete" asp-route-id="@reservation.Id" method="post" class="d-inline ms-2"
+                                  data-confirm="Xoá hẳn lượt đặt bàn @(reservation.TableCode ?? reservation.Code) của @reservation.CustomerName? Thao tác này không thể hoàn tác."
+                                  onsubmit="return confirm(this.dataset.confirm);">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" data-reservation-delete="@reservation.Id">Xoá</button>
+                            </form>
+                        }
+                    </td>
+
+                    <td class="text-break">
+                        @reservation.Notes
+                    </td>
+
+                </tr>
+            }
+        }
+
+        </tbody>
+
+    </table>
+
+</div>

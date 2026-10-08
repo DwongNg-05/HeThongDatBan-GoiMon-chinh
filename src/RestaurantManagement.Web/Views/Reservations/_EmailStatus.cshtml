@@ -1,0 +1,88 @@
+@model RestaurantManagement.Web.Models.Reservations.ReservationEmailPanelViewModel
+@{
+    string Time(DateTime? value) => value?.ToString("dd/MM/yyyy HH:mm") ?? "Chưa thử gửi";
+}
+@* S2-09 Task 3: khu vực email xác nhận. Được tải lại định kỳ qua /Reservations/EmailStatus/{id} cho tới khi mọi email có kết quả cuối cùng. *@
+<section class="reservation-section reservation-email" id="reservation-email-status" aria-labelledby="reservation-email-title"
+         data-reservation-id="@Model.ReservationId" data-reservation-code="@Model.ReservationCode"
+         data-final="@(Model.IsFinal ? "true" : "false")"
+         data-refresh-url="@Url.Action("EmailStatus", "Reservations", new { id = Model.ReservationId })">
+    <div class="reservation-email-header">
+        <h3 id="reservation-email-title" class="reservation-section-title">Email xác nhận</h3>
+        <button type="button" class="btn btn-sm btn-outline-secondary reservation-email-refresh">Làm mới</button>
+    </div>
+    <p class="reservation-email-note">
+        Trạng thái email tách riêng với trạng thái đặt bàn: lượt đặt bàn vẫn có hiệu lực kể cả khi email gửi thất bại.
+    </p>
+
+    @if (!Model.HasCustomerEmail && Model.Emails.Count == 0)
+    {
+        <p class="reservation-email-empty">Khách không để lại email nên hệ thống không gửi email xác nhận cho lượt đặt bàn này.</p>
+    }
+    else if (Model.Emails.Count == 0)
+    {
+        <p class="reservation-email-empty">Chưa có email nào được xếp hàng gửi tới @Model.CustomerEmail.</p>
+    }
+    else
+    {
+        <ul class="reservation-email-list">
+            @foreach (var email in Model.Emails)
+            {
+                <li class="reservation-email-item" data-email-id="@email.Id" data-email-state="@email.State">
+                    <div class="reservation-email-item-head">
+                        <span class="reservation-email-type">@email.TypeLabel</span>
+                        <span class="email-state @email.StateCssClass">@email.StateLabel</span>
+                    </div>
+                    <dl class="reservation-email-facts">
+                        <dt>Gửi tới</dt><dd>@email.Recipient</dd>
+                        <dt>Số lần thử</dt>
+                        <dd data-email-attempts="@email.AttemptCount">@email.AttemptCount/@email.MaxAttempts
+                            <span class="text-muted">(@(email.RetryCount > 0 ? $"{email.RetryCount} lần gửi lại, " : "")tối đa @email.MaxRetries lần gửi lại, cách nhau 5 phút)</span>
+                        </dd>
+                        <dt>Thử gửi gần nhất</dt><dd>@Time(email.LastAttemptAt)</dd>
+                        @if (email.NextRetryAt is not null)
+                        {
+                            <dt>Thử lại lúc</dt><dd>@email.NextRetryAt.Value.ToString("dd/MM/yyyy HH:mm")</dd>
+                        }
+                        <dt>Kết quả cuối cùng</dt><dd class="reservation-email-result" data-email-final-result="@(email.IsFinal ? "true" : "false")">@email.FinalResult</dd>
+                        @if (email.ErrorMessage is not null)
+                        {
+                            <dt>@(email.State == RestaurantManagement.Web.Models.Reservations.EmailDeliveryState.Failed ? "Lỗi" : "Lỗi lần thử trước")</dt>
+                            <dd class="reservation-email-error">@email.ErrorMessage</dd>
+                        }
+                    </dl>
+                    @if (email.Attempts.Count > 0)
+                    {
+                        @* S2-09 Task 2: kết quả của từng lần thử. *@
+                        <div class="table-responsive">
+                            <table class="table table-sm reservation-email-attempts" aria-label="Các lần thử gửi @email.TypeLabel">
+                                <thead><tr><th>Lần thử</th><th>Thời gian</th><th>Kết quả</th><th>Lỗi</th></tr></thead>
+                                <tbody>
+                                    @foreach (var attempt in email.Attempts)
+                                    {
+                                        <tr data-attempt-number="@attempt.Number" data-attempt-result="@attempt.ResultLabel">
+                                            <td>@attempt.Number. @attempt.Label</td>
+                                            <td>@attempt.StartedAt.ToString("dd/MM/yyyy HH:mm:ss")</td>
+                                            <td><span class="email-state @attempt.ResultCssClass">@attempt.ResultLabel</span></td>
+                                            <td class="reservation-email-error">@attempt.ErrorMessage</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </li>
+            }
+        </ul>
+    }
+    <p class="reservation-email-updated text-muted" aria-live="polite">
+        @if (Model.IsFinal)
+        {
+            <text>Tất cả email đã có kết quả cuối cùng.</text>
+        }
+        else
+        {
+            <text>Trạng thái tự cập nhật khi có kết quả gửi mới.</text>
+        }
+    </p>
+</section>

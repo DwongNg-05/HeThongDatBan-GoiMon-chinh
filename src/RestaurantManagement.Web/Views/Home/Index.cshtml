@@ -1,8 +1,111 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+@model RestaurantManagement.Web.Models.TableMapViewModel
+@{
+    ViewData["Title"] = "Sơ đồ bàn";
+    var shownCount = Model.Tables.Count;
+    var freeCount = Model.Tables.Count(table => table.Status == "Available");
+    // Khu vực hiển thị: tất cả khu vực đang hoạt động, hoặc chỉ khu vực đang lọc (dữ liệu từ "Khu vực & bàn").
+    var visibleAreas = Model.SelectedAreaId is null
+        ? Model.Areas
+        : Model.Areas.Where(area => area.Id == Model.SelectedAreaId).ToList();
+    var isManager = User.IsInRole(RestaurantManagement.Web.Security.AppRoles.Manager);
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<section class="map-page" data-status-api="@Url.Content("~/api/table-status")" data-details-api="@Url.Content("~/api/table-map")" data-rendered-table-count="@shownCount">
+    <div class="map-heading">
+        <div>
+            <div class="eyebrow">VẬN HÀNH NHÀ HÀNG <span>•</span> HÔM NAY</div>
+            <h1>Sơ đồ bàn</h1>
+            <p class="map-subtitle">Theo dõi nhanh tình trạng bàn tại các khu vực.</p>
+        </div>
+        <div class="map-summary"><span class="summary-icon">▦</span><span><strong>@Model.TotalCount</strong><small>bàn trong nhà hàng</small></span></div>
+    </div>
+
+    <div class="map-toolbar">
+        <nav class="area-tabs" aria-label="Lọc theo khu vực">
+            <a class="area-tab @(Model.SelectedAreaId is null ? "active" : "")" asp-action="Index" aria-current="@(Model.SelectedAreaId is null ? "page" : null)">Tất cả <span>@Model.TotalCount</span></a>
+            @foreach (var area in Model.Areas)
+            {
+                var selected = Model.SelectedAreaId == area.Id;
+                <a class="area-tab @(selected ? "active" : "")" asp-action="Index" asp-route-areaId="@area.Id" aria-current="@(selected ? "page" : null)">@area.Name <span>@area.TableCount</span></a>
+            }
+        </nav>
+        <div class="quick-count"><i></i><span id="available-table-count">@freeCount</span> bàn trống <span>·</span> @shownCount bàn đang xem</div>
+    </div>
+
+    @if (Model.LoadError is not null)
+    {
+        <div class="empty-state" role="alert"><span>▦</span><h2>Không tải được sơ đồ bàn</h2><p>@Model.LoadError</p></div>
+    }
+    else if (Model.Areas.Count == 0)
+    {
+        <div class="empty-state"><span>▦</span><h2>Chưa có khu vực nào</h2>
+            <p>Sơ đồ bàn lấy dữ liệu từ màn hình “Khu vực &amp; bàn”. Hãy tạo khu vực và thêm bàn để hiển thị tại đây.</p>
+            @if (isManager) { <p><a asp-controller="Areas" asp-action="Index">Mở Khu vực &amp; bàn</a></p> }
+        </div>
+    }
+    else
+    {
+        @foreach (var area in visibleAreas)
+        {
+            var areaTables = Model.Tables.Where(table => table.Area == area.Name).ToList();
+            <section class="area-section" aria-labelledby="area-@area.Id">
+                <div class="area-heading"><div><span class="area-mark"></span><h2 id="area-@area.Id">@area.Name</h2></div><span class="area-count">@areaTables.Count bàn</span></div>
+                @if (areaTables.Count == 0)
+                {
+                    <p class="text-muted mb-0">Khu vực này chưa có bàn đang sử dụng.@if (isManager) { <text> </text><a asp-controller="Areas" asp-action="Index" asp-fragment="khu-vuc-@area.Id">Thêm bàn</a> }</p>
+                }
+                else
+                {
+                <div class="table-grid">
+                    @foreach (var table in areaTables)
+                    {
+                        <article class="table-card status-@table.StatusClass" data-table-code="@table.Code" data-status="@table.Status" data-changed-at="@table.ChangedAtUtc.ToString("O")" aria-label="Bàn @table.Code, sức chứa @table.Capacity người, trạng thái @table.StatusLabel">
+                            <button class="table-detail-trigger" type="button" data-open-details="@table.Code" aria-label="Xem chi tiết bàn @table.Code">
+                                <span class="table-card-top"><span class="table-glyph">♧</span><span class="table-status"><i></i><span class="table-status-label">@table.StatusLabel</span></span></span>
+                                <strong class="table-code">@table.Code</strong>
+                                <span class="table-capacity"><span class="person-icon">♙</span> @table.Capacity chỗ</span>
+                            </button>
+                            <label class="visually-hidden" for="status-@table.Code">Cập nhật trạng thái bàn @table.Code</label>
+                            <select class="table-status-editor" id="status-@table.Code" data-status-editor aria-label="Cập nhật trạng thái bàn @table.Code">
+                                <option value="Available" selected="@(table.Status == "Available")">Trống</option>
+                                <option value="Reserved" selected="@(table.Status == "Reserved")">Đã đặt trước</option>
+                                <option value="Serving" selected="@(table.Status == "Serving")">Đang phục vụ</option>
+                                <option value="Cleaning" selected="@(table.Status == "Cleaning")">Đang dọn</option>
+                            </select>
+                        </article>
+                    }
+                </div>
+                }
+            </section>
+        }
+    }
+    <div class="map-footnote"><span class="connection-indicator" id="table-map-connection" aria-hidden="true"></span><span id="table-map-connection-label" role="status" aria-live="polite">Đang kết nối sơ đồ trực tiếp…</span><span class="last-update" id="table-map-last-update">· Chưa có thay đổi mới</span></div>
+</section>
+
+<div class="table-details-overlay" id="table-details-overlay" hidden>
+<section class="table-details-dialog" id="table-details-dialog" role="dialog" aria-modal="true" aria-labelledby="table-details-title" tabindex="-1">
+    <header class="details-header">
+        <div><span class="details-kicker">THÔNG TIN BÀN</span><h2 id="table-details-title">Chi tiết bàn</h2></div>
+        <button class="details-close" id="details-close-button" type="button" data-close-details aria-label="Đóng chi tiết">×</button>
+    </header>
+    <div class="details-status-row"><span class="table-status" id="details-status"><i></i><span id="details-status-label"></span></span><span id="details-area"></span></div>
+    <p class="details-context" id="details-context" aria-live="polite">Đang tải thông tin…</p>
+    <div class="details-metrics">
+        <section class="details-metric"><span id="details-person-heading">Khách đang ngồi</span><strong id="details-person">—</strong><small id="details-person-note"></small></section>
+        <section class="details-metric"><span>Thời gian phục vụ</span><strong id="details-started">—</strong><small id="details-duration"></small></section>
+        <section class="details-metric"><span>Tạm tính hiện tại</span><strong id="details-subtotal">—</strong><small id="details-subtotal-note"></small></section>
+    </div>
+    <section class="details-reservation" id="details-reservation" hidden>
+        <div class="details-section-title">Đặt bàn sắp tới</div>
+        <strong id="details-reservation-name"></strong>
+        <span id="details-reservation-phone"></span>
+        <span id="details-reservation-guests"></span>
+        <time id="details-reservation-time"></time>
+    </section>
+    <p class="details-source" id="details-source" hidden>Dữ liệu mẫu phát triển</p>
+</section>
 </div>
+
+@section Scripts {
+    <script src="~/js/table-map.js" asp-append-version="true"></script>
+}

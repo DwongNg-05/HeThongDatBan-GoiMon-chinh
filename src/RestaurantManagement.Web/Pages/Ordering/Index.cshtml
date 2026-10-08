@@ -1,0 +1,10 @@
+@page
+@model RestaurantManagement.Web.Pages.Ordering.IndexModel
+@{
+    ViewData["Title"] = "Gọi món";
+}
+
+<h1>Gọi món</h1>
+<p><a href="/Ordering/Sent" class="btn btn-outline-primary">Món đã gửi bếp · Huỷ món chờ</a></p>
+@{ ViewData["UnavailableDishIds"] = Model.UnavailableDishIds; }
+<partial name="_MenuByCategory" model="Model.Categories" />

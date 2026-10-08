@@ -1,0 +1,72 @@
+@model RestaurantManagement.Web.Models.Kitchen.DailyDishesViewModel
+@{
+    ViewData["Title"] = "Món trong ngày";
+    // S2-08 Task 2: lịch sử bật/tắt chỉ dành cho Quản lý.
+    var canSeeHistory = User.IsInRole(RestaurantManagement.Web.Security.AppRoles.Manager);
+}
+@* S2-08 Task 1: Bếp và Quản lý bật/tắt "Tạm hết" bằng một chạm. Trạng thái tự cập nhật mỗi 3 giây (menu-availability.js). *@
+<div class="container mt-4" data-screen="daily-dishes" data-availability-url="@Url.Content("~/api/menu/availability")" data-availability-interval="@RestaurantManagement.Web.Services.TemporaryOutRules.PollIntervalMs">
+    <h2>Món trong ngày</h2>
+    <p class="text-muted">
+        Bấm <strong>Tạm hết</strong> khi bếp không làm được món: món có nhãn “Tạm hết” trên thực đơn công khai và màn hình gọi món
+        (tối đa 5 giây), và không nhận order mới. Bấm <strong>Bán lại</strong> khi món phục vụ được trở lại.
+        Lúc <strong>00:00</strong> (giờ Việt Nam) mỗi ngày, mọi món đang tạm hết tự về <strong>còn hàng</strong>.
+    </p>
+    <p>Đang không nhận order: <strong data-unavailable-count>@Model.UnavailableCount</strong> / @Model.Dishes.Count món.
+        @if (canSeeHistory)
+        {
+            <a asp-action="History" class="ms-2">Xem lịch sử tạm hết</a>
+        }
+    </p>
+
+    <div id="daily-dishes-status" role="status" aria-live="polite"
+         class="alert @(TempData["Error"] is string ? "alert-danger" : "alert-success")"
+         hidden="@(TempData.Peek("Success") is null && TempData.Peek("Error") is null)">@(TempData["Success"] ?? TempData["Error"])</div>
+
+    @if (Model.Dishes.Count == 0)
+    {
+        <p class="text-muted">Chưa có món đang bán.</p>
+    }
+    else
+    {
+        <table class="table align-middle">
+            <thead>
+                <tr><th>Món</th><th>Giá</th><th>Trạng thái</th><th class="text-end">Thao tác</th></tr>
+            </thead>
+            @foreach (var group in Model.ByCategory)
+            {
+                <tbody>
+                    <tr class="table-light"><th colspan="4">@group.Key</th></tr>
+                    @foreach (var dish in group)
+                    {
+                        <tr data-availability-id="@dish.Id" data-unavailable="@(dish.IsUnavailable ? "true" : "false")"
+                            data-temporarily-out="@(dish.IsTemporarilyOut ? "true" : "false")">
+                            <td class="fw-semibold">@dish.Name</td>
+                            <td class="text-nowrap">@dish.PriceVnd.ToString("N0") VND / @dish.Unit</td>
+                            <td>
+                                <span class="badge bg-warning text-dark" data-availability-label hidden="@(!dish.IsUnavailable)">Tạm hết</span>
+                                <small class="text-muted d-block" data-sold-out-today-note hidden="@(!dish.SoldOutToday)">Quản lý đã báo hết trong ngày (Quản lý món).</small>
+                            </td>
+                            <td class="text-end">
+                                <form asp-action="TemporarilyOut" asp-route-id="@dish.Id" method="post" class="d-inline" data-temporarily-out-toggle>
+                                    <input type="hidden" name="isTemporarilyOut" value="@((!dish.IsTemporarilyOut).ToString().ToLowerInvariant())" />
+                                    <button type="submit" class="btn btn-sm @(dish.IsTemporarilyOut ? "btn-success" : "btn-danger") text-nowrap"
+                                            aria-pressed="@(dish.IsTemporarilyOut ? "true" : "false")"
+                                            data-text-on="Bán lại" data-text-off="Tạm hết">@(dish.IsTemporarilyOut ? "Bán lại" : "Tạm hết")</button>
+                                </form>
+                                @if (canSeeHistory)
+                                {
+                                    <a asp-action="History" asp-route-dishId="@dish.Id" class="btn btn-sm btn-link">Lịch sử</a>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            }
+        </table>
+    }
+</div>
+
+@section Scripts {
+    <script src="~/js/menu-availability.js" asp-append-version="true"></script>
+}

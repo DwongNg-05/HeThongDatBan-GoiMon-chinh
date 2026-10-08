@@ -1,0 +1,23 @@
+@model RestaurantManagement.Web.Models.Areas.AreaFormViewModel
+
+<div asp-validation-summary="ModelOnly" class="alert alert-danger mb-3"></div>
+
+<div class="mb-3">
+    <label asp-for="Name" class="form-label"></label>
+    <input asp-for="Name" class="form-control" placeholder="Ví dụ: Tầng 1, Sân vườn, Phòng VIP" />
+    <div class="form-text">Đặt tên dễ nhớ để nhân viên nhận ra ngay khu vực này ở đâu.</div>
+    <span asp-validation-for="Name" class="text-danger"></span>
+</div>
+
+<div class="mb-3">
+    <label asp-for="SortOrder" class="form-label"></label>
+    <input asp-for="SortOrder" type="number" class="form-control" min="0" step="1" style="max-width: 160px" />
+    <div class="form-text">Số nhỏ hơn sẽ hiện trước trong danh sách. Không chắc thì cứ để 0.</div>
+    <span asp-validation-for="SortOrder" class="text-danger"></span>
+</div>
+
+<div class="mb-3">
+    <label asp-for="Notes" class="form-label">Ghi chú <span class="fw-normal text-muted">(không bắt buộc)</span></label>
+    <textarea asp-for="Notes" class="form-control" rows="3" placeholder="Ví dụ: Gần cửa sổ, có điều hòa"></textarea>
+    <span asp-validation-for="Notes" class="text-danger"></span>
+</div>

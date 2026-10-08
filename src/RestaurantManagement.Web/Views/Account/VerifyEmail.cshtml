@@ -1,0 +1,92 @@
+@model RestaurantManagement.Web.Models.EmailVerificationViewModel
+@{ ViewData["Title"] = "Xác minh đăng nhập"; }
+@section Styles {
+    <link rel="stylesheet" href="~/css/email-verification.css" asp-append-version="true" />
+}
+
+<div class="ev-wrap">
+    <section class="ev-card" aria-labelledby="ev-title">
+        <div class="ev-icon" aria-hidden="true">✉</div>
+        <h1 id="ev-title">Xác minh đăng nhập</h1>
+
+        @if (Model.Info is not null)
+        {
+            <div class="alert alert-success" role="status">✔ @Model.Info</div>
+        }
+        @if (Model.Error is not null)
+        {
+            <div class="alert alert-danger" role="alert">⚠ @Model.Error</div>
+        }
+
+        @if (Model.MaskedEmail is null)
+        {
+            <p class="ev-lead">Để bảo vệ tài khoản, hãy nhập <strong>email của bạn</strong>. Chúng tôi sẽ gửi một mã xác minh gồm 6 ký tự tới email này.</p>
+            <form asp-action="SetVerificationEmail" method="post" class="ev-form">
+                <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+                <label for="ev-email" class="form-label">Email của bạn</label>
+                <input id="ev-email" name="email" type="email" class="form-control form-control-lg" autocomplete="email" maxlength="254" required placeholder="vidu@gmail.com" />
+                <button type="submit" class="btn btn-primary btn-lg w-100 mt-3">Gửi mã xác minh</button>
+            </form>
+        }
+        else
+        {
+            <p class="ev-lead">
+                @(Model.CodeSent ? "Chúng tôi đã gửi" : "Chúng tôi sẽ gửi") mã xác minh tới <strong class="ev-email">@Model.MaskedEmail</strong>.<br />
+                Mã gồm <strong>6 ký tự</strong>, chỉ có <strong>chữ in hoa và số</strong>, có hiệu lực trong @Model.ValidMinutes phút.
+            </p>
+            <form asp-action="VerifyEmail" method="post" class="ev-form" id="ev-code-form">
+                <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+                <label for="ev-code" class="form-label">Nhập mã xác minh</label>
+                <input id="ev-code" name="code" value="@Model.Code" class="form-control ev-code" autocomplete="one-time-code" inputmode="text"
+                       maxlength="8" required autofocus spellcheck="false" autocapitalize="characters" placeholder="VD: K7P2QX" aria-describedby="ev-code-help" />
+                <div id="ev-code-help" class="form-text">Có thể gõ chữ thường, hệ thống tự đổi sang chữ in hoa.</div>
+                <button type="submit" class="btn btn-primary btn-lg w-100 mt-3">Xác minh</button>
+            </form>
+
+            <div class="ev-resend">
+                <span>Chưa nhận được mã?</span>
+                <form asp-action="ResendVerificationCode" method="post" class="d-inline">
+                    <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+                    <button type="submit" class="btn btn-outline-primary" id="ev-resend" data-wait="@Model.ResendAfterSeconds" disabled="@(Model.ResendAfterSeconds > 0 ? "disabled" : null)">
+                        Gửi lại mã<span id="ev-resend-wait">@(Model.ResendAfterSeconds > 0 ? $" ({Model.ResendAfterSeconds} giây)" : "")</span>
+                    </button>
+                </form>
+            </div>
+
+            <details class="ev-help">
+                <summary>Không thấy email?</summary>
+                <ul>
+                    <li>Đợi khoảng 1 phút, email có thể đến chậm.</li>
+                    <li>Kiểm tra thư mục <strong>Spam / Thư rác</strong> hoặc <strong>Quảng cáo</strong>.</li>
+                    <li>Tìm email có tiêu đề <strong>“Mã xác minh đăng nhập Bếp Nhà”</strong>.</li>
+                    <li>Vẫn không có? Bấm <strong>“Gửi lại mã”</strong>. Mã cũ sẽ không dùng được nữa.</li>
+                    @if (Model.HasSavedEmail)
+                    {
+                        <li>Email không còn dùng được? Hãy báo quản lý để cập nhật email cho tài khoản.</li>
+                    }
+                </ul>
+            </details>
+
+            @if (!Model.HasSavedEmail)
+            {
+                <details class="ev-help">
+                    <summary>Nhập sai email?</summary>
+                    <form asp-action="SetVerificationEmail" method="post" class="mt-2">
+                        <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+                        <label for="ev-email-again" class="form-label">Email đúng của bạn</label>
+                        <input id="ev-email-again" name="email" type="email" class="form-control" autocomplete="email" maxlength="254" required />
+                        <button type="submit" class="btn btn-outline-secondary mt-2">Gửi mã tới email này</button>
+                    </form>
+                </details>
+            }
+        }
+
+        <form asp-action="Logout" method="post" class="ev-logout">
+            <button type="submit" class="btn btn-link">Đăng xuất và đăng nhập bằng tài khoản khác</button>
+        </form>
+    </section>
+</div>
+
+@section Scripts {
+    <script src="~/js/email-verification.js" asp-append-version="true"></script>
+}

@@ -1,0 +1,114 @@
+@model RestaurantManagement.Web.ViewModels.ReservationLookupViewModel
+
+@{
+    ViewData["Title"] = "Tra cứu đặt bàn";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <h1 class="mb-3">Tra cứu đặt bàn</h1>
+
+        <p class="text-muted">Nhập mã đặt bàn và số điện thoại đã dùng khi đặt bàn.</p>
+
+        <form asp-controller="ReservationLookup" asp-action="Lookup" method="post" class="card card-body mb-4">
+            <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+
+            <div class="mb-3">
+                <label asp-for="Code" class="form-label"></label>
+                <input asp-for="Code" class="form-control" maxlength="30" placeholder="Ví dụ: ABC123" />
+                <span asp-validation-for="Code" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Phone" class="form-label"></label>
+                <input asp-for="Phone" type="tel" class="form-control" maxlength="50" autocomplete="tel" placeholder="Số điện thoại đã đặt bàn" />
+                <span asp-validation-for="Phone" class="text-danger"></span>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Tra cứu</button>
+        </form>
+
+        @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
+        {
+            <div class="alert alert-success" role="status">@Model.SuccessMessage</div>
+        }
+
+        @if (Model.Result is { } result)
+        {
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="h4 mb-3">Thông tin đặt bàn</h2>
+
+                    <dl class="row">
+                        <dt class="col-sm-4">Mã đặt bàn</dt>
+                        <dd class="col-sm-8">@result.Code</dd>
+                        <dt class="col-sm-4">Trạng thái</dt>
+                        <dd class="col-sm-8">@result.StatusLabel</dd>
+                        <dt class="col-sm-4">Thời gian</dt>
+                        <dd class="col-sm-8">@result.AppointmentLabel <small class="text-muted">(giờ Việt Nam)</small></dd>
+                        <dt class="col-sm-4">Số khách</dt>
+                        <dd class="col-sm-8">@result.GuestCount khách</dd>
+                        <dt class="col-sm-4">Khu vực</dt>
+                        <dd class="col-sm-8">@(result.AreaName ?? "Chưa chọn khu vực")</dd>
+                        <dt class="col-sm-4">Bàn</dt>
+                        <dd class="col-sm-8">@result.TableLabel</dd>
+                    </dl>
+
+                    @if (!string.IsNullOrWhiteSpace(result.CancellationMessage))
+                    {
+                        <div class="alert alert-info" role="status">@result.CancellationMessage</div>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(result.EmailDeliveryMessage))
+                    {
+                        var emailAlertClass = result.EmailDeliveryMessage.Contains("chưa gửi được", StringComparison.OrdinalIgnoreCase)
+                            ? "alert-warning" : "alert-success";
+                        <div class="alert @emailAlertClass" role="status">@result.EmailDeliveryMessage</div>
+                    }
+
+                    @if (result.CanCancel)
+                    {
+                        <button type="button" id="openCancelDialog" class="btn btn-danger">Huỷ đặt bàn</button>
+                        <dialog id="cancelDialog" aria-labelledby="cancelDialogTitle" class="rounded border p-4">
+                            <h3 id="cancelDialogTitle" class="h5">Xác nhận huỷ đặt bàn</h3>
+                            <p>Bạn có chắc muốn huỷ đặt bàn <strong>@result.Code</strong> lúc @result.AppointmentLabel cho @result.GuestCount khách?</p>
+                            <form asp-controller="ReservationLookup" asp-action="Cancel" method="post" id="cancelForm">
+                                <input asp-for="Code" type="hidden" />
+                                <input asp-for="Phone" type="hidden" />
+                                <div class="d-flex gap-2">
+                                    <button type="button" id="closeCancelDialog" class="btn btn-secondary">Giữ đặt bàn</button>
+                                    <button type="submit" id="confirmCancelButton" class="btn btn-danger">Xác nhận huỷ</button>
+                                </div>
+                            </form>
+                        </dialog>
+                    }
+
+                    <p class="mt-3 mb-0">Liên hệ quán: <a href="tel:@result.RestaurantPhone">@result.RestaurantPhone</a></p>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+
+    <script>
+        const cancelDialog = document.getElementById("cancelDialog");
+        const openButton = document.getElementById("openCancelDialog");
+        const closeButton = document.getElementById("closeCancelDialog");
+        const cancelForm = document.getElementById("cancelForm");
+        const confirmButton = document.getElementById("confirmCancelButton");
+
+        if (cancelDialog && openButton && closeButton && cancelForm) {
+            openButton.addEventListener("click", () => cancelDialog.showModal());
+            closeButton.addEventListener("click", () => cancelDialog.close());
+            cancelForm.addEventListener("submit", () => {
+                if (confirmButton) {
+                    confirmButton.disabled = true;
+                    confirmButton.textContent = "Đang huỷ...";
+                }
+            });
+        }
+    </script>
+}

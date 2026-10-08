@@ -1,6 +1,15 @@
-﻿@{
-    ViewData["Title"] = "Privacy Policy";
+@{
+    ViewData["Title"] = "Thông tin";
 }
-<h1>@ViewData["Title"]</h1>
 
-<p>Use this page to detail your site's privacy policy.</p>
+<section aria-labelledby="information-title">
+    <h1 id="information-title">Thông tin hệ thống</h1>
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+            <h2 class="h4 mb-3">Bếp Nhà</h2>
+            <p>Hệ thống đặt bàn và gọi món nhà hàng, hỗ trợ theo dõi bàn, đặt bàn và quản lý thực đơn.</p>
+            <p class="text-muted mb-4">Chọn chức năng trên thanh điều hướng để làm việc. Các chức năng hiển thị tùy theo quyền truy cập của tài khoản.</p>
+            <a class="btn btn-primary" asp-controller="Home" asp-action="Index">Xem sơ đồ bàn</a>
+        </div>
+    </div>
+</section>

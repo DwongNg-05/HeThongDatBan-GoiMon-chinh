@@ -1,49 +1,101 @@
-﻿<!DOCTYPE html>
-<html lang="en">
+@{
+    var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
+    var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
+    bool IsCurrent(string controller, string action) =>
+        string.Equals(currentController, controller, StringComparison.OrdinalIgnoreCase) &&
+        (controller != "Home" || string.Equals(currentAction, action, StringComparison.OrdinalIgnoreCase));
+    var signedIn = User.Identity?.IsAuthenticated == true;
+    // S1-04 Task 2/4: menu chỉ hiện chức năng vai trò được dùng; máy chủ vẫn kiểm tra quyền ở từng API.
+    var navItems = RestaurantManagement.Web.Security.RoleNavigation.For(User);
+    var activeNav = RestaurantManagement.Web.Security.RoleNavigation.ActiveKey(navItems, Context.Request.Path.Value ?? "/");
+    // S1-04 Task 1: vai trò do máy chủ gắn khi đăng nhập (claim Role), hiện cạnh tên tài khoản.
+    var userRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+}
+<!DOCTYPE html>
+<html lang="vi">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - RestaurantManagement.Web</title>
+    <title>@ViewData["Title"] - Nhà hàng</title>
     <script type="importmap"></script>
+    @* Be Vietnam Pro: font thiết kế cho tiếng Việt (dấu chuẩn); không tải được thì dùng font hệ thống. *@
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" />
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/RestaurantManagement.Web.styles.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/red-white.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin-shell.css" asp-append-version="true" />
+    @await RenderSectionAsync("Styles", required: false)
+    @* Giao diện phong cách Michelin: nạp cuối để ghi đè màu, chữ, khoảng cách của các file trên. *@
+    <link rel="stylesheet" href="~/css/michelin.css" asp-append-version="true" />
 </head>
-<body>
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">RestaurantManagement.Web</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-                        </li>
-                    </ul>
-                </div>
+<body class="@(signedIn ? "admin-shell" : "guest-shell")">
+    <a class="skip-navigation" href="#main-content">Đi đến nội dung chính</a>
+    @if (signedIn)
+    {
+        <aside class="offcanvas-lg offcanvas-start admin-sidebar" tabindex="-1" id="adminSidebar" aria-labelledby="sidebar-title">
+            <div class="sidebar-brand-row">
+                <a class="sidebar-brand" asp-area="" asp-controller="Home" asp-action="Index">
+                    <span class="brand-wordmark" id="sidebar-title">BẾP NHÀ</span>
+                </a>
+                <button type="button" class="btn-close d-lg-none" data-bs-dismiss="offcanvas" data-bs-target="#adminSidebar" aria-label="Đóng menu"></button>
             </div>
-        </nav>
-    </header>
-    <div class="container">
-        <main role="main" class="pb-3">
+            <nav class="sidebar-navigation" aria-label="Điều hướng chính">
+                <ul class="sidebar-links">
+                    @* S1-04 Task 2: mục điều hướng lấy từ bảng ánh xạ vai trò → màn hình (Security/RoleNavigation.cs).
+                       Bếp: 2 mục; Thu ngân: 3 mục. Máy chủ vẫn chặn từng API ngoài phạm vi, kể cả khi gõ thẳng đường dẫn. *@
+                    @foreach (var item in navItems)
+                    {
+                        var active = item.Key == activeNav;
+                        <li class="nav-item" data-nav-item="@item.Key"><a class="sidebar-link @(active ? "is-active" : "")" aria-current="@(active ? "page" : null)" href="@Url.Content("~" + item.Path)">@item.Title</a></li>
+                    }
+                </ul>
+            </nav>
+            <div class="sidebar-account">
+                <span class="account-avatar" aria-hidden="true">@(User.Identity?.Name?.FirstOrDefault().ToString().ToUpperInvariant())</span>
+                <div class="account-details"><small>Tài khoản hiện tại</small><strong>@User.Identity?.Name</strong><small data-user-role="@userRole">@RestaurantManagement.Web.Security.AppRoles.DisplayName(userRole)</small></div>
+                <form asp-area="" asp-controller="Account" asp-action="Logout" method="post">
+                    <button type="submit" class="sidebar-logout">Đăng xuất</button>
+                </form>
+            </div>
+        </aside>
+    }
+    <div class="admin-workspace">
+        <header class="workspace-header">
+            @if (signedIn)
+            {
+                <button class="menu-toggle d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#adminSidebar" aria-controls="adminSidebar" aria-label="Mở menu điều hướng">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+                </button>
+                <span class="workspace-caption">@(User.FindFirst("FullName")?.Value ?? User.Identity?.Name) · @RestaurantManagement.Web.Security.AppRoles.DisplayName(userRole)</span>
+            }
+            else
+            {
+                @* S2-01 Task 1: khách chưa đăng nhập luôn có đường tới thực đơn công khai. *@
+                <a class="sidebar-brand" asp-area="" asp-controller="Menu" asp-action="Index" aria-label="Bếp Nhà – thực đơn"><span class="brand-wordmark">BẾP NHÀ</span></a>
+                <nav class="guest-links" aria-label="Điều hướng khách">
+                    <a asp-area="" asp-controller="Menu" asp-action="Index" aria-current="@(IsCurrent("Menu", "Index") ? "page" : null)">Thực đơn</a>
+                    @* Khách đặt bàn không cần đăng nhập. *@
+                    <a asp-area="" asp-controller="Reservations" asp-action="Create" aria-current="@(IsCurrent("Reservations", "Create") ? "page" : null)">Đặt bàn</a>
+                    <a asp-area="" asp-controller="ReservationLookup" asp-action="Index">Tra cứu đặt bàn</a>
+                    <a class="guest-login" asp-area="" asp-controller="Account" asp-action="Login" aria-current="@(IsCurrent("Account", "Login") ? "page" : null)">Đăng nhập</a>
+                </nav>
+            }
+        </header>
+        <main id="main-content" class="workspace-content" tabindex="-1">
             @RenderBody()
         </main>
     </div>
 
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2026 - RestaurantManagement.Web - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-        </div>
-    </footer>
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    @* S2-01 Task 4: trang công khai nhẹ (thực đơn) không tải jQuery/Bootstrap JS cho khách chưa đăng nhập;
+       nhân viên đã đăng nhập vẫn cần Bootstrap JS cho menu điều hướng. *@
+    @if (signedIn || ViewData["LightweightScripts"] is not true)
+    {
+        <script src="~/lib/jquery/dist/jquery.min.js"></script>
+        <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    }
     <script src="~/js/site.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>

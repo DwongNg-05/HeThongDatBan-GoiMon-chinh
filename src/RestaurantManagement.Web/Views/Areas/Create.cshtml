@@ -1,0 +1,23 @@
+@model RestaurantManagement.Web.Models.Areas.AreaFormViewModel
+@{ ViewData["Title"] = "Thêm khu vực"; }
+@section Styles {
+    <link rel="stylesheet" href="~/css/area-tables.css" asp-append-version="true" />
+}
+
+<a asp-action="Index" class="at-back">← Quay lại Khu vực &amp; bàn</a>
+<div class="at-form-card">
+    <h1>Thêm khu vực mới</h1>
+    <p class="at-lead">Khu vực là một phần của nhà hàng, ví dụ “Tầng 1” hay “Sân vườn”. Sau khi lưu, bạn có thể thêm bàn vào khu vực này.</p>
+    <form asp-action="Create" method="post">
+        @Html.AntiForgeryToken()
+        <partial name="_AreaFields" model="Model" />
+        <div class="at-form-actions">
+            <button type="submit" class="btn btn-primary">Lưu khu vực</button>
+            <a asp-action="Index" class="btn btn-outline-secondary">Quay lại</a>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

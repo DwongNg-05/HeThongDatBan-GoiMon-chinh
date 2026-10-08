@@ -1,0 +1,73 @@
+@model DateOnly
+@{
+    ViewData["Title"] = "Danh sách đặt bàn";
+}
+
+<section id="daily-reservations"
+         data-url="@Url.Action("Daily")"
+         data-date="@Model.ToString("yyyy-MM-dd")"
+         data-follow-today="true">
+    <partial name="_ReservationManagementTabs" />
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+        <div>
+            <h1 class="h3">Danh sách đặt bàn</h1>
+            <p class="text-muted mb-0">Xem lịch hẹn để chuẩn bị bàn đầu ca.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a asp-controller="ReservationConfirmations" asp-action="Index" class="btn btn-outline-primary">Xử lý đơn chờ</a>
+            @if (User.IsInRole("Manager")) { <a asp-controller="TableReservationSchedule" asp-action="Create" class="btn btn-primary">+ Tạo lượt thủ công</a> }
+        </div>
+    </div>
+
+    <form id="reservation-date-form" class="d-flex flex-wrap align-items-end gap-2 mb-3">
+        <div>
+            <label for="reservation-date" class="form-label">Ngày đang xem</label>
+            <input id="reservation-date" name="date" type="date" class="form-control"
+                   min="1900-01-01" max="9998-12-31" value="@Model.ToString("yyyy-MM-dd")" required />
+        </div>
+        <div>
+            <label for="reservation-status" class="form-label">Trạng thái</label>
+            <select id="reservation-status" name="status" class="form-select">
+                <option value="">Tất cả trạng thái</option>
+                <option value="Pending">Chờ xác nhận</option>
+                <option value="Confirmed">Đã xác nhận</option>
+                <option value="Cancelled">Đã huỷ</option>
+                <option value="NoShow">Khách không tới</option>
+            </select>
+        </div>
+        <button class="btn btn-primary" type="submit">Xem danh sách</button>
+        <button id="reservation-clear-filter" class="btn btn-outline-secondary" type="button">Bỏ lọc</button>
+        <button id="reservation-today" class="btn btn-outline-secondary" type="button">Hôm nay</button>
+    </form>
+
+    <p>Ngày <strong id="viewing-date">@Model.ToString("dd/MM/yyyy")</strong> · Giờ Việt Nam (UTC+7) · Sắp đến trước, giờ hẹn tăng dần trong từng nhóm.</p>
+    <p class="text-muted">Chờ xác nhận và đã xác nhận trong 30 phút tới được ưu tiên. Tự cập nhật mỗi 30 giây. <span id="reservation-updated" role="status"></span></p>
+    <div id="reservation-loading" role="status">Đang tải danh sách đặt bàn…</div>
+    <div id="reservation-error" class="alert alert-danger" role="alert" hidden>
+        <span>Không thể tải danh sách đặt bàn. Vui lòng thử lại.</span>
+        <button id="reservation-retry" type="button" class="btn btn-outline-danger ms-2">Thử lại</button>
+    </div>
+    <p id="reservation-empty" class="alert alert-light" role="status" hidden>Chưa có lượt đặt bàn trong ngày này.</p>
+    <div id="reservation-results" class="table-responsive" hidden>
+        <table class="table table-bordered table-hover">
+            <caption>Danh sách lượt đặt theo giờ hẹn của ngày đang xem</caption>
+            <thead>
+                <tr>
+                    <th scope="col">Mã đặt bàn</th>
+                    <th scope="col">Tên khách</th>
+                    <th scope="col">Số điện thoại</th>
+                    <th scope="col">Số khách</th>
+                    <th scope="col">Khung giờ</th>
+                    <th scope="col">Bàn đã xếp</th>
+                    <th scope="col">Trạng thái</th>
+                </tr>
+            </thead>
+            <tbody id="reservation-rows"></tbody>
+        </table>
+    </div>
+    <noscript><p class="alert alert-warning">Vui lòng bật JavaScript để tải danh sách đặt bàn.</p></noscript>
+</section>
+
+@section Scripts {
+    <script src="~/js/daily-reservations.js" asp-append-version="true"></script>
+}

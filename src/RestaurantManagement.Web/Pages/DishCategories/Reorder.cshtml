@@ -1,0 +1,27 @@
+@page
+@model RestaurantManagement.Web.Pages.DishCategories.ReorderModel
+@{ ViewData["Title"] = "Sắp xếp nhóm món"; }
+<h1>Sắp xếp nhóm món</h1>
+<p>Dùng nút Lên/Xuống để đổi vị trí, sau đó chọn Lưu thứ tự. Thứ tự mới áp dụng cho cả hai thực đơn khi tải lại trang.</p>
+<div asp-validation-summary="All" class="text-danger" role="alert"></div>
+<form method="post" id="category-order-form">
+    @foreach (var id in Model.OriginalIds) { <input type="hidden" name="OriginalIds" value="@id" /> }
+    <ol id="category-order" class="list-group list-group-numbered mb-3">
+        @foreach (var category in Model.Categories)
+        {
+            <li class="list-group-item d-flex align-items-center gap-2" data-category-name="@category.Name">
+                <input type="hidden" name="OrderedIds" value="@category.Id" />
+                <span class="flex-grow-1">@category.Name @if (!category.IsActive) { <small>(Ngừng sử dụng)</small> }</span>
+                <button type="button" class="btn btn-outline-secondary" data-move="up" aria-label="Đưa @category.Name lên">Lên</button>
+                <button type="button" class="btn btn-outline-secondary" data-move="down" aria-label="Đưa @category.Name xuống">Xuống</button>
+            </li>
+        }
+    </ol>
+    <p id="order-status" role="status" aria-live="polite"></p>
+    <button type="submit" class="btn btn-primary" id="save-order" disabled>Lưu thứ tự</button>
+    <a asp-page="Index" class="btn btn-secondary">Hủy</a>
+    <noscript><p>Cần bật JavaScript để sử dụng nút sắp xếp.</p></noscript>
+</form>
+@section Scripts {
+    <script src="~/js/category-order.js" asp-append-version="true"></script>
+}

@@ -1,0 +1,73 @@
+@model RestaurantManagement.Web.Models.Kitchen.KitchenScreenViewModel
+@{
+    ViewData["Title"] = "Màn hình bếp";
+}
+<div class="container mt-4" data-screen="kitchen-orders">
+    <h2>Màn hình bếp</h2>
+    <p class="text-muted">Món đang chờ, đang nấu và đã xong của các bàn đang phục vụ. Giờ Việt Nam (UTC+7).
+        Hết nguyên liệu? Báo <a asp-action="Dishes">tạm hết trong Món trong ngày</a>.</p>
+    @if (TempData["Success"] is string success) { <div class="alert alert-success" role="status">@success</div> }
+    @if (TempData["Error"] is string error) { <div class="alert alert-danger" role="alert">@error</div> }
+    @if (!Model.CanChangeStatus)
+    {
+        <p class="alert alert-secondary">Bạn đang xem màn hình bếp; chỉ tài khoản Bếp được chuyển trạng thái chế biến.</p>
+    }
+
+    @if (Model.StoppedOrders.Count > 0)
+    {
+        <section class="alert alert-danger" aria-label="Món cần dừng" aria-live="polite">
+            <h3>Dừng món — đã huỷ có tính tiền</h3>
+            <p>Không tiếp tục chế biến hoặc mang ra các món dưới đây. Thông báo được giữ trong ca đang mở.</p>
+            <ul>
+            @foreach (var stopped in Model.StoppedOrders)
+            {
+                <li data-stopped-order="@stopped.Id">
+                    <strong>Bàn @stopped.TableCode · @stopped.ItemName · @stopped.Quantity @stopped.Unit</strong>
+                    — @stopped.Reason · @stopped.Actor · @stopped.CancelledAt.ToString("HH:mm:ss")
+                </li>
+            }
+            </ul>
+        </section>
+    }
+    @if (Model.Items.Count == 0)
+    {
+        <p class="text-muted">Chưa có món nào cần chế biến.</p>
+    }
+    else
+    {
+        <table class="table table-bordered align-middle">
+            <thead>
+                <tr><th>Bàn</th><th>Món</th><th>Số lượng</th><th>Ghi chú</th><th>Gửi lúc</th><th>Trạng thái</th>@if (Model.CanChangeStatus) { <th></th> }</tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.Items)
+                {
+                    <tr data-order-item="@item.Id" data-status="@item.Status">
+                        <td class="fw-bold">@item.TableCode</td>
+                        <td>@item.ItemName</td>
+                        <td>@item.Quantity @item.Unit</td>
+                        <td class="text-break">@item.Notes</td>
+                        <td>@item.SubmittedAt.ToString("HH:mm") <small class="text-muted">(~@item.EstimatedPrepMinutes phút)</small></td>
+                        <td>@item.StatusLabel</td>
+                        @if (Model.CanChangeStatus)
+                        {
+                            <td>
+                                @if (item.NextStatus is not null)
+                                {
+                                    <form asp-action="Advance" asp-route-id="@item.Id" method="post" class="d-inline">
+                                        <input type="hidden" name="toStatus" value="@item.NextStatus" />
+                                        <button type="submit" class="btn btn-sm btn-primary">@item.NextLabel</button>
+                                    </form>
+                                }
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@section Scripts {
+    <script src="~/js/kitchen-order-poll.js" asp-append-version="true"></script>
+}

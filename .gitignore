@@ -16,3 +16,6 @@ TestResults/
 **/wwwroot/uploads/*
 !**/wwwroot/uploads/.gitkeep
 *.log
+*.db
+build-output.txt
+**/App_Data/emails/

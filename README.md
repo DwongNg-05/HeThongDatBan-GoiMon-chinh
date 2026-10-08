@@ -4,10 +4,11 @@ Database SQL Server và bộ khung ASP.NET Core MVC .NET 10 cho nhóm phát tri�
 
 ## Trạng thái hiện tại
 
-- Đã có 5 migration SQL: 38 bảng (gồm bảng theo dõi migration), 29 stored procedure, 7 view.
+- Đã có 12 migration SQL, gồm sự kiện outbox ghi lại mọi lần trạng thái bàn thay đổi.
 - Đã kiểm thử bằng SQL Server: 50 yêu cầu đặt cùng bàn đồng thời, 10 lần gửi thanh toán đồng thời, giá món tại thời điểm gọi, quyền chuyển trạng thái bếp, giảm giá, chốt ca, gộp bàn và thu hồi phiên QR.
 - Database trên máy người tạo: `RestaurantManagement_Dev`, server `.\MSSQLSERVER07`.
-- Ứng dụng MVC hiện là bộ khung, chưa có các màn hình nghiệp vụ hoặc kết nối EF hoàn chỉnh. Tài khoản mẫu chỉ là dữ liệu chuẩn bị cho chức năng đăng nhập sau này.
+- Đã có màn hình quản lý khu vực (thêm, sửa, ngừng sử dụng, xóa có kiểm tra liên kết), tạo/danh sách/chi tiết đặt bàn. Luồng này dùng stored procedure/SqlClient; đã gộp chức năng tài khoản từ EP-01.
+- Trigger SQL ghi trạng thái cũ/mới sau mỗi cập nhật đã commit; worker web đọc outbox mỗi 500 ms và phát SSE tới các sơ đồ đang mở.
 
 GitHub lưu **mã nguồn tạo database**, không lưu database đang chạy hay dữ liệu thật. Mỗi thành viên chạy các bước dưới đây để tạo database riêng.
 
@@ -23,8 +24,8 @@ GitHub lưu **mã nguồn tạo database**, không lưu database đang chạy ha
 Mở PowerShell:
 
 ```powershell
-git clone https://github.com/DwongNg-05/HeThongDatBan-GoiMon-chinh.git
-cd HeThongDatBan-GoiMon-chinh
+git clone https://github.com/DwongNg-05/HeThongDatBan-Ordering-chinh.git
+cd HeThongDatBan-Ordering-chinh
 dotnet restore RestaurantManagement.sln --locked-mode
 
 # Đổi tên server phù hợp với máy của bạn, ví dụ .\SQLEXPRESS.
@@ -36,6 +37,17 @@ dotnet run --project tools/RestaurantManagement.DbTool -- check
 Lệnh `migrate` tạo database nếu chưa có và áp dụng từng migration trong giao dịch. Chạy lại sẽ bỏ qua các migration đã áp dụng. Sau đó mở SSMS, kết nối instance của bạn và Refresh mục Databases.
 
 `TrustServerCertificate=True` dành cho môi trường phát triển cục bộ. Khi triển khai thật, cấu hình chứng chỉ hợp lệ và tài khoản ứng dụng có quyền tối thiểu; không dùng tài khoản quản trị để chạy website.
+
+### Kết nối ứng dụng web
+
+Ứng dụng web và worker thông báo trạng thái bàn cùng đọc chuỗi kết nối `RM_CONNECTION_STRING`. Nếu biến này không có, ứng dụng dùng `ConnectionStrings:DefaultConnection` trong `appsettings.json` (mặc định là `RestaurantManagement_Dev` trên `.\MSSQLSERVER07`). Có thể ghi đè trong PowerShell trước khi chạy web:
+
+```powershell
+$env:RM_CONNECTION_STRING = 'Server=.\MSSQLSERVER07;Database=RestaurantManagement_Dev;Trusted_Connection=True;Encrypt=True;TrustServerCertificate=True'
+dotnet run --project src/RestaurantManagement.Web
+```
+
+Hãy chạy `migrate` trước khi khởi động worker để tạo bảng outbox và trigger trạng thái bàn. Chuỗi kết nối chỉ tồn tại trong cửa sổ PowerShell hiện tại; không lưu thông tin đăng nhập vào Git.
 
 ## Dữ liệu mẫu (tuỳ chọn)
 
@@ -53,7 +65,9 @@ try {
 }
 ```
 
-Tạo 4 tài khoản `manager`, `waiter`, `kitchen`, `cashier`, mật khẩu được băm bcrypt; 3 khu vực, 25 bàn, 5 nhóm món, 60 món và 20 đặt bàn trong 7 ngày. Không ghi mật khẩu vào Git. Lệnh nạp lại không ghi đè dữ liệu mẫu đã có. Không chạy seed trên database sản xuất.
+Tạo 4 tài khoản `manager`, `waiter`, `kitchen`, `cashier`, mật khẩu được băm bcrypt; 3 khu vực (Tầng một, Tầng hai, Sân vườn), mỗi khu vực 20 bàn, 5 nhóm món, 60 món và 20 đặt bàn trong 7 ngày. Mã bàn theo khu vực A01–A20, B01–B20, C01–C20. Không ghi mật khẩu vào Git. Lệnh nạp lại không ghi đè dữ liệu mẫu đã có. Không chạy seed trên database sản xuất.
+
+Trạng thái bàn dùng các giá trị `Available`, `Reserved`, `Serving`, `Cleaning`; sơ đồ luôn kèm nhãn chữ tương ứng. Mỗi thay đổi thực phát một sự kiện gồm trạng thái cũ/mới, mã bàn, thời điểm UTC và lý do chuyển trạng thái: xác nhận đặt (`Available → Reserved`), bắt đầu phục vụ (`Available/Reserved → Serving`), đóng phiên (`Serving → Cleaning`), hoàn tất dọn (`Cleaning → Available/Reserved`) hoặc huỷ/hết hạn đặt (`Reserved → Available`). Gửi lại cùng trạng thái không phát sự kiện. Sơ đồ demo phát sự kiện Server-Sent Events tới các trình duyệt mở cùng máy chủ; khi kết nối lại, trình duyệt tải snapshot mới nhất. Bộ dữ liệu demo nằm trong bộ nhớ của một tiến trình, chưa phát trạng thái từ các thủ tục SQL hoặc chia sẻ giữa nhiều tiến trình web.
 
 ## Kiểm thử
 
@@ -72,7 +86,7 @@ dotnet run --project tools/RestaurantManagement.DbTool -- verify
 | `database/seeds` | Dữ liệu mẫu phát triển |
 | `tools/RestaurantManagement.DbTool` | Tạo/cập nhật database, nạp mẫu, kiểm thử |
 | `src/RestaurantManagement.Data` | Thư viện dữ liệu, đã tham chiếu EF Core SQL Server |
-| `src/RestaurantManagement.Web` | Bộ khung MVC .NET 10 |
+| `src/RestaurantManagement.Web` | MVC .NET 10: đăng nhập và quản lý thực đơn |
 
 ## Quy ước database
 
@@ -88,8 +102,139 @@ dotnet run --project tools/RestaurantManagement.DbTool -- verify
 
 1. Mỗi người dùng database trên máy riêng; chia sẻ migration qua Git, không chia sẻ file `.mdf`, `.ldf` hay `.bak`.
 2. Tạo nhánh theo công việc: `git switch -c feature/ten-chuc-nang`.
-3. **Không sửa migration đã áp dụng.** Thêm file mới, ví dụ `006_AddFeature.sql`, rồi chạy `migrate` và `verify`. Công cụ dùng checksum để phát hiện migration cũ bị thay đổi.
+3. **Không sửa migration đã áp dụng.** Thêm file mới, ví dụ `009_AddFeature.sql`, rồi chạy `migrate` và `verify`. Công cụ dùng checksum để phát hiện migration cũ bị thay đổi.
 4. Push nhánh và tạo Pull Request để thành viên khác review trước khi hợp nhất.
 5. Sau khi lấy thay đổi mới bằng `git pull`, chạy lại `dotnet restore` và `migrate`.
 
 Không commit mật khẩu, chuỗi kết nối có thông tin đăng nhập, dữ liệu khách thật hoặc thư mục build. `.gitignore` đã loại các tệp cấu hình cục bộ, database vật lý và thư mục build thông dụng.
+
+## S1-04 — phân quyền theo vai trò
+
+Chạy `migrate` để áp dụng `031_RolePermissionsByScope.sql` và `032_RemoveKitchenDishes.sql`.
+
+| Vai trò | Thấy và dùng được |
+| --- | --- |
+| Phục vụ | Đúng 3 màn hình: Đặt bàn, Sơ đồ bàn, Gọi món |
+| Bếp | Màn hình bếp (báo món tạm hết làm ở Quản lý món, chỉ Quản lý) |
+| Thu ngân | Thanh toán, Hoá đơn, Chốt ca |
+| Quản lý | Toàn bộ |
+
+Máy chủ kiểm tra quyền ở cả 101 API và trong thủ tục SQL. Khi bị chặn:
+- gõ thẳng đường dẫn ngoài quyền: nhận **403** và trang “Không có quyền truy cập”, có nút về màn hình chính;
+- gọi API: nhận 401/403 dạng JSON.
+
+Kiểm thử bằng `dotnet run --no-build --project tools/RestaurantManagement.DbTool -- verify-api-permissions`. Tổng hợp: [docs/S1-04-TongHop.md](docs/S1-04-TongHop.md); chi tiết từng lát: [Task 1](docs/S1-04-Task1.md), [Task 2](docs/S1-04-Task2.md), [Task 3](docs/S1-04-Task3.md), [Task 4](docs/S1-04-Task4.md).
+
+## S1-06: quản lý khu vực
+
+Xem [báo cáo Lát 2–4](docs/S1-06-Task2-4-review.md) để biết quy tắc tên, nâng cấp migration 008, kiểm thử HTTP và kịch bản demo. Migration dừng nếu các tên cũ trùng sau chuẩn hóa, không tự gộp hoặc xóa dữ liệu.
+
+## S1-07: quản lý bàn và mã QR
+
+Chạy `migrate` để áp dụng `013_TableQrManagement.sql` trước khi khởi động website. Migration chỉ bổ sung token QR công khai và thủ tục xoay QR; không tạo dữ liệu bàn mới.
+
+Mở **Quản lý bàn** để thêm/sửa bàn, xem chi tiết QR, tải PNG hoặc tải PDF QR theo khu vực. Bàn cũ chưa có QR có nút **Tạo mã QR**; xuất PDF chỉ tự tạo QR cho các bàn trong khu vực vừa chọn.
+
+Từ S1-04 Task 4, thao tác tạo hoặc xoay QR ghi dưới tài khoản đang đăng nhập (chỉ Quản lý); `AreaManagement:ActorUserId` trong cấu hình không còn được dùng.
+
+Kiểm thử thủ công: chọn một bàn → **Mở thử QR** phải hiển thị đúng mã bàn/khu vực/sức chứa; tải PDF khu vực phải chứa QR kèm mã bàn; **Sinh lại QR** rồi mở URL cũ phải thấy `Mã QR đã thay đổi. Vui lòng gọi phục vụ.` Nếu quét bằng điện thoại, đặt `TableQr__PublicBaseUrl` thành địa chỉ HTTPS mà điện thoại truy cập được; không commit địa chỉ IP hoặc mật khẩu máy cá nhân.
+
+## Demo S1-01 — đăng nhập và truy vết
+
+### Database đã có tài khoản (ví dụ `tester`)
+
+Lệnh `seed-login-demo` bổ sung một quản lý demo và 3 món ăn, không yêu cầu database trống. Chạy lại không đổi mật khẩu, giá hoặc trạng thái món đã có. Không dùng trên database sản xuất.
+
+```powershell
+$env:RM_CONNECTION_STRING = 'Server=.\MSSQLSERVER07;Database=RestaurantManagement_Dev;Trusted_Connection=True;Encrypt=True;TrustServerCertificate=True'
+$env:RM_DEMO_USERNAME = 'demo-manager'
+$env:RM_DEMO_PHONE = '0000000099' # Số giả lập chỉ dùng demo
+$demoPassword = Read-Host 'Mật khẩu tài khoản demo' -AsSecureString
+$env:RM_DEMO_PASSWORD = [System.Net.NetworkCredential]::new('', $demoPassword).Password
+try {
+    dotnet run --project tools/RestaurantManagement.DbTool -- seed-login-demo
+} finally {
+    Remove-Item Env:RM_DEMO_PASSWORD -ErrorAction SilentlyContinue
+    Remove-Item Env:RM_DEMO_USERNAME -ErrorAction SilentlyContinue
+    Remove-Item Env:RM_DEMO_PHONE -ErrorAction SilentlyContinue
+}
+```
+
+Để dùng tài khoản đã có, đặt `RM_DEMO_USERNAME` và `RM_DEMO_PHONE` đúng theo tài khoản đó. Tài khoản phải là quản lý đang hoạt động và đã có mật khẩu băm. Mật khẩu hiện tại được giữ nguyên dù nhập mật khẩu khác khi nạp lại. Nếu định danh xung đột, lệnh dừng và hoàn tác toàn bộ.
+
+Demo: đăng nhập bằng tên → đổi giá một món → kiểm tra tên người thực hiện trong “Thay đổi gần đây” → đăng xuất → đăng nhập bằng số điện thoại → đổi trạng thái món → kiểm tra lịch sử. Nhập sai mật khẩu hoặc định danh không tồn tại đều nhận cùng một thông báo chung.
+
+Chỉ chạy một phiên website tại một thời điểm: nếu dùng F5 trong Visual Studio, hãy dừng phiên `dotnet run` trước để tránh chiếm cổng 7114/5105.
+
+### Database mới
+
+Sau khi cấu hình `RM_CONNECTION_STRING`, chạy `migrate` và `seed-demo` theo hướng dẫn trên, khởi động:
+
+```powershell
+dotnet run --project src/RestaurantManagement.Web --launch-profile https
+```
+
+Mở địa chỉ HTTPS được in trong cửa sổ chạy. Đăng nhập bằng `manager` hoặc `0900000001`, với mật khẩu đã nhập lúc nạp dữ liệu mẫu. Nếu đã seed từ trước, mật khẩu cũ được giữ nguyên. Tài khoản phải đang hoạt động.
+
+Màn hình quản lý hiển thị tên tài khoản, cho phép đổi giá và đánh dấu món tạm hết/mở bán lại. Bảng “Thay đổi gần đây” hiển thị người thực hiện và thời điểm UTC+7. Người thực hiện lấy từ mã tài khoản trong cookie xác thực được bảo vệ ở máy chủ, không lấy từ dữ liệu biểu mẫu. Giá được ghi vào `MenuPriceHistory` và `AuditLogs`; trạng thái món được ghi vào `MenuAvailabilityEvents`.
+
+Phiên dùng cookie HttpOnly, không ghi mật khẩu vào cookie, không lưu cookie lâu dài trên trình duyệt; đăng xuất thu hồi phiên trên máy chủ và xoá cookie. Vé xác thực có hạn tối đa 14 ngày, không gia hạn theo thao tác. Đã có khóa đăng nhập theo Task 2 và hết phiên sau 30 phút không thao tác theo Task 3 bên dưới.
+
+`dotnet run --no-build --project tools/RestaurantManagement.DbTool -- verify` sau khi build Debug sẽ tự chạy ứng dụng web trên cổng cục bộ và database kiểm thử riêng. Bộ kiểm thử bao gồm đăng nhập bằng cả hai định danh, lỗi chung, tài khoản vô hiệu hoá, hash bcrypt, phiên đúng tài khoản, đăng xuất, chống gửi biểu mẫu thiếu token và bỏ qua mã người thực hiện giả khi đổi thực đơn/giá; sau đó chạy các kiểm thử nghiệp vụ database hiện có.
+
+## S1-01 Task 2 — khóa đăng nhập tạm thời
+
+Sau khi lấy mã mới, dừng website, build và chạy `migrate` trước khi khởi động lại để áp dụng `007_LoginLockout.sql`. Không sửa hoặc chạy lại nội dung migration cũ bằng tay.
+
+- Mỗi lần xác thực thất bại được lưu thời điểm UTC trong `LoginFailures`. Cửa sổ tính lỗi là `(hiện tại - 15 phút, hiện tại]`; lỗi ở đúng mốc 15 phút hoặc cũ hơn không được cộng.
+- Sai lần thứ 5 trong cửa sổ này khóa đăng nhập 15 phút kể từ lần thứ 5. Tên đăng nhập và số điện thoại chia sẻ cùng trạng thái tài khoản.
+- `LoginLockoutSubjects` lưu hạn khóa; các cột `Users.FailedLoginCount`, `FailureWindowStartedAt`, `LockedUntil` phản ánh trạng thái tại lần xử lý gần nhất. Dữ liệu cũ được dọn khi xử lý lần đăng nhập tiếp theo.
+- Trong thời gian khóa, mật khẩu đúng cũng bị từ chối. Yêu cầu bị chặn vẫn được ghi thời điểm nhưng không tăng bộ đếm và không kéo dài khóa.
+- Hết khóa, lần thử tiếp theo bắt đầu cửa sổ mới. Đăng nhập thành công xóa các lần thất bại liên quan, bộ đếm và hạn khóa, đồng thời ghi `LastLoginAt`.
+- Giao diện luôn có lỗi chung; sau ngưỡng thất bại còn hiển thị thời gian chờ dạng `mm:ss`, giảm theo thời gian thực. Kiểm tra phía máy chủ vẫn quyết định cho phép đăng nhập; tải lại trang hoặc sửa đồng hồ phía trình duyệt không bỏ qua được khóa.
+- Định danh không tồn tại cũng dùng thông báo và ngưỡng chờ giống nhau, không tạo tài khoản. Định danh này chỉ được lưu dưới dạng SHA-256 trong khóa theo dõi. Không trả thông báo “tài khoản không tồn tại”.
+- Các quyết định được tuần tự hóa bằng giao dịch và khóa bản ghi để nhiều yêu cầu đồng thời không vượt ngưỡng. Mật khẩu vẫn được kiểm tra bằng bcrypt và không lưu trong nhật ký thất bại.
+
+Demo bằng một tài khoản mẫu đã đăng xuất: nhập sai 4 lần để thấy vẫn thử lại được; lần thứ 5 xuất hiện `15:00`; nhập đúng vẫn bị từ chối trong thời gian khóa; đợi hết thời gian rồi nhập đúng để vào quản lý. Không thay đổi thời gian máy hoặc dữ liệu khóa khi demo thực tế.
+
+Kiểm thử:
+
+```powershell
+dotnet build RestaurantManagement.sln --no-restore -m:1
+dotnet run --no-build --project tools/RestaurantManagement.DbTool -- verify
+node tools/tests/login-lockout.test.cjs
+```
+
+Bộ kiểm thử bao gồm lần sai 1–5, dùng luân phiên tên/số điện thoại, mật khẩu đúng khi khóa, thời gian còn lại, khóa không bị kéo dài, hết hạn, lần sai ngoài cửa sổ 15 phút, xóa lỗi sau thành công, thông báo định danh không tồn tại và 10 yêu cầu sai đồng thời. Các mốc hết hạn được mô phỏng bằng thời điểm dữ liệu trong database kiểm thử riêng; ứng dụng thật không có chức năng bỏ qua khóa. Kiểm thử JavaScript xác nhận đếm ngược vẫn đúng khi tab bị tạm dừng và hiển thị lời nhắc thử lại lúc về 0.
+
+## S1-01 Task 3 — hết phiên sau 30 phút không thao tác
+
+Chạy `migrate` để áp dụng `008_IdleSessions.sql` trước khi khởi động bản mới. Cookie tạo từ bản cũ không có mã phiên máy chủ sẽ bị từ chối; người dùng đăng nhập lại một lần.
+
+- Mỗi lần đăng nhập thành công tạo một bản ghi `LoginSessions` với mã ngẫu nhiên, `UserId`, `CreatedAt`, `LastActivityAt` và hạn tối đa `ExpiresAt`. Cookie được bảo vệ chứa mã phiên và định danh người dùng, không chứa mật khẩu.
+- Máy chủ xác thực phiên trước khi cho phép thực hiện chức năng cần đăng nhập. Khi `LastActivityAt <= thời gian UTC hiện tại - 30 phút`, phiên bị thu hồi vĩnh viễn bằng `RevokedAt`; cookie cũ không thể mở lại phiên.
+- Truy cập màn hình quản lý và đổi giá/trạng thái thành công làm mới thời gian hoạt động. Yêu cầu thiếu token chống giả mạo, dữ liệu không hợp lệ, lỗi nghiệp vụ, trang công khai và tải ảnh/CSS/JavaScript không gia hạn phiên. Chỉ di chuột/gõ phím mà không gửi thao tác hợp lệ tới máy chủ cũng không gia hạn.
+- Lần truy cập chức năng cần đăng nhập sau khi hết phiên được chuyển về đăng nhập với thông báo: “Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.” Yêu cầu đổi dữ liệu bằng phiên đã hết hạn bị chặn trước khi chạy nghiệp vụ.
+- Nếu trang công khai hoặc tài nguyên phát hiện hết phiên trước, thông báo được giữ trong TempData để vẫn hiển thị ở lần mở trang đăng nhập tiếp theo.
+- Đăng nhập lại tạo mã phiên mới; đăng xuất chủ động thu hồi phiên hiện tại. Việc hết phiên được kiểm tra ở lần gửi yêu cầu tiếp theo, không tự đóng màn hình đang mở bằng bộ đếm phía trình duyệt.
+- Thời gian được quyết định bởi SQL Server, không lấy từ biểu mẫu hoặc đồng hồ trình duyệt. Kiểm tra và cập nhật phiên dùng giao dịch; không làm sống lại phiên đã hết hạn hoặc đã thu hồi.
+
+Demo: đăng nhập → mở quản lý hoặc cập nhật món → không gửi thao tác trong 30 phút → tải lại quản lý để thấy thông báo hết phiên → đăng nhập lại và sử dụng bình thường.
+
+Lệnh `verify` bao gồm kiểm tra phiên ở phút 29, làm mới thời gian bằng truy cập và cập nhật hợp lệ, không gia hạn bằng tải tài nguyên/yêu cầu lỗi, hết hạn từ phút 30, thông báo trên trang đăng nhập, chặn POST đổi giá sau hết hạn, phát lại cookie cũ, đăng nhập lại tạo phiên mới và thu hồi phiên khi đăng xuất. Mốc 30 phút được mô phỏng bằng dữ liệu thời gian trong database kiểm thử riêng; không có đường tắt thay đổi hạn phiên trên ứng dụng thật.
+
+## S2-01 Task 1 — thực đơn công khai
+
+Khách mở `/Menu` trên điện thoại mà không cần đăng nhập, xem món theo nhóm với ảnh, tên, mô tả ngắn và giá VND (`45.000 ₫`). API công khai: `GET /api/menu`. Nạp dữ liệu mẫu bằng `dotnet run --project tools/RestaurantManagement.DbTool -- seed-menu-demo` (chạy lại an toàn, không cần mật khẩu). Quy tắc món đang bán / hết trong ngày / ngừng bán, kịch bản demo và kiểm thử: xem [docs/S2-01-Task1.md](docs/S2-01-Task1.md).
+
+## S1-05 Task 1 — nhật ký đăng nhập và sửa giá món
+
+Chạy `migrate` để áp dụng `020_SecurityAuditLog.sql`. Đăng nhập thành công, đăng nhập thất bại và sửa giá món được ghi vào kho riêng `dbo.SecurityAuditLogs` (chỉ thêm, không sửa/xoá) kèm thời điểm, tài khoản, vai trò, IP. Quản lý xem tại **Nhật ký hệ thống** (`/AuditLogs`), mới nhất lên đầu; vai trò khác bị từ chối. Chi tiết, demo và kiểm thử: [docs/S1-05-Task1.md](docs/S1-05-Task1.md).
+
+## S1-05 Task 2 — lọc nhật ký
+
+Chạy `migrate` để áp dụng `021_SecurityAuditFilter.sql`. Màn hình **Nhật ký hệ thống** có bộ lọc khoảng ngày (giờ Việt Nam, tối đa 90 ngày) và tài khoản (chọn từ danh sách); mặc định 7 ngày gần nhất. Quy tắc cần chốt với PO, demo và kiểm thử: [docs/S1-05-Task2.md](docs/S1-05-Task2.md).
+
+## S1-05 Task 3 — nhật ký chỉ đọc, kiểm soát truy cập
+
+Chạy `migrate` để áp dụng `022_AuditReadOnlyHardening.sql`. Nhật ký bảo mật, nhật ký nghiệp vụ và lịch sử giá chỉ được thêm: trigger chặn sửa/xoá, bảng chặn khoá ngoại ngăn `TRUNCATE`, tài khoản ứng dụng `restaurant_app` bị `DENY` thao tác trực tiếp, EF từ chối sửa/xoá. Màn hình **Nhật ký hệ thống** và **Lịch sử giá** chỉ dành cho Quản lý, kể cả khi gõ đường dẫn trực tiếp; quyền bị thu hồi khi đang đăng nhập cũng bị chặn. Kết quả rà soát, demo và kiểm thử: [docs/S1-05-Task3.md](docs/S1-05-Task3.md).
