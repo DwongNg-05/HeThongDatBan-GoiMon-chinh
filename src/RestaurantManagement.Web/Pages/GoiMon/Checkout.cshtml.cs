@@ -9,20 +9,26 @@ namespace RestaurantManagement.Web.Pages.GoiMon
     public class CheckoutModel : PageModel
     {
         private readonly IQuanLyMonStore _store;
+        private readonly IConfiguration? _configuration;
 
-        public CheckoutModel(IQuanLyMonStore store)
+        public CheckoutModel(IQuanLyMonStore store,IConfiguration? configuration = null)
         {
             _store = store;
+            _configuration=configuration;
         }
 
         [BindProperty]
         public string CartJson { get; set; } = string.Empty;
+        [BindProperty] public long SessionId { get; set; }
+        [BindProperty] public Guid RequestId { get; set; }
 
         public IActionResult OnPost()
         {
             if (string.IsNullOrEmpty(CartJson)) return BadRequest("Giỏ hàng rỗng");
 
-            var items = JsonSerializer.Deserialize<List<CartItem>>(CartJson) ?? new List<CartItem>();
+            List<CartItem> items;
+            try { items = JsonSerializer.Deserialize<List<CartItem>>(CartJson) ?? new List<CartItem>(); }
+            catch (JsonException) { return BadRequest("Dữ liệu giỏ món không hợp lệ."); }
             if (items.Count == 0) return BadRequest("Giỏ hàng rỗng");
 
             // Validate all items exist and are currently being sold
@@ -35,6 +41,20 @@ namespace RestaurantManagement.Web.Pages.GoiMon
                 }
             }
 
+            if (_configuration is not null)
+            {
+                if (SessionId<=0 || RequestId==Guid.Empty || items.Any(i=>i.soLuong is <1 or >99))
+                    return BadRequest("Vui lòng chọn bàn đang phục vụ và số lượng hợp lệ.");
+                var actor=int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+                var json=JsonSerializer.Serialize(items.Select(i=>new { MenuItemId=i.monId,Quantity=i.soLuong }));
+                try
+                {
+                    new OrderWorkflowStore(_configuration.GetConnectionString("DefaultConnection")!).Submit(SessionId,RequestId,json,actor).GetAwaiter().GetResult();
+                    return RedirectToAction("Index","Orders");
+                }
+                catch (Microsoft.Data.SqlClient.SqlException ex) when(ex.Number is >=51000 and <51600)
+                { return BadRequest(ex.Message); }
+            }
             var don = _store.TaoDonHang();
             foreach (var it in items)
             {

@@ -1,0 +1,24 @@
+@model bool
+@{ ViewData["Title"]=Model ? "Hàng đợi bếp" : "Món đã gọi theo bàn"; }
+<section id="order-workflow" data-kitchen="@Model.ToString().ToLowerInvariant()" data-snapshot="@Url.Action("Snapshot")" data-cancel="@Url.Action("Cancel")" data-start="@Url.Action("Start")" data-can-cancel="@((User.IsInRole("Waiter") || User.IsInRole("Manager")).ToString().ToLowerInvariant())" data-can-start="@User.IsInRole("Kitchen").ToString().ToLowerInvariant()">
+    <h1 class="h3">@ViewData["Title"]</h1>
+    <p>Tự cập nhật mỗi 2 giây. Huỷ toàn bộ dòng món chờ bếp, không tính tiền.</p>
+    <button id="order-refresh" class="btn btn-outline-secondary" type="button">Tải lại</button>
+    <div id="order-message" role="status" aria-live="polite" class="my-3"></div>
+    <div id="order-list"></div>
+    <dialog id="order-cancel-dialog" aria-labelledby="cancel-title">
+        <form id="order-cancel-form">
+            @Html.AntiForgeryToken()
+            <h2 id="cancel-title" class="h4">Xác nhận huỷ toàn bộ dòng món</h2>
+            <p id="order-cancel-name"></p>
+            <label for="order-reason">Lý do huỷ (bắt buộc)</label>
+            <select id="order-reason" class="form-select my-3" required>
+                <option value="">Chọn lý do</option><option value="ChangedMind">Khách đổi ý</option>
+                <option value="Mistake">Gọi nhầm</option><option value="SoldOut">Hết nguyên liệu</option>
+            </select>
+            <button id="order-cancel-confirm" class="btn btn-danger" type="submit">Xác nhận huỷ</button>
+            <button id="order-cancel-close" class="btn btn-secondary" type="button">Quay lại</button>
+        </form>
+    </dialog>
+</section>
+@section Scripts { <script src="~/js/order-workflow.js" asp-append-version="true"></script> }

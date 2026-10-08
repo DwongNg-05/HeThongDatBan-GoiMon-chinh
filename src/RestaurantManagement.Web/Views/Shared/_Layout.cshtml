@@ -48,6 +48,11 @@
                         <li class="nav-item"><a class="sidebar-link @(IsCurrentPage("/QuanLyMon/Index") ? "is-active" : "")" aria-current="@(IsCurrentPage("/QuanLyMon/Index") ? "page" : null)" asp-page="/QuanLyMon/Index">Quản lý món</a></li>
                         <li class="nav-item"><a class="sidebar-link @(IsCurrent("ThucDon", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("ThucDon", "Index") ? "page" : null)" asp-controller="ThucDon" asp-action="Index">Thực đơn</a></li>
                         <li class="nav-item"><a class="sidebar-link @(IsCurrentPage("/GoiMon/Index") ? "is-active" : "")" aria-current="@(IsCurrentPage("/GoiMon/Index") ? "page" : null)" asp-page="/GoiMon/Index">Gọi món</a></li>
+                        <li><a class="sidebar-link" asp-controller="Orders" asp-action="Index">Món đã gọi theo bàn</a></li>
+                        @if (User.IsInRole("Waiter") || User.IsInRole("Manager") || User.IsInRole("Kitchen"))
+                        {
+                            <li><a class="sidebar-link" asp-controller="Orders" asp-action="Kitchen">Hàng đợi bếp</a></li>
+                        }
                         @if (User.IsInRole("Manager"))
                         {
                             <li class="nav-item">

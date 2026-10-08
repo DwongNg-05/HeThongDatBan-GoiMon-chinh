@@ -63,6 +63,16 @@
         </tfoot>
     </table>
     <form id="checkoutForm" method="post" asp-page="/GoiMon/Checkout">
+        @if (ViewData["OrderSessions"] is IReadOnlyList<RestaurantManagement.Web.Services.OrderSessionOption> sessions)
+        {
+            <label for="order-session">Bàn đang phục vụ</label>
+            <select id="order-session" name="SessionId" class="form-select mb-3" required>
+                <option value="">Chọn bàn</option>
+                @foreach (var session in sessions) { <option value="@session.Id">@session.TableCode · Phiên @session.Id</option> }
+            </select>
+            <input type="hidden" name="RequestId" value="@Guid.NewGuid()" />
+            @if (sessions.Count==0) { <p class="text-danger">Chưa có bàn đang phục vụ. Cần mở phiên phục vụ trước khi gửi món cho bếp.</p> }
+        }
         <input type="hidden" name="CartJson" id="CartJson" />
         <button id="btnCheckout" type="submit" class="btn btn-success d-none">Gọi món</button>
     </form>
