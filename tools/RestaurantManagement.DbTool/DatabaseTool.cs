@@ -99,7 +99,25 @@ internal static partial class DatabaseTool
                 await using var tx = (SqlTransaction)await cn.BeginTransactionAsync();
                 try
                 {
-                    await Batches(cn, tx, sql);
+                    var executableSql = sql;
+                    if (name == "034_S206ReservationTableChanges.sql")
+                    {
+                        // This table was already shipped on the S2-06 feature branch as 025.
+                        // Keep its rows and apply the new procedures without rewriting migration files/checksums.
+                        await using var legacy = new SqlCommand("SELECT Sha256 FROM dbo.SchemaVersions WHERE Name='025_ReservationTableChanges.sql';", cn, tx);
+                        var legacyHash = await legacy.ExecuteScalarAsync() as string;
+                        if (legacyHash is not null)
+                        {
+                            if (legacyHash != "417C20A97D083F6BFA967D15FBC60C2F6AC229634F3F97AABA55F1C538110D76")
+                                throw new InvalidOperationException("Unknown legacy table-change migration; review its schema before upgrading.");
+                            var separator = Regex.Match(sql, @"(?m)^GO\s*$");
+                            if (!separator.Success || !sql.StartsWith("CREATE TABLE dbo.ReservationTableChanges(", StringComparison.Ordinal))
+                                throw new InvalidOperationException("Unexpected table-change migration format.");
+                            executableSql = sql[(separator.Index + separator.Length)..]
+                                .Replace("CREATE TRIGGER dbo.tr_ReservationTableChanges_Immutable", "CREATE OR ALTER TRIGGER dbo.tr_ReservationTableChanges_Immutable", StringComparison.Ordinal);
+                        }
+                    }
+                    await Batches(cn, tx, executableSql);
                     await using var insert = new SqlCommand("INSERT dbo.SchemaVersions(Name,Sha256) VALUES(@name,@hash);", cn, tx);
                     insert.Parameters.AddWithValue("@name", name);
                     insert.Parameters.AddWithValue("@hash", hash);

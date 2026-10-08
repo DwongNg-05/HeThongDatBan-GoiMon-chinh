@@ -1,4 +1,4 @@
-﻿{
+{
   "$schema": "https://json.schemastore.org/launchsettings.json",
   "profiles": {
     "http": {
@@ -7,7 +7,8 @@
       "launchBrowser": true,
       "applicationUrl": "http://localhost:5105",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "RM_CONNECTION_STRING": "Server=(localdb)\\MSSQLLocalDB;Database=RestaurantManagement_Dev;Trusted_Connection=True;Encrypt=False;TrustServerCertificate=True;Connect Timeout=5"
       }
     },
     "https": {
@@ -16,7 +17,8 @@
       "launchBrowser": true,
       "applicationUrl": "https://localhost:7114;http://localhost:5105",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "RM_CONNECTION_STRING": "Server=(localdb)\\MSSQLLocalDB;Database=RestaurantManagement_Dev;Trusted_Connection=True;Encrypt=False;TrustServerCertificate=True;Connect Timeout=5"
       }
     }
   }

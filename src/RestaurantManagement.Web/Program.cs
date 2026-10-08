@@ -13,6 +13,12 @@ if (string.IsNullOrWhiteSpace(sqlConnectionString))
     sqlConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 if (string.IsNullOrWhiteSpace(sqlConnectionString))
     throw new InvalidOperationException("Set RM_CONNECTION_STRING or ConnectionStrings:DefaultConnection to a SQL Server connection string before starting the web app.");
+if (builder.Environment.IsDevelopment() && OperatingSystem.IsWindows())
+{
+    sqlConnectionString = DevelopmentLocalDb.Resolve(sqlConnectionString);
+    // Background stores also read this override; use the same verified connection everywhere.
+    Environment.SetEnvironmentVariable("RM_CONNECTION_STRING", sqlConnectionString);
+}
 builder.Configuration["ConnectionStrings:DefaultConnection"] = sqlConnectionString;
 
 builder.Services.AddScoped<AuditLogService>();
