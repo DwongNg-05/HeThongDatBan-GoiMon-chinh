@@ -1,0 +1,33 @@
+@model IReadOnlyList<RestaurantManagement.Web.Services.SentOrderLine>
+@{ ViewData["Title"] = "Món đã gửi bếp"; }
+<div data-sent-orders>
+    <h1>Món đã gửi bếp</h1>
+    <p>Huỷ toàn bộ số lượng trên dòng món còn chờ bếp. Món huỷ trước chế biến không tính tiền.</p>
+    <a href="/Ordering" class="btn btn-outline-secondary mb-3">Tiếp tục gọi món</a>
+    <p role="status" aria-live="polite" data-order-message></p>
+    <div data-order-lines></div>
+    <dialog data-cancel-dialog aria-labelledby="cancel-title" class="p-4 rounded">
+        <h2 id="cancel-title">Xác nhận huỷ món</h2>
+        <p data-cancel-name></p>
+        <form data-cancel-form>
+            @Html.AntiForgeryToken()
+            <label class="d-block mb-2">Số lượng huỷ
+                <input class="form-control" name="quantity" type="number" min="1" step="1" readonly required />
+            </label>
+            <label class="d-block mb-3">Lý do huỷ (bắt buộc)
+                <select class="form-select" name="reason" required>
+                    <option value="">Chọn lý do</option>
+                    <option value="ChangedMind">Khách đổi ý</option>
+                    <option value="Mistake">Gọi nhầm</option>
+                    <option value="SoldOut">Hết nguyên liệu</option>
+                </select>
+            </label>
+            <p data-cancel-message role="alert"></p>
+            <button type="button" data-cancel-close class="btn btn-secondary">Đóng</button>
+            <button type="submit" class="btn btn-danger" data-cancel-submit disabled>Xác nhận huỷ</button>
+        </form>
+    </dialog>
+</div>
+@section Scripts {
+    <script src="~/js/pending-order-cancellation.js" asp-append-version="true"></script>
+}

@@ -8,6 +8,7 @@ using RestaurantManagement.Web.Services;
 using RestaurantManagement.Web.Services.EmailVerification;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddScoped<PendingOrderStore>();
 var sqlConnectionString = Environment.GetEnvironmentVariable("RM_CONNECTION_STRING");
 if (string.IsNullOrWhiteSpace(sqlConnectionString))
     sqlConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");

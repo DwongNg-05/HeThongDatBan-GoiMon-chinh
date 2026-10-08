@@ -23,6 +23,7 @@ public sealed class KitchenController(IConfiguration configuration) : Controller
         ?? throw new InvalidOperationException("Chưa cấu hình kết nối database.");
 
     [HttpGet("")]
+    [PassiveSessionRead]
     [Authorize(Roles = AppRoles.KitchenReaders)]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
