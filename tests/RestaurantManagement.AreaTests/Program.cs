@@ -46,6 +46,12 @@ Check(GuestOrderRules.Validate([new GuestOrderLineInput(1, 20)]) is null, "Guest
 Check(GuestOrderRules.Validate([new GuestOrderLineInput(1, 21)]) is not null, "Guest order rejects quantity twenty-one");
 Check(GuestOrderRules.Validate([new GuestOrderLineInput(1, 0)]) is not null, "Guest order rejects zero quantity");
 Check(GuestOrderRules.Validate([new GuestOrderLineInput(1, -1)]) is not null, "Guest order rejects negative quantity");
+var snapshotReceipt = new GuestOrderReceipt(1, 1, "A01",
+[
+    new GuestOrderReceiptLine("Món A", "phần", 50_000, 2, 100_000),
+    new GuestOrderReceiptLine("Món B", "ly", 25_000, 1, 25_000)
+]);
+Check(snapshotReceipt.Total == 125_000, "Guest order receipt totals snapshotted line values");
 var expectedStatuses = new Dictionary<string, (string Label, string CssClass)>
 {
     ["Available"] = ("Trống", "available"),

@@ -75,8 +75,9 @@
             <div class="alert alert-warning py-2" hidden data-cart-notice role="status"></div>
             <div data-cart-lines></div>
             <dl class="guest-cart-total"><dt>Tạm tính</dt><dd data-cart-total>0 ₫</dd></dl>
-            <form method="post" data-order-form>
+            <form method="post" data-order-form data-submit-endpoint="@Url.Page("/GuestOrdering/Index", "Submit")">
                 <input asp-for="CartJson" type="hidden" data-cart-json />
+                <input asp-for="RequestId" type="hidden" data-request-id />
                 <button type="submit" class="btn btn-success w-100" disabled="@(!Model.HasOrderingSession)" data-submit-order>Gửi order cho bếp</button>
             </form>
         </aside>

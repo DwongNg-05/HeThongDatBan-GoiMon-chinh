@@ -34,9 +34,19 @@ public sealed class GuestOrderService(IConfiguration configuration, IMenuStore m
         return new GuestOrderContext(Convert.ToInt64(value), guestToken);
     }
 
-    public async Task<GuestOrderReceipt> SubmitAsync(GuestOrderContext context, IReadOnlyList<GuestOrderLineInput> items,
-        CancellationToken cancellationToken)
+    public async Task<GuestOrderReceipt> SubmitAsync(GuestOrderContext context, Guid requestId,
+        IReadOnlyList<GuestOrderLineInput> items, CancellationToken cancellationToken)
     {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        // A reply may have been lost after SQL committed the order. Check this
+        // before inspecting the current menu so the same request always returns
+        // its original, price-snapshotted receipt.
+        var existingBatchId = await FindExistingBatchAsync(connection, context, requestId, cancellationToken);
+        if (existingBatchId is not null)
+            return await ReadReceiptAsync(connection, existingBatchId.Value, context.SessionId, cancellationToken);
+
         var validationError = GuestOrderRules.Validate(items);
         if (validationError is not null) throw new GuestOrderException(validationError);
 
@@ -61,13 +71,12 @@ public sealed class GuestOrderService(IConfiguration configuration, IMenuStore m
             Notes = (string?)null
         }));
 
-        await using var connection = new SqlConnection(ConnectionString);
         await using var command = new SqlCommand("dbo.usp_SubmitOrder", connection)
         {
             CommandType = CommandType.StoredProcedure
         };
         command.Parameters.Add("@SessionId", SqlDbType.BigInt).Value = context.SessionId;
-        command.Parameters.Add("@RequestId", SqlDbType.UniqueIdentifier).Value = Guid.NewGuid();
+        command.Parameters.Add("@RequestId", SqlDbType.UniqueIdentifier).Value = requestId;
         command.Parameters.Add("@ItemsJson", SqlDbType.NVarChar, -1).Value = payload;
         command.Parameters.Add("@ActorUserId", SqlDbType.Int).Value = DBNull.Value;
         command.Parameters.Add("@GuestTokenHash", SqlDbType.Binary, 32).Value = Hash(context.GuestToken);
@@ -76,6 +85,25 @@ public sealed class GuestOrderService(IConfiguration configuration, IMenuStore m
         if (value is null || value is DBNull)
             throw new GuestOrderException("Không gửi được order. Vui lòng thử lại.");
         return await ReadReceiptAsync(connection, Convert.ToInt64(value), context.SessionId, cancellationToken);
+    }
+
+    private static async Task<long?> FindExistingBatchAsync(SqlConnection connection, GuestOrderContext context,
+        Guid requestId, CancellationToken cancellationToken)
+    {
+        await using var command = new SqlCommand("""
+            SELECT b.Id
+            FROM dbo.OrderBatches b
+            JOIN dbo.GuestSessions g ON g.SessionId=b.SessionId AND g.Id=b.GuestSessionId
+            JOIN dbo.TableQrCodes q ON q.Id=g.TableQrCodeId
+            WHERE b.SessionId=@SessionId AND b.RequestId=@RequestId
+              AND g.TokenHash=@GuestTokenHash AND g.RevokedAt IS NULL
+              AND g.ExpiresAt>SYSUTCDATETIME() AND q.RevokedAt IS NULL;
+            """, connection);
+        command.Parameters.Add("@SessionId", SqlDbType.BigInt).Value = context.SessionId;
+        command.Parameters.Add("@RequestId", SqlDbType.UniqueIdentifier).Value = requestId;
+        command.Parameters.Add("@GuestTokenHash", SqlDbType.Binary, 32).Value = Hash(context.GuestToken);
+        var value = await command.ExecuteScalarAsync(cancellationToken);
+        return value is null || value is DBNull ? null : Convert.ToInt64(value);
     }
 
     private static async Task<GuestOrderReceipt> ReadReceiptAsync(SqlConnection connection, long batchId, long sessionId,

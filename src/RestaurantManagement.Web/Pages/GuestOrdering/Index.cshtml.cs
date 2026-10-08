@@ -19,6 +19,9 @@ public sealed class IndexModel(IMenuStore menuStore, GuestOrderService orderServ
     [BindProperty]
     public string CartJson { get; set; } = "[]";
 
+    [BindProperty]
+    public string RequestId { get; set; } = string.Empty;
+
     public IReadOnlyList<PublicMenuCategory> Categories { get; private set; } = [];
     public string? ErrorMessage { get; private set; }
     public IReadOnlyList<GuestOrderPriceChange> PriceChanges { get; private set; } = [];
@@ -52,66 +55,93 @@ public sealed class IndexModel(IMenuStore menuStore, GuestOrderService orderServ
     public async Task<IActionResult> OnPostAsync(CancellationToken cancellationToken)
     {
         LoadPage();
+        var result = await SubmitOrderAsync(cancellationToken);
+        if (result.Receipt is not null)
+            return RedirectToPage("Success", new { order = result.Receipt.BatchId });
+
+        ErrorMessage = result.ErrorMessage;
+        PriceChanges = result.PriceChanges;
+        return Page();
+    }
+
+    public async Task<IActionResult> OnPostSubmitAsync(CancellationToken cancellationToken)
+    {
+        var result = await SubmitOrderAsync(cancellationToken);
+        if (result.Receipt is not null)
+            return new JsonResult(new { success = true, order = result.Receipt.BatchId });
+
+        if (result.PriceChanges.Count > 0)
+            return new JsonResult(new { success = false, message = result.ErrorMessage, priceChanges = result.PriceChanges })
+            {
+                StatusCode = StatusCodes.Status409Conflict
+            };
+
+        return new JsonResult(new { success = false, message = result.ErrorMessage })
+        {
+            StatusCode = StatusCodes.Status400BadRequest
+        };
+    }
+
+    private async Task<SubmitResult> SubmitOrderAsync(CancellationToken cancellationToken)
+    {
         var context = ReadContext();
         if (context is null)
-        {
-            ErrorMessage = "Phiên gọi món đã hết hạn. Vui lòng quét lại mã QR tại bàn.";
-            return Page();
-        }
+            return SubmitResult.Failed("Phiên gọi món đã hết hạn. Vui lòng quét lại mã QR tại bàn.");
 
-        List<GuestOrderLineInput>? items;
-        try
-        {
-            items = JsonSerializer.Deserialize<List<CartLineDto>>(CartJson, new JsonSerializerOptions(JsonSerializerDefaults.Web))
-                ?.Select(line => new GuestOrderLineInput(line.DishId, line.Quantity, line.ObservedPriceVnd)).ToList();
-        }
-        catch (JsonException)
-        {
-            CartJson = "[]";
-            ErrorMessage = "Giỏ món không hợp lệ. Vui lòng chọn lại món.";
-            return Page();
-        }
+        if (!Guid.TryParse(RequestId, out var requestId))
+            return SubmitResult.Failed("Không xác định được lần gửi order. Vui lòng thử lại.");
 
-        // Keep only server-recognised numeric fields when a failed post
-        // is rendered again. The browser cannot inject arbitrary text back into
-        // the JSON block used to restore its cart.
-        CartJson = JsonSerializer.Serialize((items ?? []).Select(item => new
-        {
-            dishId = item.DishId,
-            quantity = item.Quantity,
-            observedPriceVnd = item.ObservedPriceVnd
-        }));
+        if (!TryReadItems(out var items, out var parseError))
+            return SubmitResult.Failed(parseError!);
 
         try
         {
-            var receipt = await orderService.SubmitAsync(context, items ?? [], cancellationToken);
+            var receipt = await orderService.SubmitAsync(context, requestId, items, cancellationToken);
             HttpContext.Session.SetString(ReceiptKey, JsonSerializer.Serialize(receipt));
-            HttpContext.Session.Remove(SessionIdKey);
-            HttpContext.Session.Remove(GuestTokenKey);
-            return RedirectToPage("Success", new { order = receipt.BatchId });
+            return SubmitResult.Succeeded(receipt);
         }
         catch (GuestOrderPriceChangedException exception)
         {
-            PriceChanges = exception.Changes;
             var priceByDish = exception.Changes.ToDictionary(change => change.DishId, change => change.CurrentPriceVnd);
-            CartJson = JsonSerializer.Serialize((items ?? []).Select(item => new
+            CartJson = JsonSerializer.Serialize(items.Select(item => new
             {
                 dishId = item.DishId,
                 quantity = item.Quantity,
                 observedPriceVnd = priceByDish.TryGetValue(item.DishId, out var price) ? price : item.ObservedPriceVnd
             }));
-            ErrorMessage = exception.Message;
-            return Page();
+            return SubmitResult.PriceChanged(exception.Message, exception.Changes);
         }
         catch (GuestOrderException exception)
         {
-            ErrorMessage = exception.Message;
-            return Page();
+            return SubmitResult.Failed(exception.Message);
         }
-        catch (Microsoft.Data.SqlClient.SqlException exception)
+        catch (Microsoft.Data.SqlClient.SqlException)
         {
-            ErrorMessage = exception.Message;
-            return Page();
+            return SubmitResult.Failed("Chưa thể gửi order. Vui lòng kiểm tra mạng và thử lại.");
+        }
+    }
+
+    private bool TryReadItems(out List<GuestOrderLineInput> items, out string? error)
+    {
+        try
+        {
+            items = JsonSerializer.Deserialize<List<CartLineDto>>(CartJson, new JsonSerializerOptions(JsonSerializerDefaults.Web))
+                ?.Select(line => new GuestOrderLineInput(line.DishId, line.Quantity, line.ObservedPriceVnd)).ToList() ?? [];
+            CartJson = JsonSerializer.Serialize(items.Select(item => new
+            {
+                dishId = item.DishId,
+                quantity = item.Quantity,
+                observedPriceVnd = item.ObservedPriceVnd
+            }));
+            error = null;
+            return true;
+        }
+        catch (JsonException)
+        {
+            items = [];
+            CartJson = "[]";
+            error = "Giỏ món không hợp lệ. Vui lòng chọn lại món.";
+            return false;
         }
     }
 
@@ -135,5 +165,13 @@ public sealed class IndexModel(IMenuStore menuStore, GuestOrderService orderServ
         public int DishId { get; init; }
         public int Quantity { get; init; }
         public int ObservedPriceVnd { get; init; }
+    }
+
+    private sealed record SubmitResult(GuestOrderReceipt? Receipt, string? ErrorMessage,
+        IReadOnlyList<GuestOrderPriceChange> PriceChanges)
+    {
+        public static SubmitResult Succeeded(GuestOrderReceipt receipt) => new(receipt, null, []);
+        public static SubmitResult Failed(string error) => new(null, error, []);
+        public static SubmitResult PriceChanged(string error, IReadOnlyList<GuestOrderPriceChange> changes) => new(null, error, changes);
     }
 }
