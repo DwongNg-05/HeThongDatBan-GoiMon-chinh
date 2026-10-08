@@ -7,11 +7,11 @@
 }
 @section Styles { <link rel="stylesheet" href="~/css/guest-ordering.css" asp-append-version="true" /> }
 
-<main class="guest-ordering">
+<main class="guest-ordering" data-maximum-quantity="20">
     <header class="guest-ordering-header">
         <span class="guest-ordering-kicker">BẾP NHÀ · GỌI MÓN</span>
         <h1>Chọn món cho bàn của bạn</h1>
-        <p>Chọn món yêu thích và gửi order trực tiếp cho bếp.</p>
+        <p>Giá hiển thị bằng đồng Việt Nam. Mỗi món tối đa 20 phần cho một lần gọi.</p>
     </header>
 
     @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
@@ -66,7 +66,9 @@
         <aside class="guest-cart" aria-label="Giỏ món">
             <h2>Giỏ món</h2>
             <p class="guest-cart-empty" data-cart-empty>Chưa có món nào trong giỏ.</p>
+            <div class="alert alert-warning py-2" hidden data-cart-notice role="status"></div>
             <div data-cart-lines></div>
+            <dl class="guest-cart-total"><dt>Tạm tính</dt><dd data-cart-total>0 ₫</dd></dl>
             <form method="post" data-order-form>
                 <input asp-for="CartJson" type="hidden" data-cart-json />
                 <button type="submit" class="btn btn-success w-100" disabled="@(!Model.HasOrderingSession)" data-submit-order>Gửi order cho bếp</button>

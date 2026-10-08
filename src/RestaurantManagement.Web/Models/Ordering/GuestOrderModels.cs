@@ -6,9 +6,7 @@ public sealed record GuestOrderContext(long SessionId, string GuestToken);
 
 public static class GuestOrderRules
 {
-    // S3-02 Task 1 accepts the database's existing positive quantity range.
-    // Task 2 narrows this value to 20 and exposes increment/decrement controls.
-    public const int MaximumQuantity = 99;
+    public const int MaximumQuantity = 20;
 
     public static string? Validate(IReadOnlyList<GuestOrderLineInput>? items)
     {

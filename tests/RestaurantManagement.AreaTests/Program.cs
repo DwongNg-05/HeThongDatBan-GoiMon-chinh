@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using RestaurantManagement.Web.Controllers;
 using RestaurantManagement.Web.Models.Areas;
 using RestaurantManagement.Web.Models;
+using RestaurantManagement.Web.Models.Ordering;
 using RestaurantManagement.Web.Services;
 
 var count = 0;
@@ -40,6 +41,11 @@ Check(!Valid(new string('a',81), 1), "Name too long");
 Check(!Valid("Sân vườn", -1), "Negative order");
 Check(!Valid("Sân vườn", null), "Missing order");
 Check(Valid("  Sân  vườn ", 2), "Whitespace preserved");
+Check(GuestOrderRules.Validate([new GuestOrderLineInput(1, 1)]) is null, "Guest order accepts quantity one");
+Check(GuestOrderRules.Validate([new GuestOrderLineInput(1, 20)]) is null, "Guest order accepts quantity twenty");
+Check(GuestOrderRules.Validate([new GuestOrderLineInput(1, 21)]) is not null, "Guest order rejects quantity twenty-one");
+Check(GuestOrderRules.Validate([new GuestOrderLineInput(1, 0)]) is not null, "Guest order rejects zero quantity");
+Check(GuestOrderRules.Validate([new GuestOrderLineInput(1, -1)]) is not null, "Guest order rejects negative quantity");
 var expectedStatuses = new Dictionary<string, (string Label, string CssClass)>
 {
     ["Available"] = ("Trống", "available"),
