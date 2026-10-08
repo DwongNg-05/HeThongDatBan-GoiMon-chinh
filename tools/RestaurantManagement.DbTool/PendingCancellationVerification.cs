@@ -21,6 +21,7 @@ internal static class PendingCancellationVerification
             await DatabaseTool.Execute(connection, $"ALTER AUTHORIZATION ON DATABASE::[{name}] TO sa;");
             const string password = "S305TestOnly9!";
             await DatabaseTool.Seed(connection, password);
+            await ShiftCancellationVerification.Empty(connection);
             await DatabaseTool.Execute(connection, """
                 UPDATE dbo.Users SET MustChangePassword=0,IsActive=1,FailedLoginCount=0,LockedUntil=NULL;
                 DECLARE @cashier int=(SELECT Id FROM dbo.Users WHERE UserName='cashier');
@@ -120,6 +121,7 @@ internal static class PendingCancellationVerification
             // Existing manager rule remains billable after preparation.
             await DatabaseTool.Execute(connection, $"EXEC dbo.usp_CancelOrderItem @OrderItemId={pending},@Reason='ManagerOverride',@ActorUserId={managerId};");
             Assert(await Scalar(connection, $"SELECT ChargeWhenCancelled FROM dbo.OrderItems WHERE Id={pending}") == 1 && await Scalar(connection, $"SELECT Subtotal FROM dbo.vw_SessionTotals WHERE SessionId={session}") == price * 3, "Existing manager cancellation after preparation is still charged");
+            await ShiftCancellationVerification.Run(connection, web.Client, session, managerId, waiterId, password);
             await DatabaseTool.Execute(connection, $"UPDATE dbo.Users SET IsActive=0 WHERE Id={waiterId};");
             try
             {

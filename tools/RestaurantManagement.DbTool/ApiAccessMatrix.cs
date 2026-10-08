@@ -80,6 +80,11 @@ internal static class ApiAccessMatrix
 
         // ---- Quản trị ----
         new("AuditLogs.Index GET", Manager, "GET", "/AuditLogs"),
+        new("ShiftReports.Index GET", Manager, "GET", "/ShiftReports"),
+        new("ShiftReports.Cancellations GET", Manager, "GET", "/ShiftReports/Cancellations"),
+        new("SentOrders.Index GET", FrontOfHouse, "GET", "/Ordering/Sent"),
+        new("SentOrders.Snapshot GET", FrontOfHouse, "GET", "/Ordering/Sent/Snapshot"),
+        new("SentOrders.Cancel POST", FrontOfHouse, "POST", "/Ordering/Sent/999999999/Cancel"),
         new("EmployeeAccounts.Index GET", Manager, "GET", "/admin/employee-accounts"),
         new("EmployeeAccounts.Create GET", Manager, "GET", "/admin/employee-accounts/create"),
         new("EmployeeAccounts.Create POST", Manager, "POST", "/admin/employee-accounts/create"),

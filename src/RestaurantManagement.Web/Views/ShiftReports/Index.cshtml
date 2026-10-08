@@ -1,0 +1,23 @@
+@{ ViewData["Title"]="Báo cáo cuối ca"; }
+<section id="shift-cancellation-report" data-url="@Url.Action("Cancellations")">
+    <h1 class="h3">Báo cáo cuối ca</h1>
+    <h2 class="h5">Nhật ký huỷ món</h2>
+    <p>Chỉ các lần huỷ thành công · Ca phục vụ của đơn · Giờ Việt Nam (UTC+7).</p>
+    <label for="report-shift" class="form-label">Ca đang xem</label>
+    <select id="report-shift" class="form-select mb-3" aria-label="Chọn ca"></select>
+    <button id="report-reload" type="button" class="btn btn-outline-secondary">Tải lại</button>
+    <p id="report-loading" role="status">Đang tải báo cáo…</p>
+    <div id="report-error" class="alert alert-danger" role="alert" hidden>Không tải được báo cáo cuối ca. Nhấn Tải lại để thử lại.</div>
+    <p id="report-empty" class="alert alert-light" role="status" hidden></p>
+    <p id="report-summary"></p>
+    <div id="report-results" class="table-responsive" hidden>
+        <table class="table table-bordered table-hover">
+            <caption>Nhật ký huỷ của ca đã chọn, tăng dần theo thời điểm huỷ</caption>
+            <thead><tr><th>Đơn / Phiên / Bàn</th><th>Dòng món</th><th>Số lượng</th><th>Giá trị dòng</th>
+                <th>Người thực hiện</th><th>Thời điểm</th><th>Lý do</th><th>Cách tính tiền</th><th>Số tiền tính</th></tr></thead>
+            <tbody id="report-rows"></tbody>
+        </table>
+    </div>
+    <noscript>Vui lòng bật JavaScript để xem báo cáo.</noscript>
+</section>
+@section Scripts { <script src="~/js/shift-cancellation-report.js" asp-append-version="true"></script> }

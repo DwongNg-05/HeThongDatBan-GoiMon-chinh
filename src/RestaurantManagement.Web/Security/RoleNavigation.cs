@@ -39,6 +39,7 @@ public static class RoleNavigation
         new("cashier-payments", "Thanh toán", "/Cashier", M, C),
         new("cashier-invoices", "Hoá đơn", "/Cashier/Invoices", M, C),
         new("cashier-shift", "Chốt ca", "/Cashier/Shift", M, C),
+        new("shift-reports", "Báo cáo cuối ca", "/ShiftReports", M),
         new("employee-accounts", "Quản lý tài khoản", "/admin/employee-accounts", M),
         new("audit-logs", "Nhật ký hệ thống", "/AuditLogs", M)
     ];

@@ -74,7 +74,7 @@ internal static class RoleNavigationTests
             "Server scope: cooking status is Kitchen only; payments are not for Kitchen; sold-out-today only in dish management (Manager); \"Tạm hết\" toggle for Kitchen and Manager; table map and dish management are not for Kitchen/Cashier");
 
         // S1-04 Task 1: Phục vụ chỉ gọi được API sơ đồ bàn, đặt bàn, gọi món (và tài khoản của chính mình).
-        var waiterExtra = Allowed("Waiter").Where(k => !Own(k, "Account.", "Home.Index", "TableDetails.", "TableStatus.", "TableMap.", "Reservations.", "ReservationConfirmations.", "ReservationManagement.", "Page /Ordering/", "Page /Orders/")).ToArray();
+        var waiterExtra = Allowed("Waiter").Where(k => !Own(k, "Account.", "Home.Index", "TableDetails.", "TableStatus.", "TableMap.", "Reservations.", "ReservationConfirmations.", "ReservationManagement.", "Page /Ordering/", "Page /Orders/", "SentOrders.")).ToArray();
         check(waiterExtra.Length == 0, "Server scope: waiter can only call table map, reservation and ordering APIs and its own account" + (waiterExtra.Length > 0 ? ": " + string.Join(", ", waiterExtra) : ""));
         ApiEndpoint Api(string key) => ApiAccessMatrix.All.Single(e => e.Key == key);
         var waiterBlocked = new[]
