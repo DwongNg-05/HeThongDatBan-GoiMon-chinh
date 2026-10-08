@@ -1,5 +1,7 @@
 # Task 1 — Trạng thái từng dòng món (AC1, AC3)
 
+**Cập nhật Task 2:** phần không ghi thời điểm bên dưới mô tả phạm vi Task 1 ban đầu. Từ migration 044, chuyển trạng thái bếp đã ghi thời điểm và lịch sử; xem [Kitchen-Task2.md](Kitchen-Task2.md).
+
 ## Cách dùng
 
 - Bếp đăng nhập, mở **Màn hình bếp** (`/Kitchen`).

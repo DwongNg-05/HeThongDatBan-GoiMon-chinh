@@ -39,7 +39,14 @@ internal static class KitchenLineVerification
                     ("__RequestVerificationToken", BookingConfirmationVerification.Token(page))));
                 if (!response.IsSuccessStatusCode) throw new Exception("Kitchen HTTP transition failed: " + await response.Content.ReadAsStringAsync());
                 using var next = System.Text.Json.JsonDocument.Parse(await web.Client.GetStringAsync("/Kitchen/Snapshot"));
-                version = next.RootElement.EnumerateArray().First(i => i.GetProperty("id").GetInt64() == 1).GetProperty("version").GetString()!;
+                var updated = next.RootElement.EnumerateArray().First(i => i.GetProperty("id").GetInt64() == 1);
+                version = updated.GetProperty("version").GetString()!;
+                if (to == "Preparing" && (updated.GetProperty("actualCookingMilliseconds").ValueKind != System.Text.Json.JsonValueKind.Null
+                    || updated.GetProperty("elapsedCookingMilliseconds").GetDouble() < 0))
+                    throw new Exception("Preparing HTTP snapshot must have elapsed time but no actual duration.");
+                if (to == "Ready" && (updated.GetProperty("actualCookingMilliseconds").GetDouble() <= 0
+                    || updated.GetProperty("elapsedCookingMilliseconds").ValueKind != System.Text.Json.JsonValueKind.Null))
+                    throw new Exception("Ready HTTP snapshot must have a fixed positive actual duration.");
             }
             using var waiter = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { BaseAddress = web.Client.BaseAddress };
             await BookingConfirmationVerification.Login(waiter, "waiter", password);
@@ -107,11 +114,16 @@ internal static class KitchenLineVerification
              (SELECT COUNT(*) FROM dbo.vw_KitchenQueue WHERE OrderItemId=1 AND Status='Ready')=1
              AND NOT EXISTS(SELECT 1 FROM dbo.vw_KitchenQueue WHERE OrderItemId=1 AND Status IN ('Pending','Preparing'))
              AND EXISTS(SELECT 1 FROM dbo.OrderItems WHERE Id=2 AND Status='Pending')
-             AND EXISTS(SELECT 1 FROM dbo.OrderItems WHERE Id=1 AND PreparingAt IS NULL AND ReadyAt IS NULL)
+             AND EXISTS(SELECT 1 FROM dbo.OrderItems WHERE Id=1 AND PreparingAt IS NOT NULL AND ReadyAt>PreparingAt)
+             AND (SELECT COUNT(*) FROM dbo.OrderItemEvents WHERE OrderItemId=1 AND FromStatus IS NOT NULL)=2
+             AND EXISTS(SELECT 1 FROM dbo.OrderItemEvents e JOIN dbo.OrderItems i ON i.Id=e.OrderItemId
+               WHERE i.Id=1 AND e.FromStatus='Pending' AND e.ToStatus='Preparing' AND e.OccurredAt=i.PreparingAt)
+             AND EXISTS(SELECT 1 FROM dbo.OrderItemEvents e JOIN dbo.OrderItems i ON i.Id=e.OrderItemId
+               WHERE i.Id=1 AND e.FromStatus='Preparing' AND e.ToStatus='Ready' AND e.OccurredAt=i.ReadyAt)
              THEN 1 ELSE 0 END;
             """, check);
-        Require(Convert.ToInt32(await verify.ExecuteScalarAsync()) == 1, "Ready appears once, leaves queue, sibling unchanged, no transition timestamps");
+        Require(Convert.ToInt32(await verify.ExecuteScalarAsync()) == 1, "Ready once; sibling unchanged; exactly two ordered server timestamps, no history for rejected or competing requests");
         // Restore only this disposable verification fixture for the existing business tests.
-        await DatabaseTool.Execute(connection, "UPDATE dbo.OrderItems SET Status='Pending' WHERE Id=1;");
+        await DatabaseTool.Execute(connection, "DELETE dbo.OrderItemEvents WHERE OrderItemId=1 AND FromStatus IS NOT NULL; UPDATE dbo.OrderItems SET Status='Pending',PreparingAt=NULL,ReadyAt=NULL WHERE Id=1;");
     }
 }

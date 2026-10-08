@@ -154,6 +154,7 @@ await EmailRetryTests.Run(Check);
 await BookingEmailFlowTests.Run(Check);
 await ApiAuthorizationCoverageTests.Run(Check);
 RoleNavigationTests.Run(Check);
+KitchenTimingTests.Run(Check);
 Console.WriteLine($"{count} tests passed.");
 if (args.Contains("--authentication-http")) await AuthenticationHttpTests.Run();
 if (args.Contains("--integration")) await AreaHttpTests.Run();

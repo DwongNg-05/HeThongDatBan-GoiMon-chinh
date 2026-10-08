@@ -4,10 +4,22 @@
     const labels = { Pending: ['Chờ bếp', 'bg-secondary'], Preparing: ['Đang chế biến', 'bg-warning text-dark'], Ready: ['Đã xong', 'bg-success'] };
     let busy = false;
     let fingerprint = '';
+    let timers = [];
+    function duration(ms) {
+        if (ms == null) return 'Chưa có dữ liệu';
+        const seconds = Math.max(0, Math.floor(ms / 1000));
+        return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+    }
+    function updateTimers() {
+        for (const timer of timers) {
+            timer.element.textContent = timer.label + duration(timer.base + Math.max(0, performance.now() - timer.at));
+        }
+    }
     function render(lines) {
         const key = JSON.stringify(lines);
         if (fingerprint === key) return;
         fingerprint = key;
+        timers = [];
         for (const [target, ready] of [['kitchen-queue', false], ['kitchen-ready', true]]) {
             const container = document.getElementById(target);
             container.replaceChildren();
@@ -27,6 +39,31 @@
                     button.addEventListener('click', () => transition(line, button));
                     card.append(button);
                 }
+                const timing = document.createElement('span');
+                timing.className = 'small fw-semibold';
+                const running = line.status === 'Preparing' ? line.elapsedCookingMilliseconds
+                    : line.status === 'Pending' ? line.waitingMilliseconds : null;
+                const label = line.status === 'Pending' ? 'Chờ bếp: ' : 'Đã chế biến: ';
+                if (running != null) {
+                    timers.push({ element: timing, base: running, at: performance.now(), label });
+                    timing.textContent = label + duration(running);
+                } else {
+                    timing.textContent = (ready ? 'Chế biến thực tế: ' : label) + duration(line.actualCookingMilliseconds);
+                }
+                card.append(timing);
+                if (line.status !== 'Pending') {
+                    const waiting = document.createElement('span');
+                    waiting.className = 'small text-muted';
+                    waiting.textContent = 'Chờ bếp: ' + (line.preparingAt ? duration(line.waitingMilliseconds) : 'Chưa có dữ liệu');
+                    card.append(waiting);
+                }
+                const stamps = document.createElement('small');
+                stamps.className = 'text-muted';
+                const localTime = value => new Date(value).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+                stamps.textContent = [line.submittedAt && `Vào bếp: ${localTime(line.submittedAt)}`,
+                    line.preparingAt && `Bắt đầu: ${localTime(line.preparingAt)}`,
+                    line.readyAt && `Xong: ${localTime(line.readyAt)}`].filter(Boolean).join(' · ');
+                card.append(stamps);
                 container.append(card);
             }
             if (!container.childElementCount) container.textContent = ready ? 'Chưa có món chờ mang ra.' : 'Không có món chờ chế biến.';
@@ -65,4 +102,5 @@
         setTimeout(poll, 1000);
     }
     poll();
+    setInterval(updateTimers, 250);
 })();

@@ -22,17 +22,22 @@ async function session(canEdit) {
     let conflict = false;
     let posts = 0;
     let timer;
+    let timerTick;
+    let monotonic = 0;
     vm.runInNewContext(source, {
         document: { getElementById: id => elements[id], createElement: tag => new Element(tag), querySelector: () => ({ value: 'csrf' }) },
         window: { confirm: () => confirm }, URLSearchParams,
-        setTimeout: callback => { timer = callback; },
+        setTimeout: callback => { timer = callback; }, setInterval: callback => { timerTick = callback; }, performance: { now: () => monotonic },
         fetch: async (url, options) => {
             if (options.method === 'POST') {
                 posts++;
                 const data = options.body;
                 assert.equal(data.get('__RequestVerificationToken'), 'csrf');
                 if (conflict) return { ok: false, json: async () => ({ message: 'Món đã được thiết bị khác cập nhật.' }) };
-                lines = lines.map(line => String(line.id) === data.get('id') ? { ...line, status: data.get('to'), version: 'new' + posts } : line);
+                lines = lines.map(line => String(line.id) === data.get('id') ? { ...line, status: data.get('to'), version: 'new' + posts,
+                    preparingAt: '2026-10-08T00:00:00Z', waitingMilliseconds: 120000,
+                    elapsedCookingMilliseconds: data.get('to') === 'Preparing' ? 2000 : null,
+                    actualCookingMilliseconds: data.get('to') === 'Ready' ? 65000 : null } : line);
                 return { ok: true };
             }
             return { ok: true, json: async () => lines };
@@ -40,7 +45,8 @@ async function session(canEdit) {
     });
     await tick();
     return { elements, cancel: () => { confirm = false; }, allow: () => { confirm = true; },
-        conflict: () => { conflict = true; }, posts: () => posts, poll: async () => { await timer(); } };
+        conflict: () => { conflict = true; }, posts: () => posts, poll: async () => { await timer(); },
+        advanceClock: ms => { monotonic += ms; timerTick(); } };
 }
 (async () => {
     const s = await session(true);
@@ -57,16 +63,22 @@ async function session(canEdit) {
     assert.equal(queue.children[0].children[1].textContent, 'Đang chế biến');
     assert.equal(queue.children[1].children[1].textContent, 'Chờ bếp', 'Sibling unchanged');
     assert.equal(queue.children[0].children[2].textContent, 'Xong');
+    assert.equal(queue.children[0].children[3].textContent, 'Đã chế biến: 0:02');
+    s.advanceClock(3000);
+    assert.equal(queue.children[0].children[3].textContent, 'Đã chế biến: 0:05', 'Timer increases without a snapshot or device clock');
     await queue.children[0].children[2].handlers.click();
     assert.equal(queue.childElementCount, 1);
     assert.equal(ready.childElementCount, 1);
     assert.equal(ready.children[0].children[1].textContent, 'Đã xong');
+    assert.equal(ready.children[0].children[2].textContent, 'Chế biến thực tế: 1:05');
+    s.advanceClock(60000);
+    assert.equal(ready.children[0].children[2].textContent, 'Chế biến thực tế: 1:05', 'Ready duration stops growing');
     await s.poll();
     assert.equal(ready.childElementCount, 1, 'Repeated snapshot does not duplicate ready dish');
     s.conflict();
     await queue.children[0].children[2].handlers.click();
     assert.match(s.elements['kitchen-message'].textContent, /thiết bị khác/);
     const waiter = await session(false);
-    assert.equal(waiter.elements['kitchen-queue'].children[0].children.length, 2, 'Waiter has no transition button');
+    assert.equal(waiter.elements['kitchen-queue'].children[0].children.some(e => e.tag === 'button'), false, 'Waiter has no transition button');
     console.log('PASS: kitchen sequential transitions, isolated line, ready queue, refresh, confirmation, conflict, safe text and waiter view');
 })().catch(error => { console.error(error); process.exitCode = 1; });
