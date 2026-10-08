@@ -34,6 +34,11 @@ async function session(canEdit) {
                 const data = options.body;
                 assert.equal(data.get('__RequestVerificationToken'), 'csrf');
                 if (conflict) return { ok: false, json: async () => ({ message: 'Món đã được thiết bị khác cập nhật.' }) };
+                if (url === '/Kitchen/CompleteBatch') {
+                    lines = lines.map(line => line.batchId === Number(data.get('batchId')) && line.status === 'Preparing'
+                        ? { ...line, status: 'Ready', actualCookingMilliseconds: 65000, elapsedCookingMilliseconds: null } : line);
+                    return { ok: true, json: async () => ({ message: 'Đã hoàn thành phiếu.' }) };
+                }
                 lines = lines.map(line => String(line.id) === data.get('id') ? { ...line, status: data.get('to'), version: 'new' + posts,
                     preparingAt: '2026-10-08T00:00:00Z', waitingMilliseconds: 120000,
                     elapsedCookingMilliseconds: data.get('to') === 'Preparing' ? 2000 : null,
@@ -50,9 +55,11 @@ async function session(canEdit) {
 }
 (async () => {
     const s = await session(true);
-    const queue = s.elements['kitchen-queue'];
+    const cards = element => element.children.flatMap(section => section.children.filter(child => child.tag === 'article'));
+    const queue = { get children() { return cards(s.elements['kitchen-queue']); }, get childElementCount() { return this.children.length; } };
     const ready = s.elements['kitchen-ready'];
     assert.equal(queue.childElementCount, 2);
+    assert.equal(s.elements['kitchen-queue'].children[0].children[1].disabled, true, 'Pending blocks batch completion');
     assert.equal(queue.children[0].children[0].textContent.includes('<img src=x>'), true);
     assert.equal(queue.children[0].children[2].textContent, 'Bắt đầu');
     s.cancel();
@@ -79,6 +86,17 @@ async function session(canEdit) {
     await queue.children[0].children[2].handlers.click();
     assert.match(s.elements['kitchen-message'].textContent, /thiết bị khác/);
     const waiter = await session(false);
-    assert.equal(waiter.elements['kitchen-queue'].children[0].children.some(e => e.tag === 'button'), false, 'Waiter has no transition button');
+    assert.equal(cards(waiter.elements['kitchen-queue'])[0].children.some(e => e.tag === 'button'), false, 'Waiter has no transition button');
+    assert.equal(waiter.elements['kitchen-queue'].children[0].children.some(e => e.tag === 'button'), false, 'Waiter has no batch button');
+    const bulk = await session(true);
+    await cards(bulk.elements['kitchen-queue'])[0].children[2].handlers.click();
+    await cards(bulk.elements['kitchen-queue'])[1].children[2].handlers.click();
+    const batchButton = bulk.elements['kitchen-queue'].children[0].children[1];
+    assert.equal(batchButton.disabled, false, 'All preparing enables batch completion');
+    bulk.cancel(); await batchButton.handlers.click();
+    assert.equal(bulk.posts(), 2, 'Cancel batch confirmation sends no request');
+    bulk.allow(); await batchButton.handlers.click();
+    assert.equal(cards(bulk.elements['kitchen-queue']).length, 0, 'Entire batch leaves queue');
+    assert.equal(bulk.elements['kitchen-ready'].childElementCount, 2, 'Entire batch appears ready once');
     console.log('PASS: kitchen sequential transitions, isolated line, ready queue, refresh, confirmation, conflict, safe text and waiter view');
 })().catch(error => { console.error(error); process.exitCode = 1; });

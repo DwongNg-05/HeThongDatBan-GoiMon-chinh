@@ -1,5 +1,7 @@
 # Task 2 — Thời điểm và thời gian chế biến (AC4)
 
+**Cập nhật Task 3:** đã bổ sung nút Xong cả phiếu theo [Kitchen-Task3.md](Kitchen-Task3.md). Các mô tả “không có nút cả phiếu” bên dưới thuộc phạm vi Task 2 trước đó.
+
 ## Quyết định triển khai chờ PO xác nhận
 
 - Chế biến thực tế = ReadyAt − PreparingAt, không tính thời gian chờ bếp.

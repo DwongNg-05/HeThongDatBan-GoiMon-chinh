@@ -2,6 +2,7 @@
 <div id="kitchen-board" data-can-edit="@User.IsInRole("Kitchen").ToString().ToLowerInvariant()">
     <h1>Màn hình bếp</h1>
     <p>Chuyển từng dòng món: Chờ bếp → Đang chế biến → Đã xong.</p>
+    <p class="text-muted">Xong cả phiếu chỉ dùng khi mọi món chưa xong đều đang chế biến. Món đã xong giữ nguyên thời điểm.</p>
     <p class="text-muted">Thời gian chế biến tính từ Bắt đầu đến Xong. Thời gian chờ bếp hiển thị riêng. Các thời điểm hiển thị theo giờ Việt Nam.</p>
     <p class="text-muted">Chỉ chuyển tiến. Nếu đã bấm nhầm, báo quản lý và phục vụ để phối hợp xử lý.</p>
     <a asp-action="Dishes">Món trong ngày · Báo tạm hết</a>

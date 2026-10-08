@@ -58,6 +58,20 @@ public sealed class KitchenController(IConfiguration configuration, KitchenStore
     [Authorize(Roles = AppRoles.KitchenReaders)]
     public IActionResult Index() => View();
 
+    [HttpPost("CompleteBatch"), ValidateAntiForgeryToken]
+    [Authorize(Roles = AppRoles.KitchenWorkers)]
+    public async Task<IActionResult> CompleteBatch(long batchId, CancellationToken ct)
+    {
+        if (!ModelState.IsValid || batchId<=0) return BadRequest(new { message = "Mã phiếu không hợp lệ." });
+        try
+        {
+            var changed = await store.CompleteBatch(batchId, User.ActorUserId(), ct);
+            return Ok(new { changed, message = changed == 0 ? "Phiếu đã hoàn thành, không có món nào bị cập nhật lại." : $"Đã hoàn thành {changed} dòng món trong phiếu." });
+        }
+        catch (SqlException ex) when (ex.Number == 51001) { return Forbid(); }
+        catch (SqlException ex) when (ex.Number is 51029 or 51030) { return Conflict(new { message = ex.Message }); }
+    }
+
     /// <summary>S2-08 Task 1: danh sách món trong ngày, mỗi món có nút bật/tắt "Tạm hết".</summary>
     [HttpGet("Dishes")]
     [Authorize(Roles = TemporaryOutRules.AllowedRoles)]

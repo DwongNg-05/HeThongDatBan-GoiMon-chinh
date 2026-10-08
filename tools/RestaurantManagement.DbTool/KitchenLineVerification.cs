@@ -58,6 +58,7 @@ internal static class KitchenLineVerification
                 ("from", "Ready"), ("to", "Preparing"), ("version", version), ("__RequestVerificationToken", BookingConfirmationVerification.Token(readyPage))));
             if (denied.StatusCode != System.Net.HttpStatusCode.Forbidden) throw new Exception("Waiter must not transition kitchen dishes.");
             Console.WriteLine("PASS: real web sequential transitions, waiter ready snapshot exactly once, waiter write forbidden.");
+            await KitchenBatchVerification.Run(connection,web.Client,waiter,BookingConfirmationVerification.Token(page),BookingConfirmationVerification.Token(readyPage));
         }
         finally
         {

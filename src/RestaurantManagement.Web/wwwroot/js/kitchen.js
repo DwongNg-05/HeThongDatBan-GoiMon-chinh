@@ -23,7 +23,34 @@
         for (const [target, ready] of [['kitchen-queue', false], ['kitchen-ready', true]]) {
             const container = document.getElementById(target);
             container.replaceChildren();
+            const batches = new Map();
             for (const line of lines.filter(item => (item.status === 'Ready') === ready)) {
+                let destination = container;
+                if (!ready) {
+                    if (!batches.has(line.batchId)) {
+                        const section = document.createElement('section');
+                        section.className = 'border rounded p-3 mb-3';
+                        const title = document.createElement('h3');
+                        title.className = 'h5'; title.textContent = `Phiếu #${line.batchId} · Bàn ${line.tableCode}`;
+                        section.append(title);
+                        if (board.dataset.canEdit === 'true') {
+                            const batchLines = lines.filter(item => item.batchId === line.batchId);
+                            const finish = document.createElement('button');
+                            finish.type = 'button'; finish.className = 'btn btn-success mb-3';
+                            finish.textContent = 'Xong cả phiếu';
+                            finish.disabled = batchLines.some(item => item.status === 'Pending') || !batchLines.some(item => item.status === 'Preparing');
+                            finish.addEventListener('click', () => completeBatch(line.batchId, finish));
+                            section.append(finish);
+                            if (finish.disabled) {
+                                const hint = document.createElement('p'); hint.className = 'small text-muted';
+                                hint.textContent = 'Hãy Bắt đầu tất cả món chờ bếp trước khi hoàn thành cả phiếu.';
+                                section.append(hint);
+                            }
+                        }
+                        container.append(section); batches.set(line.batchId, section);
+                    }
+                    destination = batches.get(line.batchId);
+                }
                 const card = document.createElement('article');
                 card.className = 'card p-3 mb-2 d-flex flex-row gap-3 align-items-center flex-wrap';
                 const text = document.createElement('span');
@@ -64,7 +91,7 @@
                     line.preparingAt && `Bắt đầu: ${localTime(line.preparingAt)}`,
                     line.readyAt && `Xong: ${localTime(line.readyAt)}`].filter(Boolean).join(' · ');
                 card.append(stamps);
-                container.append(card);
+                destination.append(card);
             }
             if (!container.childElementCount) container.textContent = ready ? 'Chưa có món chờ mang ra.' : 'Không có món chờ chế biến.';
         }
@@ -92,6 +119,24 @@
         finally {
             try { await refresh(); } catch (error) { message.textContent = error.message; }
             busy = false; button.disabled = false;
+        }
+    }
+    async function completeBatch(batchId, button) {
+        if (busy || button.disabled) return;
+        if (!window.confirm(`Xong toàn bộ món đang chế biến trong phiếu #${batchId}? Món đã xong giữ nguyên thời điểm. Không thể chuyển lùi.`)) return;
+        busy = true; button.disabled = true;
+        try {
+            const response = await fetch('/Kitchen/CompleteBatch', { method: 'POST', body: new URLSearchParams({ batchId,
+                __RequestVerificationToken: document.querySelector('#kitchen-token input').value }) });
+            const result = await response.json().catch(() => null);
+            if (!response.ok || response.redirected) throw new Error(result?.message || 'Không thể hoàn thành phiếu. Hãy kiểm tra kết nối và đăng nhập.');
+            message.textContent = result.message;
+        } catch (error) { message.textContent = error.message; }
+        finally {
+            fingerprint = '';
+            try { await refresh(); } catch (error) { message.textContent = error.message; }
+            busy = false;
+            button.disabled = false;
         }
     }
     async function poll() {

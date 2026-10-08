@@ -128,6 +128,7 @@ internal static class ApiAccessMatrix
         new("Kitchen.Ready GET", "Manager,Waiter", "GET", "/Kitchen/Ready"),
         new("Kitchen.Snapshot GET", "Manager,Kitchen,Waiter", "GET", "/Kitchen/Snapshot"),
         new("Kitchen.Transition POST", KitchenWorkers, "POST", "/Kitchen/Transition"),
+        new("Kitchen.CompleteBatch POST", KitchenWorkers, "POST", "/Kitchen/CompleteBatch"),
         new("Kitchen.Advance POST", KitchenWorkers, "POST", $"/Kitchen/Advance/{Missing}"),
         new("Kitchen.Dishes GET", KitchenReaders, "GET", "/Kitchen/Dishes"),
         // S2-08 Task 2: lịch sử bật/tắt "Tạm hết" — chỉ Quản lý.
