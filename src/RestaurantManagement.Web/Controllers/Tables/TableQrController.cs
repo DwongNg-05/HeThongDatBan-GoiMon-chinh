@@ -28,6 +28,7 @@ public sealed class TableQrController(TableQrService qrService) : Controller
 
         return View("Scan", new TableQrScanViewModel
         {
+            QrToken = token,
             TableCode = qr.TableCode,
             AreaName = qr.AreaName,
             MinCapacity = qr.MinCapacity,

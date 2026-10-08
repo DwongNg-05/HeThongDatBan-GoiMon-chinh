@@ -13,7 +13,8 @@
                     <dt class="col-6">Sức chứa</dt><dd class="col-6">@Model.CapacityLabel</dd>
                     <dt class="col-6">Loại bàn</dt><dd class="col-6">@Model.TableTypeLabel</dd>
                 </dl>
-                <p class="small text-muted mt-4 mb-0">Vui lòng gọi phục vụ nếu thông tin bàn không đúng.</p>
+                <a class="btn btn-primary mt-3" asp-page="/GuestOrdering/Index" asp-route-qr="@Model.QrToken">Mở thực đơn gọi món</a>
+                <p class="small text-muted mt-3 mb-0">Nếu bàn chưa được phục vụ, vui lòng gọi nhân viên để mở phiên gọi món.</p>
             </div>
         </div>
     </div>

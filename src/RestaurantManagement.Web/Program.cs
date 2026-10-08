@@ -26,6 +26,7 @@ if (!string.IsNullOrWhiteSpace(builder.Configuration["Smtp:Username"] ) &&
     !string.IsNullOrWhiteSpace(builder.Configuration["Smtp:Password"] ) &&
     !string.IsNullOrWhiteSpace(builder.Configuration["Smtp:FromEmail"] ))
     builder.Services.AddHostedService<EmailWorker>();
+builder.Services.AddScoped<RestaurantManagement.Web.Services.Ordering.GuestOrderService>();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(

@@ -1,0 +1,21 @@
+@page
+@model RestaurantManagement.Web.Pages.GuestOrdering.SuccessModel
+@{ ViewData["Title"] = "Đã gửi order"; }
+
+<main class="container py-5">
+    @if (!Model.IsValid)
+    {
+        <div class="alert alert-warning">Mã order không hợp lệ.</div>
+    }
+    else
+    {
+        <section class="card border-success shadow-sm mx-auto" style="max-width: 42rem">
+            <div class="card-body text-center p-5">
+                <p class="text-success fw-semibold">✓ Order đã gửi cho bếp</p>
+                <h1 class="h2">Mã order của bạn</h1>
+                <p class="display-6 text-success mb-4">ORD-@Model.Order.ToString("D6")</p>
+                <p class="text-muted">Các món đang ở trạng thái chờ bếp. Cảm ơn bạn đã gọi món.</p>
+            </div>
+        </section>
+    }
+</main>

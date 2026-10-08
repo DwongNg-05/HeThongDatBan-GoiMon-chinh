@@ -1,0 +1,79 @@
+@page
+@using System.Text.Json
+@model RestaurantManagement.Web.Pages.GuestOrdering.IndexModel
+@{
+    ViewData["Title"] = "Gọi món";
+    string ImageSrc(string url) => url.StartsWith('/') ? Url.Content("~" + url) : url;
+}
+@section Styles { <link rel="stylesheet" href="~/css/guest-ordering.css" asp-append-version="true" /> }
+
+<main class="guest-ordering">
+    <header class="guest-ordering-header">
+        <span class="guest-ordering-kicker">BẾP NHÀ · GỌI MÓN</span>
+        <h1>Chọn món cho bàn của bạn</h1>
+        <p>Chọn món yêu thích và gửi order trực tiếp cho bếp.</p>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger" role="alert">@Model.ErrorMessage</div>
+    }
+
+    @if (!Model.HasOrderingSession)
+    {
+        <div class="alert alert-warning" role="alert">
+            Hãy quét mã QR trên bàn để mở phiên gọi món. Nếu vừa quét QR nhưng vẫn thấy thông báo này, vui lòng gọi nhân viên mở bàn.
+        </div>
+    }
+
+    <div class="guest-ordering-layout" @(Model.HasOrderingSession ? "" : "aria-disabled=true")>
+        <section class="guest-menu" aria-label="Thực đơn theo nhóm">
+            @foreach (var category in Model.Categories)
+            {
+                <section class="guest-menu-group" aria-labelledby="category-@category.Id">
+                    <h2 id="category-@category.Id">@category.Name</h2>
+                    @if (category.Dishes.Count == 0)
+                    {
+                        <p class="text-muted">Nhóm này hiện chưa có món.</p>
+                    }
+                    <div class="guest-menu-grid">
+                        @foreach (var dish in category.Dishes)
+                        {
+                            <article class="guest-dish @(dish.SoldOutToday ? "is-sold-out" : "")">
+                                <img src="@ImageSrc(dish.ImageUrl)" alt="Ảnh món @dish.Name" width="96" height="96" loading="lazy" />
+                                <div class="guest-dish-content">
+                                    <h3>@dish.Name</h3>
+                                    @if (!string.IsNullOrWhiteSpace(dish.ShortDescription)) { <p>@dish.ShortDescription</p> }
+                                    <p class="guest-dish-price">@dish.DisplayPrice <span>/ @dish.Unit</span></p>
+                                    @if (dish.SoldOutToday)
+                                    {
+                                        <span class="badge text-bg-secondary">Tạm hết</span>
+                                    }
+                                    else
+                                    {
+                                        <button type="button" class="btn btn-primary" data-add-dish
+                                                data-dish-id="@dish.Id" data-dish-name="@dish.Name" data-dish-price="@dish.PriceVnd" data-dish-unit="@dish.Unit"
+                                                disabled="@(!Model.HasOrderingSession)">Thêm vào giỏ</button>
+                                    }
+                                </div>
+                            </article>
+                        }
+                    </div>
+                </section>
+            }
+        </section>
+
+        <aside class="guest-cart" aria-label="Giỏ món">
+            <h2>Giỏ món</h2>
+            <p class="guest-cart-empty" data-cart-empty>Chưa có món nào trong giỏ.</p>
+            <div data-cart-lines></div>
+            <form method="post" data-order-form>
+                <input asp-for="CartJson" type="hidden" data-cart-json />
+                <button type="submit" class="btn btn-success w-100" disabled="@(!Model.HasOrderingSession)" data-submit-order>Gửi order cho bếp</button>
+            </form>
+        </aside>
+    </div>
+</main>
+
+<script type="application/json" id="initial-cart">@Html.Raw(string.IsNullOrWhiteSpace(Model.CartJson) ? "[]" : Model.CartJson)</script>
+@section Scripts { <script src="~/js/guest-ordering.js" asp-append-version="true"></script> }
