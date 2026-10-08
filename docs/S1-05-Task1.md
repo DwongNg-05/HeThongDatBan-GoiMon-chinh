@@ -34,7 +34,7 @@ Bảng **chỉ cho thêm**: trigger `tr_SecurityAuditLogs_AppendOnly` chặn UPD
 
 `/AuditLogs` (menu **Nhật ký hệ thống**, chỉ hiện với Quản lý) liệt kê tối đa 200 sự kiện gần nhất, **mới nhất lên đầu**, gồm các cột Thời điểm, Tài khoản, Vai trò, Hành động (kèm chi tiết giá cũ → mới) và Địa chỉ IP.
 
-- **Giới hạn truy cập**: `[Authorize(Roles = "Manager")]`. Vai trò khác bị chuyển tới `/Account/AccessDenied` (403); người chưa đăng nhập bị chuyển tới trang đăng nhập. Thủ tục `usp_SecurityAuditList` kiểm tra thêm quyền `Audit.Read` ở database.
+- **Giới hạn truy cập**: `[Authorize(Roles = "Manager")]`. Vai trò khác nhận 403 kèm trang “Không có quyền truy cập” ngay tại `/AuditLogs` (S1-04 Task 3; trước đây chuyển tới `/Account/AccessDenied`); người chưa đăng nhập bị chuyển tới trang đăng nhập. Thủ tục `usp_SecurityAuditList` kiểm tra thêm quyền `Audit.Read` ở database.
 - Màn hình chỉ xem, không có biểu mẫu sửa/xoá.
 - Trước đây màn hình này dùng EF (`ApplicationDbContext.AuditLogs`, `AuditLogService`) trỏ vào bảng `AuditLogs` có cấu trúc khác với bảng `dbo.AuditLogs` do migration SQL tạo, nên không chạy được trên database thật. Ngoài ra liên kết menu kiểm tra vai trò `QuanLy`, một mã vai trò không tồn tại. Hai lỗi này đã được thay bằng kho mới và vai trò `Manager`. Bộ lọc ngày/tài khoản cũ được bỏ khỏi màn hình vì thuộc task sau. `AuditLogService` (EF) không còn được dùng ở đâu.
 
@@ -65,7 +65,7 @@ dotnet run --no-build --project tools/RestaurantManagement.DbTool -- verify
   - **đăng nhập thành công** sinh đúng bản ghi;
   - **sửa giá món** ở cả hai màn hình sinh đúng bản ghi kèm giá cũ → mới; lưu cùng một giá không sinh bản ghi;
   - màn hình hiển thị đủ cột, mới nhất lên đầu;
-  - **tài khoản không phải quản lý** (`waiter`) bị chuyển tới AccessDenied (403) và không thấy liên kết; database cũng từ chối;
+  - **tài khoản không phải quản lý** (`waiter`) nhận 403 kèm trang báo không có quyền (S1-04 Task 3) và không thấy liên kết; database cũng từ chối;
   - người chưa đăng nhập bị chuyển tới trang đăng nhập;
   - UPDATE/DELETE nhật ký bị chặn.
 - `SecurityAuditTests` (AreaTests, không cần database): che định danh lạ, chuẩn hoá IP, giờ UTC+7 và nhãn tiếng Việt, `[Authorize(Roles = "Manager")]`, controller chỉ có GET.

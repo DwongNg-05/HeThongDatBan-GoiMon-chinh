@@ -1,8 +1,9 @@
 @model LoginModel
 @{ ViewData["Title"] = "Đăng nhập"; }
 <div class="row justify-content-center mt-5">
-    <section class="col-md-6 col-lg-4">
-        <h1 class="h3 mb-3">Đăng nhập quản lý</h1>
+    <section class="col-md-8 col-lg-5 auth-card">
+        <h1>Đăng nhập nhân viên</h1>
+        <p class="auth-lead">Dành cho Quản lý, Phục vụ, Bếp và Thu ngân.</p>
         @if (Model.SessionExpired)
         {
             <div class="alert alert-warning" role="alert">Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.</div>
@@ -30,7 +31,7 @@
         </form>
         @* S2-01 Task 1: khách hàng không cần đăng nhập để xem thực đơn. *@
         <div class="guest-menu-callout mt-4" data-guest-menu-link>
-            <p class="mb-2">Bạn là khách hàng? Không cần đăng nhập để xem món và giá.</p>
+            <p class="mb-3">Bạn là khách? Xem món và giá không cần đăng nhập.</p>
             <a class="btn btn-outline-primary w-100" asp-controller="Menu" asp-action="Index">Xem thực đơn</a>
         </div>
     </section>

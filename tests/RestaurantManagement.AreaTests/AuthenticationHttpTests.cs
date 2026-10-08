@@ -46,7 +46,10 @@ internal static class AuthenticationHttpTests
                 await Task.Delay(250);
             }
             if (!ready) throw new Exception("Login page did not start: " + string.Join(Environment.NewLine, log.TakeLast(20)));
-            foreach (var path in new[] { "/", "/Home/Index", "/Areas", "/Tables", "/Reservations", "/OpeningHours", "/SpecialHolidays", "/Dishes", "/DishCategories", "/Ordering", "/admin/employee-accounts", "/AuditLogs", "/AuditLogs/Index", "/Dishes/PriceHistory/1", "/api/table-status", "/api/table-map/A01" })
+            // "/" của khách chưa đăng nhập được chuyển tới thực đơn công khai (S2-01), không lộ trang nhân viên.
+            using (var root = await client.GetAsync("/"))
+                Check(root.StatusCode == HttpStatusCode.Redirect && root.Headers.Location?.OriginalString == "/Menu", "Anonymous root goes to the public menu");
+            foreach (var path in new[] { "/Home/Index", "/Areas", "/Tables", "/Reservations", "/OpeningHours", "/SpecialHolidays", "/Dishes", "/DishCategories", "/Ordering", "/admin/employee-accounts", "/AuditLogs", "/AuditLogs/Index", "/Dishes/PriceHistory/1", "/api/table-status", "/api/table-map/A01" })
             {
                 using var response = await client.GetAsync(path);
                 Check(response.StatusCode == HttpStatusCode.Unauthorized ||

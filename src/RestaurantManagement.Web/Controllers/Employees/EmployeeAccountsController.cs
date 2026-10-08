@@ -1,3 +1,4 @@
+using RestaurantManagement.Web.Security;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -8,7 +9,7 @@ using System.Security.Cryptography;
 namespace RestaurantManagement.Web.Controllers;
 
 [Route("admin/employee-accounts")]
-[Authorize(Roles = "Manager")]
+[Authorize(Roles = AppRoles.Manager)]
 [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
 public sealed class EmployeeAccountsController(IEmployeeAccountStore employeeAccounts) : Controller
 {

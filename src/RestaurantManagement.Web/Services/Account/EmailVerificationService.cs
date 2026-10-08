@@ -11,13 +11,13 @@ public sealed record SendResult(bool Sent, string? Error, int RetryAfterSeconds)
 public sealed class EmailVerificationService(EmailVerificationStore store, IEmailSender sender,
     IOptions<EmailVerificationOptions> options, ILogger<EmailVerificationService> logger)
 {
-    /// <summary>Claim ghi mã phiên đã xác minh; gắn với phiên nên đăng nhập lại phải xác minh lại.</summary>
+    /// <summary>Claim ghi mã phiên đã xác minh. Tài khoản đã xác minh email được gắn claim này ngay khi đăng nhập.</summary>
     public const string VerifiedClaim = "EmailVerifiedSession";
     public const string ManagerRole = "Manager";
 
     public EmailVerificationOptions Options => options.Value;
 
-    /// <summary>Mọi người dùng trừ Quản lý, mỗi phiên đăng nhập một lần.</summary>
+    /// <summary>Mọi người dùng trừ Quản lý, chỉ khi tài khoản chưa xác minh email lần nào (lần đăng nhập đầu tiên).</summary>
     public bool IsRequired(ClaimsPrincipal user)
     {
         if (!options.Value.Enabled || user.Identity?.IsAuthenticated != true || user.IsInRole(ManagerRole)) return false;

@@ -4,6 +4,20 @@
     ViewData["Title"] = "Nhật ký hệ thống";
     var filter = Model.Filter;
     var items = Model.Page.Items;
+    var paging = Model.Page;
+    // Giữ nguyên bộ lọc khi chuyển trang. Bộ lọc mặc định không ghi ngày vào link để "7 ngày gần nhất" vẫn tính theo hôm nay.
+    Dictionary<string, string> PageRoute(int pageNumber)
+    {
+        var route = new Dictionary<string, string>();
+        if (!filter.IsDefault)
+        {
+            route["fromDate"] = filter.FromDate.ToString("yyyy-MM-dd");
+            route["toDate"] = filter.ToDate.ToString("yyyy-MM-dd");
+        }
+        if (filter.UserId is { } uid) route["userId"] = uid.ToString();
+        if (pageNumber > 1) route["page"] = pageNumber.ToString();
+        return route;
+    }
     string BadgeClass(string action) => action switch
     {
         SecurityAuditEntry.LoginSucceeded => "bg-success",
@@ -64,11 +78,12 @@ else
         <strong>@Model.Page.TotalCount</strong> sự kiện từ @filter.FromDate.ToString("dd/MM/yyyy") đến @filter.ToDate.ToString("dd/MM/yyyy"),
         tài khoản: <strong>@Model.AccountLabel</strong>.
     </p>
-    @if (Model.Page.TotalCount > items.Count)
+    @if (paging.TotalCount > 0)
     {
-        <div class="alert alert-warning" role="status" id="audit-row-limit">
-            Chỉ hiển thị @items.Count sự kiện mới nhất trong tổng số @Model.Page.TotalCount. Hãy thu hẹp khoảng ngày hoặc chọn một tài khoản.
-        </div>
+        <p class="text-muted small" id="audit-page-info" data-page="@paging.PageNumber" data-pages="@paging.TotalPages">
+            Đang xem sự kiện @paging.FirstRow.ToString("N0")–@paging.LastRow.ToString("N0") trên tổng số @paging.TotalCount.ToString("N0")
+            (trang @paging.PageNumber/@paging.TotalPages, @paging.PageSize sự kiện mỗi trang).
+        </p>
     }
 }
 
@@ -111,3 +126,48 @@ else
         </tbody>
     </table>
 </div>
+
+@if (filter.IsValid && paging.TotalPages > 1)
+{
+    <nav aria-label="Phân trang nhật ký" id="audit-pagination">
+        <ul class="pagination flex-wrap justify-content-center">
+            <li class="page-item @(paging.HasPrevious ? "" : "disabled")">
+                @if (paging.HasPrevious)
+                {
+                    <a class="page-link" asp-controller="AuditLogs" asp-action="Index" asp-all-route-data="PageRoute(paging.PageNumber - 1)" rel="prev">&laquo; Trước</a>
+                }
+                else
+                {
+                    <span class="page-link">&laquo; Trước</span>
+                }
+            </li>
+            @foreach (var number in paging.PageLinks())
+            {
+                if (number is null)
+                {
+                    <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+                }
+                else if (number == paging.PageNumber)
+                {
+                    <li class="page-item active" aria-current="page"><span class="page-link">@number</span></li>
+                }
+                else
+                {
+                    <li class="page-item">
+                        <a class="page-link" asp-controller="AuditLogs" asp-action="Index" asp-all-route-data="PageRoute(number.Value)">@number</a>
+                    </li>
+                }
+            }
+            <li class="page-item @(paging.HasNext ? "" : "disabled")">
+                @if (paging.HasNext)
+                {
+                    <a class="page-link" asp-controller="AuditLogs" asp-action="Index" asp-all-route-data="PageRoute(paging.PageNumber + 1)" rel="next">Sau &raquo;</a>
+                }
+                else
+                {
+                    <span class="page-link">Sau &raquo;</span>
+                }
+            </li>
+        </ul>
+    </nav>
+}

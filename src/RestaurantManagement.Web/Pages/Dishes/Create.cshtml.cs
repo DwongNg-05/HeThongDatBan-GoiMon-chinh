@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Authorization;
+using RestaurantManagement.Web.Security;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc;
@@ -9,6 +11,8 @@ namespace RestaurantManagement.Web.Pages.Dishes;
 
 [RequestFormLimits(MultipartBodyLengthLimit = DishImageRules.MaxBytes + 1024 * 1024)]
 [RequestSizeLimit(DishImageRules.MaxBytes + 1024 * 1024)]
+// S1-04 Task 4: kiểm tra quyền ở máy chủ theo vai trò (docs/S1-04-Task4.md).
+[Authorize(Roles = AppRoles.Manager)]
 public class CreateModel : PageModel
 {
     private readonly IMenuStore _store;

@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Authorization;
+using RestaurantManagement.Web.Security;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using RestaurantManagement.Web.Services;
@@ -6,13 +8,18 @@ using System.Text.Json;
 
 namespace RestaurantManagement.Web.Pages.Ordering
 {
+    // S1-04 Task 4: kiểm tra quyền ở máy chủ theo vai trò (docs/S1-04-Task4.md).
+    [Authorize(Roles = AppRoles.FrontOfHouse)]
     public class CheckoutModel : PageModel
     {
         private readonly IMenuStore _store;
+        private readonly DailyDishStore? _daily;
 
-        public CheckoutModel(IMenuStore store)
+        // daily = null: dùng trong kiểm thử với store bộ nhớ (không có SQL Server).
+        public CheckoutModel(IMenuStore store, DailyDishStore? daily = null)
         {
             _store = store;
+            _daily = daily;
         }
 
         [BindProperty]
@@ -33,6 +40,14 @@ namespace RestaurantManagement.Web.Pages.Ordering
                 {
                     return BadRequest("Giỏ hàng chứa món không tồn tại, đã ngưng bán hoặc thuộc nhóm ngừng sử dụng");
                 }
+            }
+
+            // S2-08 Task 1: món đang tạm hết (hoặc hết trong ngày) không nhận order mới, kể cả khi đã nằm sẵn trong giỏ.
+            var availability = _daily?.AvailabilityNow();
+            var unavailable = items.Where(it => availability?.IsUnavailable(it.dishId) == true).Select(it => dishesById[it.dishId].Name).Distinct().ToArray();
+            if (unavailable.Length > 0)
+            {
+                return BadRequest($"Món đang tạm hết, không nhận order mới: {string.Join(", ", unavailable)}. Vui lòng bỏ khỏi giỏ và gọi lại.");
             }
 
             var order = _store.CreateOrder();

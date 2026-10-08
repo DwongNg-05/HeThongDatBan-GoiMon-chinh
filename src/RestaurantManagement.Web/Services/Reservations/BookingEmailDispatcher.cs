@@ -88,8 +88,10 @@ public sealed class SqlBookingEmailOutbox(string connectionString) : IBookingEma
 /// Lỗi gửi email không bao giờ làm mất lượt đặt bàn: đặt bàn đã được ghi trước khi gửi.
 /// S2-09 Task 2: email lỗi được hẹn gửi lại sau 5 phút; <see cref="RetryDueAsync"/> (gọi từ BookingEmailRetryWorker)
 /// gửi lại tối đa 3 lần rồi ghi kết quả cuối cùng (xem <see cref="EmailRetryPolicy"/>).
+/// Email xác nhận (BookingReceived) kèm nút "Xác nhận đặt bàn" khi có <see cref="BookingConfirmationLinks"/>.
 /// </summary>
-public sealed class BookingEmailDispatcher(IBookingEmailOutbox outbox, IEmailSender sender, ILogger<BookingEmailDispatcher> logger)
+public sealed class BookingEmailDispatcher(IBookingEmailOutbox outbox, IEmailSender sender, ILogger<BookingEmailDispatcher> logger,
+    BookingConfirmationLinks? confirmationLinks = null)
 {
     public const string BookingReceived = "BookingReceived";
 
@@ -152,7 +154,9 @@ public sealed class BookingEmailDispatcher(IBookingEmailOutbox outbox, IEmailSen
         string? error = null;
         try
         {
-            var message = BookingConfirmationEmail.Create(claimed.Recipient, BookingConfirmationEmail.ParsePayload(claimed.PayloadJson), messageType);
+            var details = BookingConfirmationEmail.ParsePayload(claimed.PayloadJson);
+            var confirmUrl = messageType == BookingReceived ? confirmationLinks?.CreateUrl(details.Code) : null;
+            var message = BookingConfirmationEmail.Create(claimed.Recipient, details, messageType, confirmUrl);
             // Không gắn với yêu cầu HTTP: khách đóng trình duyệt giữa chừng thì email vẫn gửi xong và kết quả vẫn được lưu.
             using var timeout = new CancellationTokenSource(SendTimeout);
             await sender.SendAsync(message, timeout.Token);

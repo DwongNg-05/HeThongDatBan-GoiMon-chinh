@@ -1,7 +1,9 @@
+using RestaurantManagement.Web.Security;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using RestaurantManagement.Web.Models;
 using RestaurantManagement.Web.Authentication;
@@ -38,6 +40,9 @@ public class AccountController(ManagementStore store, LoginSessionStore sessions
         {
             // S1-05: ghi đăng nhập thất bại (sai mật khẩu, tài khoản khoá/ngừng hoạt động, định danh không tồn tại, thiếu dữ liệu).
             await audit.WriteLogin(result.Candidate?.Id, model.Identifier, succeeded: false, ipAddress);
+            // S1-04 Task 1: gọi bằng fetch (X-Requested-With) nhận dữ liệu lỗi thuần thay vì trang HTML.
+            if (IdleSessionEvents.IsApiRequest(Request))
+                return Unauthorized(new { succeeded = false, message = InvalidCredentials, remainingSeconds = result.RemainingSeconds });
             ModelState.Clear();
             ModelState.AddModelError("", InvalidCredentials);
             model.Password = "";
@@ -54,12 +59,19 @@ public class AccountController(ManagementStore store, LoginSessionStore sessions
             new Claim(ClaimTypes.Role, user.Role)
         }, CookieAuthenticationDefaults.AuthenticationScheme);
         var principal = new ClaimsPrincipal(identity);
+        // Mỗi tài khoản (trừ Quản lý) chỉ xác minh email một lần, ở lần đăng nhập đầu tiên sau khi tạo tài khoản.
+        // Email chỉ được lưu vào tài khoản sau khi nhập đúng mã, nên tài khoản đã có email nghĩa là đã xác minh:
+        // đánh dấu phiên mới là đã xác minh luôn, không gửi mã nữa.
+        if (verification.IsRequired(principal)
+            && (await verification.State(user.Id, sessionId))?.Email is not null)
+            identity.AddClaim(new Claim(EmailVerificationService.VerifiedClaim, sessionId.ToString()));
         await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
             principal, new AuthenticationProperties { IsPersistent = false });
         await audit.WriteLogin(user.Id, user.UserName, succeeded: true, ipAddress);
         TempData.Remove(IdleSessionEvents.ExpiredItem);
         TempData["Success"] = "Đăng nhập thành công.";
-        // Xác minh email (mọi vai trò trừ Quản lý) diễn ra trước bước đổi mật khẩu.
+        // Xác minh email lần đầu (mọi vai trò trừ Quản lý) diễn ra trước bước đổi mật khẩu.
+        string next;
         if (verification.IsRequired(principal))
         {
             var state = await verification.State(user.Id, sessionId);
@@ -68,11 +80,24 @@ public class AccountController(ManagementStore store, LoginSessionStore sessions
                 var sent = await verification.SendCode(user.Id, sessionId, email, user.FullName, HttpContext.RequestAborted);
                 TempData[sent.Sent ? VerifyInfo : VerifyError] = sent.Sent ? "Đã gửi mã xác minh tới email của bạn." : sent.Error;
             }
-            return RedirectToAction(nameof(VerifyEmail), new { returnUrl = Url.IsLocalUrl(returnUrl) ? returnUrl : null });
+            next = Url.Action(nameof(VerifyEmail), new { returnUrl = Url.IsLocalUrl(returnUrl) ? returnUrl : null }) ?? "/Account/VerifyEmail";
         }
-        return await passwords.IsRequired(user.Id)
-            ? RedirectToAction(nameof(ChangePassword)) : RedirectAfterLogin(returnUrl);
+        else if (await passwords.IsRequired(user.Id))
+            next = Url.Action(nameof(ChangePassword)) ?? "/Account/ChangePassword";
+        else
+            next = Url.IsLocalUrl(returnUrl) ? returnUrl! : Url.Action("Index", "Home") ?? "/";
+
+        // S1-04 Task 1: đăng nhập thành công trả về vai trò (máy chủ đọc từ dbo.Roles, trình duyệt không tự chọn được)
+        // khi gọi bằng fetch; form đăng nhập thường vẫn chuyển trang như trước.
+        if (IdleSessionEvents.IsApiRequest(Request))
+            return Ok(new { succeeded = true, redirectUrl = next, user = RoleNavigation.Describe(principal) });
+        return LocalRedirect(next);
     }
+
+    /// <summary>S1-04 Task 1: vai trò và các mục điều hướng của tài khoản đang đăng nhập (JSON).</summary>
+    [Authorize, HttpGet("/api/account/me")]
+    [Produces("application/json")]
+    public IActionResult Me() => Ok(RoleNavigation.Describe(User));
 
     private const string VerifyInfo = "EmailVerificationInfo";
     private const string VerifyError = "EmailVerificationError";
@@ -233,7 +258,8 @@ public class AccountController(ManagementStore store, LoginSessionStore sessions
     private IActionResult RedirectAfterLogin(string? returnUrl) =>
         Url.IsLocalUrl(returnUrl) ? LocalRedirect(returnUrl!) : RedirectToAction("Index", "Home");
 
-    [Authorize, HttpPost, ValidateAntiForgeryToken]
+    // S1-04 Task 4: đăng xuất chỉ cần đã đăng nhập, kể cả khi vai trò không xác định (mọi API khác đều chặn vai trò đó).
+    [Authorize(Policy = AppRoles.SignedInPolicy), HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Logout()
     {
         await sessions.Revoke(User);
@@ -243,6 +269,19 @@ public class AccountController(ManagementStore store, LoginSessionStore sessions
         return RedirectToAction(nameof(Login));
     }
 
+    /// <summary>
+    /// S1-04 Task 3: trang báo không có quyền (luôn trả 403). Thường được máy chủ hiển thị ngay tại đường dẫn bị từ chối;
+    /// mở trực tiếp vẫn được. Trang có thông điệp, vai trò, đường dẫn đã mở và nút về màn hình chính của vai trò.
+    /// </summary>
     [AllowAnonymous]
-    public IActionResult AccessDenied() => StatusCode(403, "Bạn không có quyền truy cập chức năng này.");
+    public IActionResult AccessDenied(string? returnUrl = null)
+    {
+        var original = HttpContext.Features.Get<IStatusCodeReExecuteFeature>();
+        var requested = original is not null
+            ? original.OriginalPathBase + original.OriginalPath + original.OriginalQueryString
+            : Url.IsLocalUrl(returnUrl) ? returnUrl : null;
+        var view = View(AccessDeniedViewModel.For(User, requested));
+        view.StatusCode = StatusCodes.Status403Forbidden;
+        return view;
+    }
 }

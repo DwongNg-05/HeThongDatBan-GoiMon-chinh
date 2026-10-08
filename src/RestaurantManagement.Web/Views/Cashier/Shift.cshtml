@@ -1,0 +1,73 @@
+@model RestaurantManagement.Web.Models.Cashier.ShiftViewModel
+@using RestaurantManagement.Web.Models.Cashier
+@{
+    ViewData["Title"] = "Chốt ca";
+}
+<div class="container mt-4" data-screen="cashier-shift">
+    <h2>Chốt ca</h2>
+    @if (TempData["Success"] is string success) { <div class="alert alert-success" role="status">@success</div> }
+    @if (TempData["Error"] is string error) { <div class="alert alert-danger" role="alert">@error</div> }
+
+    @if (Model.OpenShift is { } shift)
+    {
+        <section class="mb-4" data-shift-id="@shift.Id" data-shift-status="Open">
+            <h3 class="h5">Ca đang mở: @shift.Name</h3>
+            <dl class="row">
+                <dt class="col-sm-4">Mở lúc</dt><dd class="col-sm-8">@shift.OpenedAt.ToString("dd/MM/yyyy HH:mm")</dd>
+                <dt class="col-sm-4">Tiền đầu ca</dt><dd class="col-sm-8">@Vnd.Format(shift.OpeningCash)</dd>
+                <dt class="col-sm-4">Số hoá đơn</dt><dd class="col-sm-8">@shift.InvoiceCount</dd>
+                <dt class="col-sm-4">Thu tiền mặt</dt><dd class="col-sm-8">@Vnd.Format(shift.CashRevenue)</dd>
+                <dt class="col-sm-4">Thu chuyển khoản</dt><dd class="col-sm-8">@Vnd.Format(shift.TransferRevenue)</dd>
+                <dt class="col-sm-4">Tiền mặt phải có trong két</dt><dd class="col-sm-8" data-expected-cash="@shift.ExpectedCashNow.ToString("0")">@Vnd.Format(shift.ExpectedCashNow)</dd>
+            </dl>
+            @if (Model.OpenSessionCount > 0)
+            {
+                <p class="alert alert-warning">Còn @Model.OpenSessionCount bàn đang phục vụ hoặc chưa thanh toán, chưa thể chốt ca.</p>
+            }
+            <form asp-action="CloseShift" method="post" class="row g-2 align-items-end">
+                <input type="hidden" name="shiftId" value="@shift.Id" />
+                <div class="col-sm-4">
+                    <label for="countedCash" class="form-label">Tiền mặt kiểm đếm (VND)</label>
+                    <input id="countedCash" name="countedCash" type="number" min="0" step="1000" class="form-control" required />
+                </div>
+                <div class="col-sm-5">
+                    <label for="explanation" class="form-label">Giải trình (bắt buộc khi lệch quá 50.000 ₫)</label>
+                    <input id="explanation" name="explanation" class="form-control" maxlength="500" />
+                </div>
+                <div class="col-sm-3"><button type="submit" class="btn btn-danger w-100">Chốt ca</button></div>
+            </form>
+        </section>
+    }
+    else
+    {
+        <section class="mb-4" data-shift-status="None">
+            <h3 class="h5">Chưa có ca đang mở</h3>
+            <form asp-action="OpenShift" method="post" class="row g-2 align-items-end">
+                <div class="col-sm-5">
+                    <label for="name" class="form-label">Tên ca</label>
+                    <input id="name" name="name" class="form-control" maxlength="100" placeholder="Ví dụ: Ca tối" />
+                </div>
+                <div class="col-sm-4">
+                    <label for="openingCash" class="form-label">Tiền đầu ca (VND)</label>
+                    <input id="openingCash" name="openingCash" type="number" min="0" step="1000" class="form-control" value="0" required />
+                </div>
+                <div class="col-sm-3"><button type="submit" class="btn btn-primary w-100">Mở ca</button></div>
+            </form>
+        </section>
+    }
+
+    @if (Model.LastClosed is { } last)
+    {
+        <section data-shift-id="@last.Id" data-shift-status="Closed">
+            <h3 class="h5">Ca đã chốt gần nhất: @last.Name</h3>
+            <dl class="row">
+                <dt class="col-sm-4">Chốt lúc</dt><dd class="col-sm-8">@last.ClosedAt?.ToString("dd/MM/yyyy HH:mm")</dd>
+                <dt class="col-sm-4">Số hoá đơn</dt><dd class="col-sm-8">@last.InvoiceCount</dd>
+                <dt class="col-sm-4">Doanh thu</dt><dd class="col-sm-8">@Vnd.Format(last.CashRevenue + last.TransferRevenue)</dd>
+                <dt class="col-sm-4">Tiền mặt kiểm đếm / phải có</dt><dd class="col-sm-8">@Vnd.Format(last.CountedCash ?? 0) / @Vnd.Format(last.ExpectedCash ?? 0)</dd>
+                <dt class="col-sm-4">Chênh lệch</dt><dd class="col-sm-8">@Vnd.Format(last.CashDifference ?? 0)</dd>
+                @if (!string.IsNullOrWhiteSpace(last.Explanation)) { <dt class="col-sm-4">Giải trình</dt><dd class="col-sm-8">@last.Explanation</dd> }
+            </dl>
+        </section>
+    }
+</div>

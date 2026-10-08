@@ -107,7 +107,7 @@ internal static class BookingConfirmationEmailTests
         check(new RestaurantManagement.Web.Models.Reservations.BookingTableOption { Code = "A05", AreaName = "Tầng 1", MaxCapacity = 4 }.Label == "A05 · Tầng 1 · tối đa 4 khách",
             "Table code: table choices show code, area and capacity");
 
-        // Quản lý, phục vụ, bếp, thu ngân xem được danh sách/chi tiết khách đặt trước.
+        // S1-04 Task 2: chỉ Quản lý, Phục vụ xem được danh sách/chi tiết khách đặt trước (Bếp, Thu ngân bị chặn).
         string? Roles(string action) => typeof(RestaurantManagement.Web.Controllers.ReservationsController).GetMethods()
             .Where(m => m.Name == action).SelectMany(m => m.GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), true))
             .Cast<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>().Select(a => a.Roles).FirstOrDefault();
@@ -140,8 +140,9 @@ internal static class BookingConfirmationEmailTests
 
         foreach (var action in new[] { "Index", "Details", "EmailStatus" })
         {
-            var roles = Roles(action)?.Split(',') ?? [];
-            check(new[] { "Manager", "Waiter", "Kitchen", "Cashier" }.All(roles.Contains), $"Reservation view: {action} open to manager, waiter, kitchen and cashier");
+            var roles = Roles(action)?.Split(',') ?? Array.Empty<string>();
+            // S1-04 Task 2: chỉ Quản lý và Phục vụ; Bếp, Thu ngân bị chặn ở máy chủ.
+            check(roles.Order().SequenceEqual(new[] { "Manager", "Waiter" }), $"Reservation view: {action} open to manager and waiter only");
         }
     }
 

@@ -63,10 +63,15 @@ public sealed record TableStatusDisplay(string Label, string CssClass)
     }
 }
 
+/// <summary>Một khu vực đang hoạt động trên sơ đồ bàn (lấy từ "Khu vực &amp; bàn").</summary>
+public sealed record TableMapArea(int Id, string Name, int TableCount);
+
 public sealed class TableMapViewModel
 {
     public required IReadOnlyList<DiningTableCard> Tables { get; init; }
-    public required IReadOnlyList<string> Areas { get; init; }
-    public string? SelectedArea { get; init; }
+    public required IReadOnlyList<TableMapArea> Areas { get; init; }
+    public int? SelectedAreaId { get; init; }
     public int TotalCount { get; init; }
+    /// <summary>Thông báo khi không đọc được dữ liệu bàn từ cơ sở dữ liệu.</summary>
+    public string? LoadError { get; init; }
 }

@@ -77,13 +77,20 @@ public static class BookingConfirmationEmail
         : $"Xác nhận đặt bàn {d.DisplayCode} – {d.RestaurantName}";
 
     /// <summary>Email xác nhận (BookingReceived) hoặc email báo huỷ (BookingCancelled) của một lượt đặt bàn.</summary>
-    public static EmailMessage Create(string to, BookingEmailDetails d, string messageType = Received)
+    /// <param name="confirmUrl">
+    /// Liên kết "Xác nhận đặt bàn" (có mã bảo mật) để khách tự xác nhận mà không cần đăng nhập.
+    /// Chỉ hiện trong email xác nhận của lượt đã chọn bàn.
+    /// </param>
+    public static EmailMessage Create(string to, BookingEmailDetails d, string messageType = Received, string? confirmUrl = null)
     {
         var cancelled = messageType == Cancelled;
+        var showConfirm = !cancelled && !string.IsNullOrWhiteSpace(confirmUrl) && d.TableCode is not null;
         var title = cancelled ? "Huỷ đặt bàn" : "Xác nhận đặt bàn";
         var intro = cancelled
             ? "Nhà hàng rất tiếc phải thông báo lượt đặt bàn dưới đây đã bị huỷ."
-            : "Nhà hàng đã ghi nhận yêu cầu đặt bàn của bạn. Vui lòng giữ lại mã đặt bàn dưới đây.";
+            : showConfirm
+                ? "Nhà hàng đã ghi nhận yêu cầu đặt bàn của bạn. Vui lòng bấm nút “Xác nhận đặt bàn” bên dưới để giữ bàn."
+                : "Nhà hàng đã ghi nhận yêu cầu đặt bàn của bạn. Vui lòng giữ lại mã đặt bàn dưới đây.";
         var note = cancelled
             ? "Nếu bạn vẫn muốn dùng bữa, vui lòng đặt bàn mới hoặc gọi điện cho nhà hàng."
             : $"Giờ hiển thị theo giờ Việt Nam (UTC+7). Nhà hàng sẽ sắp xếp bàn và liên hệ nếu cần thay đổi.";
@@ -94,6 +101,18 @@ public static class BookingConfirmationEmail
         var address = string.IsNullOrWhiteSpace(d.RestaurantAddress) ? "(nhà hàng sẽ liên hệ để báo địa chỉ)" : d.RestaurantAddress;
         string Row(string label, string valueHtml) =>
             $"<tr><td style=\"padding:8px 0;color:#766b6e;width:120px;vertical-align:top\">{label}</td><td style=\"padding:8px 0;font-weight:600\">{valueHtml}</td></tr>";
+
+        // Nút "Xác nhận đặt bàn" (bảng lồng để hiện đúng trên Gmail/Outlook) + liên kết dự phòng dạng chữ.
+        var confirmHtml = showConfirm
+            ? $"""
+                <tr><td align="center" style="padding:4px 24px 20px">
+                  <table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:10px;background:#c92d3e">
+                    <a href="{E(confirmUrl)}" target="_blank" style="display:inline-block;padding:14px 30px;font-size:16px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:10px">Xác nhận đặt bàn</a>
+                  </td></tr></table>
+                  <div style="font-size:12px;color:#9a8f91;margin-top:10px;line-height:1.5">Nút không bấm được? Mở liên kết sau trong trình duyệt:<br><a href="{E(confirmUrl)}" style="color:#c92d3e;word-break:break-all">{E(confirmUrl)}</a></div>
+                </td></tr>
+                """
+            : string.Empty;
 
         var html = $"""
             <!doctype html>
@@ -121,6 +140,7 @@ public static class BookingConfirmationEmail
                         {(cancelled && d.CancelReason is not null ? Row("Lý do huỷ", E(d.CancelReason)) : "")}
                       </table>
                     </td></tr>
+                    {confirmHtml}
                     <tr><td style="padding:0 24px 24px">
                       <div style="background:#fff8e5;border:1px solid #f2d68a;border-radius:10px;padding:12px 14px;font-size:14px;line-height:1.5">
                         {E(note)}
@@ -148,6 +168,8 @@ public static class BookingConfirmationEmail
             d.RestaurantPhone is null ? null : $"Điện thoại:   {d.RestaurantPhone}",
             cancelled && d.CancelReason is not null ? $"Lý do huỷ:    {d.CancelReason}" : null,
             "",
+            showConfirm ? $"Xác nhận đặt bàn: {confirmUrl}" : null,
+            showConfirm ? "" : null,
             cancelled ? note : $"Khi đến quán, vui lòng đọc mã đặt bàn {d.DisplayCode} cho nhân viên.",
             "Email được gửi tự động, vui lòng không trả lời."
         }.Where(line => line is not null));

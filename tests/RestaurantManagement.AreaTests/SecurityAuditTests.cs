@@ -74,7 +74,23 @@ internal static class SecurityAuditTests
         check(vm.AccountLabel == "waiter" && vm.Accounts[1].Label == "old — Bếp (ngừng hoạt động)"
             && (vm with { Filter = byDefault }).AccountLabel == "Tất cả tài khoản", "Audit filter: account labels");
         var actionParams = typeof(AuditLogsController).GetMethod(nameof(AuditLogsController.Index))!.GetParameters().Select(p => p.Name).ToArray();
-        check(actionParams.SequenceEqual(new[] { "fromDate", "toDate", "userId" }), "Audit filter: query parameters fromDate, toDate, userId");
+        check(actionParams.SequenceEqual(new[] { "fromDate", "toDate", "userId", "page" }), "Audit filter: query parameters fromDate, toDate, userId, page");
+
+        // Phân trang nhật ký hệ thống.
+        var rows = Enumerable.Range(1, 50).Select(i => entry with { Id = i }).ToArray();
+        var first = new SecurityAuditPage(rows, 120, 1, 50);
+        check(first is { TotalPages: 3, HasPrevious: false, HasNext: true, FirstRow: 1, LastRow: 50 }, "Audit paging: first page of 120 rows");
+        var last = new SecurityAuditPage(rows[..20], 120, 3, 50);
+        check(last is { HasPrevious: true, HasNext: false, FirstRow: 101, LastRow: 120 }, "Audit paging: last page shows remaining rows");
+        check(SecurityAuditPage.Empty is { TotalPages: 1, HasPrevious: false, HasNext: false, FirstRow: 0, LastRow: 0 }, "Audit paging: empty result has one page");
+        check(new SecurityAuditPage(rows, 100, 2, 50).TotalPages == 2 && new SecurityAuditPage(rows, 101, 1, 50).TotalPages == 3,
+            "Audit paging: page count rounds up");
+        check(SecurityAuditPage.Skip(1) == 0 && SecurityAuditPage.Skip(3) == 2 * SecurityAuditFilter.PageSize && SecurityAuditPage.Skip(0) == 0 && SecurityAuditPage.Skip(-5) == 0
+            && SecurityAuditPage.Skip(int.MaxValue) == int.MaxValue, "Audit paging: offset from page number, invalid pages treated as page 1, no overflow");
+        check(new SecurityAuditPage(rows, 1000, 6, 50).PageLinks().SequenceEqual(new int?[] { 1, null, 4, 5, 6, 7, 8, null, 20 }),
+            "Audit paging: links keep first, last and two pages around current");
+        check(new SecurityAuditPage(rows, 120, 1, 50).PageLinks().SequenceEqual(new int?[] { 1, 2, 3 })
+            && SecurityAuditPage.Empty.PageLinks().SequenceEqual(new int?[] { 1 }), "Audit paging: short lists have no ellipsis");
 
         var candidate = new LoginUser(1, "manager", "Quản lý mẫu", "Manager");
         check(new LoginResult(null, 0, candidate) is { User: null, Candidate.UserName: "manager" }, "Audit: failed login keeps matched account for logging");

@@ -6,7 +6,6 @@ namespace RestaurantManagement.Web.Services;
 /// <summary>Polls the transactional SQL outbox so changes from every stored procedure reach SSE clients.</summary>
 public sealed class TableStatusOutboxWorker(
     IConfiguration configuration,
-    DemoTableCatalog catalog,
     TableMapEventBroker eventBroker,
     ILogger<TableStatusOutboxWorker> logger) : BackgroundService
 {
@@ -44,7 +43,6 @@ public sealed class TableStatusOutboxWorker(
                 var changes = await ReadChanges(connection, lastEventId, stoppingToken);
                 foreach (var change in changes)
                 {
-                    catalog.ApplyDatabaseStatus(change.Code, change.Status, change.ChangedAtUtc);
                     var transition = TableStatusTransition.From(change.Code, change.Area, change.Capacity,
                         change.PreviousStatus, change.Status, change.ChangedAtUtc);
                     eventBroker.Publish(transition);

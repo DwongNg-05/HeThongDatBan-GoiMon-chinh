@@ -1,0 +1,54 @@
+@model RestaurantManagement.Web.Models.Kitchen.TemporaryOutHistoryViewModel
+@using RestaurantManagement.Web.Models.Reservations
+@{
+    ViewData["Title"] = "Lịch sử tạm hết";
+}
+@* S2-08 Task 2: nhật ký bật/tắt "Tạm hết" — chỉ Quản lý xem. Giờ Việt Nam (UTC+7), mới nhất ở trên. *@
+<div class="container mt-4" data-screen="temporary-out-history">
+    <h2>Lịch sử tạm hết@(Model.DishName is null ? "" : $" – {Model.DishName}")</h2>
+    <p class="text-muted">
+        Mỗi lần bật hoặc tắt “Tạm hết” được ghi một dòng: người thực hiện, món, trạng thái trước, trạng thái sau và thời điểm
+        (giờ Việt Nam, UTC+7). Nhật ký chỉ để xem, không sửa được.
+    </p>
+
+    <form method="get" asp-action="History" class="row g-2 align-items-end mb-3">
+        <div class="col-auto">
+            <label for="dishId" class="form-label">Món</label>
+            <select id="dishId" name="dishId" class="form-select">
+                <option value="">Tất cả món</option>
+                @foreach (var dish in Model.Dishes)
+                {
+                    <option value="@dish.Id" selected="@(dish.Id == Model.DishId)">@dish.Name</option>
+                }
+            </select>
+        </div>
+        <div class="col-auto"><button type="submit" class="btn btn-outline-primary">Xem</button></div>
+        <div class="col-auto"><a asp-action="Dishes" class="btn btn-link">← Món trong ngày</a></div>
+    </form>
+
+    @if (Model.Entries.Count == 0)
+    {
+        <p class="text-muted" data-history-empty>Chưa có lần bật/tắt tạm hết nào.</p>
+    }
+    else
+    {
+        <table class="table table-sm align-middle">
+            <thead>
+                <tr><th>Thời điểm</th><th>Món</th><th>Thao tác</th><th>Trạng thái trước</th><th>Trạng thái sau</th><th>Người thực hiện</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var entry in Model.Entries)
+                {
+                    <tr data-log-id="@entry.Id" data-dish-id="@entry.DishId" data-new-state="@(entry.IsTemporarilyOut ? "true" : "false")" data-changed-by="@entry.ChangedById">
+                        <td class="text-nowrap"><time datetime="@entry.ChangedAtUtc.ToString("o")">@VietnamTime.FromUtc(entry.ChangedAtUtc).ToString("dd/MM/yyyy HH:mm:ss")</time></td>
+                        <td>@entry.DishName</td>
+                        <td>@entry.ActionLabel</td>
+                        <td>@entry.OldStateLabel</td>
+                        <td><span class="badge @(entry.IsTemporarilyOut ? "bg-warning text-dark" : "bg-success")">@entry.NewStateLabel</span></td>
+                        <td>@entry.ActorLabel</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>

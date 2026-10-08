@@ -3,7 +3,8 @@ using RestaurantManagement.Web.Models;
 
 namespace RestaurantManagement.Web.Services;
 
-/// <summary>Shared in-process table state used by the development table-map demo.</summary>
+/// <summary>Dữ liệu bàn mẫu trong bộ nhớ — chỉ còn dùng cho kiểm thử và chi tiết bàn dự phòng khi chạy Development không có SQL.
+/// Sơ đồ bàn thật đọc từ <see cref="TableMapStore"/> (dbo.Areas, dbo.DiningTables).</summary>
 public sealed class DemoTableCatalog
 {
     private static readonly string[] AreaNames = ["Tầng một", "Tầng hai", "Sân vườn"];
@@ -41,11 +42,12 @@ public sealed class DemoTableCatalog
     {
         var selectedArea = AreaNames.FirstOrDefault(name => string.Equals(name, area?.Trim(), StringComparison.OrdinalIgnoreCase));
         var tables = GetAll();
+        var areas = AreaNames.Select((name, index) => new RestaurantManagement.Web.Models.TableMapArea(index + 1, name, tables.Count(table => table.Area == name))).ToArray();
         return new TableMapViewModel
         {
             Tables = selectedArea is null ? tables : tables.Where(table => table.Area == selectedArea).ToArray(),
-            Areas = AreaNames,
-            SelectedArea = selectedArea,
+            Areas = areas,
+            SelectedAreaId = areas.FirstOrDefault(item => item.Name == selectedArea)?.Id,
             TotalCount = tables.Count
         };
     }

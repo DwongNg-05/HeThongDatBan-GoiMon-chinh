@@ -1,3 +1,4 @@
+using RestaurantManagement.Web.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc;
@@ -7,7 +8,7 @@ using RestaurantManagement.Data.Models;
 namespace RestaurantManagement.Web.Pages.Dishes;
 
 // S1-05 Task 3: nhật ký thay đổi giá chỉ dành cho Quản lý, chỉ xem; các phương thức ghi luôn trả 405.
-[Authorize(Roles = "Manager")]
+[Authorize(Roles = AppRoles.Manager)]
 public class PriceHistoryModel : PageModel
 {
     private readonly IMenuStore _store;

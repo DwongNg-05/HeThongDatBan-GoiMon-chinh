@@ -13,10 +13,13 @@
             Danh sách đặt bàn
         </h2>
 
-        <a asp-action="Create"
-           class="btn btn-primary">
-            + Đặt bàn mới
-        </a>
+        @if (User.IsInRole("Manager") || User.IsInRole("Waiter"))
+        {
+            <a asp-action="Create"
+               class="btn btn-primary">
+                + Đặt bàn mới
+            </a>
+        }
 
     </div>
 

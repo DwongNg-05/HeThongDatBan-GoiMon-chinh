@@ -1,12 +1,15 @@
 @{
     var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
     var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
-    var currentPage = ViewContext.RouteData.Values["page"]?.ToString();
     bool IsCurrent(string controller, string action) =>
         string.Equals(currentController, controller, StringComparison.OrdinalIgnoreCase) &&
         (controller != "Home" || string.Equals(currentAction, action, StringComparison.OrdinalIgnoreCase));
-    bool IsCurrentPage(string page) => currentPage?.StartsWith(page[..page.LastIndexOf('/') ] + "/", StringComparison.OrdinalIgnoreCase) == true;
     var signedIn = User.Identity?.IsAuthenticated == true;
+    // S1-04 Task 2/4: menu chỉ hiện chức năng vai trò được dùng; máy chủ vẫn kiểm tra quyền ở từng API.
+    var navItems = RestaurantManagement.Web.Security.RoleNavigation.For(User);
+    var activeNav = RestaurantManagement.Web.Security.RoleNavigation.ActiveKey(navItems, Context.Request.Path.Value ?? "/");
+    // S1-04 Task 1: vai trò do máy chủ gắn khi đăng nhập (claim Role), hiện cạnh tên tài khoản.
+    var userRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
 }
 <!DOCTYPE html>
 <html lang="vi">
@@ -15,12 +18,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - Nhà hàng</title>
     <script type="importmap"></script>
+    @* Be Vietnam Pro: font thiết kế cho tiếng Việt (dấu chuẩn); không tải được thì dùng font hệ thống. *@
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" />
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/RestaurantManagement.Web.styles.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/red-white.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/admin-shell.css" asp-append-version="true" />
     @await RenderSectionAsync("Styles", required: false)
+    @* Giao diện phong cách Michelin: nạp cuối để ghi đè màu, chữ, khoảng cách của các file trên. *@
+    <link rel="stylesheet" href="~/css/michelin.css" asp-append-version="true" />
 </head>
 <body class="@(signedIn ? "admin-shell" : "guest-shell")">
     <a class="skip-navigation" href="#main-content">Đi đến nội dung chính</a>
@@ -29,52 +38,24 @@
         <aside class="offcanvas-lg offcanvas-start admin-sidebar" tabindex="-1" id="adminSidebar" aria-labelledby="sidebar-title">
             <div class="sidebar-brand-row">
                 <a class="sidebar-brand" asp-area="" asp-controller="Home" asp-action="Index">
-                    <span class="brand-mark" aria-hidden="true">B</span>
-                    <span><strong id="sidebar-title">Bếp Nhà</strong><small>Hệ thống nhà hàng</small></span>
+                    <span class="brand-wordmark" id="sidebar-title">BẾP NHÀ</span>
                 </a>
                 <button type="button" class="btn-close d-lg-none" data-bs-dismiss="offcanvas" data-bs-target="#adminSidebar" aria-label="Đóng menu"></button>
             </div>
             <nav class="sidebar-navigation" aria-label="Điều hướng chính">
                 <ul class="sidebar-links">
-                        @if (User.Identity?.IsAuthenticated == true)
-                        {
-                        @if (User.IsInRole("Manager") || User.IsInRole("Waiter"))
-                        {
-                            <li class="nav-item"><a class="sidebar-link @(IsCurrent("ReservationManagement", "Index") || IsCurrent("ReservationConfirmations", "Index") || IsCurrent("TableReservationSchedule", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("ReservationManagement", "Index") || IsCurrent("ReservationConfirmations", "Index") || IsCurrent("TableReservationSchedule", "Index") ? "page" : null)" asp-controller="ReservationManagement" asp-action="Index">Quản lý đặt bàn</a></li>
-                        }
-                        <li class="nav-item"><a class="sidebar-link @(IsCurrent("Areas", "Index") || IsCurrent("Tables", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("Areas", "Index") || IsCurrent("Tables", "Index") ? "page" : null)" asp-controller="Areas" asp-action="Index">Khu vực &amp; bàn</a></li>
-                        @if (User.IsInRole("Manager") || User.IsInRole("Waiter"))
-                        {
-                            <li class="nav-item"><a class="sidebar-link @(IsCurrent("TableMap", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("TableMap", "Index") ? "page" : null)" asp-controller="TableMap" asp-action="Index">Sơ đồ bàn</a></li>
-                        }
-                        <li class="nav-item"><a class="sidebar-link @(IsCurrent("OpeningHours", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("OpeningHours", "Index") ? "page" : null)" asp-controller="OpeningHours" asp-action="Index">Giờ hoạt động</a></li>
-                        <li class="nav-item"><a class="sidebar-link @(IsCurrent("Home", "Privacy") ? "is-active" : "")" aria-current="@(IsCurrent("Home", "Privacy") ? "page" : null)" asp-controller="Home" asp-action="Privacy">Thông tin</a></li>
-                        <li class="nav-item"><a class="sidebar-link @(IsCurrentPage("/DishCategories/Index") ? "is-active" : "")" aria-current="@(IsCurrentPage("/DishCategories/Index") ? "page" : null)" asp-page="/DishCategories/Index">Quản lý nhóm món</a></li>
-                        <li class="nav-item"><a class="sidebar-link @(IsCurrentPage("/Dishes/Index") ? "is-active" : "")" aria-current="@(IsCurrentPage("/Dishes/Index") ? "page" : null)" asp-page="/Dishes/Index">Quản lý món</a></li>
-                        <li class="nav-item"><a class="sidebar-link @(IsCurrent("Menu", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("Menu", "Index") ? "page" : null)" asp-controller="Menu" asp-action="Index">Thực đơn</a></li>
-                        <li class="nav-item"><a class="sidebar-link @(IsCurrentPage("/Ordering/Index") ? "is-active" : "")" aria-current="@(IsCurrentPage("/Ordering/Index") ? "page" : null)" asp-page="/Ordering/Index">Gọi món</a></li>
-                        @if (User.IsInRole("Manager"))
-                        {
-                            <li class="nav-item">
-                                <a class="sidebar-link @(IsCurrent("EmployeeAccounts", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("EmployeeAccounts", "Index") ? "page" : null)" asp-controller="EmployeeAccounts" asp-action="Index">Quản lý tài khoản</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="sidebar-link @(IsCurrent("AuditLogs", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("AuditLogs", "Index") ? "page" : null)" asp-area="" asp-controller="AuditLogs" asp-action="Index">Nhật ký hệ thống</a>
-                            </li>
-                        }
-                        @if (User.Identity?.IsAuthenticated == true && User.IsInRole("QuanLy"))
-                        {
-                            <li class="nav-item">
-                                <a class="sidebar-link @(IsCurrent("MenuItem", "Index") ? "is-active" : "")" aria-current="@(IsCurrent("MenuItem", "Index") ? "page" : null)" asp-area="" asp-controller="MenuItem" asp-action="Index">Món ăn</a>
-                            </li>
-                        }
-                        }
-
+                    @* S1-04 Task 2: mục điều hướng lấy từ bảng ánh xạ vai trò → màn hình (Security/RoleNavigation.cs).
+                       Bếp: 2 mục; Thu ngân: 3 mục. Máy chủ vẫn chặn từng API ngoài phạm vi, kể cả khi gõ thẳng đường dẫn. *@
+                    @foreach (var item in navItems)
+                    {
+                        var active = item.Key == activeNav;
+                        <li class="nav-item" data-nav-item="@item.Key"><a class="sidebar-link @(active ? "is-active" : "")" aria-current="@(active ? "page" : null)" href="@Url.Content("~" + item.Path)">@item.Title</a></li>
+                    }
                 </ul>
             </nav>
             <div class="sidebar-account">
                 <span class="account-avatar" aria-hidden="true">@(User.Identity?.Name?.FirstOrDefault().ToString().ToUpperInvariant())</span>
-                <div class="account-details"><small>Tài khoản hiện tại</small><strong>@User.Identity?.Name</strong></div>
+                <div class="account-details"><small>Tài khoản hiện tại</small><strong>@User.Identity?.Name</strong><small data-user-role="@userRole">@RestaurantManagement.Web.Security.AppRoles.DisplayName(userRole)</small></div>
                 <form asp-area="" asp-controller="Account" asp-action="Logout" method="post">
                     <button type="submit" class="sidebar-logout">Đăng xuất</button>
                 </form>
@@ -88,14 +69,19 @@
                 <button class="menu-toggle d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#adminSidebar" aria-controls="adminSidebar" aria-label="Mở menu điều hướng">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
                 </button>
-                <div class="workspace-location"><span>Bếp Nhà</span><span aria-hidden="true">/</span><strong>@ViewData["Title"]</strong></div>
-                <span class="workspace-caption">Hệ thống nhà hàng</span>
+                <span class="workspace-caption">@(User.FindFirst("FullName")?.Value ?? User.Identity?.Name) · @RestaurantManagement.Web.Security.AppRoles.DisplayName(userRole)</span>
             }
             else
             {
-                <a class="sidebar-brand" asp-area="" asp-controller="Home" asp-action="Index"><span class="brand-mark" aria-hidden="true">B</span><strong>Bếp Nhà</strong></a>
-                <a asp-area="" asp-controller="ReservationLookup" asp-action="Index">Tra cứu đặt bàn</a>
-                <a asp-area="" asp-controller="Account" asp-action="Login">Đăng nhập nhân viên</a>
+                @* S2-01 Task 1: khách chưa đăng nhập luôn có đường tới thực đơn công khai. *@
+                <a class="sidebar-brand" asp-area="" asp-controller="Menu" asp-action="Index" aria-label="Bếp Nhà – thực đơn"><span class="brand-wordmark">BẾP NHÀ</span></a>
+                <nav class="guest-links" aria-label="Điều hướng khách">
+                    <a asp-area="" asp-controller="Menu" asp-action="Index" aria-current="@(IsCurrent("Menu", "Index") ? "page" : null)">Thực đơn</a>
+                    @* Khách đặt bàn không cần đăng nhập. *@
+                    <a asp-area="" asp-controller="Reservations" asp-action="Create" aria-current="@(IsCurrent("Reservations", "Create") ? "page" : null)">Đặt bàn</a>
+                    <a asp-area="" asp-controller="ReservationLookup" asp-action="Index">Tra cứu đặt bàn</a>
+                    <a class="guest-login" asp-area="" asp-controller="Account" asp-action="Login" aria-current="@(IsCurrent("Account", "Login") ? "page" : null)">Đăng nhập</a>
+                </nav>
             }
         </header>
         <main id="main-content" class="workspace-content" tabindex="-1">
@@ -103,8 +89,13 @@
         </main>
     </div>
 
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    @* S2-01 Task 4: trang công khai nhẹ (thực đơn) không tải jQuery/Bootstrap JS cho khách chưa đăng nhập;
+       nhân viên đã đăng nhập vẫn cần Bootstrap JS cho menu điều hướng. *@
+    @if (signedIn || ViewData["LightweightScripts"] is not true)
+    {
+        <script src="~/lib/jquery/dist/jquery.min.js"></script>
+        <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    }
     <script src="~/js/site.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>

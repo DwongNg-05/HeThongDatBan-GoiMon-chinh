@@ -1,10 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
+using RestaurantManagement.Web.Security;
 using Microsoft.AspNetCore.Mvc;
 using RestaurantManagement.Web.Authentication;
 using RestaurantManagement.Web.Services;
 
 namespace RestaurantManagement.Web.Controllers;
 
+// S1-04 Task 2/4: chi tiết bàn trên sơ đồ — Quản lý, Phục vụ.
+[Authorize(Roles = AppRoles.FrontOfHouse)]
 [ApiController]
 [Authorize(Roles = "Manager,Waiter")]
 [Route("api/table-map")]

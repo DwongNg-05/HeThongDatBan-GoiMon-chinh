@@ -56,3 +56,14 @@ body { background: #f6f7f9; }
     .workspace-content { padding: 18px 12px; }
 }
 @media (prefers-reduced-motion: reduce) { .sidebar-link { transition: none; } }
+/* S1-04 Task 3: trang báo không có quyền truy cập (403). */
+.access-denied { max-width: 640px; margin: 24px auto; padding: 28px 30px; background: #fff; border: 1px solid #e8e9ed; border-radius: 12px; }
+.access-denied-code { margin: 0 0 6px; color: var(--brand); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.access-denied h1 { font-size: 24px; margin-bottom: 10px; }
+.access-denied-message { font-size: 16px; }
+.access-denied-path code { overflow-wrap: anywhere; }
+.access-denied-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0; }
+.access-denied-subtitle { font-size: 14px; font-weight: 600; margin: 8px 0; color: #626773; }
+.access-denied-links { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 0; list-style: none; }
+.access-denied-help { margin: 16px 0 0; color: #8a909b; font-size: 13px; }
+@media (max-width: 480px) { .access-denied { margin: 8px 0; padding: 20px 16px; } }

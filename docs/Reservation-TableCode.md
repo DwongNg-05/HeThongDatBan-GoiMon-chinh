@@ -3,7 +3,7 @@
 ## Yêu cầu
 
 - Mã khách nhận khi đặt bàn phải là mã của một bàn có thật trong quán, ví dụ `A05`.
-- Quản lý, phục vụ, thu ngân và bếp đều xem được thông tin khách đã đặt trước: mã bàn, giờ, số khách, ghi chú…
+- Quản lý và phục vụ xem được thông tin khách đã đặt trước: mã bàn, giờ, số khách, ghi chú… (Từ S1-04 Task 2, bếp và thu ngân bị chặn.)
 
 ## Cách hoạt động
 
@@ -26,8 +26,8 @@
 6. **Nhân viên xem lượt đặt.**
    - **Danh sách đặt bàn**: cột *Mã đặt bàn (mã bàn)* và *Ghi chú*.
    - **Chi tiết đặt bàn**: *Mã đặt bàn (mã bàn)* kèm khu vực của bàn, và *Ghi chú*.
-   - Danh sách, chi tiết và khu vực trạng thái email chỉ mở cho các vai trò có quyền `Reservations.Read`: **Quản lý, Phục vụ, Bếp, Thu ngân** (`[Authorize(Roles = "Manager,Waiter,Kitchen,Cashier")]`).
-   - Bếp và thu ngân chỉ xem, vì các trang này không có chức năng sửa.
+   - Danh sách, chi tiết và khu vực trạng thái email chỉ mở cho **Quản lý, Phục vụ** (`[Authorize(Roles = "Manager,Waiter")]`).
+   - Bếp và thu ngân bị chặn ở máy chủ (S1-04 Task 2): trang chuyển tới *Từ chối truy cập*, API trả 403.
 
 ## Tương thích
 
@@ -45,4 +45,4 @@
 | Controller | `ReservationsController`: thêm action `AvailableTables`, truyền `@TableId`, đọc `TableCode`, phân quyền xem |
 | View/JS | `Create.cshtml` (ô **Chọn bàn**), `booking-tables.js`, `Success.cshtml`, `Index.cshtml`, `Details.cshtml` |
 | Email | `BookingConfirmationEmail.cs`: hiện mã bàn trong tiêu đề, ô mã to và bản chữ thường |
-| Test | `BookingConfirmationEmailTests` (mã bàn trong email và trang xác nhận, quyền xem), `BookingConfirmationVerification` (chọn bàn, bàn biến khỏi danh sách trống, không đặt trùng bàn, bếp/thu ngân xem được) |
+| Test | `BookingConfirmationEmailTests` (mã bàn trong email và trang xác nhận, quyền xem), `BookingConfirmationVerification` (chọn bàn, bàn biến khỏi danh sách trống, không đặt trùng bàn, bếp/thu ngân bị chặn) |

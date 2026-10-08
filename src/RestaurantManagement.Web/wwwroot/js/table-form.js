@@ -15,7 +15,9 @@
                 const url = new URL('/Tables/CheckCode', window.location.origin);
                 url.searchParams.set('code', code);
                 if (id) url.searchParams.set('id', id);
-                const response = await fetch(url);
+                // S1-04: gọi kèm X-Requested-With để máy chủ trả mã lỗi 401/403 dạng JSON thay vì trang HTML.
+                const response = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                if (!response.ok) throw new Error('Code check failed');
                 const result = await response.json();
                 message.textContent = result.available ? 'Mã bàn có thể sử dụng.' : 'Mã bàn đã tồn tại.';
                 message.className = result.available ? 'form-text text-success' : 'form-text text-danger';

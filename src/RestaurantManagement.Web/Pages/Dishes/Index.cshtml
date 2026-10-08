@@ -84,6 +84,12 @@
                         <span class="badge @(soldOut ? "bg-warning text-dark" : "bg-light text-dark border")">@(soldOut ? "Tạm hết" : "Còn món")</span>
                         <button type="submit" class="btn btn-sm btn-outline-secondary text-nowrap">@(soldOut ? "Mở bán lại" : "Báo hết")</button>
                     </form>
+                    @if (Model.TemporarilyOut.Contains(item.Id))
+                    {
+                        @* S2-08 Task 4: trạng thái "Tạm hết" đồng nhất với Món trong ngày, thực đơn công khai và màn hình gọi món. *@
+                        <a asp-controller="Kitchen" asp-action="Dishes" class="badge bg-warning text-dark text-decoration-none mt-1" data-temporarily-out="@item.Id"
+                           title="Bật/tắt ở Món trong ngày">Tạm hết (Món trong ngày)</a>
+                    }
                 </td>
             }
             <td class="text-nowrap">

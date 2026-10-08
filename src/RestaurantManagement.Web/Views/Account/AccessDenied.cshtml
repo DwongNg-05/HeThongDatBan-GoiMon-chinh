@@ -1,7 +1,56 @@
-﻿@{
-    ViewData["Title"] = "Không có quyền truy cập";
+@model RestaurantManagement.Web.Models.AccessDeniedViewModel
+@using RestaurantManagement.Web.Models
+@{
+    ViewData["Title"] = AccessDeniedViewModel.Heading;
 }
 
-<h2>Không có quyền truy cập</h2>
-<p>Tài khoản của bạn không có quyền xem màn hình này.</p>
-<a asp-controller="Home" asp-action="Index" class="btn btn-secondary">Về trang chủ</a>
+@* S1-04 Task 3: trang báo không có quyền (mã 403). Nội dung đã chốt với PO: thông điệp, vai trò, đường dẫn đã mở,
+   nút “Về màn hình chính” và các màn hình vai trò được dùng. *@
+<section class="access-denied" data-access-denied="403" aria-labelledby="access-denied-title">
+    <p class="access-denied-code">Lỗi 403</p>
+    <h1 id="access-denied-title">@AccessDeniedViewModel.Heading</h1>
+    <p class="access-denied-message" data-access-denied-message>@AccessDeniedViewModel.Message</p>
+
+    @if (Model.SignedIn)
+    {
+        <p>Bạn đang đăng nhập bằng <strong>@Model.UserName</strong>, vai trò <strong data-denied-role>@Model.RoleName</strong>.</p>
+    }
+    @if (!string.IsNullOrEmpty(Model.RequestedPath))
+    {
+        <p class="access-denied-path">Đường dẫn đã mở: <code data-requested-path>@Model.RequestedPath</code></p>
+    }
+
+    <div class="access-denied-actions">
+        @if (Model.Home is { } home)
+        {
+            <a class="btn btn-primary" href="@Url.Content("~" + home.Path)" data-home-link="@home.Path">@AccessDeniedViewModel.HomeLabel (@home.Title)</a>
+        }
+        else if (Model.SignedIn)
+        {
+            <form asp-controller="Account" asp-action="Logout" method="post">
+                <button type="submit" class="btn btn-primary" data-denied-logout>Đăng xuất</button>
+            </form>
+        }
+        else
+        {
+            <a class="btn btn-primary" asp-controller="Account" asp-action="Login" data-denied-login>Đăng nhập</a>
+        }
+    </div>
+
+    @if (Model.Allowed.Count > 1)
+    {
+        <h2 class="access-denied-subtitle">Màn hình bạn được dùng</h2>
+        <ul class="access-denied-links">
+            @foreach (var item in Model.Allowed)
+            {
+                <li><a href="@Url.Content("~" + item.Path)" data-allowed-screen="@item.Key">@item.Title</a></li>
+            }
+        </ul>
+    }
+    else if (Model.SignedIn && Model.Home is null)
+    {
+        <p>Tài khoản chưa được gán vai trò hợp lệ nên chưa dùng được màn hình nào.</p>
+    }
+
+    <p class="access-denied-help">@AccessDeniedViewModel.Help</p>
+</section>

@@ -99,10 +99,10 @@ internal static class SecurityAuditVerification
             "Waiter login recorded with Waiter role");
         using (var denied = await client.GetAsync("/AuditLogs"))
         {
-            Assert(denied.StatusCode == HttpStatusCode.Redirect && denied.Headers.Location?.OriginalString.Contains("/Account/AccessDenied") == true,
-                "Non-manager is redirected to access denied");
-            using var forbidden = await client.GetAsync(denied.Headers.Location);
-            Assert(forbidden.StatusCode == HttpStatusCode.Forbidden, "Access denied returns 403");
+            // S1-04 Task 3: 403 ngay tại đường dẫn đã gõ, kèm trang báo không có quyền.
+            var deniedPage = await denied.Content.ReadAsStringAsync();
+            Assert(denied.StatusCode == HttpStatusCode.Forbidden && deniedPage.Contains("data-access-denied=\"403\"") && !deniedPage.Contains("data-audit-id"),
+                "Non-manager gets 403 and the access denied page");
         }
         var home = await client.GetStringAsync("/");
         Assert(!home.Contains("href=\"/AuditLogs\""), "Non-manager menu hides audit log link");

@@ -1,3 +1,4 @@
+using RestaurantManagement.Web.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
@@ -12,9 +13,16 @@ public class ReservationsController : Controller
 {
     /// <summary>
     /// Các vai trò được xem danh sách và chi tiết khách đặt trước (mã bàn, giờ, số khách, ghi chú…).
-    /// Khớp quyền Reservations.Read trong 005_ReferenceData.sql: Quản lý, Phục vụ, Bếp, Thu ngân.
+    /// S1-04 Task 2: chỉ Quản lý, Phục vụ. Bếp và Thu ngân bị chặn ở máy chủ (403).
     /// </summary>
-    public const string ReservationReaders = "Manager,Waiter,Kitchen,Cashier";
+    public const string ReservationReaders = AppRoles.FrontOfHouse;
+
+    /// <summary>
+    /// S1-04 Task 4 (cũ): tạo đặt bàn chỉ dành cho Quản lý, Phục vụ.
+    /// Nay form đặt bàn công khai: khách tự đặt bàn không cần đăng nhập ([AllowAnonymous] ở Create, Success,
+    /// BookingEmailStatus, CheckSchedule, AvailableTables). Nhân viên vẫn đặt hộ khách như trước.
+    /// </summary>
+    public const string ReservationWriters = AppRoles.FrontOfHouse;
 
     private readonly IConfiguration _configuration;
 
@@ -70,7 +78,7 @@ public class ReservationsController : Controller
     /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "Manager")]
+    [Authorize(Roles = AppRoles.Manager)]
     public async Task<IActionResult> Cancel(long id, string? reason, [FromServices] BookingEmailDispatcher bookingEmails)
     {
         var reservation = await FindReservation(id, HttpContext.RequestAborted);
@@ -111,7 +119,7 @@ public class ReservationsController : Controller
     /// <summary>Quản lý xoá hẳn một lượt đặt bàn đã huỷ / bị từ chối / khách không đến khỏi danh sách.</summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "Manager")]
+    [Authorize(Roles = AppRoles.Manager)]
     public async Task<IActionResult> Delete(long id)
     {
         var reservation = await FindReservation(id, HttpContext.RequestAborted);
@@ -193,10 +201,68 @@ public class ReservationsController : Controller
         ConfirmationEmailStatus = reader.IsDBNull(reader.GetOrdinal("ConfirmationEmailStatus")) ? null : reader.GetString(reader.GetOrdinal("ConfirmationEmailStatus")),
         ConfirmationEmailAttempts = reader.GetInt32(reader.GetOrdinal("ConfirmationEmailAttempts"))
     };
+
+    // =========================================================
+    // KHÁCH XÁC NHẬN ĐẶT BÀN QUA EMAIL (không cần đăng nhập)
+    // =========================================================
+
+    /// <summary>
+    /// Trang mở từ nút "Xác nhận đặt bàn" trong email. Chỉ hiển thị thông tin và nút xác nhận;
+    /// việc xác nhận diễn ra khi khách bấm nút (POST), để trình quét liên kết của hộp thư không tự xác nhận hộ.
+    /// </summary>
+    [HttpGet]
+    [AllowAnonymous]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public async Task<IActionResult> Confirm(string? token, [FromServices] BookingConfirmationLinks links, CancellationToken cancellationToken)
+    {
+        var code = links.ReadToken(token);
+        var reservation = code is null ? null : await FindReservationByCode(code, cancellationToken);
+        return View(new ReservationConfirmViewModel(token ?? string.Empty, reservation));
+    }
+
+    [HttpPost]
+    [ActionName("Confirm")]
+    [ValidateAntiForgeryToken]
+    [AllowAnonymous]
+    public async Task<IActionResult> ConfirmPost(string? token, [FromServices] BookingConfirmationLinks links)
+    {
+        var code = links.ReadToken(token);
+        if (code is null) return View("Confirm", new ReservationConfirmViewModel(token ?? string.Empty, null));
+        try
+        {
+            await using var connection = new SqlConnection(ConnectionString);
+            await using var command = new SqlCommand("dbo.usp_CustomerConfirmReservation", connection) { CommandType = CommandType.StoredProcedure };
+            command.Parameters.Add("@Code", SqlDbType.Char, 6).Value = code;
+            await connection.OpenAsync();
+            await using var reader = await command.ExecuteReaderAsync();
+            var result = await reader.ReadAsync() ? reader.GetString(reader.GetOrdinal("Result")) : "Confirmed";
+            TempData[ReservationConfirmViewModel.SuccessKey] = result == "AlreadyConfirmed"
+                ? "Lượt đặt bàn này đã được xác nhận trước đó. Hẹn gặp bạn tại nhà hàng!"
+                : "Xác nhận đặt bàn thành công. Nhà hàng sẽ giữ bàn cho bạn. Hẹn gặp bạn tại nhà hàng!";
+        }
+        catch (SqlException ex) when (ex.Number is >= 51000 and < 51500)
+        {
+            TempData[ReservationConfirmViewModel.ErrorKey] = ex.Message;
+        }
+        return RedirectToAction(nameof(Confirm), new { token });
+    }
+
+    private async Task<ReservationListItemViewModel?> FindReservationByCode(string code, CancellationToken cancellationToken)
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await using var command = new SqlCommand(ReservationQuery + " WHERE r.Code=@code;", connection);
+        command.Parameters.Add("@code", SqlDbType.Char, 6).Value = code;
+        await connection.OpenAsync(cancellationToken);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        return await reader.ReadAsync(cancellationToken) ? ReadReservation(reader) : null;
+    }
+
+    // =========================================================
     // HIỂN THỊ FORM ĐẶT BÀN
     // =========================================================
 
     [HttpGet]
+    [AllowAnonymous] // Khách đặt bàn không cần đăng nhập (form đặt bàn, trang thành công và API phục vụ form).
     public async Task<IActionResult> Create()
     {
         var defaultTime = BookingTime.NextStart(VietnamTime.Now);
@@ -219,6 +285,23 @@ public class ReservationsController : Controller
             Notes = null
         };
 
+        if (TempData[RestaurantManagement.Web.Authentication.BookingAntiforgeryRecoveryFilter.FormKey] is string savedForm)
+        {
+            var fields = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(savedForm)!;
+            model.CustomerName = fields.GetValueOrDefault("CustomerName", "");
+            model.Phone = fields.GetValueOrDefault("Phone", "");
+            model.Email = fields.GetValueOrDefault("Email");
+            model.Notes = fields.GetValueOrDefault("Notes");
+            if (int.TryParse(fields.GetValueOrDefault("GuestCount"), out var guests)) model.GuestCount = guests;
+            if (VietnamTime.TryParseBooking(fields.GetValueOrDefault("StartsAt"), out var start)) model.StartsAt = start;
+            if (int.TryParse(fields.GetValueOrDefault("PreferredAreaId"), out var area)) model.PreferredAreaId = area;
+            if (DateOnly.TryParseExact(fields.GetValueOrDefault("ReservationDate"), "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var savedDate) &&
+                TimeOnly.TryParse(fields.GetValueOrDefault("ReservationTime"), System.Globalization.CultureInfo.InvariantCulture, out var savedTime))
+                model.StartsAt = savedDate.ToDateTime(savedTime);
+        }
+        model.ReservationDate = DateOnly.FromDateTime(model.StartsAt);
+        model.ReservationTime = TimeOnly.FromDateTime(model.StartsAt);
+
         // Chỉ lấy khu vực đang hoạt động
         await LoadActiveAreas(model);
 
@@ -232,10 +315,19 @@ public class ReservationsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [AllowAnonymous] // Khách đặt bàn không cần đăng nhập (form đặt bàn, trang thành công và API phục vụ form).
     public async Task<IActionResult> Create(
         ReservationCreateViewModel model,
         [FromServices] BookingEmailDispatcher bookingEmails)
     {
+        // The public form submits separate Vietnam-local date and time fields.
+        if (model.ReservationDate.HasValue && model.ReservationTime.HasValue)
+        {
+            model.StartsAt = model.ReservationDate.Value.ToDateTime(model.ReservationTime.Value);
+            ModelState.Remove(nameof(model.StartsAt));
+        }
+        model.TableId = null;
+
         // Luôn load lại danh sách khu vực
         await LoadActiveAreas(model);
 
@@ -500,6 +592,7 @@ public class ReservationsController : Controller
     /// Dùng TempData.Peek để tải lại trang (F5) vẫn thấy mã đặt bàn.
     /// </summary>
     [HttpGet]
+    [AllowAnonymous] // Khách đặt bàn không cần đăng nhập (form đặt bàn, trang thành công và API phục vụ form).
     public async Task<IActionResult> Success([FromServices] IReservationEmailStatusStore emails, CancellationToken cancellationToken)
     {
         var model = BookingSuccessViewModel.FromTempData(key => TempData.Peek(key));
@@ -515,6 +608,7 @@ public class ReservationsController : Controller
     /// </summary>
     [HttpGet]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    [AllowAnonymous] // Khách đặt bàn không cần đăng nhập (form đặt bàn, trang thành công và API phục vụ form).
     public async Task<IActionResult> BookingEmailStatus([FromServices] IReservationEmailStatusStore emails, CancellationToken cancellationToken)
     {
         var model = BookingSuccessViewModel.FromTempData(key => TempData.Peek(key));
@@ -542,6 +636,7 @@ public class ReservationsController : Controller
 
     [HttpGet]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    [AllowAnonymous] // Khách đặt bàn không cần đăng nhập (form đặt bàn, trang thành công và API phục vụ form).
     public async Task<IActionResult> CheckSchedule([ModelBinder(BinderType = typeof(VietnamBookingTimeBinder))] DateTime? startsAt)
     {
         if (!ModelState.IsValid || startsAt is null)
@@ -602,6 +697,7 @@ public class ReservationsController : Controller
     /// <summary>Danh sách bàn trống cho form đặt bàn (gọi lại khi khách đổi giờ, số khách hoặc khu vực).</summary>
     [HttpGet]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    [AllowAnonymous] // Khách đặt bàn không cần đăng nhập (form đặt bàn, trang thành công và API phục vụ form).
     public async Task<IActionResult> AvailableTables(
         [ModelBinder(BinderType = typeof(VietnamBookingTimeBinder))] DateTime? startsAt, int guestCount = 2, int? preferredAreaId = null)
     {

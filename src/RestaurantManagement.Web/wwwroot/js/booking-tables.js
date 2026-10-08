@@ -17,7 +17,7 @@
         const params = new URLSearchParams({ startsAt: startsAt.value, guestCount: guests.value });
         if (area?.value) params.set('preferredAreaId', area.value);
         try {
-            const response = await fetch(`${select.dataset.tablesUrl}?${params}`, { signal: request.signal, cache: 'no-store' });
+            const response = await fetch(`${select.dataset.tablesUrl}?${params}`, { signal: request.signal, cache: 'no-store', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
             if (!response.ok || response.redirected) throw new Error('Tables request failed');
             const result = await response.json();
             if (request.signal.aborted) return;

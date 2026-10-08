@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Authorization;
+using RestaurantManagement.Web.Security;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -6,6 +8,8 @@ using RestaurantManagement.Web.Services;
 
 namespace RestaurantManagement.Web.Pages.DishCategories;
 
+// S1-04 Task 4: kiểm tra quyền ở máy chủ theo vai trò (docs/S1-04-Task4.md).
+[Authorize(Roles = AppRoles.Manager)]
 public class ReorderModel(IMenuStore store) : PageModel
 {
     [BindProperty] public List<int> OrderedIds { get; set; } = [];

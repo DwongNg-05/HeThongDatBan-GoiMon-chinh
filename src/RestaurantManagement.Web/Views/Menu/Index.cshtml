@@ -12,9 +12,10 @@
     <link rel="stylesheet" href="~/css/public-menu.css" asp-append-version="true" />
 }
 
-<div class="public-menu">
+@* S2-08 Task 1: nhãn "Tạm hết" tự cập nhật mỗi 3 giây (menu-availability.js), không cần tải lại trang. *@
+<div class="public-menu" data-availability-url="@Url.Content("~/api/menu/availability")" data-availability-interval="@RestaurantManagement.Web.Services.TemporaryOutRules.PollIntervalMs"
+     data-availability-text="@RestaurantManagement.Web.Services.SoldOutDisplay.Label" data-availability-note="@RestaurantManagement.Web.Services.SoldOutDisplay.ScreenReaderNote">
     <header class="public-menu-hero">
-        <span class="menu-eyebrow">BẾP NHÀ · THỰC ĐƠN</span>
         <h1>Thực đơn</h1>
         <p>Giá niêm yết bằng đồng Việt Nam (VND).</p>
     </header>
@@ -74,7 +75,7 @@
                         @foreach (var dish in category.Dishes)
                         {
                             @* S2-01 Task 3: món hết trong ngày vẫn hiển thị, có nhãn "Tạm hết" và bị làm mờ (CSS theo data-sold-out). *@
-                            <li class="public-dish" data-mon-id="@dish.Id" data-sold-out="@(dish.IsTemporarilyUnavailable ? "true" : "false")">
+                            <li class="public-dish" data-mon-id="@dish.Id" data-availability-id="@dish.Id" data-sold-out="@(dish.IsTemporarilyUnavailable ? "true" : "false")">
                                 <img class="public-dish-image" src="@ImageSrc(dish.ImageUrl)" alt="Ảnh món @dish.Name"
                                      width="88" height="88" loading="@(imageIndex++ < EagerImages ? "eager" : "lazy")" decoding="async" />
                                 <div class="public-dish-body">
@@ -100,4 +101,5 @@
 
 @section Scripts {
     <script src="~/js/menu-search.js" asp-append-version="true"></script>
+    <script src="~/js/menu-availability.js" asp-append-version="true"></script>
 }

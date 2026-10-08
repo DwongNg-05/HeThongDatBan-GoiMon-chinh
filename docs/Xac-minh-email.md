@@ -4,9 +4,9 @@
 
 | Nội dung | Cách làm |
 | --- | --- |
-| Ai phải xác minh | Mọi tài khoản **trừ Quản lý** (Phục vụ, Bếp, Thu ngân…). Mỗi lần đăng nhập (mỗi phiên) xác minh một lần. |
+| Ai phải xác minh | Mọi tài khoản **trừ Quản lý** (Phục vụ, Bếp, Thu ngân…). Mỗi tài khoản **chỉ xác minh một lần**, ở lần đăng nhập đầu tiên sau khi tạo tài khoản. Khi đã xác minh (email đã lưu vào tài khoản), các lần đăng nhập sau vào thẳng, không gửi mã. |
 | Khi nào | Ngay sau khi đăng nhập đúng mật khẩu, **trước** bước bắt buộc đổi mật khẩu. Chưa xác minh thì mọi trang (kể cả Đổi mật khẩu) đều chuyển về màn hình xác minh; chỉ được đăng xuất. |
-| Cơ chế | Gửi mã về email. Lần đầu tài khoản chưa có email: người dùng nhập email, nhận mã; email chỉ được lưu vào tài khoản **sau khi** nhập đúng mã. Các lần sau mã tự gửi tới email đã lưu. |
+| Cơ chế | Gửi mã về email. Lần đầu tài khoản chưa có email: người dùng nhập email, nhận mã; email chỉ được lưu vào tài khoản **sau khi** nhập đúng mã. Tài khoản đã có email được coi là đã xác minh. Muốn bắt một tài khoản xác minh lại: đặt `Users.Email = NULL`. |
 | Mã | 6 ký tự, chỉ **chữ in hoa và số**, luôn có cả chữ lẫn số, không có ký tự đặc biệt. Bỏ các ký tự dễ nhầm 0/O, 1/I/L. Người dùng gõ chữ thường hoặc có khoảng trắng vẫn được nhận. |
 | Hiệu lực | 10 phút. Sai tối đa 5 lần cho một mã, sau đó phải gửi lại mã. |
 | Gửi lại mã | Nút **“Gửi lại mã”** (đếm ngược 60 giây giữa hai lần gửi, tối đa 5 lần/15 phút). Mã mới làm mã cũ hết hiệu lực. |
@@ -47,7 +47,8 @@ Các thông số đổi được trong `appsettings.json`, mục `EmailVerificat
 1. Đăng nhập bằng `waiter` → màn hình **Xác minh đăng nhập** hiện ra; thử mở `/` hay `/Account/ChangePassword` đều bị đưa về đây.
 2. Nhập email → mở hộp thư (hoặc `App_Data/emails`) → nhập mã → vào hệ thống.
 3. Bấm **Gửi lại mã** ngay: báo phải chờ; sau 60 giây bấm lại: nhận mã mới, mã cũ không dùng được.
-4. Đăng nhập bằng `manager`: vào thẳng, không cần mã.
+4. Đăng xuất rồi đăng nhập lại bằng `waiter`: vào thẳng hệ thống, không phải xác minh nữa.
+5. Đăng nhập bằng `manager`: vào thẳng, không cần mã.
 
 ## Kiểm thử
 
@@ -58,5 +59,5 @@ dotnet run --no-build --project tools/RestaurantManagement.DbTool -- verify
 ```
 
 - `EmailVerificationTests` (AreaTests, không cần database): định dạng mã (2.000 mã ngẫu nhiên), chuẩn hoá chữ thường/khoảng trắng, băm gắn với phiên, che email, ai phải xác minh, nội dung email.
-- `EmailVerificationVerification` (`verify`, SQL Server + HTTP thật, email ghi ra thư mục tạm): chặn mọi trang trước khi xác minh; nhập email; mã đúng định dạng; email lưu sau khi xác minh; chờ trước khi gửi lại; mã sai/sai định dạng; gửi lại làm mã cũ hết hiệu lực; mã chữ thường vẫn nhận; đăng nhập lại phải xác minh lại và tự gửi tới email đã lưu; xác minh email trước rồi mới đổi mật khẩu; Quản lý không cần xác minh.
+- `EmailVerificationVerification` (`verify`, SQL Server + HTTP thật, email ghi ra thư mục tạm): chặn mọi trang trước khi xác minh; nhập email; mã đúng định dạng; email lưu sau khi xác minh; chờ trước khi gửi lại; mã sai/sai định dạng; gửi lại làm mã cũ hết hiệu lực; mã chữ thường vẫn nhận; đăng nhập lại không phải xác minh nữa và không gửi mã; xác minh email trước rồi mới đổi mật khẩu; Quản lý không cần xác minh.
 - Các bộ kiểm thử đăng nhập cũ chạy web với `EmailVerification__Enabled=false` vì không nhập mã email.

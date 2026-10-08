@@ -44,7 +44,7 @@ internal static class Verification
             await Reject(connection, "Waiter cannot cancel prepared food", "EXEC dbo.usp_CancelOrderItem @OrderItemId=1,@Reason='ChangedMind',@ActorUserId=2;", 51001);
             await DatabaseTool.Execute(connection, "EXEC dbo.usp_TransitionOrderItem @OrderItemId=1,@ToStatus='Ready',@ActorUserId=3; EXEC dbo.usp_TransitionOrderItem @OrderItemId=1,@ToStatus='Served',@ActorUserId=2; EXEC dbo.usp_TransitionOrderItem @OrderItemId=1,@ToStatus='Served',@ActorUserId=2; EXEC dbo.usp_CancelOrderItem @OrderItemId=2,@Reason='Mistake',@ActorUserId=2;");
             await Check(connection, "Exactly one served event", "SELECT CASE WHEN COUNT(*)=1 THEN 1 ELSE 0 END FROM dbo.OrderItemEvents WHERE OrderItemId=1 AND ToStatus='Served'");
-            await DatabaseTool.Execute(connection, "EXEC dbo.usp_SetMenuAvailability @MenuItemId=2,@IsSoldOut=1,@ActorUserId=3;");
+            await DatabaseTool.Execute(connection, "EXEC dbo.usp_SetMenuAvailability @MenuItemId=2,@IsSoldOut=1,@ActorUserId=1;");
             await Reject(connection, "Sold-out item rejected", """EXEC dbo.usp_SubmitOrder @SessionId=1,@RequestId='01010101-0101-0101-0101-010101010101',@ItemsJson=N'[{"MenuItemId":2,"Quantity":1}]',@ActorUserId=2;""", 51028);
             await DatabaseTool.Execute(connection, "EXEC dbo.usp_SetPaymentState @SessionId=1,@Awaiting=1,@ActorUserId=2;");
             await Reject(connection, "No new order during payment", """EXEC dbo.usp_SubmitOrder @SessionId=1,@RequestId='02020202-0202-0202-0202-020202020202',@ItemsJson=N'[{"MenuItemId":3,"Quantity":1}]',@ActorUserId=2;""", 51025);
@@ -68,8 +68,80 @@ internal static class Verification
             await BookingConfirmationVerification.Run(connection, password);
             // S2-09 Task 3: nghiệm thu toàn bộ luồng đặt bàn + email qua SMTP (thành công / gửi lại thành công / thất bại 3 lần).
             await BookingEmailEndToEndVerification.Run(connection, password);
+            // S1-04 Task 4: gọi toàn bộ API với từng vai trò, chưa đăng nhập và vai trò không xác định.
+            await ApiAuthorizationVerification.Run(connection);
             await DatabaseTool.Execute(connection, "EXEC dbo.usp_RunMaintenance; EXEC dbo.usp_RunMaintenance;");
             Console.WriteLine("PASS: all SQL Server integration checks.");
+        }
+        finally
+        {
+            SqlConnection.ClearAllPools();
+            builder.InitialCatalog = "master";
+            await using var cn = new SqlConnection(builder.ConnectionString);
+            await cn.OpenAsync();
+            await using var drop = new SqlCommand($"IF DB_ID(@name) IS NOT NULL BEGIN ALTER DATABASE [{name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{name}]; END", cn);
+            drop.Parameters.AddWithValue("@name", name);
+            await drop.ExecuteNonQueryAsync();
+        }
+    }
+
+    /// <summary>
+    /// S1-04 Task 4: chỉ chạy bộ kiểm thử phân quyền toàn bộ API (lệnh "verify-api-permissions") trên database tạm riêng.
+    /// </summary>
+    internal static async Task RunApiPermissions(string baseConnection)
+    {
+        var builder = new SqlConnectionStringBuilder(baseConnection);
+        var name = "RestaurantManagement_Test_" + Guid.NewGuid().ToString("N");
+        builder.InitialCatalog = name;
+        var connection = builder.ConnectionString;
+        try
+        {
+            await DatabaseTool.Migrate(connection);
+            await DatabaseTool.Seed(connection, "VerificationOnly9!" + Guid.NewGuid().ToString("N"));
+            await ApiAuthorizationVerification.Run(connection);
+            // S1-04 Task 2: Bếp, Thu ngân làm đúng phần việc qua giao diện và bị chặn khi làm việc của vai trò khác.
+            await KitchenCashierVerification.Run(connection);
+            // S2-08 Task 3: tự đặt lại "Tạm hết" lúc 00:00 Asia/Ho_Chi_Minh.
+            await TemporaryOutResetVerification.Run(connection);
+        }
+        finally
+        {
+            SqlConnection.ClearAllPools();
+            builder.InitialCatalog = "master";
+            await using var cn = new SqlConnection(builder.ConnectionString);
+            await cn.OpenAsync();
+            await using var drop = new SqlCommand($"IF DB_ID(@name) IS NOT NULL BEGIN ALTER DATABASE [{name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{name}]; END", cn);
+            drop.Parameters.AddWithValue("@name", name);
+            await drop.ExecuteNonQueryAsync();
+        }
+    }
+
+    /// <summary>
+    /// S2-08 Task 4: nghiệm thu toàn bộ luồng "Tạm hết" (lệnh "verify-temporary-out") trên database tạm riêng:
+    /// kịch bản đầy đủ (TemporaryOutAcceptanceVerification) rồi kiểm thử riêng phần tự đặt lại 00:00 (TemporaryOutResetVerification).
+    /// </summary>
+    internal static async Task RunTemporaryOut(string baseConnection)
+    {
+        var builder = new SqlConnectionStringBuilder(baseConnection);
+        var name = "RestaurantManagement_Test_" + Guid.NewGuid().ToString("N");
+        builder.InitialCatalog = name;
+        var connection = builder.ConnectionString;
+        try
+        {
+            await DatabaseTool.Migrate(connection);
+            await DatabaseTool.Seed(connection, "VerificationOnly9!" + Guid.NewGuid().ToString("N"));
+            var password = ApiAuthorizationVerification.Password;
+            await using (var cn = new SqlConnection(connection))
+            {
+                await cn.OpenAsync();
+                await using var cmd = new SqlCommand(
+                    "UPDATE dbo.Users SET PasswordHash=@hash,MustChangePassword=0,FailedLoginCount=0,FailureWindowStartedAt=NULL,LockedUntil=NULL,IsActive=1 " +
+                    "WHERE UserName IN (N'manager',N'waiter',N'kitchen',N'cashier');", cn);
+                cmd.Parameters.AddWithValue("@hash", BCrypt.Net.BCrypt.HashPassword(password, workFactor: 10));
+                await cmd.ExecuteNonQueryAsync();
+            }
+            await TemporaryOutAcceptanceVerification.Run(connection, password);
+            await TemporaryOutResetVerification.Run(connection);
         }
         finally
         {
@@ -173,22 +245,24 @@ internal static class Verification
         await Check(connection, "Deactivate without tables", "SELECT CASE WHEN IsActive=0 THEN 1 ELSE 0 END FROM dbo.Areas WHERE Name=N'Lifecycle empty'");
         await Reject(connection, "Inactive canonical name remains reserved", "EXEC dbo.usp_CreateArea 1,N'  LIFECYCLE   EMPTY ',0;", 51402);
         await Reject(connection, "Missing area cannot be deleted", "EXEC dbo.usp_DeleteArea 1,2147483647;", 51404);
+    }
+
     private static async Task TemporaryOutFlow(string connection)
     {
         var timer = Stopwatch.StartNew();
-        await Call(connection, "usp_SetMenuTemporarilyOut", ("MenuItemId", 1), ("IsTemporarilyOut", true), ("ActorUserId", 3));
-        await Check(connection, "Kitchen can mark temporary out; menu surfaces match", "SELECT CASE WHEN (SELECT IsTemporarilyOut FROM dbo.MenuItems WHERE Id=1)=1 AND (SELECT IsTemporarilyOut FROM dbo.vw_PublicMenu WHERE Id=1)=1 THEN 1 ELSE 0 END");
+        await Call(connection, "usp_SetMenuTemporarilyOut", ("MenuItemId", 1), ("IsTemporarilyOut", true), ("ActorUserId", 1));
+        await Check(connection, "Manager can mark temporary out; menu surfaces match", "SELECT CASE WHEN (SELECT IsTemporarilyOut FROM dbo.MenuItems WHERE Id=1)=1 AND (SELECT IsTemporarilyOut FROM dbo.MenuItems WHERE Id=1)=1 THEN 1 ELSE 0 END");
         if (timer.Elapsed > TimeSpan.FromSeconds(5)) throw new InvalidOperationException("Temporary out state was not reflected within five seconds.");
         Console.WriteLine("PASS: temporary out state reflected within five seconds.");
         await Reject(connection, "Waiter cannot toggle temporary out", "EXEC dbo.usp_SetMenuTemporarilyOut @MenuItemId=1,@IsTemporarilyOut=0,@ActorUserId=2;", 51001);
         await Reject(connection, "Temporarily unavailable item rejected for ordering", "EXEC dbo.usp_SubmitOrder @SessionId=1,@RequestId='a1010101-0101-0101-0101-010101010101',@ItemsJson=N'[{\"MenuItemId\":1,\"Quantity\":1}]',@ActorUserId=2;", 51028);
         await DatabaseTool.Execute(connection, "EXEC dbo.usp_SetMenuTemporarilyOut @MenuItemId=1,@IsTemporarilyOut=0,@ActorUserId=1;");
-        await Check(connection, "Manager can reopen item and event history records both transitions", "SELECT CASE WHEN (SELECT IsTemporarilyOut FROM dbo.MenuItems WHERE Id=1)=0 AND (SELECT COUNT(*) FROM dbo.MenuTemporaryOutEvents WHERE MenuItemId=1)=2 AND (SELECT COUNT(*) FROM dbo.MenuTemporaryOutEvents WHERE MenuItemId=1 AND ChangedBy IN (1,3))=2 THEN 1 ELSE 0 END");
+        await Check(connection, "Manager can reopen item and event history records both transitions", "SELECT CASE WHEN (SELECT IsTemporarilyOut FROM dbo.MenuItems WHERE Id=1)=0 AND (SELECT COUNT(*) FROM dbo.MenuTemporaryOutEvents WHERE MenuItemId=1)=2 AND (SELECT COUNT(*) FROM dbo.MenuTemporaryOutEvents WHERE MenuItemId=1 AND ChangedBy=1)=2 THEN 1 ELSE 0 END");
 
-        await DatabaseTool.Execute(connection, "EXEC dbo.usp_SetMenuTemporarilyOut @MenuItemId=5,@IsTemporarilyOut=1,@ActorUserId=3; EXEC dbo.usp_SetMenuTemporarilyOut @MenuItemId=5,@IsTemporarilyOut=0,@ActorUserId=3; EXEC dbo.usp_SetMenuTemporarilyOut @MenuItemId=5,@IsTemporarilyOut=1,@ActorUserId=1; EXEC dbo.usp_SetMenuTemporarilyOut @MenuItemId=5,@IsTemporarilyOut=0,@ActorUserId=1; EXEC dbo.usp_SetMenuTemporarilyOut @MenuItemId=5,@IsTemporarilyOut=0,@ActorUserId=1;");
+        await DatabaseTool.Execute(connection, "EXEC dbo.usp_SetMenuTemporarilyOut @MenuItemId=5,@IsTemporarilyOut=1,@ActorUserId=1; EXEC dbo.usp_SetMenuTemporarilyOut @MenuItemId=5,@IsTemporarilyOut=0,@ActorUserId=1; EXEC dbo.usp_SetMenuTemporarilyOut @MenuItemId=5,@IsTemporarilyOut=1,@ActorUserId=1; EXEC dbo.usp_SetMenuTemporarilyOut @MenuItemId=5,@IsTemporarilyOut=0,@ActorUserId=1; EXEC dbo.usp_SetMenuTemporarilyOut @MenuItemId=5,@IsTemporarilyOut=0,@ActorUserId=1;");
         await Check(connection, "Rapid on/off cycles retain exactly four state-change events", "SELECT CASE WHEN COUNT(*)=4 AND MIN(CONVERT(int,OldIsTemporarilyOut))=0 AND MAX(CONVERT(int,OldIsTemporarilyOut))=1 AND MIN(CONVERT(int,IsTemporarilyOut))=0 AND MAX(CONVERT(int,IsTemporarilyOut))=1 THEN 1 ELSE 0 END FROM dbo.MenuTemporaryOutEvents WHERE MenuItemId=5");
 
-        await DatabaseTool.Execute(connection, "EXEC dbo.usp_SetMenuTemporarilyOut @MenuItemId=10,@IsTemporarilyOut=1,@ActorUserId=3; EXEC dbo.usp_SetMenuTemporarilyOut @MenuItemId=11,@IsTemporarilyOut=1,@ActorUserId=1;");
+        await DatabaseTool.Execute(connection, "EXEC dbo.usp_SetMenuTemporarilyOut @MenuItemId=10,@IsTemporarilyOut=1,@ActorUserId=1; EXEC dbo.usp_SetMenuTemporarilyOut @MenuItemId=11,@IsTemporarilyOut=1,@ActorUserId=1;");
         await Check(connection, "Reset schedule key is midnight Asia/Ho_Chi_Minh", "SELECT CASE WHEN DATEPART(hour,DATEADD(hour,7,DATEADD(hour,-7,CONVERT(datetime2(3),CONVERT(date,DATEADD(hour,7,SYSUTCDATETIME()))))))=0 THEN 1 ELSE 0 END");
         await DatabaseTool.Execute(connection, "DECLARE @scheduled datetime2(3)=DATEADD(hour,-7,CONVERT(datetime2(3),CONVERT(date,DATEADD(hour,7,SYSUTCDATETIME())))); EXEC dbo.usp_ResetTemporarilyOutMenuItems @ScheduledFor=@scheduled;");
         await Check(connection, "Daily reset restores all unavailable items, preserves available items and records system events", "SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.MenuItems WHERE Id IN (10,11) AND IsTemporarilyOut=0)=2 AND (SELECT IsTemporarilyOut FROM dbo.MenuItems WHERE Id=12)=0 AND (SELECT COUNT(*) FROM dbo.MenuTemporaryOutEvents WHERE MenuItemId IN (10,11) AND OldIsTemporarilyOut=1 AND IsTemporarilyOut=0 AND ChangedBy IS NULL)=2 THEN 1 ELSE 0 END");

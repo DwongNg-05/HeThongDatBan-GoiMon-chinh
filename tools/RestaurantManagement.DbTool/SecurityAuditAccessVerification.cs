@@ -50,20 +50,23 @@ internal static class SecurityAuditAccessVerification
             var userId = await Scalar<int>(connection, $"SELECT Id FROM dbo.Users WHERE UserName=N'{user}'");
             using (var login = await Login(client, user, password))
                 Assert(login.StatusCode == HttpStatusCode.Redirect, $"{role}: signs in");
-            var home = await client.GetStringAsync("/");
+            // S1-04 Task 2: mỗi vai trò mở trang đầu thuộc phần việc của mình (Bếp → /Kitchen, Thu ngân → /Cashier).
+            var landing = role switch { "Kitchen" => "/Kitchen", "Cashier" => "/Cashier", _ => "/" };
+            var home = await client.GetStringAsync(landing);
             Assert(!home.Contains("/AuditLogs", StringComparison.OrdinalIgnoreCase) && !WebUtility.HtmlDecode(home).Contains("Nhật ký hệ thống"),
                 $"{role}: menu has no audit log link");
-            var dishes = await client.GetStringAsync("/Dishes");
-            Assert(!dishes.Contains("PriceHistory", StringComparison.OrdinalIgnoreCase), $"{role}: dish list has no price-history link");
+            // S1-04 Task 1/2: quản lý món chỉ dành cho Quản lý — Phục vụ, Bếp, Thu ngân đều bị chặn.
+            // S1-04 Task 3: gõ thẳng đường dẫn ngoài quyền → 403 ngay tại đường dẫn đó, kèm trang báo không có quyền.
+            using (var dishes = await client.GetAsync("/Dishes"))
+                Assert(dishes.StatusCode == HttpStatusCode.Forbidden && (await dishes.Content.ReadAsStringAsync()).Contains("data-access-denied=\"403\""),
+                    $"{role}: dish management list is outside this role (403 page)");
             foreach (var url in ScreenUrls)
             {
-                using var response = await client.GetAsync(url);
-                Assert(response.StatusCode == HttpStatusCode.Redirect && response.Headers.Location?.OriginalString.Contains("/Account/AccessDenied") == true,
-                    $"{role}: direct URL {url} redirects to access denied");
-                using var denied = await client.GetAsync(response.Headers.Location);
+                using var denied = await client.GetAsync(url);
                 var body = await denied.Content.ReadAsStringAsync();
-                Assert(denied.StatusCode == HttpStatusCode.Forbidden && !body.Contains("security-audit-table") && !body.Contains("data-audit-id"),
-                    $"{role}: {url} ends in 403 without log data");
+                Assert(denied.StatusCode == HttpStatusCode.Forbidden && denied.Headers.Location is null && body.Contains("data-access-denied=\"403\"")
+                    && !body.Contains("security-audit-table") && !body.Contains("data-audit-id"),
+                    $"{role}: direct URL {url} ends in the 403 page without log data");
             }
             await AssertWritesBlocked(client, home, role);
             await RejectDb(connection, $"EXEC dbo.usp_SecurityAuditList @ActorUserId={userId};", 51001, $"{role}: database refuses audit list");
@@ -125,9 +128,9 @@ internal static class SecurityAuditAccessVerification
         await DatabaseTool.Execute(connection, $"UPDATE dbo.Users SET RoleId=2 WHERE Id={tempId};");
         using (var demoted = await client.GetAsync("/AuditLogs"))
         {
-            Assert(demoted.StatusCode == HttpStatusCode.Redirect && demoted.Headers.Location?.OriginalString.Contains("/Account/AccessDenied") == true,
-                "Demoted account is refused although its cookie still says Manager");
             var body = await demoted.Content.ReadAsStringAsync();
+            Assert(demoted.StatusCode == HttpStatusCode.Forbidden && body.Contains("data-access-denied=\"403\""),
+                "Demoted account is refused (403 page) although its cookie still says Manager");
             Assert(!body.Contains("data-audit-id"), "Demoted account sees no log data");
         }
         await Logout(client);
@@ -250,7 +253,8 @@ internal static class SecurityAuditAccessVerification
 
     private static async Task Logout(HttpClient client)
     {
-        var page = await client.GetStringAsync("/");
+        // Trang đổi mật khẩu mở được với mọi vai trò (trang "/" chỉ dành cho Quản lý, Phục vụ).
+        var page = await client.GetStringAsync("/Account/ChangePassword");
         using var response = await client.PostAsync("/Account/Logout", Form(("__RequestVerificationToken", Token(page))));
         Assert(response.StatusCode == HttpStatusCode.Redirect, "Logged out");
     }

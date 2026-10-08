@@ -7,9 +7,11 @@
         return image.StartsWith('/') ? Url.Content("~" + image) : image;
     }
     var defaultImage = Url.Content("~" + RestaurantManagement.Web.Services.DishImage.DefaultImage);
+    // S2-08 Task 1: món tạm hết / hết trong ngày — nhãn "Tạm hết", khoá nút thêm vào giỏ; tự cập nhật mỗi 3 giây.
+    var unavailable = ViewData["UnavailableDishIds"] as IReadOnlySet<int> ?? new HashSet<int>();
 }
-<div class="menu-intro"><div><span class="menu-eyebrow">BẾP NHÀ · THỰC ĐƠN</span><h2>Món ngon, trọn vị nhà.</h2><p>Chọn món yêu thích và thêm vào giỏ để bắt đầu gọi món.</p></div><a class="btn btn-outline-primary" href="#cart">Xem giỏ món ↓</a></div>
-<div class="menu-workspace">
+<div class="menu-intro"><div><p>Chọn số lượng rồi bấm “Thêm vào giỏ”. Món có nhãn “Tạm hết” không gọi được.</p></div><a class="btn btn-outline-primary" href="#cart">Xem giỏ món</a></div>
+<div class="menu-workspace" data-availability-url="@Url.Content("~/api/menu/availability")" data-availability-interval="@RestaurantManagement.Web.Services.TemporaryOutRules.PollIntervalMs">
 <nav class="menu-categories" aria-label="Nhóm món">
     <h2>Danh mục món</h2>
     @foreach (var category in Model)
@@ -18,7 +20,7 @@
     }
 </nav>
 <div class="menu-catalog">
-<label for="menu-search" class="menu-search-label">Bạn muốn ăn gì hôm nay?</label>
+<label for="menu-search" class="menu-search-label">Tìm món</label>
 <input id="menu-search" class="form-control mb-4" type="search" placeholder="Tìm tên món ăn…" />
 <p id="menu-no-results" class="text-muted" hidden>Không tìm thấy món phù hợp. Hãy thử tên khác.</p>
 @if (Model.Count == 0)
@@ -36,19 +38,21 @@
 <div class="row">
     @foreach (var item in category.Dishes)
     {
-        <div class="col-md-4 mb-3 menu-item" data-search="@item.Name">
+        var isOut = unavailable.Contains(item.Id);
+        <div class="col-md-4 mb-3 menu-item" data-search="@item.Name" data-availability-id="@item.Id" data-unavailable="@(isOut ? "true" : "false")">
             <div class="card menu-item-card">
                 <img class="menu-item-photo" src="@ImageSrc(item.ImagePath, category.DefaultImagePath)" alt="Ảnh món @item.Name" width="112" height="112" loading="lazy"
                      onerror="this.onerror=null;this.src='@defaultImage';" />
                 <div class="card-body">
+                    <span class="badge bg-warning text-dark mb-1" data-availability-label hidden="@(!isOut)">Tạm hết – không nhận order</span>
                     <h3 class="card-title h5">@item.Name</h3>
                     <p class="card-subtitle mb-2 text-muted">@category.Name</p>
                     <p class="card-text">@item.ShortDescription</p>
                     <p class="card-text"><strong>@item.PriceVnd.ToString("N0")</strong> VND / @item.Unit</p>
                     <p class="card-text"><small class="text-muted">Thời gian chế biến: @item.PrepMinutes phút</small></p>
                     <div class="d-flex align-items-center">
-                        <input type="number" min="1" value="1" aria-label="Số lượng @item.Name" class="form-control form-control-sm me-2 qty-input" style="width:80px" data-monid="@item.Id" />
-                        <button type="button" class="btn btn-primary btn-add-to-cart" data-monid="@item.Id" data-ten="@item.Name" data-gia="@item.PriceVnd" data-donvitinh="@item.Unit">Thêm vào giỏ</button>
+                        <input type="number" min="1" value="1" aria-label="Số lượng @item.Name" class="form-control form-control-sm me-2 qty-input" style="width:80px" data-monid="@item.Id" data-availability-disable disabled="@isOut" />
+                        <button type="button" class="btn btn-primary btn-add-to-cart" data-monid="@item.Id" data-ten="@item.Name" data-gia="@item.PriceVnd" data-donvitinh="@item.Unit" data-availability-disable disabled="@isOut">Thêm vào giỏ</button>
                     </div>
                 </div>
             </div>
@@ -61,8 +65,8 @@
 
  </div>
 <aside id="cart" class="mb-3 menu-cart" aria-label="Giỏ gọi món">
-    <span class="menu-eyebrow">MÓN BẠN ĐÃ CHỌN</span>
     <h2>Giỏ gọi món</h2>
+    <div id="cart-availability-notice" class="alert alert-warning" role="status" aria-live="polite" hidden></div>
     <p class="text-muted">Giỏ món đang trống.<br />Thêm món bạn thích từ thực đơn bên cạnh.</p>
     <table class="table d-none" id="cartTable">
         <thead>
@@ -126,8 +130,21 @@
             document.getElementById('CartJson').value = JSON.stringify(cart);
         }
 
+        // S2-08 Task 1: món vừa chuyển sang "Tạm hết" bị bỏ khỏi giỏ để không gửi order mới.
+        document.addEventListener('menu-availability:changed', event => {
+            const out = event.detail.unavailable;
+            const removed = cart.filter(it => out.has(it.dishId)).map(it => it.name);
+            if (removed.length === 0) return;
+            for (let i = cart.length - 1; i >= 0; i--) if (out.has(cart[i].dishId)) cart.splice(i, 1);
+            const notice = document.getElementById('cart-availability-notice');
+            notice.textContent = 'Đã bỏ khỏi giỏ vì món vừa tạm hết: ' + removed.join(', ') + '.';
+            notice.hidden = false;
+            updateCartUI();
+        });
+
         document.querySelectorAll('.btn-add-to-cart').forEach(btn=>{
             btn.addEventListener('click', ()=>{
+                if (btn.disabled) return;
                 const dishId = parseInt(btn.getAttribute('data-monid'));
                 const name = btn.getAttribute('data-ten');
                 const price = parseInt(btn.getAttribute('data-gia'));
@@ -150,3 +167,4 @@
         });
     })();
 </script>
+<script src="~/js/menu-availability.js" asp-append-version="true"></script>

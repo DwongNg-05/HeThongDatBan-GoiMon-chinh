@@ -1,0 +1,42 @@
+@model RestaurantManagement.Web.Models.Cashier.InvoicesViewModel
+@using RestaurantManagement.Web.Models.Cashier
+@{
+    ViewData["Title"] = "Hoá đơn";
+}
+<div class="container mt-4" data-screen="cashier-invoices">
+    <h2>Hoá đơn</h2>
+    <form method="get" class="row g-2 align-items-end mb-3">
+        <div class="col-auto">
+            <label for="date" class="form-label">Ngày</label>
+            <input id="date" name="date" type="date" class="form-control" value="@Model.BusinessDate.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="col-auto"><button type="submit" class="btn btn-secondary">Xem</button></div>
+    </form>
+    <p>Ngày @Model.BusinessDate.ToString("dd/MM/yyyy"): <strong>@Model.Invoices.Count</strong> hoá đơn, đã thu <strong>@Vnd.Format(Model.PaidTotal)</strong>.</p>
+    @if (Model.Invoices.Count == 0)
+    {
+        <p class="text-muted">Chưa có hoá đơn.</p>
+    }
+    else
+    {
+        <table class="table table-bordered">
+            <thead><tr><th>Số hoá đơn</th><th>Bàn</th><th>Số khách</th><th>Giờ</th><th>Tạm tính</th><th>Giảm giá</th><th>Tổng</th><th>Hình thức</th><th>Trạng thái</th></tr></thead>
+            <tbody>
+                @foreach (var i in Model.Invoices)
+                {
+                    <tr data-invoice="@i.InvoiceNumber">
+                        <td class="fw-bold">@i.InvoiceNumber</td>
+                        <td>@i.Tables</td>
+                        <td>@i.GuestCount</td>
+                        <td>@i.IssuedAt.ToString("HH:mm")</td>
+                        <td>@Vnd.Format(i.Subtotal)</td>
+                        <td>@Vnd.Format(i.DiscountAmount)</td>
+                        <td>@Vnd.Format(i.Total)</td>
+                        <td>@i.MethodLabel</td>
+                        <td>@i.StatusLabel</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>

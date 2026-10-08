@@ -1,3 +1,4 @@
+using RestaurantManagement.Web.Security;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,7 +12,7 @@ namespace RestaurantManagement.Web.Controllers;
 /// giá được sửa ngay ở trang Sửa món, nhật ký thay đổi giá hiển thị trong Quản lý món.
 /// Controller này chỉ còn chuyển hướng đường dẫn cũ và xử lý nút "Tạm hết / Còn món" của Quản lý.
 /// </summary>
-[Authorize(Roles = "Manager")]
+[Authorize(Roles = AppRoles.Manager)]
 [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
 public class ManagementController(ManagementStore store) : Controller
 {

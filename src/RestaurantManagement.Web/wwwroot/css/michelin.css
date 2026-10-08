@@ -1,0 +1,346 @@
+/* =====================================================================
+   Giao diện phong cách Michelin: nền trắng, chữ đen, đỏ chỉ dùng cho
+   thương hiệu và hành động chính; ảnh món lớn; chip bo góc; thẻ gọn.
+   Nạp SAU các file CSS cũ nên ghi đè được màu, chữ và khoảng cách.
+   ===================================================================== */
+:root {
+    --m-red: #ba0c2f;
+    --m-red-dark: #970a26;
+    --m-ink: #222222;
+    --m-muted: #6e6e6e;
+    --m-line: #e5e5e5;
+    --m-surface: #f6f6f6;
+    --m-white: #ffffff;
+    --m-ok: #1e7a46;
+    --m-radius: 10px;
+    --m-card-radius: 4px;
+    --m-shadow: 0 2px 12px rgba(0, 0, 0, .08);
+    --m-font: "Be Vietnam Pro", "Segoe UI", system-ui, -apple-system, sans-serif;
+
+    /* Biến cũ trỏ về bảng màu mới để các trang chưa sửa vẫn đồng bộ. */
+    --brand: var(--m-red);
+    --brand-dark: var(--m-red-dark);
+    --ink: var(--m-ink);
+    --muted: var(--m-muted);
+    --line: var(--m-line);
+    --soft: var(--m-surface);
+    --bs-body-font-family: var(--m-font);
+    --bs-body-color: var(--m-ink);
+    --bs-body-bg: var(--m-white);
+    --bs-border-color: var(--m-line);
+}
+
+/* ---------- Nền tảng ---------- */
+html, body, .admin-shell, .guest-shell { background: var(--m-white); color: var(--m-ink); font-family: var(--m-font); }
+body { font-size: 16px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+h1, h2, h3, h4, h5, h6 { color: var(--m-ink); font-family: var(--m-font); font-weight: 500; letter-spacing: -.01em; }
+h1, .h1 { font-size: clamp(26px, 3vw, 34px); line-height: 1.2; margin-bottom: 20px; }
+h2, .h2 { font-size: clamp(21px, 2.2vw, 26px); line-height: 1.25; }
+h3, .h3 { font-size: 20px; }
+p { max-width: 75ch; }
+a { color: var(--m-ink); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+a:hover { color: var(--m-red); }
+.text-muted { color: var(--m-muted) !important; }
+:focus-visible { outline: 2px solid var(--m-ink); outline-offset: 3px; }
+::selection { background: #f4d6dc; }
+
+/* ---------- Khung trang ---------- */
+.workspace-header {
+    min-height: 84px; padding: 0 40px; gap: 24px;
+    background: var(--m-white); border-bottom: 0; box-shadow: 0 2px 10px rgba(0, 0, 0, .05);
+    position: sticky; top: 0; z-index: 20;
+}
+.workspace-content { padding: 36px 40px 64px; }
+.guest-shell .workspace-content { max-width: 1360px; }
+
+/* Tên thương hiệu: chữ đỏ in hoa như logo MICHELIN GUIDE. */
+.sidebar-brand { gap: 0; color: var(--m-red); text-decoration: none; }
+.brand-wordmark { color: var(--m-red); font-size: 26px; font-weight: 700; letter-spacing: .01em; line-height: 1; white-space: nowrap; }
+.brand-wordmark span { font-weight: 400; }
+.sidebar-brand:hover .brand-wordmark { color: var(--m-red-dark); }
+.brand-mark { display: none; }
+
+/* Khách: điều hướng giữa, mục đang mở có viền bo góc (như nút "Restaurants"). */
+.guest-links { flex: 1; justify-content: center; gap: 8px; font-size: 17px; }
+.guest-links a { padding: 11px 26px; border: 1px solid transparent; border-radius: var(--m-radius); color: var(--m-ink); text-decoration: none; }
+.guest-links a:hover { color: var(--m-ink); border-color: var(--m-line); }
+.guest-links a[aria-current="page"] { font-weight: 400; text-decoration: none; border-color: var(--m-ink); }
+.guest-links .guest-login { flex: 0 0 auto; margin-left: auto; background: var(--m-ink); border-color: var(--m-ink); color: var(--m-white); }
+.guest-links .guest-login:hover, .guest-links .guest-login[aria-current="page"] { background: var(--m-white); color: var(--m-ink); }
+.guest-shell .workspace-header { justify-content: flex-start; }
+
+/* Nhân viên: thanh bên trắng, chữ thường, mục đang mở có viền đen bo góc. */
+.admin-sidebar { background: var(--m-white) !important; border-right: 1px solid var(--m-line) !important; }
+.sidebar-brand-row { padding: 30px 24px 26px; border-bottom: 0; }
+.sidebar-brand-row .brand-wordmark { font-size: 24px; }
+.sidebar-navigation { padding: 4px 16px 20px; }
+.sidebar-links { gap: 2px; }
+.sidebar-link { min-height: 46px; padding: 11px 16px; border: 1px solid transparent; border-radius: var(--m-radius); color: var(--m-ink); font-size: 15px; font-weight: 400; }
+.sidebar-link::before { display: none; }
+.sidebar-link:hover { background: var(--m-surface); color: var(--m-ink); }
+.sidebar-link.is-active { background: var(--m-white); color: var(--m-ink); border-color: var(--m-ink); box-shadow: none; font-weight: 500; }
+.sidebar-account { padding: 20px 24px 24px; border-top: 1px solid var(--m-line); grid-template-columns: 40px minmax(0, 1fr); }
+.account-avatar { width: 40px; height: 40px; background: var(--m-surface); color: var(--m-ink); font-weight: 500; }
+.account-details small { font-size: 12px; color: var(--m-muted); }
+.account-details strong { font-size: 15px; font-weight: 500; }
+.sidebar-logout { padding: 10px; border-radius: var(--m-radius); border-color: var(--m-line); color: var(--m-ink); font-size: 14px; }
+.sidebar-logout:hover { background: var(--m-white); color: var(--m-ink); border-color: var(--m-ink); }
+.workspace-location { font-size: 15px; gap: 10px; }
+.workspace-location > span { color: var(--m-muted); }
+.workspace-location strong { font-weight: 500; font-size: 20px; }
+.workspace-caption { color: var(--m-muted); font-size: 14px; }
+.menu-toggle { border-color: var(--m-line); border-radius: var(--m-radius); color: var(--m-ink); }
+
+/* ---------- Nút ---------- */
+.btn { min-height: 46px; padding: 10px 20px; border-radius: var(--m-radius); font-weight: 500; font-size: 15px; box-shadow: none !important; }
+.btn-sm { min-height: 38px; padding: 7px 14px; font-size: 14px; }
+.btn-primary, .btn-danger { background: var(--m-red); border-color: var(--m-red); color: #fff; }
+.btn-primary:hover, .btn-primary:focus, .btn-danger:hover, .btn-danger:focus { background: var(--m-red-dark); border-color: var(--m-red-dark); color: #fff; }
+.btn-success { background: var(--m-ok); border-color: var(--m-ok); color: #fff; }
+.btn-success:hover, .btn-success:focus { background: #17603a; border-color: #17603a; color: #fff; }
+.btn-outline-primary, .btn-outline-secondary, .btn-secondary, .btn-light, .btn-outline-dark {
+    background: var(--m-white); border: 1px solid var(--m-line); color: var(--m-ink);
+}
+.btn-outline-primary:hover, .btn-outline-secondary:hover, .btn-secondary:hover, .btn-light:hover, .btn-outline-dark:hover,
+.btn-outline-primary:focus, .btn-outline-secondary:focus {
+    background: var(--m-white); border-color: var(--m-ink); color: var(--m-ink);
+}
+.btn-outline-danger { background: var(--m-white); border-color: #e9b9c3; color: var(--m-red); }
+.btn-outline-danger:hover { background: var(--m-red); border-color: var(--m-red); color: #fff; }
+.btn-link { color: var(--m-ink); text-decoration: underline; text-underline-offset: 3px; }
+.btn-link:hover { color: var(--m-red); }
+.btn:disabled, .btn.disabled { opacity: .45; }
+
+/* ---------- Ô nhập ---------- */
+.form-label { font-size: 15px; font-weight: 500; margin-bottom: 6px; }
+.form-control, .form-select { min-height: 50px; padding: 12px 16px; border: 1px solid #d6d6d6; border-radius: var(--m-radius); color: var(--m-ink); font-size: 16px; }
+.form-control::placeholder { color: #9a9a9a; }
+.form-control:focus, .form-select:focus { border-color: var(--m-ink); box-shadow: 0 0 0 3px rgba(34, 34, 34, .08); }
+.form-check-input:checked { background-color: var(--m-red); border-color: var(--m-red); }
+.form-text { color: var(--m-muted); }
+.text-danger, .field-validation-error { color: var(--m-red) !important; }
+
+/* ---------- Bảng: gọn, đường kẻ mảnh, không nền tiêu đề ---------- */
+.table { --bs-table-bg: transparent; --bs-table-striped-bg: var(--m-surface); --bs-table-hover-bg: #fafafa; background: transparent; border-color: var(--m-line); color: var(--m-ink); }
+.table > :not(caption) > * > * { border-bottom-color: var(--m-line); }
+.table th, .table thead th { background: transparent; padding: 14px 16px; color: var(--m-muted); font-size: 13px; font-weight: 500; border-bottom: 1px solid var(--m-ink); }
+.table td { padding: 16px; vertical-align: middle; }
+.table-light, .table-light > th, .table-light > td { --bs-table-bg: var(--m-surface); background: var(--m-surface); }
+.table-light th { color: var(--m-ink); font-size: 15px; font-weight: 500; border-bottom-color: var(--m-line); }
+.table-bordered > :not(caption) > * > * { border-width: 0 0 1px; }
+
+/* ---------- Thông báo, nhãn ---------- */
+.alert { border: 0; border-left: 3px solid var(--m-ink); border-radius: var(--m-card-radius); background: var(--m-surface); color: var(--m-ink); padding: 14px 18px; }
+.alert-success { border-left-color: var(--m-ok); background: #f1f7f3; }
+.alert-danger { border-left-color: var(--m-red); background: #fbf0f2; }
+.alert-warning { border-left-color: #b7791f; background: #fbf6ec; }
+.alert-info, .alert-secondary { border-left-color: var(--m-muted); }
+.badge { padding: 6px 12px; border-radius: var(--m-radius); font-weight: 500; font-size: 13px; }
+.badge.bg-warning { background: var(--m-white) !important; color: var(--m-red) !important; border: 1px solid #e9b9c3; }
+.badge.bg-success { background: #eef6f1 !important; color: var(--m-ok) !important; }
+.badge.bg-secondary { background: var(--m-surface) !important; color: var(--m-muted) !important; }
+.badge.bg-light { background: var(--m-white) !important; }
+.card { border: 0; border-radius: var(--m-card-radius); box-shadow: var(--m-shadow); }
+
+/* ---------- Đăng nhập ---------- */
+.auth-card { max-width: 460px; padding: 40px 36px; background: var(--m-white); border-radius: var(--m-card-radius); box-shadow: var(--m-shadow); }
+.auth-card h1 { font-size: 28px; margin-bottom: 6px; }
+.auth-card .auth-lead { margin-bottom: 26px; color: var(--m-muted); }
+.guest-menu-callout { padding: 20px 0 0; border: 0; border-top: 1px solid var(--m-line); border-radius: 0; background: transparent; color: var(--m-muted); }
+
+/* ---------- Thực đơn công khai: lưới thẻ ảnh lớn ---------- */
+.public-menu { max-width: 1360px; }
+.public-menu-hero { padding: 6px 0 4px; margin-bottom: 22px; background: none; border: 0; border-radius: 0; }
+.public-menu-hero h1 { margin: 0 0 6px; font-size: clamp(30px, 4vw, 40px); }
+.public-menu-hero p { color: var(--m-muted); font-size: 16px; }
+.public-menu-hero .menu-eyebrow { display: none; }
+
+.public-menu-search { max-width: 760px; gap: 10px; margin-bottom: 18px; }
+.public-menu-search-input {
+    min-height: 60px; padding: 14px 20px 14px 56px; border: 1px solid #d6d6d6; border-radius: var(--m-radius); font-size: 17px;
+    background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' fill='none' stroke='%23222' stroke-width='2' viewBox='0 0 24 24'%3E%3Ccircle cx='10.5' cy='10.5' r='7'/%3E%3Cpath d='m20 20-4.5-4.5'/%3E%3C/svg%3E") no-repeat 20px center;
+}
+.public-menu-search-input:focus { outline: 0; border-color: var(--m-ink); box-shadow: 0 0 0 3px rgba(34, 34, 34, .08); }
+.public-menu-search-button { min-height: 60px; padding: 10px 26px; border-radius: var(--m-radius); background: var(--m-ink); font-weight: 500; font-size: 16px; }
+.public-menu-search-button:hover, .public-menu-search-button:focus-visible { filter: none; background: #000; }
+.public-menu-search-status { font-size: 15px; color: var(--m-muted); }
+.public-menu-search-clear { color: var(--m-ink); font-weight: 500; text-decoration: underline; }
+.public-menu-no-result, .public-menu-empty { border: 1px solid var(--m-line); border-radius: var(--m-card-radius); color: var(--m-muted); }
+
+/* Chip nhóm món như hàng bộ lọc của Michelin. */
+.public-menu-tabs { top: 84px; gap: 10px; padding: 14px 0; margin: 0 0 18px; background: var(--m-white); border-bottom: 1px solid var(--m-line); }
+.public-menu-tabs a { min-height: 46px; padding: 10px 20px; border: 1px solid var(--m-line); border-radius: var(--m-radius); background: var(--m-white); color: var(--m-ink); font-size: 15px; font-weight: 400; }
+.public-menu-tabs a:hover, .public-menu-tabs a:focus-visible { background: var(--m-white); border-color: var(--m-ink); color: var(--m-ink); }
+
+.public-menu-group { margin: 0 0 48px; padding: 0; background: none; border: 0; border-radius: 0; scroll-margin-top: 170px; contain-intrinsic-size: auto 1200px; }
+.public-menu-group h2 { margin: 0 0 22px; padding: 0; border: 0; font-size: clamp(24px, 2.6vw, 30px); }
+.public-menu-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 32px; }
+.public-dish {
+    position: relative; display: flex; flex-direction: column; gap: 0; padding: 0; overflow: hidden;
+    background: var(--m-white); border: 0; border-radius: var(--m-card-radius); box-shadow: var(--m-shadow);
+}
+.public-dish:last-child { padding-bottom: 0; }
+.public-dish-image, .public-dish .public-dish-image { width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 0; background: var(--m-surface); }
+.public-dish-body { display: flex; flex-direction: column; gap: 6px; padding: 22px 24px 26px; }
+.public-dish-name { margin: 0; font-size: 22px; font-weight: 500; line-height: 1.25; }
+.public-dish-desc { order: 3; margin: 2px 0 0; color: var(--m-muted); font-size: 15px; line-height: 1.5; }
+.public-dish-price { order: 2; margin: 0; color: var(--m-ink); font-size: 15px; }
+.public-dish-price data { color: var(--m-ink); font-size: 16px; font-weight: 500; }
+.public-dish-unit { color: var(--m-muted); font-size: 15px; }
+/* Nhãn "Tạm hết" là chip trắng nằm trên ảnh (như "Reserve a table"). */
+.public-dish-status {
+    position: absolute; top: 16px; left: 16px; display: inline-flex; align-items: center; gap: 8px;
+    margin: 0; padding: 8px 14px; border-radius: var(--m-radius); background: var(--m-white); color: var(--m-ink);
+    font-size: 14px; font-weight: 500; letter-spacing: 0; box-shadow: 0 1px 6px rgba(0, 0, 0, .12);
+}
+.public-dish-status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--m-red); }
+.public-dish[data-sold-out="true"] .public-dish-image { opacity: .55; filter: grayscale(1); }
+.public-dish[data-sold-out="true"] .public-dish-name,
+.public-dish[data-sold-out="true"] .public-dish-desc,
+.public-dish[data-sold-out="true"] .public-dish-price { opacity: .6; }
+
+/* ---------- Gọi món: chip nhóm, lưới thẻ món, giỏ món bên phải ---------- */
+.menu-intro { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin: 0 0 22px; padding: 0; background: none; border: 0; border-radius: 0; }
+.menu-intro h2 { margin: 0 0 4px; font-size: clamp(28px, 3.4vw, 36px); }
+.menu-intro p { color: var(--m-muted); }
+.menu-intro .menu-eyebrow { display: none; }
+
+.menu-workspace, .admin-shell .menu-workspace {
+    display: grid; grid-template-columns: minmax(0, 1fr) 360px; grid-template-areas: "chips chips" "catalog cart"; gap: 24px 40px;
+}
+.menu-categories, .admin-shell .menu-categories {
+    grid-area: chips; position: static; display: flex; flex-wrap: wrap; gap: 10px; padding: 0 0 18px;
+    background: none; border: 0; border-bottom: 1px solid var(--m-line); border-radius: 0;
+}
+.menu-categories h2 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); margin: 0; padding: 0; }
+.menu-categories a, .menu-categories .btn { display: inline-flex; margin: 0; font-size: 15px; font-weight: 400; }
+.menu-catalog { grid-area: catalog; padding: 0; background: none; border: 0; border-radius: 0; }
+.menu-search-label { font-size: 15px; font-weight: 500; }
+#menu-search {
+    min-height: 58px; padding-left: 54px; font-size: 17px;
+    background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' fill='none' stroke='%23222' stroke-width='2' viewBox='0 0 24 24'%3E%3Ccircle cx='10.5' cy='10.5' r='7'/%3E%3Cpath d='m20 20-4.5-4.5'/%3E%3C/svg%3E") no-repeat 18px center;
+}
+.menu-catalog section { margin-bottom: 44px !important; scroll-margin-top: 110px; }
+.menu-catalog h2 { margin: 0 0 20px; padding: 0; border: 0; font-size: clamp(22px, 2.4vw, 28px); }
+.menu-catalog .row { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 28px; margin: 0; }
+.menu-item { width: auto; max-width: none; margin: 0 !important; padding: 0; }
+.menu-item .card, .menu-item .menu-item-card {
+    position: relative; display: flex; flex-direction: column; height: 100%; gap: 0; overflow: hidden;
+    border: 0; border-radius: var(--m-card-radius); box-shadow: var(--m-shadow); background: var(--m-white);
+}
+.menu-item .menu-item-photo { flex: none; width: 100%; height: auto; aspect-ratio: 4 / 3; margin: 0; object-fit: cover; border: 0; border-radius: 0; background: var(--m-surface); }
+.menu-item .card-body { display: flex; flex-direction: column; flex: 1; padding: 20px 22px 22px; }
+.menu-item .card-title { margin: 0 0 4px; font-size: 20px; font-weight: 500; }
+.menu-item .card-subtitle { margin: 0 0 8px !important; font-size: 14px; color: var(--m-muted); }
+.menu-item .card-text { margin-bottom: 8px; color: var(--m-muted); font-size: 15px; }
+.menu-item .card-text strong { color: var(--m-ink); font-size: 17px; font-weight: 500; }
+.menu-item .card-body > .d-flex { margin-top: auto; padding-top: 10px; gap: 8px; }
+.menu-item .qty-input { min-height: 46px; width: 76px !important; margin: 0 !important; text-align: center; }
+.menu-item .btn-add-to-cart { flex: 1; }
+.menu-item [data-availability-label] {
+    position: absolute; top: 14px; left: 14px; z-index: 1; padding: 8px 14px; border: 0;
+    background: var(--m-white) !important; color: var(--m-ink) !important; box-shadow: 0 1px 6px rgba(0, 0, 0, .12);
+}
+.menu-item [data-availability-label]::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; background: var(--m-red); vertical-align: 1px; }
+.menu-item[data-unavailable="true"] .menu-item-photo { opacity: .55; filter: grayscale(1); }
+.menu-item[data-unavailable="true"] .card-title, .menu-item[data-unavailable="true"] .card-text { opacity: .6; }
+
+.menu-cart, .admin-shell .menu-cart {
+    grid-area: cart; position: sticky; top: 108px; padding: 26px 24px;
+    background: var(--m-white); border: 1px solid var(--m-line); border-radius: var(--m-card-radius);
+}
+.menu-cart .menu-eyebrow { display: none; }
+.menu-cart h2 { margin: 0 0 16px; font-size: 24px; }
+.menu-cart > p { margin: 0; padding: 26px 8px; border: 1px dashed #d6d6d6; border-radius: var(--m-card-radius); color: var(--m-muted); font-size: 15px; }
+.menu-cart .table { font-size: 14px; }
+.menu-cart .table th { font-size: 12px; }
+#btnCheckout { min-height: 52px; font-size: 16px; }
+
+/* ---------- Món trong ngày, lịch sử, quản lý món ---------- */
+[data-screen="daily-dishes"] h2, [data-screen="temporary-out-history"] h2, [data-screen="kitchen-orders"] h2 { font-size: clamp(28px, 3vw, 34px); }
+[data-screen="daily-dishes"] .table-light th { padding-top: 22px; }
+[data-unavailable="true"] > td:first-child { color: var(--m-muted); }
+
+/* ---------- Sơ đồ bàn: bỏ sắc xanh, dùng chip và thẻ trắng ---------- */
+.map-heading h1 { font-weight: 500; letter-spacing: -.01em; }
+.eyebrow { display: none; }
+.map-summary { border-color: var(--m-line); border-radius: var(--m-card-radius); }
+.summary-icon, .empty-state > span { background: var(--m-surface); color: var(--m-ink); }
+.area-tab { min-height: 44px; padding: 10px 18px; border: 1px solid var(--m-line); border-radius: var(--m-radius); color: var(--m-ink); font-size: 15px; font-weight: 400; }
+.area-tab:hover { background: var(--m-white); color: var(--m-ink); border-color: var(--m-ink); }
+.area-tab.active { background: var(--m-white); color: var(--m-ink); border-color: var(--m-ink); }
+.area-tab span, .area-tab.active span { background: var(--m-surface); color: var(--m-ink); }
+.area-mark { background: var(--m-red); }
+.area-heading h2 { font-size: 20px; font-weight: 500; }
+.table-card { border-color: var(--m-line); border-radius: var(--m-card-radius); box-shadow: var(--m-shadow); }
+.table-card:hover { border-color: var(--m-line); box-shadow: 0 6px 18px rgba(0, 0, 0, .1); }
+.table-code { font-weight: 500; }
+
+/* ---------- Màn hình nhỏ ---------- */
+@media (max-width: 1100px) {
+    .menu-workspace, .admin-shell .menu-workspace { grid-template-columns: minmax(0, 1fr); grid-template-areas: "chips" "catalog" "cart"; }
+    .menu-cart, .admin-shell .menu-cart { position: static; }
+}
+@media (max-width: 991.98px) {
+    .workspace-header { min-height: 68px; padding: 0 18px; }
+    .workspace-content { padding: 24px 18px 48px; }
+    .guest-links { justify-content: flex-end; font-size: 15px; gap: 2px; }
+    .guest-links a { padding: 9px 12px; }
+    .public-menu-tabs { top: 68px; }
+}
+@media (max-width: 640px) {
+    .guest-shell .workspace-header { flex-wrap: wrap; padding: 12px 16px; gap: 8px; }
+    .guest-links { flex: 1 1 100%; justify-content: flex-start; overflow-x: auto; flex-wrap: nowrap; }
+    .brand-wordmark { font-size: 22px; }
+    .public-menu-tabs { position: static; }
+    .public-menu-list, .menu-catalog .row { grid-template-columns: 1fr; gap: 22px; }
+    .public-menu-search-input, .public-menu-search-button { min-height: 52px; }
+    .public-dish-body { padding: 18px 18px 20px; }
+    .workspace-content { padding: 20px 16px 40px; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
+
+/* Chip nhóm món ở Gọi món: file cũ bỏ viền nút, trả lại viền chip. */
+.menu-categories a, .menu-categories .btn { min-height: 46px; padding: 10px 20px; border: 1px solid var(--m-line) !important; border-radius: var(--m-radius); background: var(--m-white); color: var(--m-ink); }
+.menu-categories a:hover, .menu-categories .btn:hover { border-color: var(--m-ink) !important; background: var(--m-white); color: var(--m-ink); }
+/* Nút bị khoá (món tạm hết): xám, không dùng màu xanh mặc định của Bootstrap. */
+.btn:disabled, .btn.disabled, fieldset:disabled .btn { background: #e9e9e9 !important; border-color: #e9e9e9 !important; color: #8a8a8a !important; opacity: 1; }
+.form-control:disabled { background: var(--m-surface); }
+/* Thanh trên của nhân viên: chỉ nút mở menu (điện thoại) và tên người đăng nhập; tiêu đề nằm trong trang. */
+.admin-shell .workspace-header { min-height: 64px; }
+.admin-shell .workspace-caption { margin-left: auto; display: block; }
+/* Nút một chạm "Tạm hết / Bán lại": viền nhẹ khi món còn hàng, nền đen khi đang tạm hết — đỏ chỉ là dấu chấm trạng thái. */
+[data-temporarily-out-toggle] .btn { min-width: 112px; }
+[data-temporarily-out-toggle] .btn-danger { background: var(--m-white); border-color: #d6d6d6; color: var(--m-ink); }
+[data-temporarily-out-toggle] .btn-danger:hover, [data-temporarily-out-toggle] .btn-danger:focus { background: var(--m-white); border-color: var(--m-red); color: var(--m-red); }
+[data-temporarily-out-toggle] .btn-success { background: var(--m-ink); border-color: var(--m-ink); color: var(--m-white); }
+[data-temporarily-out-toggle] .btn-success:hover, [data-temporarily-out-toggle] .btn-success:focus { background: #000; border-color: #000; }
+[data-availability-label].badge, td .badge.bg-warning { display: inline-flex; align-items: center; gap: 8px; border: 0; padding: 0; color: var(--m-ink) !important; font-size: 15px; }
+td .badge.bg-warning::before, [data-availability-id] td [data-availability-label]::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--m-red); }
+.workspace-content > .container { margin-top: 0 !important; padding-top: 0; padding-left: 0; padding-right: 0; max-width: none; }
+/* Điện thoại: nút Đăng nhập lên hàng tên quán, các mục còn lại xếp hàng dưới. */
+@media (max-width: 640px) {
+    .guest-links .guest-login { position: absolute; top: 10px; right: 16px; min-height: 0; padding: 7px 14px; font-size: 14px; }
+    .guest-links a:not(.guest-login) { padding: 8px 14px; font-size: 15px; }
+    .guest-shell .workspace-header { min-height: 0; padding-top: 14px; }
+}
+
+/* Chữ thanh bên luôn đen (ghi đè màu link xanh mặc định của layout). */
+.admin-sidebar .sidebar-link, .admin-sidebar .sidebar-link:visited, .admin-sidebar .sidebar-link:hover, .admin-sidebar .sidebar-link.is-active { color: var(--m-ink); }
+.workspace-header a, .workspace-header a:visited { color: var(--m-ink); }
+.workspace-header .sidebar-brand, .admin-sidebar .sidebar-brand { color: var(--m-red); }
+.guest-links .guest-login, .guest-links .guest-login:visited { color: var(--m-white); }
+.guest-links .guest-login:hover, .guest-links .guest-login[aria-current="page"] { color: var(--m-ink); }
+
+/* Tab trong trang (nav-pills, vd. Danh sách đơn / Đơn chờ xử lý / Lịch bàn theo ngày):
+   cùng kiểu với thanh bên — chữ đen, tab đang mở có viền đen bo góc, không nền xanh. */
+.nav-pills { --bs-nav-pills-link-active-bg: transparent; --bs-nav-pills-link-active-color: var(--m-ink); gap: 8px; }
+.nav-pills .nav-link, .nav-pills .nav-link:visited {
+    min-height: 46px; display: inline-flex; align-items: center; padding: 10px 20px !important;
+    border: 1px solid var(--m-line); border-radius: var(--m-radius); background: var(--m-white);
+    color: var(--m-ink) !important; font-size: 15px; font-weight: 400;
+}
+.nav-pills .nav-link:hover { background: var(--m-white); border-color: var(--m-ink); color: var(--m-ink) !important; }
+.nav-pills .nav-link.active, .nav-pills .show > .nav-link, .nav-pills .nav-link[aria-current="page"] {
+    background: var(--m-white) !important; border-color: var(--m-ink); color: var(--m-ink) !important; font-weight: 500;
+}

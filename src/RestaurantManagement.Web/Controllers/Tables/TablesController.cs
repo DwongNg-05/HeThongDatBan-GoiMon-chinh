@@ -1,3 +1,4 @@
+using RestaurantManagement.Web.Security;
 using System.Data;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
@@ -5,21 +6,17 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.Data.SqlClient;
 using RestaurantManagement.Web.Models.Tables;
-using RestaurantManagement.Web.Security;
 using RestaurantManagement.Web.Services;
 
 namespace RestaurantManagement.Web.Controllers;
 
 /// <summary>Quản lý danh mục bàn và mã QR công khai của từng bàn.</summary>
-/// <remarks>
-/// Các thao tác quản lý bàn và QR luôn dùng tài khoản Quản lý đang đăng nhập.
-/// </remarks>
-[Authorize(Roles = "Manager")]
+/// <remarks>S1-04 Task 4: chỉ Quản lý; thao tác ghi dùng tài khoản đang đăng nhập làm ActorUserId.</remarks>
+[Authorize(Roles = AppRoles.Manager)]
 public class TablesController(
     IConfiguration configuration,
     TableQrService qrService,
-    TableQrPdfBuilder pdfBuilder,
-    ICurrentUser currentUser) : Controller
+    TableQrPdfBuilder pdfBuilder) : Controller
 {
     private string ConnectionString => configuration.GetConnectionString("DefaultConnection")
         ?? throw new InvalidOperationException("Chưa cấu hình ConnectionStrings:DefaultConnection.");
@@ -35,10 +32,9 @@ public class TablesController(
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(DiningTableFormViewModel model)
     {
-        var actorUserId = await GetActorUserIdAsync();
-        if (actorUserId is null)
+        if (!TryGetActorUserId(out var actorUserId))
         {
-            ModelState.AddModelError(string.Empty, "Không xác định được tài khoản quản lý đang đăng nhập. Vui lòng đăng nhập lại.");
+            ModelState.AddModelError(string.Empty, "Không xác định được tài khoản đang đăng nhập.");
             return View(await PopulateAreas(model));
         }
 
@@ -50,7 +46,7 @@ public class TablesController(
         try
         {
             var id = await InsertTableAsync(model);
-            await qrService.RotateAsync(id, actorUserId.Value);
+            await qrService.RotateAsync(id, actorUserId);
             TempData["Success"] = $"Đã thêm bàn {model.Code} và sinh mã QR.";
             return RedirectToAction(nameof(Details), new { id });
         }
@@ -113,7 +109,7 @@ public class TablesController(
     /// được chuyển sang "Ngừng sử dụng" để giữ lịch sử. Bàn đang phục vụ hoặc còn lượt đặt sắp tới thì không xoá được.
     /// </summary>
     [HttpPost, ValidateAntiForgeryToken]
-    [Authorize(Roles = "Manager")]
+    [Authorize(Roles = AppRoles.Manager)]
     public async Task<IActionResult> Delete(int id)
     {
         if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var actorUserId)) return Forbid();
@@ -179,16 +175,15 @@ public class TablesController(
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> DownloadQrPdf(int areaId)
     {
-        var actorUserId = await GetActorUserIdAsync();
-        if (actorUserId is null)
+        if (!TryGetActorUserId(out var actorUserId))
         {
-            TempData["Error"] = "Không xác định được tài khoản quản lý đang đăng nhập. Vui lòng đăng nhập lại.";
+            TempData["Error"] = "Không xác định được tài khoản đang đăng nhập.";
             return BackToArea(areaId);
         }
 
         try
         {
-            var items = await qrService.GetAreaPrintItemsAsync(areaId, actorUserId.Value);
+            var items = await qrService.GetAreaPrintItemsAsync(areaId, actorUserId);
             if (items.Count == 0)
             {
                 TempData["Error"] = "Khu vực được chọn chưa có bàn đang hoạt động để xuất mã QR.";
@@ -220,15 +215,14 @@ public class TablesController(
 
     private async Task<IActionResult> RotateQrCore(int id, bool replacingExisting)
     {
-        var actorUserId = await GetActorUserIdAsync();
-        if (actorUserId is null)
+        if (!TryGetActorUserId(out var actorUserId))
         {
-            TempData["Error"] = "Không xác định được tài khoản quản lý đang đăng nhập. Vui lòng đăng nhập lại.";
+            TempData["Error"] = "Không xác định được tài khoản đang đăng nhập.";
             return RedirectToAction(nameof(Details), new { id });
         }
         try
         {
-            await qrService.RotateAsync(id, actorUserId.Value);
+            await qrService.RotateAsync(id, actorUserId);
             TempData["Success"] = replacingExisting
                 ? "Đã sinh mã QR mới. Mã QR cũ đã hết hiệu lực ngay lập tức."
                 : "Đã sinh mã QR cho bàn này.";
@@ -329,16 +323,7 @@ public class TablesController(
         CreatedAt = details.CreatedAt
     };
 
-    private async Task<int?> GetActorUserIdAsync()
-    {
-        if (!currentUser.IsAuthenticated || string.IsNullOrWhiteSpace(currentUser.UserName)) return null;
-        await using var connection = new SqlConnection(ConnectionString);
-        await using var command = new SqlCommand("SELECT Id FROM dbo.Users WHERE UserName=@UserName AND IsActive=1;", connection);
-        command.Parameters.Add("@UserName", SqlDbType.NVarChar, 100).Value = currentUser.UserName;
-        await connection.OpenAsync();
-        var id = await command.ExecuteScalarAsync();
-        return id is null ? null : Convert.ToInt32(id);
-    }
+    private bool TryGetActorUserId(out int id) => (id = User.ActorUserId()) > 0;
 
     private IActionResult BackToArea(int areaId) =>
         Redirect(Url.Action("Index", "Areas") + "#khu-vuc-" + areaId);

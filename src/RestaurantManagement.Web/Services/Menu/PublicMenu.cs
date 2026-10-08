@@ -88,16 +88,50 @@ public static class DishImage
 {
     public const string DefaultImage = "/images/thuc-don/mac-dinh.svg";
 
-    /// <summary>Ảnh mặc định của năm nhóm món đã thống nhất; nhóm chưa được cấu hình dùng ảnh chung.</summary>
-    public static string? DefaultForCategory(string? categoryName) => categoryName?.Trim() switch
+    /// <summary>
+    /// Ảnh mặc định theo nhóm món. So khớp theo từ khoá trong tên nhóm (không phân biệt hoa thường và dấu)
+    /// để các nhóm như "Giải khát", "Nước ngọt", "Bia", "Cà phê" vẫn dùng đúng ảnh đồ uống.
+    /// Nhóm không khớp từ khoá nào trả về null để dùng ảnh mặc định chung.
+    /// </summary>
+    public static string? DefaultForCategory(string? categoryName)
     {
-        var name when string.Equals(name, "Khai vị", StringComparison.OrdinalIgnoreCase) => "/images/thuc-don/khai-vi.svg",
-        var name when string.Equals(name, "Món chính", StringComparison.OrdinalIgnoreCase) => "/images/thuc-don/mon-chinh.svg",
-        var name when string.Equals(name, "Lẩu", StringComparison.OrdinalIgnoreCase) => "/images/thuc-don/lau.svg",
-        var name when string.Equals(name, "Tráng miệng", StringComparison.OrdinalIgnoreCase) => "/images/thuc-don/trang-mieng.svg",
-        var name when string.Equals(name, "Đồ uống", StringComparison.OrdinalIgnoreCase) => "/images/thuc-don/do-uong.svg",
-        _ => null
+        var name = $" {RemoveDiacritics(categoryName)} ";
+        if (name.Trim().Length == 0) return null;
+
+        foreach (var (keywords, image) in CategoryImageKeywords)
+        {
+            if (keywords.Any(k => name.Contains($" {k} ", StringComparison.Ordinal) || (k.Contains(' ') && name.Contains(k, StringComparison.Ordinal))))
+                return image;
+        }
+        return null;
+    }
+
+    // Thứ tự quan trọng: nhóm đồ uống được xét trước để "Nước giải khát" không rơi vào nhóm khác.
+    private static readonly (string[] Keywords, string Image)[] CategoryImageKeywords =
+    {
+        (new[] { "do uong", "thuc uong", "nuoc uong", "giai khat", "nuoc ngot", "nuoc ep", "nuoc trai cay",
+                 "sinh to", "ca phe", "cafe", "coffee", "tra sua", "tra", "bia", "ruou", "soda", "drink", "drinks", "beverage", "beverages" },
+            "/images/thuc-don/do-uong.svg"),
+        (new[] { "lau", "hotpot" }, "/images/thuc-don/lau.svg"),
+        (new[] { "trang mieng", "che", "kem", "banh ngot", "dessert", "desserts" }, "/images/thuc-don/trang-mieng.svg"),
+        (new[] { "khai vi", "goi", "nom", "appetizer", "appetizers", "starter", "starters" }, "/images/thuc-don/khai-vi.svg"),
+        (new[] { "mon chinh", "main", "main course" }, "/images/thuc-don/mon-chinh.svg"),
     };
+
+    private static string RemoveDiacritics(string? value)
+    {
+        var normalized = (value ?? "").Trim().ToLowerInvariant()
+            .Replace('đ', 'd')
+            .Normalize(System.Text.NormalizationForm.FormD);
+        var builder = new System.Text.StringBuilder(normalized.Length);
+        foreach (var ch in normalized)
+        {
+            var category = CharUnicodeInfo.GetUnicodeCategory(ch);
+            if (category == UnicodeCategory.NonSpacingMark) continue;
+            builder.Append(char.IsLetterOrDigit(ch) ? ch : ' ');
+        }
+        return System.Text.RegularExpressions.Regex.Replace(builder.ToString(), @"\s+", " ").Trim();
+    }
 
     /// <summary>
     /// Chọn ảnh hiển thị: ảnh món, ảnh mặc định của nhóm, cuối cùng là ảnh mặc định chung.

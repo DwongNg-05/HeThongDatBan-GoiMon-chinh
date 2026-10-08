@@ -1,14 +1,15 @@
-using System.Data;
 using Microsoft.AspNetCore.Authorization;
+using RestaurantManagement.Web.Security;
+using System.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using RestaurantManagement.Web.Models;
-using RestaurantManagement.Web.Security;
 
 namespace RestaurantManagement.Web.Controllers;
 
-[Authorize(Roles = "Manager")]
-public class OpeningHoursController(IConfiguration configuration, ICurrentUser currentUser) : Controller
+// S1-04 Task 4: kiểm tra quyền ở máy chủ theo vai trò (docs/S1-04-Task4.md).
+[Authorize(Roles = AppRoles.Manager)]
+public class OpeningHoursController(IConfiguration configuration) : Controller
 {
     private string ConnectionString => configuration.GetConnectionString("DefaultConnection")
         ?? throw new InvalidOperationException("Chưa cấu hình kết nối database.");
@@ -56,18 +57,12 @@ public class OpeningHoursController(IConfiguration configuration, ICurrentUser c
         }
         try
         {
-            var actorUserId = await GetActorUserIdAsync();
-            if (actorUserId is null)
-            {
-                ModelState.AddModelError(string.Empty, "Không xác định được tài khoản đang thực hiện thao tác.");
-                await LoadHolidays(model);
-                return View(model);
-            }
             await using var connection = new SqlConnection(ConnectionString);
             await using var command = new SqlCommand("dbo.usp_SaveOpeningHours", connection) { CommandType = CommandType.StoredProcedure };
             command.Parameters.Add(new SqlParameter("@Days", SqlDbType.Structured) { TypeName = "dbo.OpeningHoursWeek", Value = days });
             command.Parameters.Add("@DefaultBookingMinutes", SqlDbType.Int).Value = model.DefaultBookingMinutes!.Value;
-            command.Parameters.Add("@ActorUserId", SqlDbType.Int).Value = actorUserId.Value;
+            // Người thực hiện là tài khoản đang đăng nhập; thủ tục SQL kiểm tra lại quyền của tài khoản này.
+            command.Parameters.Add("@ActorUserId", SqlDbType.Int).Value = User.ActorUserId();
             await connection.OpenAsync();
             await command.ExecuteNonQueryAsync();
             TempData["Success"] = "Đã lưu giờ hoạt động thành công.";
@@ -92,17 +87,6 @@ public class OpeningHoursController(IConfiguration configuration, ICurrentUser c
             Id = reader.GetInt32(0), HolidayDate = DateOnly.FromDateTime(reader.GetDateTime(1)),
             Name = reader.GetString(2), IsActive = reader.GetBoolean(3)
         });
-    }
-
-    private async Task<int?> GetActorUserIdAsync()
-    {
-        if (!currentUser.IsAuthenticated || string.IsNullOrWhiteSpace(currentUser.UserName)) return null;
-        await using var connection = new SqlConnection(ConnectionString);
-        await using var command = new SqlCommand("SELECT Id FROM dbo.Users WHERE UserName=@UserName AND IsActive=1;", connection);
-        command.Parameters.Add("@UserName", SqlDbType.NVarChar, 100).Value = currentUser.UserName;
-        await connection.OpenAsync();
-        var id = await command.ExecuteScalarAsync();
-        return id is null ? null : Convert.ToInt32(id);
     }
 
     [HttpGet]

@@ -53,17 +53,29 @@ public sealed class SecurityAuditStore(string connectionString)
     }
 
     /// <summary>
-    /// Nhật ký theo điều kiện lọc (S1-05 Task 2), mới nhất lên đầu, tối đa <see cref="SecurityAuditFilter.RowLimit"/> dòng
-    /// kèm tổng số dòng khớp. Database kiểm tra lại quyền Audit.Read của người xem.
+    /// Nhật ký theo điều kiện lọc (S1-05 Task 2), mới nhất lên đầu, từng trang <see cref="SecurityAuditFilter.PageSize"/> dòng
+    /// kèm tổng số dòng khớp. Trang vượt quá trang cuối (ví dụ link cũ sau khi đổi bộ lọc) được đưa về trang cuối.
+    /// Database kiểm tra lại quyền Audit.Read của người xem.
     /// </summary>
-    public async Task<SecurityAuditPage> Search(int actorUserId, SecurityAuditFilter filter)
+    public async Task<SecurityAuditPage> Search(int actorUserId, SecurityAuditFilter filter, int pageNumber = 1)
     {
         if (!filter.IsValid) return SecurityAuditPage.Empty;
+        pageNumber = Math.Max(pageNumber, 1);
+        var page = await Read(actorUserId, filter, pageNumber);
+        if (page.Items.Count == 0 && page.TotalCount > 0 && pageNumber > page.TotalPages)
+            page = await Read(actorUserId, filter, page.TotalPages);
+        return page;
+    }
+
+    private async Task<SecurityAuditPage> Read(int actorUserId, SecurityAuditFilter filter, int pageNumber)
+    {
+        const int pageSize = SecurityAuditFilter.PageSize;
         await using var cn = new SqlConnection(connectionString);
         await cn.OpenAsync();
         await using var cmd = new SqlCommand("dbo.usp_SecurityAuditList", cn) { CommandType = CommandType.StoredProcedure };
         cmd.Parameters.Add("@ActorUserId", SqlDbType.Int).Value = actorUserId;
-        cmd.Parameters.Add("@Top", SqlDbType.Int).Value = SecurityAuditFilter.RowLimit;
+        cmd.Parameters.Add("@Top", SqlDbType.Int).Value = pageSize;
+        cmd.Parameters.Add("@Skip", SqlDbType.Int).Value = SecurityAuditPage.Skip(pageNumber, pageSize);
         cmd.Parameters.Add("@FromUtc", SqlDbType.DateTime2).Value = filter.FromUtc;
         cmd.Parameters.Add("@ToUtcExclusive", SqlDbType.DateTime2).Value = filter.ToUtcExclusive;
         cmd.Parameters.Add("@UserId", SqlDbType.Int).Value = filter.UserId is > 0 ? (object)filter.UserId.Value : DBNull.Value;
@@ -82,9 +94,9 @@ public sealed class SecurityAuditStore(string connectionString)
                 reader.IsDBNull(6) ? null : reader.GetString(6),
                 reader.GetString(7)));
         }
-        long total = items.Count;
+        long total = (long)SecurityAuditPage.Skip(pageNumber, pageSize) + items.Count;
         if (await reader.NextResultAsync() && await reader.ReadAsync()) total = reader.GetInt64(0);
-        return new SecurityAuditPage(items, total);
+        return new SecurityAuditPage(items, total, pageNumber, pageSize);
     }
 
     /// <summary>Danh sách tài khoản để chọn trong bộ lọc (kể cả tài khoản ngừng hoạt động).</summary>

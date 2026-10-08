@@ -3,6 +3,11 @@
     ViewData["Title"] = "Sơ đồ bàn";
     var shownCount = Model.Tables.Count;
     var freeCount = Model.Tables.Count(table => table.Status == "Available");
+    // Khu vực hiển thị: tất cả khu vực đang hoạt động, hoặc chỉ khu vực đang lọc (dữ liệu từ "Khu vực & bàn").
+    var visibleAreas = Model.SelectedAreaId is null
+        ? Model.Areas
+        : Model.Areas.Where(area => area.Id == Model.SelectedAreaId).ToList();
+    var isManager = User.IsInRole(RestaurantManagement.Web.Security.AppRoles.Manager);
 }
 
 <section class="map-page" data-status-api="@Url.Content("~/api/table-status")" data-details-api="@Url.Content("~/api/table-map")" data-rendered-table-count="@shownCount">
@@ -17,28 +22,42 @@
 
     <div class="map-toolbar">
         <nav class="area-tabs" aria-label="Lọc theo khu vực">
-            <a class="area-tab @(Model.SelectedArea is null ? "active" : "")" asp-action="Index" aria-current="@(Model.SelectedArea is null ? "page" : null)">Tất cả <span>@Model.TotalCount</span></a>
+            <a class="area-tab @(Model.SelectedAreaId is null ? "active" : "")" asp-action="Index" aria-current="@(Model.SelectedAreaId is null ? "page" : null)">Tất cả <span>@Model.TotalCount</span></a>
             @foreach (var area in Model.Areas)
             {
-                var count = Model.SelectedArea == area ? shownCount : 20;
-                <a class="area-tab @(Model.SelectedArea == area ? "active" : "")" asp-action="Index" asp-route-area="@area" aria-current="@(Model.SelectedArea == area ? "page" : null)">@area <span>@count</span></a>
+                var selected = Model.SelectedAreaId == area.Id;
+                <a class="area-tab @(selected ? "active" : "")" asp-action="Index" asp-route-areaId="@area.Id" aria-current="@(selected ? "page" : null)">@area.Name <span>@area.TableCount</span></a>
             }
         </nav>
         <div class="quick-count"><i></i><span id="available-table-count">@freeCount</span> bàn trống <span>·</span> @shownCount bàn đang xem</div>
     </div>
 
-    @if (Model.Tables.Count == 0)
+    @if (Model.LoadError is not null)
     {
-        <div class="empty-state"><span>▦</span><h2>Chưa có dữ liệu bàn</h2><p>Khu vực này hiện chưa có bàn nào để hiển thị.</p></div>
+        <div class="empty-state" role="alert"><span>▦</span><h2>Không tải được sơ đồ bàn</h2><p>@Model.LoadError</p></div>
+    }
+    else if (Model.Areas.Count == 0)
+    {
+        <div class="empty-state"><span>▦</span><h2>Chưa có khu vực nào</h2>
+            <p>Sơ đồ bàn lấy dữ liệu từ màn hình “Khu vực &amp; bàn”. Hãy tạo khu vực và thêm bàn để hiển thị tại đây.</p>
+            @if (isManager) { <p><a asp-controller="Areas" asp-action="Index">Mở Khu vực &amp; bàn</a></p> }
+        </div>
     }
     else
     {
-        @foreach (var group in Model.Tables.GroupBy(table => table.Area))
+        @foreach (var area in visibleAreas)
         {
-            <section class="area-section" aria-labelledby="area-@group.Key.GetHashCode()">
-                <div class="area-heading"><div><span class="area-mark"></span><h2 id="area-@group.Key.GetHashCode()">@group.Key</h2></div><span class="area-count">@group.Count() bàn</span></div>
+            var areaTables = Model.Tables.Where(table => table.Area == area.Name).ToList();
+            <section class="area-section" aria-labelledby="area-@area.Id">
+                <div class="area-heading"><div><span class="area-mark"></span><h2 id="area-@area.Id">@area.Name</h2></div><span class="area-count">@areaTables.Count bàn</span></div>
+                @if (areaTables.Count == 0)
+                {
+                    <p class="text-muted mb-0">Khu vực này chưa có bàn đang sử dụng.@if (isManager) { <text> </text><a asp-controller="Areas" asp-action="Index" asp-fragment="khu-vuc-@area.Id">Thêm bàn</a> }</p>
+                }
+                else
+                {
                 <div class="table-grid">
-                    @foreach (var table in group)
+                    @foreach (var table in areaTables)
                     {
                         <article class="table-card status-@table.StatusClass" data-table-code="@table.Code" data-status="@table.Status" data-changed-at="@table.ChangedAtUtc.ToString("O")" aria-label="Bàn @table.Code, sức chứa @table.Capacity người, trạng thái @table.StatusLabel">
                             <button class="table-detail-trigger" type="button" data-open-details="@table.Code" aria-label="Xem chi tiết bàn @table.Code">
@@ -56,6 +75,7 @@
                         </article>
                     }
                 </div>
+                }
             </section>
         }
     }

@@ -23,11 +23,29 @@ public static class GuestMenuEntry
         && context.User.Identity?.IsAuthenticated != true
         && !context.Request.Cookies.ContainsKey(AuthCookieName);
 
+    /// <summary>
+    /// S1-04 Task 2: nhân viên đã đăng nhập mở "/" được đưa tới màn hình đầu tiên thuộc phần việc của mình
+    /// (Bếp → màn hình bếp, Thu ngân → thanh toán); Quản lý và Phục vụ ở lại sơ đồ bàn. Trả về null khi không cần chuyển.
+    /// </summary>
+    public static string? StaffLanding(HttpContext context)
+    {
+        if (!(HttpMethods.IsGet(context.Request.Method) || HttpMethods.IsHead(context.Request.Method))
+            || !(context.Request.Path == "/" || !context.Request.Path.HasValue)
+            || context.User.Identity?.IsAuthenticated != true) return null;
+        var landing = RestaurantManagement.Web.Security.RoleNavigation.LandingPath(context.User);
+        return landing == "/" ? null : landing;
+    }
+
     public static async Task Invoke(HttpContext context, RequestDelegate next)
     {
         if (ShouldSendToMenu(context))
         {
             context.Response.Redirect(context.Request.PathBase + MenuPath);
+            return;
+        }
+        if (StaffLanding(context) is string landing)
+        {
+            context.Response.Redirect(context.Request.PathBase + landing);
             return;
         }
         await next(context);

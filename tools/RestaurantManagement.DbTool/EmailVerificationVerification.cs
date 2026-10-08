@@ -108,12 +108,12 @@ internal static class EmailVerificationVerification
             await Logout(client);
 
             await DatabaseTool.Execute(connection, "UPDATE dbo.EmailVerificationCodes SET CreatedAt=DATEADD(minute,-2,CreatedAt) WHERE Email=N'waiter.test@example.com';");
-            // 7. Lần đăng nhập sau: mã tự gửi tới email đã lưu; phải xác minh lại cho phiên mới.
+            // 7. Lần đăng nhập sau: tài khoản đã xác minh email nên vào thẳng, không gửi mã, không hỏi lại.
             using (var again = await Login(client, "waiter", password))
-                Assert(Location(again).StartsWith("/Account/VerifyEmail"), "Every new login session must be verified again");
-            Assert(Mails(mailDir).Length == 3, "Code sent automatically to the saved email on login");
-            page = await Html(client, "/Account/VerifyEmail");
-            Assert(!page.Contains("name=\"email\" type=\"email\" class=\"form-control form-control-lg\"") && page.Contains("Đã gửi mã xác minh tới email của bạn"), "Saved email is used without asking again");
+                Assert(again.StatusCode == HttpStatusCode.Redirect && !Location(again).Contains("VerifyEmail"), "Account verified once is not asked to verify again");
+            Assert(Mails(mailDir).Length == 2, "No code is sent on later logins");
+            using (var verifyPage = await client.GetAsync("/Account/VerifyEmail"))
+                Assert(verifyPage.StatusCode == HttpStatusCode.Redirect && !Location(verifyPage).Contains("VerifyEmail"), "Verification page skipped for an already verified account");
             await Logout(client);
 
             // 8. Bắt buộc đổi mật khẩu: xác minh email trước, đổi mật khẩu sau.
@@ -124,7 +124,7 @@ internal static class EmailVerificationVerification
             using (var set = await client.PostAsync("/Account/SetVerificationEmail", Form(("email", "kitchen.test@example.com"), ("__RequestVerificationToken", Token(page)))))
                 Assert(set.StatusCode == HttpStatusCode.Redirect, "Kitchen email accepted");
             page = await Html(client, "/Account/VerifyEmail");
-            using (var ok = await client.PostAsync("/Account/VerifyEmail", Form(("code", ReadCode(mailDir, 3)), ("__RequestVerificationToken", Token(page)))))
+            using (var ok = await client.PostAsync("/Account/VerifyEmail", Form(("code", ReadCode(mailDir, 2)), ("__RequestVerificationToken", Token(page)))))
                 Assert(Location(ok).StartsWith("/Account/ChangePassword"), "After email verification the user goes to change password");
             using (var change = await client.GetAsync("/Account/ChangePassword"))
                 Assert(change.StatusCode == HttpStatusCode.OK, "Password change page reachable after verification");

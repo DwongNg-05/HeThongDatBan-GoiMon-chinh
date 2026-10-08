@@ -1,4 +1,4 @@
-﻿@model RestaurantManagement.Web.Models.Reservations.ReservationCreateViewModel
+@model RestaurantManagement.Web.Models.Reservations.ReservationCreateViewModel
 
 @{
     ViewData["Title"] = "Đặt bàn";
@@ -28,6 +28,10 @@
                     </div>
 
 
+                    @if (TempData[RestaurantManagement.Web.Authentication.BookingAntiforgeryRecoveryFilter.MessageKey] is string formMessage)
+                    {
+                        <div class="alert alert-warning" role="alert">@formMessage</div>
+                    }
                     <form asp-action="Create"
                           method="post">
 
@@ -105,17 +109,19 @@
 
                         <div class="mb-3">
 
-                            <label asp-for="StartsAt"
-                                   class="form-label">
-                                Thời gian đặt bàn (giờ Việt Nam)
-                            </label>
-
-                            <input asp-for="StartsAt"
-                                   type="datetime-local"
-                                   step="60"
-                                   data-schedule-url="@Url.Action("CheckSchedule", "Reservations")"
-                                   asp-format="{0:yyyy-MM-ddTHH:mm}"
-                                   class="form-control" />
+                            <div class="row g-3">
+                                <div class="col-sm-6">
+                                    <label asp-for="ReservationDate" class="form-label">Ngày đặt bàn</label>
+                                    <input asp-for="ReservationDate" type="date" asp-format="{0:yyyy-MM-dd}" class="form-control" required />
+                                    <span asp-validation-for="ReservationDate" class="text-danger"></span>
+                                </div>
+                                <div class="col-sm-6">
+                                    <label asp-for="ReservationTime" class="form-label">Giờ đặt bàn</label>
+                                    <input asp-for="ReservationTime" type="time" asp-format="{0:HH:mm}" step="60" class="form-control" required />
+                                    <span asp-validation-for="ReservationTime" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <input asp-for="StartsAt" type="hidden" asp-format="{0:yyyy-MM-ddTHH:mm}" data-schedule-url="@Url.Action("CheckSchedule", "Reservations")" />
 
                             <div class="form-text">
                                 Asia/Ho_Chi_Minh (UTC+7): nhập giờ tại Việt Nam dù thiết bị đang ở múi giờ khác.
@@ -166,38 +172,6 @@
                             <span asp-validation-for="PreferredAreaId"
                                   class="text-danger">
                             </span>
-
-                        </div>
-
-
-                        <!-- ============================= -->
-                        <!-- CHỌN BÀN: mã bàn là mã khách nhận -->
-                        <!-- ============================= -->
-
-                        <div class="mb-3">
-
-                            <label asp-for="TableId" class="form-label"></label>
-
-                            <select asp-for="TableId"
-                                    class="form-select"
-                                    required
-                                    data-tables-url="@Url.Action("AvailableTables", "Reservations")">
-                                <option value="">-- Chọn bàn còn trống --</option>
-                                @foreach (var table in Model.Tables)
-                                {
-                                    <option value="@table.Id" selected="@(Model.TableId == table.Id)">@table.Label</option>
-                                }
-                            </select>
-
-                            <div class="form-text">
-                                Danh sách chỉ gồm bàn còn trống theo giờ, số khách và khu vực bạn chọn.
-                                Mã bàn (ví dụ A05) sẽ hiện trên trang xác nhận và trong email.
-                            </div>
-
-                            <span asp-validation-for="TableId" class="text-danger"></span>
-                            <div id="booking-tables-feedback" aria-live="polite" class="mt-2 @(Model.Tables.Count == 0 ? "text-danger" : "")">
-                                @(Model.Tables.Count == 0 ? "Không còn bàn trống phù hợp trong khung giờ này. Vui lòng chọn giờ, số khách hoặc khu vực khác." : "")
-                            </div>
 
                         </div>
 
@@ -260,12 +234,24 @@
                             </button>
 
 
-                            <a asp-action="Index"
-                               class="btn btn-secondary">
+                            @if (User.Identity?.IsAuthenticated == true)
+                            {
+                                <a asp-action="Index"
+                                   class="btn btn-secondary">
 
-                                Xem đặt bàn
+                                    Xem đặt bàn
 
-                            </a>
+                                </a>
+                            }
+                            else
+                            {
+                                <a asp-controller="Menu" asp-action="Index"
+                                   class="btn btn-secondary">
+
+                                    Xem thực đơn
+
+                                </a>
+                            }
 
                         </div>
 
@@ -286,6 +272,5 @@
 
     <partial name="_ValidationScriptsPartial" />
     <script src="~/js/booking-schedule.js" asp-append-version="true"></script>
-    <script src="~/js/booking-tables.js" asp-append-version="true"></script>
 
 }

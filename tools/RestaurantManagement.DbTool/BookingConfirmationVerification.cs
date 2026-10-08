@@ -92,16 +92,19 @@ internal static class BookingConfirmationVerification
                 "Staff sees 'sent' email status separately from the booking status");
             Assert(details.Contains($"data-table-code=\"{tableCode}\">{tableCode}</strong>"), "Staff details show the table code");
 
-            // Bếp và thu ngân xem được danh sách và chi tiết khách đặt trước (mã bàn, giờ, số khách, ghi chú).
+            // S1-04 Task 2: đặt bàn là việc của Quản lý và Phục vụ; Bếp và Thu ngân bị chặn ở máy chủ, kể cả chỉ xem.
             foreach (var role in new[] { "kitchen", "cashier" })
             {
                 using var handler = new HttpClientHandler { AllowAutoRedirect = false, CookieContainer = new CookieContainer() };
                 using var staff = new HttpClient(handler) { BaseAddress = web.Client.BaseAddress, Timeout = TimeSpan.FromSeconds(20) };
                 await Login(staff, role, staffPassword);
-                var list = await Html(staff, "/Reservations");
-                Assert(list.Contains($"data-table-code=\"{tableCode}\">{tableCode}</a>") && list.Contains("Khách S2-09 <b>OK</b>"), $"{role} sees the booked table in the reservation list");
-                var staffDetails = await Html(staff, $"/Reservations/Details/{id}");
-                Assert(staffDetails.Contains(tableCode) && staffDetails.Contains("Khách S2-09 <b>OK</b>"), $"{role} opens the reservation details");
+                foreach (var path in new[] { "/Reservations", $"/Reservations/Details/{id}" })
+                {
+                    using var blocked = await staff.GetAsync(path);
+                    var body = await blocked.Content.ReadAsStringAsync();
+                    Assert(blocked.StatusCode == HttpStatusCode.Forbidden && body.Contains("data-access-denied=\"403\"") && !body.Contains(tableCode),
+                        $"{role} cannot open {path} (blocked by the server)");
+                }
             }
 
             // Khách không nhập email: vẫn có mã đặt bàn, không gửi gì.
@@ -122,9 +125,8 @@ internal static class BookingConfirmationVerification
                 using var handler = new HttpClientHandler { AllowAutoRedirect = false, CookieContainer = new CookieContainer() };
                 using var kitchen = new HttpClient(handler) { BaseAddress = web.Client.BaseAddress, Timeout = TimeSpan.FromSeconds(20) };
                 await Login(kitchen, "kitchen", staffPassword);
-                var kitchenDetails = await Html(kitchen, $"/Reservations/Details/{id}");
-                Assert(!kitchenDetails.Contains("Huỷ đặt bàn</button>"), "Kitchen does not see the cancel button");
-                using var denied = await kitchen.PostAsync($"/Reservations/Cancel/{id}", Form(("reason", "thử"), ("__RequestVerificationToken", Token(kitchenDetails))));
+                var kitchenPage = await Html(kitchen, "/Kitchen");
+                using var denied = await kitchen.PostAsync($"/Reservations/Cancel/{id}", Form(("reason", "thử"), ("__RequestVerificationToken", Token(kitchenPage))));
                 var refused = denied.StatusCode == HttpStatusCode.Forbidden
                     || (denied.StatusCode == HttpStatusCode.Redirect && Location(denied).Contains("AccessDenied"));
                 Assert(refused && await Scalar(connection, $"SELECT CASE WHEN Status='Pending' THEN 1 ELSE 0 END FROM dbo.Reservations WHERE Id={id}") == 1,

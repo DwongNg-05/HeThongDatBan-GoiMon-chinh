@@ -1,0 +1,80 @@
+@model RestaurantManagement.Web.Models.Reservations.ReservationConfirmViewModel
+@{
+    ViewData["Title"] = "Xác nhận đặt bàn";
+    var r = Model.Reservation;
+    var success = TempData[RestaurantManagement.Web.Models.Reservations.ReservationConfirmViewModel.SuccessKey] as string;
+    var error = TempData[RestaurantManagement.Web.Models.Reservations.ReservationConfirmViewModel.ErrorKey] as string;
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/reservation-email.css" asp-append-version="true" />
+}
+
+<div class="container mt-4 booking-success" style="max-width:640px">
+    <h2 class="mb-3">Xác nhận đặt bàn</h2>
+
+    @if (success is not null)
+    {
+        <div class="alert alert-success" role="status">@success</div>
+    }
+    @if (error is not null)
+    {
+        <div class="alert alert-danger" role="alert">@error</div>
+    }
+
+    @if (r is null)
+    {
+        <div class="alert alert-warning" role="alert">@Model.Notice</div>
+    }
+    else
+    {
+        <section class="booking-code-card" aria-labelledby="booking-code-label">
+            <p id="booking-code-label" class="booking-code-label">Mã đặt bàn của bạn</p>
+            <p class="booking-code">@Model.DisplayCode</p>
+            <dl class="booking-code-facts">
+                <dt>Khách hàng</dt>
+                <dd>@r.CustomerName</dd>
+                <dt>Ngày giờ</dt>
+                <dd>@RestaurantManagement.Web.Services.BookingConfirmationEmail.FormatDateTime(r.StartsAt) (giờ Việt Nam)</dd>
+                <dt>Số khách</dt>
+                <dd>@r.GuestCount người</dd>
+                @if ((r.TableAreaName ?? r.AreaName) is string area)
+                {
+                    <dt>Khu vực</dt>
+                    <dd>@area</dd>
+                }
+                <dt>Trạng thái</dt>
+                <dd><strong data-reservation-status="@r.Status">@r.StatusLabel</strong></dd>
+            </dl>
+        </section>
+
+        @if (Model.CanConfirm)
+        {
+            <form asp-action="Confirm" method="post" class="text-center">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="token" value="@Model.Token" />
+                <p>Vui lòng bấm nút dưới đây để xác nhận bạn sẽ đến đúng giờ. Nhà hàng sẽ giữ bàn cho bạn.</p>
+                <button type="submit" class="btn btn-primary btn-lg">Xác nhận đặt bàn</button>
+            </form>
+        }
+        else if (Model.IsConfirmed)
+        {
+            if (success is null)
+            {
+                <div class="alert alert-success" role="status">Lượt đặt bàn đã được xác nhận. Khi đến quán, vui lòng đọc mã <strong>@Model.DisplayCode</strong> cho nhân viên.</div>
+            }
+            else
+            {
+                <p class="text-center">Khi đến quán, vui lòng đọc mã <strong>@Model.DisplayCode</strong> cho nhân viên.</p>
+            }
+        }
+        else if (Model.Notice is string notice && error is null)
+        {
+            <div class="alert alert-warning" role="alert">@notice</div>
+        }
+    }
+
+    <div class="mt-3 d-flex gap-2 justify-content-center">
+        <a asp-controller="Reservations" asp-action="Create" class="btn btn-outline-secondary">Đặt bàn mới</a>
+        <a asp-controller="Menu" asp-action="Index" class="btn btn-outline-secondary">Xem thực đơn</a>
+    </div>
+</div>

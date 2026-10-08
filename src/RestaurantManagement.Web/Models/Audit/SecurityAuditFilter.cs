@@ -6,10 +6,45 @@ public sealed record SecurityAuditAccount(int Id, string UserName, string RoleNa
     public string Label => IsActive ? $"{UserName} — {RoleName}" : $"{UserName} — {RoleName} (ngừng hoạt động)";
 }
 
-/// <summary>Kết quả một lần truy vấn nhật ký: tối đa <see cref="SecurityAuditFilter.RowLimit"/> dòng và tổng số dòng khớp.</summary>
-public sealed record SecurityAuditPage(IReadOnlyList<SecurityAuditEntry> Items, long TotalCount)
+/// <summary>
+/// Một trang nhật ký: tối đa <see cref="PageSize"/> dòng của trang <see cref="PageNumber"/> và tổng số dòng khớp bộ lọc.
+/// </summary>
+public sealed record SecurityAuditPage(
+    IReadOnlyList<SecurityAuditEntry> Items,
+    long TotalCount,
+    int PageNumber = 1,
+    int PageSize = SecurityAuditFilter.PageSize)
 {
     public static SecurityAuditPage Empty { get; } = new([], 0);
+
+    public int TotalPages => TotalCount <= 0 ? 1 : (int)Math.Min(int.MaxValue, (TotalCount + PageSize - 1) / PageSize);
+    public bool HasPrevious => PageNumber > 1;
+    public bool HasNext => PageNumber < TotalPages;
+
+    /// <summary>Số thứ tự (bắt đầu từ 1) của dòng đầu và dòng cuối trên trang này; 0 khi không có dòng nào.</summary>
+    public long FirstRow => Items.Count == 0 ? 0 : (long)(PageNumber - 1) * PageSize + 1;
+    public long LastRow => Items.Count == 0 ? 0 : FirstRow + Items.Count - 1;
+
+    /// <summary>Số dòng cần bỏ qua để tới trang <paramref name="pageNumber"/> (trang &lt; 1 coi như trang 1).</summary>
+    public static int Skip(int pageNumber, int pageSize = SecurityAuditFilter.PageSize) =>
+        (int)Math.Min(int.MaxValue, (long)(Math.Max(pageNumber, 1) - 1) * pageSize);
+
+    /// <summary>
+    /// Các số trang hiển thị trên thanh phân trang: luôn có trang đầu, trang cuối và tối đa <paramref name="around"/> trang
+    /// mỗi bên trang hiện tại; null là chỗ rút gọn "…". Ví dụ trang 6/20: 1 … 4 5 6 7 8 … 20.
+    /// </summary>
+    public IReadOnlyList<int?> PageLinks(int around = 2)
+    {
+        var links = new List<int?>();
+        var from = Math.Max(2, PageNumber - around);
+        var to = Math.Min(TotalPages - 1, PageNumber + around);
+        links.Add(1);
+        if (from > 2) links.Add(null);
+        for (var i = from; i <= to; i++) links.Add(i);
+        if (to < TotalPages - 1) links.Add(null);
+        if (TotalPages > 1) links.Add(TotalPages);
+        return links;
+    }
 }
 
 public sealed record SecurityAuditViewModel(
@@ -36,6 +71,9 @@ public sealed class SecurityAuditFilter
 {
     public const int DefaultDays = 7;
     public const int MaxDays = 90;
+    /// <summary>Số dòng mỗi trang trên màn hình Nhật ký hệ thống.</summary>
+    public const int PageSize = 50;
+    /// <summary>Trần số dòng một lần đọc của dbo.usp_SecurityAuditList (kích thước trang không vượt quá giá trị này).</summary>
     public const int RowLimit = 1000;
     public const int UnknownAccountsValue = 0;
     public const string UnknownAccountsLabel = "Định danh không tồn tại";

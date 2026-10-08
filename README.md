@@ -108,6 +108,23 @@ dotnet run --project tools/RestaurantManagement.DbTool -- verify
 
 Không commit mật khẩu, chuỗi kết nối có thông tin đăng nhập, dữ liệu khách thật hoặc thư mục build. `.gitignore` đã loại các tệp cấu hình cục bộ, database vật lý và thư mục build thông dụng.
 
+## S1-04 — phân quyền theo vai trò
+
+Chạy `migrate` để áp dụng `031_RolePermissionsByScope.sql` và `032_RemoveKitchenDishes.sql`.
+
+| Vai trò | Thấy và dùng được |
+| --- | --- |
+| Phục vụ | Đúng 3 màn hình: Đặt bàn, Sơ đồ bàn, Gọi món |
+| Bếp | Màn hình bếp (báo món tạm hết làm ở Quản lý món, chỉ Quản lý) |
+| Thu ngân | Thanh toán, Hoá đơn, Chốt ca |
+| Quản lý | Toàn bộ |
+
+Máy chủ kiểm tra quyền ở cả 101 API và trong thủ tục SQL. Khi bị chặn:
+- gõ thẳng đường dẫn ngoài quyền: nhận **403** và trang “Không có quyền truy cập”, có nút về màn hình chính;
+- gọi API: nhận 401/403 dạng JSON.
+
+Kiểm thử bằng `dotnet run --no-build --project tools/RestaurantManagement.DbTool -- verify-api-permissions`. Tổng hợp: [docs/S1-04-TongHop.md](docs/S1-04-TongHop.md); chi tiết từng lát: [Task 1](docs/S1-04-Task1.md), [Task 2](docs/S1-04-Task2.md), [Task 3](docs/S1-04-Task3.md), [Task 4](docs/S1-04-Task4.md).
+
 ## S1-06: quản lý khu vực
 
 Xem [báo cáo Lát 2–4](docs/S1-06-Task2-4-review.md) để biết quy tắc tên, nâng cấp migration 008, kiểm thử HTTP và kịch bản demo. Migration dừng nếu các tên cũ trùng sau chuẩn hóa, không tự gộp hoặc xóa dữ liệu.
@@ -118,7 +135,7 @@ Chạy `migrate` để áp dụng `013_TableQrManagement.sql` trước khi khở
 
 Mở **Quản lý bàn** để thêm/sửa bàn, xem chi tiết QR, tải PNG hoặc tải PDF QR theo khu vực. Bàn cũ chưa có QR có nút **Tạo mã QR**; xuất PDF chỉ tự tạo QR cho các bàn trong khu vực vừa chọn.
 
-Trong EP-02, S1-07 chưa phụ thuộc đăng nhập. Các thao tác tạo hoặc xoay QR dùng `AreaManagement:ActorUserId` đã có trong cấu hình phát triển. Khi S1-04 được hợp nhất, giá trị này sẽ được thay bằng tài khoản đang đăng nhập.
+Từ S1-04 Task 4, thao tác tạo hoặc xoay QR ghi dưới tài khoản đang đăng nhập (chỉ Quản lý); `AreaManagement:ActorUserId` trong cấu hình không còn được dùng.
 
 Kiểm thử thủ công: chọn một bàn → **Mở thử QR** phải hiển thị đúng mã bàn/khu vực/sức chứa; tải PDF khu vực phải chứa QR kèm mã bàn; **Sinh lại QR** rồi mở URL cũ phải thấy `Mã QR đã thay đổi. Vui lòng gọi phục vụ.` Nếu quét bằng điện thoại, đặt `TableQr__PublicBaseUrl` thành địa chỉ HTTPS mà điện thoại truy cập được; không commit địa chỉ IP hoặc mật khẩu máy cá nhân.
 
