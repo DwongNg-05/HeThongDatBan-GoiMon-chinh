@@ -80,7 +80,6 @@ public sealed class GuestOrderService(IConfiguration configuration, IMenuStore m
         command.Parameters.Add("@ItemsJson", SqlDbType.NVarChar, -1).Value = payload;
         command.Parameters.Add("@ActorUserId", SqlDbType.Int).Value = DBNull.Value;
         command.Parameters.Add("@GuestTokenHash", SqlDbType.Binary, 32).Value = Hash(context.GuestToken);
-        await connection.OpenAsync(cancellationToken);
         var value = await command.ExecuteScalarAsync(cancellationToken);
         if (value is null || value is DBNull)
             throw new GuestOrderException("Không gửi được order. Vui lòng thử lại.");
