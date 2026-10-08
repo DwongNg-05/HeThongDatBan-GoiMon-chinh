@@ -159,6 +159,9 @@
         tables.forEach(applyStatus);
     }
 
+    document.addEventListener('reservations-changed', () => refreshSnapshot().catch(() => {
+        connectionLabel.textContent = 'Chưa đồng bộ được sơ đồ; hệ thống sẽ thử lại.';
+    }));
     const events = new EventSource(`${apiUrl}/stream`);
     events.addEventListener('open', () => {
         connectionLabel.textContent = 'Đang đồng bộ trực tiếp';

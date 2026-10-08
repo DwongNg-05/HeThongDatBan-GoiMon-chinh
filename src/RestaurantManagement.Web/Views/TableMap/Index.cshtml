@@ -1,6 +1,7 @@
 @model RestaurantManagement.Web.Services.TableMapSnapshot
 @{ ViewData["Title"] = "Sơ đồ bàn"; }
 @section Styles { <link rel="stylesheet" href="~/css/table-map-snapshot.css" asp-append-version="true" /> }
+<partial name="_NoShowAlerts" />
 <section class="snapshot-map map-page" data-table-count="@Model.TotalCount" data-changes-url="@Url.Content("~/api/table-map/changes")" data-details-url="@Url.Content("~/api/table-map")" data-cursor="@Model.Cursor" data-load-failed="@Model.LoadFailed.ToString().ToLowerInvariant()">
     <div class="map-heading"><div><h1>Sơ đồ bàn</h1><p>@Model.TotalCount bàn đang hoạt động trong nhà hàng</p></div><a class="btn btn-outline-secondary" asp-action="Index">Tải lại sơ đồ</a></div>
     <div class="map-sync-notice alert alert-warning" role="status" aria-live="polite" hidden></div>

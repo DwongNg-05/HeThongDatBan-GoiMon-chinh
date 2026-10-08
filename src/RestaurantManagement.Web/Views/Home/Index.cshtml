@@ -10,6 +10,7 @@
     var isManager = User.IsInRole(RestaurantManagement.Web.Security.AppRoles.Manager);
 }
 
+<partial name="_NoShowAlerts" />
 <section class="map-page" data-status-api="@Url.Content("~/api/table-status")" data-details-api="@Url.Content("~/api/table-map")" data-rendered-table-count="@shownCount">
     <div class="map-heading">
         <div>

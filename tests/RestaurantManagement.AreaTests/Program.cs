@@ -15,6 +15,12 @@ void Check(bool condition, string label)
     if (!condition) throw new Exception("FAIL: " + label);
     Console.WriteLine("PASS: " + label); count++;
 }
+if (args.Contains("--no-show"))
+{
+    await NoShowTests.Run(Check);
+    Console.WriteLine($"{count} no-show tests passed.");
+    return;
+}
 if (args.Contains("--image-only"))
 {
     await MenuImageTests.Run(Check);

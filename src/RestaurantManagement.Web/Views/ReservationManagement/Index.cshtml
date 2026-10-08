@@ -3,6 +3,7 @@
     ViewData["Title"] = "Danh sách đặt bàn";
 }
 
+<partial name="_NoShowAlerts" />
 <section id="daily-reservations"
          data-url="@Url.Action("Daily")"
          data-date="@Model.ToString("yyyy-MM-dd")"

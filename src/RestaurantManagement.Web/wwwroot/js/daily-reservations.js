@@ -69,6 +69,12 @@
                     row.append(cell);
                 }
                 rows.append(row);
+                if (item.status === 'Khách không tới') {
+                    const link = document.createElement('button'); link.type = 'button';
+                    link.className = 'btn btn-link btn-sm'; link.textContent = 'Lịch sử không tới';
+                    link.addEventListener('click', () => document.dispatchEvent(new CustomEvent('no-show-history', { detail: item.id })));
+                    row.lastElementChild.append(link);
+                }
             }
             empty.hidden = data.reservations.length !== 0;
             empty.textContent = status ? 'Không có lượt đặt bàn phù hợp với ngày và trạng thái đã chọn.' : 'Chưa có lượt đặt bàn trong ngày này.';
@@ -108,5 +114,6 @@
     document.addEventListener('visibilitychange', () => {
         if (!document.hidden && !busy) load(selectedDate, selectedStatus, true);
     });
+    document.addEventListener('reservations-changed', () => load(selectedDate, selectedStatus, true));
     load(selectedDate);
 })();
