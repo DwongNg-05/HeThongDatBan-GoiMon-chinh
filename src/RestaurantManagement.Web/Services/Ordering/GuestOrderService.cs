@@ -34,7 +34,7 @@ public sealed class GuestOrderService(IConfiguration configuration, IMenuStore m
         return new GuestOrderContext(Convert.ToInt64(value), guestToken);
     }
 
-    public async Task<long> SubmitAsync(GuestOrderContext context, IReadOnlyList<GuestOrderLineInput> items,
+    public async Task<GuestOrderReceipt> SubmitAsync(GuestOrderContext context, IReadOnlyList<GuestOrderLineInput> items,
         CancellationToken cancellationToken)
     {
         var validationError = GuestOrderRules.Validate(items);
@@ -42,10 +42,17 @@ public sealed class GuestOrderService(IConfiguration configuration, IMenuStore m
 
         // Friendly validation names the dish before SQL repeats the authoritative availability check.
         var available = menuStore.GetPublicMenu().SelectMany(category => category.Dishes)
-            .Where(dish => !dish.SoldOutToday).ToDictionary(dish => dish.Id, dish => dish.Name);
+            .Where(dish => !dish.SoldOutToday).ToDictionary(dish => dish.Id);
         var unavailable = items.FirstOrDefault(item => !available.ContainsKey(item.DishId));
         if (unavailable is not null)
             throw new GuestOrderException($"Món mã {unavailable.DishId} không còn bán hoặc không tồn tại. Vui lòng bỏ món này khỏi giỏ.");
+
+        // PO rule: the server uses the current listed price. A stale cart is not
+        // silently accepted; the customer sees every changed price and can send again.
+        var priceChanges = items.Where(item => item.ObservedPriceVnd <= 0 || available[item.DishId].PriceVnd != item.ObservedPriceVnd)
+            .Select(item => new GuestOrderPriceChange(item.DishId, available[item.DishId].Name,
+                item.ObservedPriceVnd, available[item.DishId].PriceVnd)).ToArray();
+        if (priceChanges.Length > 0) throw new GuestOrderPriceChangedException(priceChanges);
 
         var payload = JsonSerializer.Serialize(items.Select(item => new
         {
@@ -68,10 +75,44 @@ public sealed class GuestOrderService(IConfiguration configuration, IMenuStore m
         var value = await command.ExecuteScalarAsync(cancellationToken);
         if (value is null || value is DBNull)
             throw new GuestOrderException("Không gửi được order. Vui lòng thử lại.");
-        return Convert.ToInt64(value);
+        return await ReadReceiptAsync(connection, Convert.ToInt64(value), context.SessionId, cancellationToken);
+    }
+
+    private static async Task<GuestOrderReceipt> ReadReceiptAsync(SqlConnection connection, long batchId, long sessionId,
+        CancellationToken cancellationToken)
+    {
+        await using var command = new SqlCommand("""
+            SELECT b.Id,b.BatchNumber,t.Code
+            FROM dbo.OrderBatches b
+            JOIN dbo.SessionTables st ON st.SessionId=b.SessionId AND st.ReleasedAt IS NULL
+            JOIN dbo.DiningTables t ON t.Id=st.TableId
+            WHERE b.Id=@BatchId AND b.SessionId=@SessionId;
+            SELECT i.ItemName,i.Unit,CAST(i.UnitPrice AS int),i.Quantity,CAST(i.LineTotal AS bigint)
+            FROM dbo.OrderItems i WHERE i.BatchId=@BatchId ORDER BY i.Id;
+            """, connection);
+        command.Parameters.Add("@BatchId", SqlDbType.BigInt).Value = batchId;
+        command.Parameters.Add("@SessionId", SqlDbType.BigInt).Value = sessionId;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+            throw new GuestOrderException("Không tìm thấy order vừa gửi.");
+        var receiptBatchId = reader.GetInt64(0);
+        var batchNumber = reader.GetInt32(1);
+        var tableCode = reader.GetString(2);
+        await reader.NextResultAsync(cancellationToken);
+        var lines = new List<GuestOrderReceiptLine>();
+        while (await reader.ReadAsync(cancellationToken))
+            lines.Add(new GuestOrderReceiptLine(reader.GetString(0), reader.GetString(1), reader.GetInt32(2),
+                reader.GetInt32(3), reader.GetInt64(4)));
+        return new GuestOrderReceipt(receiptBatchId, batchNumber, tableCode, lines);
     }
 
     private static byte[] Hash(string value) => SHA256.HashData(Encoding.UTF8.GetBytes(value));
 }
 
-public sealed class GuestOrderException(string message) : Exception(message);
+public class GuestOrderException(string message) : Exception(message);
+
+public sealed class GuestOrderPriceChangedException(IReadOnlyList<GuestOrderPriceChange> changes)
+    : GuestOrderException("Giá một số món đã thay đổi. Giỏ đã được cập nhật theo giá mới.")
+{
+    public IReadOnlyList<GuestOrderPriceChange> Changes { get; } = changes;
+}

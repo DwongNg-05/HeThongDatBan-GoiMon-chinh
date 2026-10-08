@@ -14,12 +14,14 @@ public sealed class IndexModel(IMenuStore menuStore, GuestOrderService orderServ
 {
     private const string SessionIdKey = "GuestOrdering.SessionId";
     private const string GuestTokenKey = "GuestOrdering.Token";
+    private const string ReceiptKey = "GuestOrdering.Receipt";
 
     [BindProperty]
     public string CartJson { get; set; } = "[]";
 
     public IReadOnlyList<PublicMenuCategory> Categories { get; private set; } = [];
     public string? ErrorMessage { get; private set; }
+    public IReadOnlyList<GuestOrderPriceChange> PriceChanges { get; private set; } = [];
     public bool HasOrderingSession { get; private set; }
 
     public async Task<IActionResult> OnGetAsync(string? qr, CancellationToken cancellationToken)
@@ -61,7 +63,7 @@ public sealed class IndexModel(IMenuStore menuStore, GuestOrderService orderServ
         try
         {
             items = JsonSerializer.Deserialize<List<CartLineDto>>(CartJson, new JsonSerializerOptions(JsonSerializerDefaults.Web))
-                ?.Select(line => new GuestOrderLineInput(line.DishId, line.Quantity)).ToList();
+                ?.Select(line => new GuestOrderLineInput(line.DishId, line.Quantity, line.ObservedPriceVnd)).ToList();
         }
         catch (JsonException)
         {
@@ -70,17 +72,36 @@ public sealed class IndexModel(IMenuStore menuStore, GuestOrderService orderServ
             return Page();
         }
 
-        // Keep only the two server-recognised numeric fields when a failed post
+        // Keep only server-recognised numeric fields when a failed post
         // is rendered again. The browser cannot inject arbitrary text back into
         // the JSON block used to restore its cart.
-        CartJson = JsonSerializer.Serialize((items ?? []).Select(item => new { dishId = item.DishId, quantity = item.Quantity }));
+        CartJson = JsonSerializer.Serialize((items ?? []).Select(item => new
+        {
+            dishId = item.DishId,
+            quantity = item.Quantity,
+            observedPriceVnd = item.ObservedPriceVnd
+        }));
 
         try
         {
-            var batchId = await orderService.SubmitAsync(context, items ?? [], cancellationToken);
+            var receipt = await orderService.SubmitAsync(context, items ?? [], cancellationToken);
+            HttpContext.Session.SetString(ReceiptKey, JsonSerializer.Serialize(receipt));
             HttpContext.Session.Remove(SessionIdKey);
             HttpContext.Session.Remove(GuestTokenKey);
-            return RedirectToPage("Success", new { order = batchId });
+            return RedirectToPage("Success", new { order = receipt.BatchId });
+        }
+        catch (GuestOrderPriceChangedException exception)
+        {
+            PriceChanges = exception.Changes;
+            var priceByDish = exception.Changes.ToDictionary(change => change.DishId, change => change.CurrentPriceVnd);
+            CartJson = JsonSerializer.Serialize((items ?? []).Select(item => new
+            {
+                dishId = item.DishId,
+                quantity = item.Quantity,
+                observedPriceVnd = priceByDish.TryGetValue(item.DishId, out var price) ? price : item.ObservedPriceVnd
+            }));
+            ErrorMessage = exception.Message;
+            return Page();
         }
         catch (GuestOrderException exception)
         {
@@ -113,5 +134,6 @@ public sealed class IndexModel(IMenuStore menuStore, GuestOrderService orderServ
     {
         public int DishId { get; init; }
         public int Quantity { get; init; }
+        public int ObservedPriceVnd { get; init; }
     }
 }

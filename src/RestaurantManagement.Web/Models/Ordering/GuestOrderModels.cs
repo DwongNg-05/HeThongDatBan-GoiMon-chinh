@@ -1,8 +1,17 @@
 namespace RestaurantManagement.Web.Models.Ordering;
 
-public sealed record GuestOrderLineInput(int DishId, int Quantity);
+public sealed record GuestOrderLineInput(int DishId, int Quantity, int ObservedPriceVnd = 0);
 
 public sealed record GuestOrderContext(long SessionId, string GuestToken);
+
+public sealed record GuestOrderPriceChange(int DishId, string DishName, int PreviousPriceVnd, int CurrentPriceVnd);
+
+public sealed record GuestOrderReceiptLine(string ItemName, string Unit, int UnitPriceVnd, int Quantity, long LineTotal);
+
+public sealed record GuestOrderReceipt(long BatchId, int BatchNumber, string TableCode, IReadOnlyList<GuestOrderReceiptLine> Lines)
+{
+    public long Total => Lines.Sum(line => line.LineTotal);
+}
 
 public static class GuestOrderRules
 {

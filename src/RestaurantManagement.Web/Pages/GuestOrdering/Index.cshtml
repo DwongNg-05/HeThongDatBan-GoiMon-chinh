@@ -18,6 +18,12 @@
     {
         <div class="alert alert-danger" role="alert">@Model.ErrorMessage</div>
     }
+    @if (Model.PriceChanges.Count > 0)
+    {
+        <div class="alert alert-info" role="status"><strong>Giá mới đã được áp dụng:</strong><ul class="mb-0">
+            @foreach (var change in Model.PriceChanges) { <li>@change.DishName: @RestaurantManagement.Web.Services.MoneyFormat.Vnd(change.CurrentPriceVnd)</li> }
+        </ul></div>
+    }
 
     @if (!Model.HasOrderingSession)
     {

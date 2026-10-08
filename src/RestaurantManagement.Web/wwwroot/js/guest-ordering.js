@@ -29,6 +29,7 @@
         cart.forEach(item => {
             const dish = dishData(item.dishId);
             if (!dish) return;
+            if (!Number.isInteger(item.observedPriceVnd) || item.observedPriceVnd <= 0) item.observedPriceVnd = dish.price;
             amount += dish.price * item.quantity;
             const line = document.createElement('article');
             line.className = 'guest-cart-line';
@@ -44,7 +45,7 @@
         });
         empty.hidden = cart.length > 0;
         total.textContent = formatMoney(amount);
-        json.value = JSON.stringify(cart.map(item => ({ dishId: item.dishId, quantity: item.quantity })));
+        json.value = JSON.stringify(cart.map(item => ({ dishId: item.dishId, quantity: item.quantity, observedPriceVnd: item.observedPriceVnd })));
         submit.disabled = cart.length === 0 || submit.dataset.disabledBySession === 'true';
     }
 
@@ -67,7 +68,7 @@
         const dishId = Number(button.dataset.dishId);
         const existing = cart.find(item => item.dishId === dishId);
         if (existing) change(dishId, 1);
-        else { cart.push({ dishId, quantity: 1 }); showNotice(''); render(); }
+        else { cart.push({ dishId, quantity: 1, observedPriceVnd: Number(button.dataset.dishPrice) }); showNotice(''); render(); }
     }));
 
     root.querySelector('[data-order-form]')?.addEventListener('submit', event => {
