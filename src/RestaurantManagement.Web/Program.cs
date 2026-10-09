@@ -120,6 +120,7 @@ builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.BrotliCompre
 builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProviderOptions>(o => o.Level = System.IO.Compression.CompressionLevel.Fastest);
 
 builder.Services.AddHostedService<TemporaryOutResetWorker>();
+builder.Services.AddScoped<RestaurantManagement.Web.Services.SessionOrderingService>();
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())

@@ -1,170 +1,525 @@
 @model System.Collections.Generic.IReadOnlyList<RestaurantManagement.Web.Services.CategoryWithDishes>
+
 @{
-    // Món chưa có ảnh riêng dùng ảnh mặc định của nhóm, rồi tới ảnh mặc định chung.
     string ImageSrc(string? path, string? categoryDefault)
     {
-        var image = RestaurantManagement.Web.Services.DishImage.Resolve(path, categoryDefault);
-        return image.StartsWith('/') ? Url.Content("~" + image) : image;
+        var image = RestaurantManagement.Web.Services.DishImage.Resolve(
+            path, categoryDefault);
+
+        return image.StartsWith('/')
+            ? Url.Content("~" + image)
+            : image;
     }
-    var defaultImage = Url.Content("~" + RestaurantManagement.Web.Services.DishImage.DefaultImage);
-    // S2-08 Task 1: món tạm hết / hết trong ngày — nhãn "Tạm hết", khoá nút thêm vào giỏ; tự cập nhật mỗi 3 giây.
-    var unavailable = ViewData["UnavailableDishIds"] as IReadOnlySet<int> ?? new HashSet<int>();
+
+    var defaultImage = Url.Content(
+        "~" + RestaurantManagement.Web.Services.DishImage.DefaultImage);
+
+    var unavailable = ViewData["UnavailableDishIds"]
+        as IReadOnlySet<int> ?? new HashSet<int>();
+
+    var orderingSession = ViewData["OrderingSession"]
+        as RestaurantManagement.Web.Models.SessionOrderingViewModel;
 }
-<div class="menu-intro"><div><p>Chọn số lượng rồi bấm “Thêm vào giỏ”. Món có nhãn “Tạm hết” không gọi được.</p></div><a class="btn btn-outline-primary" href="#cart">Xem giỏ món</a></div>
-<div class="menu-workspace" data-availability-url="@Url.Content("~/api/menu/availability")" data-availability-interval="@RestaurantManagement.Web.Services.TemporaryOutRules.PollIntervalMs">
-<nav class="menu-categories" aria-label="Nhóm món">
-    <h2>Danh mục món</h2>
-    @foreach (var category in Model)
-    {
-        <a class="btn btn-outline-primary" href="#nhom-@category.Id">@category.Name</a>
-    }
-</nav>
-<div class="menu-catalog">
-<label for="menu-search" class="menu-search-label">Tìm món</label>
-<input id="menu-search" class="form-control mb-4" type="search" placeholder="Tìm tên món ăn…" />
-<p id="menu-no-results" class="text-muted" hidden>Không tìm thấy món phù hợp. Hãy thử tên khác.</p>
-@if (Model.Count == 0)
-{
-    <p class="text-muted">Thực đơn hiện chưa có nhóm món đang sử dụng.</p>
-}
-@foreach (var category in Model)
-{
-<section class="mb-4" id="nhom-@category.Id" aria-labelledby="tieu-de-nhom-@category.Id" data-nhom-id="@category.Id">
-    <h2 id="tieu-de-nhom-@category.Id">@category.Name</h2>
-    @if (category.Dishes.Count == 0)
-    {
-        <p class="text-muted">Chưa có món ăn</p>
-    }
-<div class="row">
-    @foreach (var item in category.Dishes)
-    {
-        var isOut = unavailable.Contains(item.Id);
-        <div class="col-md-4 mb-3 menu-item" data-search="@item.Name" data-availability-id="@item.Id" data-unavailable="@(isOut ? "true" : "false")">
-            <div class="card menu-item-card">
-                <img class="menu-item-photo" src="@ImageSrc(item.ImagePath, category.DefaultImagePath)" alt="Ảnh món @item.Name" width="112" height="112" loading="lazy"
-                     onerror="this.onerror=null;this.src='@defaultImage';" />
-                <div class="card-body">
-                    <span class="badge bg-warning text-dark mb-1" data-availability-label hidden="@(!isOut)">Tạm hết – không nhận order</span>
-                    <h3 class="card-title h5">@item.Name</h3>
-                    <p class="card-subtitle mb-2 text-muted">@category.Name</p>
-                    <p class="card-text">@item.ShortDescription</p>
-                    <p class="card-text"><strong>@item.PriceVnd.ToString("N0")</strong> VND / @item.Unit</p>
-                    <p class="card-text"><small class="text-muted">Thời gian chế biến: @item.PrepMinutes phút</small></p>
-                    <div class="d-flex align-items-center">
-                        <input type="number" min="1" value="1" aria-label="Số lượng @item.Name" class="form-control form-control-sm me-2 qty-input" style="width:80px" data-monid="@item.Id" data-availability-disable disabled="@isOut" />
-                        <button type="button" class="btn btn-primary btn-add-to-cart" data-monid="@item.Id" data-ten="@item.Name" data-gia="@item.PriceVnd" data-donvitinh="@item.Unit" data-availability-disable disabled="@isOut">Thêm vào giỏ</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    }
+
+<div class="menu-intro">
+    <div>
+        <p>
+            Chọn số lượng rồi bấm “Thêm vào giỏ”.
+            Món có nhãn “Tạm hết” không gọi được.
+        </p>
+    </div>
+    <a class="btn btn-outline-primary" href="#cart">Xem giỏ món</a>
 </div>
 
-</section>
-}
+<div class="menu-workspace"
+     data-availability-url="@Url.Content("~/api/menu/availability")"
+     data-availability-interval="@RestaurantManagement.Web.Services.TemporaryOutRules.PollIntervalMs">
 
- </div>
-<aside id="cart" class="mb-3 menu-cart" aria-label="Giỏ gọi món">
-    <h2>Giỏ gọi món</h2>
-    <div id="cart-availability-notice" class="alert alert-warning" role="status" aria-live="polite" hidden></div>
-    <p class="text-muted">Giỏ món đang trống.<br />Thêm món bạn thích từ thực đơn bên cạnh.</p>
-    <table class="table d-none" id="cartTable">
-        <thead>
-            <tr><th>Tên</th><th>SL</th><th>Giá</th><th>Thành tiền</th><th></th></tr>
-        </thead>
-        <tbody></tbody>
-        <tfoot>
-            <tr><td colspan="3" class="text-end"><strong>Tổng</strong></td><td id="cartTotal">0</td><td></td></tr>
-        </tfoot>
-    </table>
-    <form id="checkoutForm" method="post" asp-page="/Ordering/Checkout">
-        <input type="hidden" name="CartJson" id="CartJson" />
-        <button id="btnCheckout" type="submit" class="btn btn-success d-none">Gọi món</button>
-    </form>
-</aside>
+    <nav class="menu-categories" aria-label="Nhóm món">
+        <h2>Danh mục món</h2>
+
+        @foreach (var category in Model)
+        {
+            <a class="btn btn-outline-primary"
+               href="#nhom-@category.Id">
+                @category.Name
+            </a>
+        }
+    </nav>
+
+    <div class="menu-catalog">
+        <label for="menu-search" class="menu-search-label">Tìm món</label>
+
+        <input id="menu-search"
+               class="form-control mb-4"
+               type="search"
+               placeholder="Tìm tên món ăn…" />
+
+        <p id="menu-no-results" class="text-muted" hidden>
+            Không tìm thấy món phù hợp. Hãy thử tên khác.
+        </p>
+
+        @if (Model.Count == 0)
+        {
+            <p class="text-muted">
+                Thực đơn hiện chưa có nhóm món đang sử dụng.
+            </p>
+        }
+
+        @foreach (var category in Model)
+        {
+            <section class="mb-4"
+                     id="nhom-@category.Id"
+                     aria-labelledby="tieu-de-nhom-@category.Id"
+                     data-nhom-id="@category.Id">
+
+                <h2 id="tieu-de-nhom-@category.Id">@category.Name</h2>
+
+                @if (category.Dishes.Count == 0)
+                {
+                    <p class="text-muted">Chưa có món ăn</p>
+                }
+
+                <div class="row">
+                    @foreach (var item in category.Dishes)
+                    {
+                        var isOut = unavailable.Contains(item.Id);
+
+                        <div class="col-md-4 mb-3 menu-item"
+                             data-search="@item.Name"
+                             data-availability-id="@item.Id"
+                             data-unavailable="@(isOut ? "true" : "false")">
+
+                            <div class="card menu-item-card">
+                                <img class="menu-item-photo"
+                                     src="@ImageSrc(item.ImagePath, category.DefaultImagePath)"
+                                     alt="Ảnh món @item.Name"
+                                     width="112"
+                                     height="112"
+                                     loading="lazy"
+                                     onerror="this.onerror=null;this.src='@defaultImage';" />
+
+                                <div class="card-body">
+                                    <span class="badge bg-warning text-dark mb-1"
+                                          data-availability-label
+                                          hidden="@(!isOut)">
+                                        Tạm hết – không nhận order
+                                    </span>
+
+                                    <h3 class="card-title h5">@item.Name</h3>
+
+                                    <p class="card-subtitle mb-2 text-muted">
+                                        @category.Name
+                                    </p>
+
+                                    <p class="card-text">
+                                        @item.ShortDescription
+                                    </p>
+
+                                    <p class="card-text">
+                                        <strong>@item.PriceVnd.ToString("N0")</strong>
+                                        VND / @item.Unit
+                                    </p>
+
+                                    <p class="card-text">
+                                        <small class="text-muted">
+                                            Thời gian chế biến:
+                                            @item.PrepMinutes phút
+                                        </small>
+                                    </p>
+
+                                    <div class="d-flex align-items-center">
+                                        <input type="number"
+                                               min="1"
+                                               max="99"
+                                               step="1"
+                                               value="1"
+                                               aria-label="Số lượng @item.Name"
+                                               class="form-control form-control-sm me-2 qty-input"
+                                               style="width:80px"
+                                               data-monid="@item.Id"
+                                               data-availability-disable
+                                               disabled="@isOut" />
+
+                                        <button type="button"
+                                                class="btn btn-primary btn-add-to-cart"
+                                                data-monid="@item.Id"
+                                                data-ten="@item.Name"
+                                                data-gia="@item.PriceVnd"
+                                                data-donvitinh="@item.Unit"
+                                                data-availability-disable
+                                                disabled="@isOut">
+                                            Thêm vào giỏ
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </section>
+        }
+    </div>
+
+    <aside id="cart" class="mb-3 menu-cart" aria-label="Giỏ gọi món">
+        <h2>Giỏ gọi món</h2>
+
+        <div id="cart-availability-notice"
+             class="alert alert-warning"
+             role="status"
+             aria-live="polite"
+             hidden></div>
+
+        <p id="cart-empty-message" class="text-muted">
+            Giỏ món đang trống.<br />
+            Thêm món bạn thích từ thực đơn bên cạnh.
+        </p>
+
+        <table class="table d-none" id="cartTable">
+            <thead>
+                <tr>
+                    <th>Tên</th>
+                    <th>SL</th>
+                    <th>Giá</th>
+                    <th>Thành tiền</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="3" class="text-end">
+                        <strong>Tổng</strong>
+                    </td>
+                    <td id="cartTotal">0</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+
+        <div id="checkout-message"
+             class="alert alert-warning"
+             role="alert"
+             hidden></div>
+
+        <form id="checkoutForm"
+              method="post"
+              asp-page="/Ordering/Checkout">
+
+            <input type="hidden" name="CartJson" id="CartJson" />
+
+            <input type="hidden"
+                   name="TableId"
+                   value="@(orderingSession?.TableId ?? 0)" />
+
+            <input type="hidden"
+                   name="SessionId"
+                   value="@(orderingSession?.SessionId ?? 0)" />
+
+            <input type="hidden"
+                   name="RequestId"
+                   id="OrderRequestId"
+                   value="@Guid.NewGuid()" />
+
+            <button id="btnCheckout"
+                    type="submit"
+                    class="btn btn-success d-none">
+                Gửi món
+            </button>
+        </form>
+    </aside>
 </div>
 
 <script>
-    (function(){
-        const normalize = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
-        document.getElementById('menu-search').addEventListener('input', event => {
-            const query = normalize(event.target.value.trim());
-            let visible = 0;
-            document.querySelectorAll('.menu-item').forEach(item => {
-                item.hidden = !normalize(item.dataset.search).includes(query);
-                if (!item.hidden) visible++;
-            });
-            document.getElementById('menu-no-results').hidden = !query || visible > 0;
-        });
+    (function () {
         const cart = [];
-        function updateCartUI(){
-            const table = document.getElementById('cartTable');
-            const tbody = table.querySelector('tbody');
-            tbody.innerHTML = '';
-            if(cart.length === 0){
-                document.querySelector('#cart p')?.classList.remove('d-none');
-                table.classList.add('d-none');
-                document.getElementById('btnCheckout').classList.add('d-none');
-                return;
-            }
-            document.querySelector('#cart p')?.classList.add('d-none');
-            table.classList.remove('d-none');
-            document.getElementById('btnCheckout').classList.remove('d-none');
-            let total = 0;
-            cart.forEach((it, idx) => {
-                const row = document.createElement('tr');
-                const lineTotal = it.quantity * it.price;
-                total += lineTotal;
-                row.innerHTML = `<td></td><td>${it.quantity}</td><td>${it.price.toLocaleString()}</td><td>${lineTotal.toLocaleString()}</td><td><button type="button" class="btn btn-sm btn-danger" data-idx="${idx}">X</button></td>`;
-                row.cells[0].textContent = it.name;
-                tbody.appendChild(row);
-            });
-            document.getElementById('cartTotal').innerText = total.toLocaleString();
-            // wire up remove buttons
-            tbody.querySelectorAll('button[data-idx]').forEach(b => b.addEventListener('click', (e)=>{
-                const idx = parseInt(e.currentTarget.getAttribute('data-idx'));
-                cart.splice(idx,1);
-                updateCartUI();
-            }));
-            // set hidden json
-            document.getElementById('CartJson').value = JSON.stringify(cart);
+        let sending = false;
+        let pendingRequest = null;
+
+        const form = document.getElementById('checkoutForm');
+        const checkoutButton = document.getElementById('btnCheckout');
+        const message = document.getElementById('checkout-message');
+
+        const formatMoney = value =>
+            value.toLocaleString('vi-VN');
+
+        function showMessage(text) {
+            message.textContent = text;
+            message.hidden = false;
         }
 
-        // S2-08 Task 1: món vừa chuyển sang "Tạm hết" bị bỏ khỏi giỏ để không gửi order mới.
-        document.addEventListener('menu-availability:changed', event => {
-            const out = event.detail.unavailable;
-            const removed = cart.filter(it => out.has(it.dishId)).map(it => it.name);
-            if (removed.length === 0) return;
-            for (let i = cart.length - 1; i >= 0; i--) if (out.has(cart[i].dishId)) cart.splice(i, 1);
-            const notice = document.getElementById('cart-availability-notice');
-            notice.textContent = 'Đã bỏ khỏi giỏ vì món vừa tạm hết: ' + removed.join(', ') + '.';
-            notice.hidden = false;
-            updateCartUI();
-        });
+        const normalize = value => value
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/đ/g, 'd')
+            .replace(/Đ/g, 'D')
+            .toLowerCase();
 
-        document.querySelectorAll('.btn-add-to-cart').forEach(btn=>{
-            btn.addEventListener('click', ()=>{
-                if (btn.disabled) return;
-                const dishId = parseInt(btn.getAttribute('data-monid'));
-                const name = btn.getAttribute('data-ten');
-                const price = parseInt(btn.getAttribute('data-gia'));
-                const donvitinh = btn.getAttribute('data-donvitinh');
-                const input = document.querySelector(`.qty-input[data-monid="${dishId}"]`);
-                const quantity = Math.max(1, parseInt(input.value)||1);
-                // if exists, increase
-                const existing = cart.find(c=>c.dishId===dishId);
-                if(existing){ existing.quantity += quantity; }
-                else { cart.push({ dishId, name, quantity, price, donvitinh }); }
+        document.getElementById('menu-search')
+            .addEventListener('input', event => {
+                const query = normalize(event.target.value.trim());
+                let visible = 0;
+
+                document.querySelectorAll('.menu-item').forEach(item => {
+                    item.hidden = !normalize(item.dataset.search)
+                        .includes(query);
+
+                    if (!item.hidden) visible++;
+                });
+
+                document.getElementById('menu-no-results').hidden =
+                    !query || visible > 0;
+            });
+
+        function updateCartUI() {
+            const table = document.getElementById('cartTable');
+            const tbody = table.querySelector('tbody');
+            const emptyMessage =
+                document.getElementById('cart-empty-message');
+
+            tbody.innerHTML = '';
+
+            const empty = cart.length === 0;
+            emptyMessage.classList.toggle('d-none', !empty);
+            table.classList.toggle('d-none', empty);
+            checkoutButton.classList.toggle('d-none', empty);
+
+            let total = 0;
+
+            cart.forEach((item, index) => {
+                const row = document.createElement('tr');
+                const lineTotal = item.quantity * item.price;
+                total += lineTotal;
+
+                const values = [
+                    item.name,
+                    item.quantity,
+                    formatMoney(item.price),
+                    formatMoney(lineTotal)
+                ];
+
+                values.forEach(value => {
+                    const cell = document.createElement('td');
+                    cell.textContent = String(value);
+                    row.appendChild(cell);
+                });
+
+                const actionCell = document.createElement('td');
+                const removeButton = document.createElement('button');
+
+                removeButton.type = 'button';
+                removeButton.className = 'btn btn-sm btn-danger';
+                removeButton.textContent = 'X';
+                removeButton.disabled = pendingRequest !== null;
+                removeButton.setAttribute(
+                    'aria-label', 'Bỏ món ' + item.name);
+
+                removeButton.addEventListener('click', () => {
+                    if (pendingRequest) return;
+
+                    cart.splice(index, 1);
+                    updateCartUI();
+                });
+
+                actionCell.appendChild(removeButton);
+                row.appendChild(actionCell);
+                tbody.appendChild(row);
+            });
+
+            document.getElementById('cartTotal').textContent =
+                formatMoney(total);
+
+            document.getElementById('CartJson').value =
+                JSON.stringify(cart);
+        }
+
+        document.addEventListener(
+            'menu-availability:changed',
+            event => {
+                // Giữ nguyên yêu cầu đang chờ xác nhận kết quả.
+                if (pendingRequest) return;
+
+                const out = event.detail.unavailable;
+                const removed = cart
+                    .filter(item => out.has(item.dishId))
+                    .map(item => item.name);
+
+                if (removed.length === 0) return;
+
+                for (let index = cart.length - 1; index >= 0; index--) {
+                    if (out.has(cart[index].dishId)) {
+                        cart.splice(index, 1);
+                    }
+                }
+
+                const notice =
+                    document.getElementById('cart-availability-notice');
+
+                notice.textContent =
+                    'Đã bỏ khỏi giỏ vì món vừa tạm hết: '
+                    + removed.join(', ') + '.';
+
+                notice.hidden = false;
+                updateCartUI();
+            });
+
+        document.querySelectorAll('.btn-add-to-cart').forEach(button => {
+            button.addEventListener('click', () => {
+                if (button.disabled) return;
+
+                if (pendingRequest) {
+                    showMessage(
+                        'Đang chờ xác nhận lần gửi trước. '
+                        + 'Vui lòng bấm “Gửi lại” trước khi sửa giỏ.');
+                    return;
+                }
+
+                const dishId = Number(button.dataset.monid);
+                const name = button.dataset.ten;
+                const price = Number(button.dataset.gia);
+                const donvitinh = button.dataset.donvitinh;
+
+                const input = document.querySelector(
+                    `.qty-input[data-monid="${dishId}"]`);
+
+                const quantity = Number(input.value);
+
+                if (!Number.isInteger(quantity)
+                    || quantity < 1
+                    || quantity > 99) {
+                    showMessage('Số lượng phải là số nguyên từ 1 đến 99.');
+                    input.focus();
+                    return;
+                }
+
+                const existing = cart.find(
+                    item => item.dishId === dishId);
+
+                if (existing && existing.quantity + quantity > 99) {
+                    showMessage(
+                        'Tổng số lượng của một món trong giỏ tối đa là 99.');
+                    return;
+                }
+
+                if (!existing && cart.length >= 100) {
+                    showMessage('Giỏ món tối đa 100 dòng.');
+                    return;
+                }
+
+                if (existing) {
+                    existing.quantity += quantity;
+                } else {
+                    cart.push({
+                        dishId,
+                        name,
+                        quantity,
+                        price,
+                        donvitinh
+                    });
+                }
+
+                message.hidden = true;
                 updateCartUI();
             });
         });
 
-        // ensure checkout form posts the cart json
-        document.getElementById('checkoutForm').addEventListener('submit', function(e){
-            if(cart.length===0){ e.preventDefault(); return false; }
-            document.getElementById('CartJson').value = JSON.stringify(cart);
-            return true;
+        form.addEventListener('submit', async event => {
+            event.preventDefault();
+
+            if (sending || cart.length === 0) return;
+
+            if (Number(form.elements.namedItem('SessionId').value) <= 0) {
+                showMessage(
+                    'Vui lòng chọn bàn đang phục vụ từ sơ đồ bàn.');
+                return;
+            }
+
+            if (cart.some(item =>
+                !Number.isInteger(item.quantity)
+                || item.quantity < 1
+                || item.quantity > 99)) {
+                showMessage('Số lượng mỗi món phải từ 1 đến 99.');
+                return;
+            }
+
+            // Giữ cùng nội dung và RequestId khi gửi lại.
+            if (!pendingRequest) {
+                document.getElementById('CartJson').value =
+                    JSON.stringify(cart);
+
+                pendingRequest = new FormData(form);
+            }
+
+            sending = true;
+            checkoutButton.disabled = true;
+            checkoutButton.textContent = 'Đang gửi…';
+            message.hidden = true;
+            updateCartUI();
+
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    body: pendingRequest,
+                    credentials: 'same-origin'
+                });
+
+                if (response.ok && response.redirected) {
+                    const destination = new URL(response.url);
+                    const expectedPath = new URL(form.action).pathname
+                        .replace(/\/Checkout\/?$/i, '/Index');
+
+                    if (destination.origin === location.origin
+                        && destination.pathname === expectedPath
+                        && destination.searchParams.get('submitted')
+                            === 'true') {
+                        location.assign(response.url);
+                        return;
+                    }
+
+                    showMessage(
+                        'Phiên đăng nhập có thể đã hết hạn. '
+                        + 'Vui lòng đăng nhập lại trước khi gửi tiếp.');
+                    return;
+                }
+
+                if (response.status === 400) {
+                    const error = await response.text();
+
+                    showMessage(error || 'Giỏ món không hợp lệ.');
+
+                    pendingRequest = null;
+                    document.getElementById('OrderRequestId').value =
+                        crypto.randomUUID();
+
+                    updateCartUI();
+                    return;
+                }
+
+                if (response.status === 401 || response.status === 403) {
+                    showMessage(
+                        'Bạn chưa đăng nhập hoặc không có quyền gửi món.');
+                    return;
+                }
+
+                showMessage(
+                    'Chưa xác nhận được kết quả gửi. '
+                    + 'Bấm “Gửi lại” để kiểm tra bằng cùng mã yêu cầu.');
+            } catch {
+                showMessage(
+                    'Mất kết nối, chưa xác nhận được kết quả gửi. '
+                    + 'Bấm “Gửi lại”; giỏ món được giữ nguyên '
+                    + 'để tránh tạo đợt gọi trùng.');
+            } finally {
+                sending = false;
+                checkoutButton.disabled = false;
+                checkoutButton.textContent =
+                    pendingRequest ? 'Gửi lại' : 'Gửi món';
+            }
         });
+
+        updateCartUI();
     })();
 </script>
-<script src="~/js/menu-availability.js" asp-append-version="true"></script>
+
+<script src="~/js/menu-availability.js"
+        asp-append-version="true"></script>

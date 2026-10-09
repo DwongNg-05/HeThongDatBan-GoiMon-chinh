@@ -1,9 +1,140 @@
 @page
 @model RestaurantManagement.Web.Pages.Ordering.IndexModel
+
 @{
     ViewData["Title"] = "Gọi món";
+    ViewData["UnavailableDishIds"] = Model.UnavailableDishIds;
+
+    var session = Model.CurrentSession;
+    ViewData["OrderingSession"] = session;
+
+    var culture = System.Globalization.CultureInfo.GetCultureInfo("vi-VN");
 }
 
 <h1>Gọi món</h1>
-@{ ViewData["UnavailableDishIds"] = Model.UnavailableDishIds; }
-<partial name="_MenuByCategory" model="Model.Categories" />
+
+@if (!string.IsNullOrEmpty(Model.SessionError))
+{
+    <div class="alert alert-warning" role="alert">
+        @Model.SessionError
+    </div>
+}
+
+@if (session is not null)
+{
+    @if (Request.Query["submitted"].ToString() == "true")
+    {
+        <div class="alert alert-success" role="status">
+            Đã gửi món thành công. Tạm tính đã được cập nhật.
+        </div>
+    }
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <h2 class="h4">Bàn @session.TableCode</h2>
+
+            <p>
+                Phiên: <strong>#@session.SessionId</strong>
+            </p>
+
+            <p>
+                Trạng thái:
+                <strong>
+                    @(session.CanAddItems ? "Đang phục vụ" : "Chờ thanh toán")
+                </strong>
+            </p>
+
+            <p class="mb-0">
+                Tạm tính:
+                <strong>
+                    @session.Subtotal.ToString("N0", culture) đồng
+                </strong>
+            </p>
+        </div>
+    </div>
+
+    <h2 class="h4">Các món đã gọi</h2>
+
+    @if (session.Items.Count == 0)
+    {
+        <p>Phiên này chưa có món đã gọi.</p>
+    }
+    else
+    {
+        <div class="table-responsive mb-4">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Đợt</th>
+                        <th>Món</th>
+                        <th>Đơn giá</th>
+                        <th>Số lượng</th>
+                        <th>Thành tiền</th>
+                        <th>Trạng thái</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in session.Items)
+                    {
+                        <tr>
+                            <td>@item.BatchNumber</td>
+                            <td>@item.ItemName</td>
+                            <td>
+                                @item.UnitPrice.ToString("N0", culture) đ
+                            </td>
+                            <td>@item.Quantity @item.Unit</td>
+                            <td>
+                                @if (item.Status == "Cancelled"
+                                    && !item.ChargeWhenCancelled)
+                                {
+                                    <span>0 đ (đã huỷ, không tính tiền)</span>
+                                }
+                                else
+                                {
+                                    <span>
+                                        @item.LineTotal.ToString("N0", culture) đ
+                                    </span>
+                                }
+                            </td>
+                            <td>
+                                @switch (item.Status)
+                                {
+                                    case "Pending":
+                                        <span>Chờ chế biến</span>
+                                        break;
+                                    case "Preparing":
+                                        <span>Đang chế biến</span>
+                                        break;
+                                    case "Ready":
+                                        <span>Đã làm xong</span>
+                                        break;
+                                    case "Served":
+                                        <span>Đã phục vụ</span>
+                                        break;
+                                    case "Cancelled":
+                                        <span>Đã huỷ</span>
+                                        break;
+                                    default:
+                                        <span>@item.Status</span>
+                                        break;
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+else if (string.IsNullOrEmpty(Model.SessionError))
+{
+    <div class="alert alert-info">
+        Vui lòng chọn bàn đang phục vụ từ sơ đồ bàn trước khi gửi món.
+    </div>
+}
+
+@if (string.IsNullOrEmpty(Model.SessionError))
+{
+    <h2 class="h4">Thực đơn</h2>
+    <partial name="_MenuByCategory" model="Model.Categories" />
+}

@@ -1,26 +1,100 @@
 using Microsoft.AspNetCore.Authorization;
-using RestaurantManagement.Web.Security;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Data.SqlClient;
+using RestaurantManagement.Web.Models;
+using RestaurantManagement.Web.Security;
 using RestaurantManagement.Web.Services;
 
 namespace RestaurantManagement.Web.Pages.Ordering;
 
-// S1-04 Task 4: kiểm tra quyền ở máy chủ theo vai trò (docs/S1-04-Task4.md).
 [Authorize(Roles = AppRoles.FrontOfHouse)]
-// daily = null: dùng trong kiểm thử với store bộ nhớ (không có SQL Server) — khi đó không có món tạm hết.
-public class IndexModel(IMenuStore store, DailyDishStore? daily = null) : PageModel
+public class IndexModel(
+    IMenuStore store,
+    DailyDishStore? daily = null,
+    SessionOrderingService? sessionOrdering = null) : PageModel
 {
-    public IReadOnlyList<CategoryWithDishes> Categories { get; private set; } = [];
+    public IReadOnlyList<CategoryWithDishes> Categories
+    { get; private set; } = [];
 
-    /// <summary>S2-08 Task 1: món đang tạm hết / hết trong ngày — hiện nhãn "Tạm hết" và khoá nút thêm vào giỏ.</summary>
-    public IReadOnlySet<int> UnavailableDishIds { get; private set; } = new HashSet<int>();
+    public IReadOnlySet<int> UnavailableDishIds
+    { get; private set; } = new HashSet<int>();
 
+    public SessionOrderingViewModel? CurrentSession
+    { get; private set; }
+
+    public string? SessionError { get; private set; }
+
+    // Giữ phương thức cho các kiểm thử hiện có.
+    [NonHandler]
     public void OnGet()
     {
         Categories = store.GetMenuByCategory();
-        if (daily is null) return;
-        try { UnavailableDishIds = daily.AvailabilityNow().Unavailable.ToHashSet(); }
-        catch (SqlException) { /* Trang vẫn mở được; trình duyệt tự cập nhật trạng thái món mỗi 3 giây, máy chủ kiểm tra lại khi gọi món. */ }
+
+        if (daily is null)
+        {
+            return;
+        }
+
+        try
+        {
+            UnavailableDishIds =
+                daily.AvailabilityNow().Unavailable.ToHashSet();
+        }
+        catch (SqlException)
+        {
+            // Giữ cách hoạt động hiện có:
+            // trạng thái món được trình duyệt cập nhật lại,
+            // máy chủ kiểm tra món khi gửi.
+        }
+    }
+
+    public async Task OnGetAsync(int? tableId, string? tableCode)
+    {
+        OnGet();
+
+        // Chưa chọn bàn: hiển thị thực đơn để xem.
+        if (tableId is null && string.IsNullOrWhiteSpace(tableCode))
+        {
+            return;
+        }
+
+        if (sessionOrdering is null)
+        {
+            SessionError = "Chưa cấu hình dịch vụ gọi món.";
+            return;
+        }
+
+        // Sơ đồ bàn truyền mã bàn, đổi thành ID để lấy phiên.
+        if (tableId is null)
+        {
+            tableId = await sessionOrdering.GetTableIdByCodeAsync(
+                tableCode!,
+                HttpContext.RequestAborted);
+        }
+
+        if (tableId is null || tableId.Value <= 0)
+        {
+            SessionError = "Bàn không tồn tại hoặc đã ngừng sử dụng.";
+            return;
+        }
+
+        CurrentSession = await sessionOrdering.GetByTableAsync(
+            tableId.Value,
+            HttpContext.RequestAborted);
+
+        if (CurrentSession is null)
+        {
+            SessionError =
+                "Bàn không còn phiên đang mở. "
+                + "Vui lòng quay lại sơ đồ bàn.";
+            return;
+        }
+
+        if (!CurrentSession.CanAddItems)
+        {
+            SessionError =
+                "Bàn đang chờ thanh toán, không thể gọi thêm món.";
+        }
     }
 }
