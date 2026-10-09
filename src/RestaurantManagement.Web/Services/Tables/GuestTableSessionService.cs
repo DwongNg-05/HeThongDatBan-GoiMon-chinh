@@ -56,6 +56,9 @@ public sealed record GuestOrderingContext(
 /// <summary>Ai đã gọi một lượt món: S3-01 Task 2 phân biệt món của máy này, khách khác cùng bàn và nhân viên.</summary>
 public enum OrderSource { ThisPhone, OtherGuest, Staff }
 
+/// <summary>S3-01 Task 4: phiên gọi món của điện thoại này đã kết thúc vì bàn đã thanh toán.</summary>
+public sealed record GuestEndedSession(string TableCode, DateTime ClosedAtUtc);
+
 /// <summary>Một dòng khách chọn trong giỏ (trang /TableOrder).</summary>
 public sealed record GuestCartLine(int DishId, int Quantity, string? Notes);
 
@@ -178,6 +181,32 @@ public sealed class GuestTableSessionService(IConfiguration configuration)
             reader.GetInt64(0), reader.GetString(1), reader.GetString(2),
             reader.GetInt32(3), reader.GetInt32(4), reader.GetString(5),
             DateTime.SpecifyKind(reader.GetDateTime(6), DateTimeKind.Utc), reader.GetInt64(7));
+    }
+
+    /// <summary>
+    /// S3-01 Task 4: phiên mà cookie này từng tham gia đã đóng do thanh toán (usp_Checkout: Status='Closed').
+    /// Dùng để báo "bàn đã thanh toán" thay vì trang trống; không trả về món của phiên cũ.
+    /// </summary>
+    public async Task<GuestEndedSession?> GetEndedSessionAsync(string? guestToken, CancellationToken cancellationToken)
+    {
+        if (!IsValidGuestToken(guestToken)) return null;
+
+        const string sql = """
+            SELECT t.Code, s.ClosedAt
+            FROM dbo.GuestSessions g
+            JOIN dbo.TableQrCodes q ON q.Id = g.TableQrCodeId
+            JOIN dbo.DiningSessions s ON s.Id = g.SessionId
+            JOIN dbo.DiningTables t ON t.Id = q.TableId
+            WHERE g.TokenHash = @TokenHash AND s.Status = 'Closed' AND s.ClosedAt IS NOT NULL;
+            """;
+        await using var connection = new SqlConnection(ConnectionString);
+        await using var command = new SqlCommand(sql, connection);
+        command.Parameters.Add("@TokenHash", SqlDbType.Binary, 32).Value = Hash(guestToken!);
+        await connection.OpenAsync(cancellationToken);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        return await reader.ReadAsync(cancellationToken)
+            ? new GuestEndedSession(reader.GetString(0), DateTime.SpecifyKind(reader.GetDateTime(1), DateTimeKind.Utc))
+            : null;
     }
 
     /// <summary>Số món tối đa / số lượng tối đa mỗi dòng / độ dài ghi chú — cùng giới hạn với dbo.usp_SubmitOrder.</summary>

@@ -250,3 +250,7 @@ Chạy `migrate` để áp dụng `045_S301JoinOpenTableSession.sql`. Khách qu�
 ## S3-01 Task 3 — chặn QR đã sinh lại và bàn đang dọn
 
 Chạy `migrate` để áp dụng `046_S301QrVersionAndCleaning.sql`. Mỗi mã QR có phiên bản (`TableQrCodes.Version`). Quét mã cũ đã bị sinh lại thì nhận thông báo “Mã QR đã thay đổi”; quét QR của bàn đang dọn thì nhận “Bàn đang được dọn”. Cả hai đều kèm hướng dẫn gọi phục vụ (mã bàn, nút gọi nhà hàng) và không tạo phiên. Chi tiết: [docs/S3-01-Task3.md](docs/S3-01-Task3.md).
+
+## S3-01 Task 4 — thanh toán đóng phiên, quét lại QR mở phiên mới
+
+Không cần migration mới. Thanh toán (`usp_Checkout`) sẽ đóng phiên, trả bàn (chuyển Đang dọn), thu hồi phiên khách và giữ nguyên mã QR. Điện thoại khách tải lại trang sẽ thấy “Bàn … đã thanh toán” mà không còn món cũ. Sau khi dọn xong, quét lại cùng QR sẽ mở đúng một phiên mới không có món của phiên trước. Quy tắc cần PO chốt, demo và kiểm thử: [docs/S3-01-Task4.md](docs/S3-01-Task4.md).

@@ -1,0 +1,19 @@
+@model RestaurantManagement.Web.Services.GuestEndedSession
+@{
+    ViewData["Title"] = "Bàn " + Model.TableCode + " đã thanh toán";
+    ViewData["LightweightScripts"] = true;
+    var closedAt = RestaurantManagement.Web.Models.Reservations.VietnamTime.FromUtc(Model.ClosedAtUtc).ToString("HH:mm");
+}
+
+@* S3-01 Task 4: phiên gọi món đã đóng khi bàn thanh toán. Không hiển thị món của phiên đã thanh toán. *@
+<div class="row justify-content-center mt-5">
+    <div class="col-md-8 col-lg-6">
+        <div class="alert alert-success text-center p-4" role="status" data-table-order="ended">
+            <h1 class="h4">Bàn @Model.TableCode đã thanh toán</h1>
+            <p class="mb-2">Phiên gọi món của bàn đã kết thúc lúc @closedAt. Cảm ơn quý khách!</p>
+            <p class="small mb-3">Muốn gọi món tiếp, vui lòng quét lại mã QR trên bàn — hệ thống sẽ mở một phiên gọi món mới
+                (nếu bàn đang được dọn, vui lòng chờ nhân viên dọn xong).</p>
+            <a class="btn btn-outline-primary" asp-controller="Menu" asp-action="Index">Xem thực đơn</a>
+        </div>
+    </div>
+</div>

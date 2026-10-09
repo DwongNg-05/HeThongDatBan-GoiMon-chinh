@@ -29,7 +29,11 @@ public sealed class TableOrderController(GuestTableSessionService guestSessions,
         Request.Cookies.TryGetValue(GuestTableSessionService.CookieName, out var guestToken);
         var table = await guestSessions.GetContextAsync(guestToken, cancellationToken);
         if (table is null)
-            return View("NoSession");
+        {
+            // S3-01 Task 4: bàn đã thanh toán → phiên cũ đã đóng; không hiện lại món của phiên đó.
+            var ended = await guestSessions.GetEndedSessionAsync(guestToken, cancellationToken);
+            return ended is null ? View("NoSession") : View("Ended", ended);
+        }
 
         return View(new TableOrderViewModel(table, menu.GetPublicMenu())
         {
