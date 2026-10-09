@@ -44,10 +44,26 @@ namespace RestaurantManagement.Web.Pages.Ordering
 
             // S2-08 Task 1: món đang tạm hết (hoặc hết trong ngày) không nhận order mới, kể cả khi đã nằm sẵn trong giỏ.
             var availability = _daily?.AvailabilityNow();
-            var unavailable = items.Where(it => availability?.IsUnavailable(it.dishId) == true).Select(it => dishesById[it.dishId].Name).Distinct().ToArray();
+            var unavailableItems = items
+                .Where(it => availability?.IsUnavailable(it.dishId) == true)
+                .Select(it => (it.dishId, dishesById[it.dishId].Name))
+                .Distinct()
+                .ToArray();
+            var unavailable = unavailableItems.Select(item => item.Name).ToArray();
             if (unavailable.Length > 0)
             {
-                return BadRequest($"Món đang tạm hết, không nhận order mới: {string.Join(", ", unavailable)}. Vui lòng bỏ khỏi giỏ và gọi lại.");
+                var message = $"Món đang tạm hết: {string.Join(", ", unavailable)}. Đã cập nhật giỏ hàng; vui lòng kiểm tra lại trước khi gửi đơn.";
+                if (Request.Headers.XRequestedWith == "XMLHttpRequest")
+                {
+                    return StatusCode(StatusCodes.Status409Conflict, new
+                    {
+                        message,
+                        unavailableDishIds = unavailableItems.Select(item => item.dishId).ToArray(),
+                        unavailableNames = unavailable
+                    });
+                }
+
+                return BadRequest(message);
             }
 
             var order = _store.CreateOrder();
@@ -62,6 +78,11 @@ namespace RestaurantManagement.Web.Pages.Ordering
                     Quantity = it.quantity
                 };
                 _store.AddOrderLine(order.Id, line);
+            }
+
+            if (Request.Headers.XRequestedWith == "XMLHttpRequest")
+            {
+                return new JsonResult(new { redirectUrl = Url.Page("/Orders/Details", new { id = order.Id }) });
             }
 
             return RedirectToPage("/Orders/Details", new { id = order.Id });
