@@ -70,6 +70,8 @@ builder.Services.AddScoped<RestaurantManagement.Web.Services.TableMapStore>();
 builder.Services.AddSingleton<RestaurantManagement.Web.Services.TableMapEventBroker>();
 builder.Services.AddScoped<RestaurantManagement.Web.Services.TableDetailsService>();
 builder.Services.AddScoped<RestaurantManagement.Web.Services.TableQrService>();
+// S3-01 Task 1: khách quét QR bàn trống → mở phiên gọi món mới (dbo.usp_StartQrGuestSession), trang /TableOrder.
+builder.Services.AddScoped<RestaurantManagement.Web.Services.GuestTableSessionService>();
 builder.Services.AddSingleton<RestaurantManagement.Web.Services.TableQrPdfBuilder>();
 builder.Services.AddHostedService<RestaurantManagement.Web.Services.TableStatusOutboxWorker>();
 

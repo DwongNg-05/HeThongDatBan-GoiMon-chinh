@@ -1,0 +1,152 @@
+@model RestaurantManagement.Web.Models.Tables.TableOrderViewModel
+@using RestaurantManagement.Web.Models.Tables
+@{
+    ViewData["Title"] = "Gọi món – Bàn " + Model.Table.TableCode;
+    // Trang khách: không cần jQuery/Bootstrap JS (xem _Layout.cshtml).
+    ViewData["LightweightScripts"] = true;
+    string ImageSrc(string url) => url.StartsWith('/') ? Url.Content("~" + url) : url;
+    const int EagerImages = 4;
+    var imageIndex = 0;
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/public-menu.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/table-order.css" asp-append-version="true" />
+}
+
+@* S3-01 Task 1: trang gọi món của đúng bàn vừa quét QR. "Tạm hết" tự cập nhật như thực đơn công khai (menu-availability.js). *@
+<div class="public-menu table-order" data-table-code="@Model.Table.TableCode"
+     data-availability-url="@Url.Content("~/api/menu/availability")" data-availability-interval="@RestaurantManagement.Web.Services.TemporaryOutRules.PollIntervalMs"
+     data-availability-text="@RestaurantManagement.Web.Services.SoldOutDisplay.Label" data-availability-note="@RestaurantManagement.Web.Services.SoldOutDisplay.ScreenReaderNote">
+    <header class="table-order-banner" aria-labelledby="table-order-title">
+        <p class="table-order-kicker">Gọi món tại bàn</p>
+        <h1 id="table-order-title">Bàn @Model.Table.TableCode</h1>
+        <p class="table-order-area">@Model.Table.AreaName · @Model.TableTypeLabel · @Model.CapacityLabel</p>
+        <p class="table-order-note">Phiên gọi món mở lúc @Model.OpenedAtLabel. Không đúng bàn của bạn? Vui lòng gọi nhân viên.</p>
+        <p class="table-order-links">
+            <a href="#gio-mon">Giỏ món (<span data-cart-count>0</span>)</a>
+            <a href="#da-dat">Món đã đặt (@Model.OrderedItems.Count)</a>
+        </p>
+    </header>
+
+    @if (Model.SuccessMessage is not null)
+    {
+        <div class="table-order-alert is-success" role="status" data-order-result="success">@Model.SuccessMessage</div>
+    }
+    @if (Model.ErrorMessage is not null)
+    {
+        <div class="table-order-alert is-error" role="alert" data-order-result="error">@Model.ErrorMessage</div>
+    }
+
+    @* Bố cục 2 cột: thực đơn bên trái, cột phải dính theo màn hình gồm Giỏ món + Món đã đặt (cuộn riêng). Màn hình hẹp: xếp dọc. *@
+    <div class="table-order-layout">
+    <div class="table-order-main">
+    @if (Model.MenuIsEmpty)
+    {
+        <p class="public-menu-empty">Thực đơn đang được cập nhật. Vui lòng gọi nhân viên để được hỗ trợ.</p>
+    }
+    else
+    {
+        <nav class="public-menu-tabs" aria-label="Nhóm món">
+            @foreach (var category in Model.Categories.Where(c => c.Dishes.Count > 0))
+            {
+                <a href="#nhom-@category.Id">@category.Name</a>
+            }
+        </nav>
+
+        @foreach (var category in Model.Categories.Where(c => c.Dishes.Count > 0))
+        {
+            <section class="public-menu-group" id="nhom-@category.Id" aria-labelledby="tieu-de-nhom-@category.Id" data-nhom-id="@category.Id">
+                <h2 id="tieu-de-nhom-@category.Id">@category.Name</h2>
+                <ul class="public-menu-list">
+                    @foreach (var dish in category.Dishes)
+                    {
+                        <li class="public-dish" data-mon-id="@dish.Id" data-availability-id="@dish.Id" data-sold-out="@(dish.IsTemporarilyUnavailable ? "true" : "false")">
+                            <img class="public-dish-image" src="@ImageSrc(dish.ImageUrl)" alt="Ảnh món @dish.Name"
+                                 width="88" height="88" loading="@(imageIndex++ < EagerImages ? "eager" : "lazy")" decoding="async" />
+                            <div class="public-dish-body">
+                                @if (dish.IsTemporarilyUnavailable)
+                                {
+                                    <span class="public-dish-status">@dish.AvailabilityLabel<span class="visually-hidden"> – @RestaurantManagement.Web.Services.SoldOutDisplay.ScreenReaderNote</span></span>
+                                }
+                                <h3 class="public-dish-name">@dish.Name</h3>
+                                @if (!string.IsNullOrEmpty(dish.ShortDescription))
+                                {
+                                    <p class="public-dish-desc">@dish.DescriptionPreview</p>
+                                }
+                                <p class="public-dish-price"><data value="@dish.PriceVnd">@dish.DisplayPrice</data><span class="public-dish-unit"> / @dish.Unit</span></p>
+                                <button type="button" class="table-order-add" data-add-dish="@dish.Id" data-name="@dish.Name"
+                                        data-price="@dish.PriceVnd" data-unit="@dish.Unit" data-availability-disable
+                                        disabled="@dish.IsTemporarilyUnavailable" aria-label="Thêm @dish.Name vào giỏ">+ Thêm vào giỏ</button>
+                            </div>
+                        </li>
+                    }
+                </ul>
+            </section>
+        }
+    }
+
+    </div>
+
+    <aside class="table-order-side" aria-label="Giỏ món và món đã đặt">
+    @* Giỏ món: lưu tạm trên điện thoại (sessionStorage) tới khi bấm "Đặt món". Máy chủ kiểm tra lại món, giá và số lượng. *@
+    <section id="gio-mon" class="table-order-cart" aria-labelledby="gio-mon-title"
+             data-cart-key="table-order-cart-@Model.Table.SessionId" data-clear-cart="@(Model.SuccessMessage is not null ? "true" : "false")">
+        <h2 id="gio-mon-title">Giỏ món</h2>
+        <p class="table-order-empty" data-cart-empty>Chưa chọn món nào. Bấm “+ Thêm vào giỏ” ở món bạn muốn gọi.</p>
+        <ul class="table-order-cart-list table-order-scroll" data-cart-list></ul>
+        <div class="table-order-cart-footer">
+            <p class="table-order-total">Tạm tính: <strong data-cart-total>0 ₫</strong></p>
+            <form method="post" asp-controller="TableOrder" asp-action="Submit" data-cart-form>
+                <input type="hidden" name="requestId" value="@Model.RequestId" />
+                <input type="hidden" name="cartJson" value="" data-cart-json />
+                <button type="submit" class="table-order-submit" data-cart-submit disabled>Đặt món</button>
+            </form>
+        </div>
+    </section>
+
+    <section id="da-dat" class="table-order-ordered" aria-labelledby="da-dat-title">
+        <h2 id="da-dat-title">Món đã đặt <span class="table-order-count">(@Model.OrderedItems.Count)</span></h2>
+        <div class="table-order-ordered-body table-order-scroll">
+        @if (Model.OrderedItems.Count == 0)
+        {
+            <p class="table-order-empty" data-ordered-empty>Bàn chưa đặt món nào.</p>
+        }
+        else
+        {
+            @foreach (var batch in Model.OrderedBatches)
+            {
+                <div class="table-order-batch" data-batch="@batch.Key">
+                    <h3>Lượt @batch.Key · @TableOrderViewModel.TimeLabel(batch.First().SubmittedAtUtc)</h3>
+                    <ul>
+                        @foreach (var item in batch)
+                        {
+                            <li class="table-order-ordered-item" data-ordered-status="@item.Status">
+                                <div>
+                                    <strong>@item.Quantity × @item.Name</strong>
+                                    @if (!string.IsNullOrEmpty(item.Notes))
+                                    {
+                                        <span class="table-order-item-note">Ghi chú: @item.Notes</span>
+                                    }
+                                    <span class="table-order-status status-@item.Status.ToLowerInvariant()">@item.StatusLabel</span>
+                                </div>
+                                <span class="table-order-line-total @(item.Charged ? "" : "is-void")">@TableOrderViewModel.Money(item.LineTotal)</span>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            }
+        }
+        </div>
+        @if (Model.OrderedItems.Count > 0)
+        {
+            <p class="table-order-total">Tạm tính các món đã đặt: <strong data-ordered-total>@TableOrderViewModel.Money(Model.OrderedTotal)</strong></p>
+        }
+    </section>
+    </aside>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/menu-availability.js" asp-append-version="true"></script>
+    <script src="~/js/table-order.js" asp-append-version="true"></script>
+}

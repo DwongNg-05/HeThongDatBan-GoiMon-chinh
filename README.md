@@ -238,3 +238,7 @@ Chạy `migrate` để áp dụng `021_SecurityAuditFilter.sql`. Màn hình **Nh
 ## S1-05 Task 3 — nhật ký chỉ đọc, kiểm soát truy cập
 
 Chạy `migrate` để áp dụng `022_AuditReadOnlyHardening.sql`. Nhật ký bảo mật, nhật ký nghiệp vụ và lịch sử giá chỉ được thêm: trigger chặn sửa/xoá, bảng chặn khoá ngoại ngăn `TRUNCATE`, tài khoản ứng dụng `restaurant_app` bị `DENY` thao tác trực tiếp, EF từ chối sửa/xoá. Màn hình **Nhật ký hệ thống** và **Lịch sử giá** chỉ dành cho Quản lý, kể cả khi gõ đường dẫn trực tiếp; quyền bị thu hồi khi đang đăng nhập cũng bị chặn. Kết quả rà soát, demo và kiểm thử: [docs/S1-05-Task3.md](docs/S1-05-Task3.md).
+
+## S3-01 Task 1 — quét QR bàn trống, vào phiên gọi món mới
+
+Chạy `migrate` để áp dụng `043_S301QrGuestSession.sql`. Khách quét QR của bàn **Trống** (cần có ca đang mở) sẽ vào thẳng trang **Gọi món tại bàn** (`/TableOrder`) của đúng bàn, không cần đăng nhập. Hệ thống tạo đúng một phiên phục vụ mới, đồng thời chuyển bàn sang **Đang phục vụ** trong cùng giao dịch. Mở đường dẫn QR (GET) không thay đổi dữ liệu. Quét lặp hoặc nhiều người quét cùng lúc không tạo thêm phiên. Quy tắc “bàn trống” cần PO chốt, demo và kiểm thử (`verify-qr-session`): [docs/S3-01-Task1.md](docs/S3-01-Task1.md).

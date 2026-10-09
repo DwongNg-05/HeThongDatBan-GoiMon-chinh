@@ -16,7 +16,7 @@ internal static partial class DatabaseTool
             var connection = Environment.GetEnvironmentVariable("RM_CONNECTION_STRING");
             if (command == "help" || string.IsNullOrWhiteSpace(connection))
             {
-                Console.WriteLine("Commands: migrate | seed-demo | seed-login-demo | seed-menu-demo | seed-confirmation-demo | seed-menu-200 | hide-menu-200 | email-retry-now | verify | verify-booking-email | verify-api-permissions | verify-temporary-out | maintenance | check\nSet RM_CONNECTION_STRING first. seed-demo and seed-login-demo also require RM_DEMO_PASSWORD.\nseed-login-demo accepts RM_DEMO_USERNAME and RM_DEMO_PHONE; existing accounts are preserved.\nverify creates and removes its own uniquely named test database.");
+                Console.WriteLine("Commands: migrate | seed-demo | seed-login-demo | seed-menu-demo | seed-confirmation-demo | seed-menu-200 | hide-menu-200 | email-retry-now | verify | verify-booking-email | verify-api-permissions | verify-temporary-out | verify-qr-session | maintenance | check\nSet RM_CONNECTION_STRING first. seed-demo and seed-login-demo also require RM_DEMO_PASSWORD.\nseed-login-demo accepts RM_DEMO_USERNAME and RM_DEMO_PHONE; existing accounts are preserved.\nverify creates and removes its own uniquely named test database.");
                 Environment.ExitCode = command == "help" ? 0 : 1;
                 return;
             }
@@ -36,6 +36,8 @@ internal static partial class DatabaseTool
                 case "verify-api-permissions": await Verification.RunApiPermissions(connection); break;
                 // S2-08 Task 4: nghiệm thu toàn bộ luồng "Tạm hết" (database tạm, cần build Debug trước).
                 case "verify-temporary-out": await Verification.RunTemporaryOut(connection); break;
+                // S3-01 Task 1: quét QR bàn trống → mở phiên gọi món mới (database tạm, cần build Debug trước).
+                case "verify-qr-session": await Verification.RunQrSession(connection); break;
                 case "maintenance": await Execute(connection, "EXEC dbo.usp_RunMaintenance;"); break;
                 // S2-09 Task 2 (demo): không chờ 5 phút, cho các email đặt bàn đang chờ gửi lại tới giờ gửi lại ngay.
                 case "email-retry-now": await EmailRetryNow(connection); break;

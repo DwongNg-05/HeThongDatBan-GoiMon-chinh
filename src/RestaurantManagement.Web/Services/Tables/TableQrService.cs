@@ -175,9 +175,10 @@ public sealed class TableQrService(IConfiguration configuration)
         return items;
     }
 
-    private static byte[] Hash(string token) => SHA256.HashData(Encoding.UTF8.GetBytes(token));
+    /// <summary>SHA-256 của mã công khai; database chỉ tra cứu QR bằng giá trị này.</summary>
+    public static byte[] Hash(string token) => SHA256.HashData(Encoding.UTF8.GetBytes(token));
 
-    private static bool IsValidPublicToken(string? token)
+    public static bool IsValidPublicToken(string? token)
         => token is { Length: >= 16 and <= 64 }
            && token.All(character => char.IsAsciiLetterOrDigit(character) || character is '-' or '_');
 }

@@ -1,0 +1,15 @@
+@{
+    ViewData["Title"] = "Gọi món tại bàn";
+    ViewData["LightweightScripts"] = true;
+}
+
+@* S3-01 Task 1: chưa có phiên gọi món hợp lệ (chưa quét QR, phiên đã hết hạn/đóng hoặc mã QR đã đổi). *@
+<div class="row justify-content-center mt-5">
+    <div class="col-md-8 col-lg-6">
+        <div class="alert alert-secondary text-center p-4" role="status" data-table-order="no-session">
+            <h1 class="h4">Hãy quét mã QR trên bàn</h1>
+            <p class="mb-3">Quét mã QR dán trên bàn bằng camera điện thoại để mở trang gọi món của bàn. Không cần đăng nhập hay cài ứng dụng.</p>
+            <a class="btn btn-outline-primary" asp-controller="Menu" asp-action="Index">Xem thực đơn</a>
+        </div>
+    </div>
+</div>

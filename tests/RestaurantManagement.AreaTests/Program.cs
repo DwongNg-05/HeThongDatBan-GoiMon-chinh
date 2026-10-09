@@ -137,6 +137,8 @@ if (args.Contains("--daily-reservations-sql")) await DailyReservationTests.Sql(C
 MenuTests.Run(Check);
 PublicMenuTests.Run(Check);
 GuestMenuEntryTests.Run(Check);
+// S3-01 Task 1: quét QR bàn trống → mở phiên gọi món (phần không cần database).
+await TableQrSessionTests.Run(Check);
 MenuSearchTests.Run(Check);
 SoldOutTests.Run(Check);
 TemporaryOutTests.Run(Check);

@@ -103,6 +103,10 @@ internal static class ApiAccessMatrix
         new("MenuApi.List GET", Anonymous, "GET", "/api/menu"),
         new("MenuApi.Availability GET", Anonymous, "GET", "/api/menu/availability"),
         new("TableQr.Scan GET", Anonymous, "GET", "/q/khong-ton-tai"),
+        // S3-01 Task 1: khách quét QR mở phiên gọi món (POST thiếu mã chống giả mạo dừng ở 400) và trang gọi món tại bàn.
+        new("TableQr.Start POST", Anonymous, "POST", "/q/khong-ton-tai"),
+        new("TableOrder.Index GET", Anonymous, "GET", "/TableOrder"),
+        new("TableOrder.Submit POST", Anonymous, "POST", "/TableOrder/Submit"),
 
         // ---- Quản lý món ----
         new("Management.Index ANY", Manager, "GET", "/Management"),

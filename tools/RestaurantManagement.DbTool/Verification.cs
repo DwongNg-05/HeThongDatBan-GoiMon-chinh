@@ -70,6 +70,8 @@ internal static class Verification
             await BookingEmailEndToEndVerification.Run(connection, password);
             // S1-04 Task 4: gọi toàn bộ API với từng vai trò, chưa đăng nhập và vai trò không xác định.
             await ApiAuthorizationVerification.Run(connection);
+            // S3-01 Task 1: khách quét QR bàn trống → mở đúng một phiên mới, bàn chuyển "Đang phục vụ" (chạy sau cùng vì để lại bàn đang phục vụ).
+            await QrGuestSessionVerification.Run(connection);
             await DatabaseTool.Execute(connection, "EXEC dbo.usp_RunMaintenance; EXEC dbo.usp_RunMaintenance;");
             Console.WriteLine("PASS: all SQL Server integration checks.");
         }
@@ -171,6 +173,34 @@ internal static class Verification
             var password = "VerificationOnly9!" + Guid.NewGuid().ToString("N");
             await DatabaseTool.Seed(connection, password);
             await BookingEmailEndToEndVerification.Run(connection, password);
+        }
+        finally
+        {
+            SqlConnection.ClearAllPools();
+            builder.InitialCatalog = "master";
+            await using var cn = new SqlConnection(builder.ConnectionString);
+            await cn.OpenAsync();
+            await using var drop = new SqlCommand($"IF DB_ID(@name) IS NOT NULL BEGIN ALTER DATABASE [{name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{name}]; END", cn);
+            drop.Parameters.AddWithValue("@name", name);
+            await drop.ExecuteNonQueryAsync();
+        }
+    }
+
+    /// <summary>
+    /// S3-01 Task 1: chỉ chạy kiểm thử quét QR → mở phiên gọi món (lệnh "verify-qr-session") trên database tạm riêng.
+    /// Cần build Debug trước (kiểm thử chạy web thật). Database tạm được xoá sau khi chạy.
+    /// </summary>
+    internal static async Task RunQrSession(string baseConnection)
+    {
+        var builder = new SqlConnectionStringBuilder(baseConnection);
+        var name = "RestaurantManagement_Test_" + Guid.NewGuid().ToString("N");
+        builder.InitialCatalog = name;
+        var connection = builder.ConnectionString;
+        try
+        {
+            await DatabaseTool.Migrate(connection);
+            await DatabaseTool.Seed(connection, "VerificationOnly9!" + Guid.NewGuid().ToString("N"));
+            await QrGuestSessionVerification.Run(connection);
         }
         finally
         {

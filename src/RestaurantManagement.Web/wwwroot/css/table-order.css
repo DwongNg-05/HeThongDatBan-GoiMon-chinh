@@ -1,0 +1,98 @@
+/* S3-01 Task 1: đầu trang gọi món tại bàn — mã bàn thật to để khách xác nhận đúng bàn. Dùng chung public-menu.css. */
+.table-order-banner { padding: 18px; margin-bottom: 14px; background: var(--soft, #fff5f6); border: 2px solid var(--brand, #b3122e); border-radius: 14px; text-align: center; }
+.table-order-kicker { margin: 0; color: var(--muted, #6b7280); font-size: 13px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.table-order-banner h1 { margin: 4px 0; font-size: 34px; line-height: 1.15; color: var(--brand, #b3122e); overflow-wrap: anywhere; }
+.table-order-area { margin: 0 0 6px; font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.table-order-note { margin: 0; color: var(--muted, #6b7280); font-size: 13px; }
+.table-order-links { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; margin: 10px 0 0; font-weight: 600; }
+.table-order-links a { color: var(--brand, #b3122e); }
+
+.table-order-alert { margin: 0 0 14px; padding: 12px 16px; border-radius: 10px; font-weight: 600; }
+.table-order-alert.is-success { background: #ecfdf3; border: 1px solid #86d4a6; color: #14532d; }
+.table-order-alert.is-error { background: #fef2f2; border: 1px solid #f3a5a5; color: #7f1d1d; }
+
+/* Nút thêm món: luôn nằm cuối thẻ món (michelin.css sắp thứ tự giá/mô tả bằng order). */
+.table-order-add { order: 9; align-self: flex-start; margin-top: 10px; min-height: 44px; padding: 8px 18px; border: 1px solid var(--brand, #b3122e);
+  border-radius: 999px; background: var(--brand, #b3122e); color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; }
+.table-order-add:disabled { background: #e5e7eb; border-color: #e5e7eb; color: #6b7280; cursor: not-allowed; }
+
+/* Bố cục 2 cột: thực đơn bên trái, cột phải (Giỏ món ở trên, Món đã đặt ở dưới) dính theo màn hình khi cuộn,
+   không che thực đơn. Danh sách dài thì cuộn riêng trong từng khung. Màn hình hẹp (< 992px): xếp dọc, không dính. */
+.public-menu.table-order { max-width: none; }
+.table-order-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(250px, 300px); gap: 20px; align-items: start; }
+.table-order-main { min-width: 0; }
+/* --table-order-top: chừa chỗ cho thanh đầu trang dính (michelin.css: .workspace-header sticky, cao ~84–100px). */
+.table-order-layout { --table-order-top: 112px; }
+.table-order-side { position: sticky; top: var(--table-order-top); display: flex; flex-direction: column; gap: 16px;
+  max-height: calc(100vh - var(--table-order-top) - 16px); min-height: 0; }
+.table-order-cart, .table-order-ordered { margin: 0; padding: 16px; background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .06); scroll-margin-top: 16px; display: flex; flex-direction: column; min-height: 0; }
+.table-order-cart { flex: 0 1 auto; max-height: 55%; }
+.table-order-ordered { flex: 1 1 auto; }
+.table-order-scroll { overflow-y: auto; min-height: 0; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.table-order-cart-list { flex: 0 1 auto; }
+.table-order-ordered-body { flex: 1 1 auto; padding-right: 4px; }
+.table-order-count { color: var(--muted, #6b7280); font-size: 15px; font-weight: 500; }
+@media (max-width: 991.98px) {
+  .table-order-layout { grid-template-columns: minmax(0, 1fr); }
+  .table-order-side { position: static; max-height: none; }
+  .table-order-cart { max-height: none; }
+  .table-order-cart-list { max-height: 50vh; }
+  .table-order-ordered-body { max-height: 60vh; }
+}
+.table-order-cart h2, .table-order-ordered h2 { margin: 0 0 10px; font-size: 20px; }
+.table-order-empty { margin: 0; color: var(--muted, #6b7280); font-size: 14px; }
+.table-order-cart-list, .table-order-batch ul { list-style: none; margin: 0; padding: 0; }
+.table-order-cart-item { padding: 10px 0; border-bottom: 1px dashed #e5e7eb; }
+.table-order-cart-head { display: flex; justify-content: space-between; gap: 12px; overflow-wrap: anywhere; }
+.table-order-qty { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+.table-order-qty button { min-width: 40px; min-height: 40px; border: 1px solid #d1d5db; border-radius: 10px; background: #fff; font-size: 18px; }
+.table-order-qty .table-order-remove { margin-left: auto; font-size: 14px; color: #7f1d1d; }
+.table-order-note-input { width: 100%; min-height: 40px; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 15px; }
+.table-order-cart-footer { flex: 0 0 auto; border-top: 1px solid #e5e7eb; padding-top: 4px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; }
+.table-order-total { margin: 8px 0 0; font-size: 16px; }
+.table-order-submit { min-height: 48px; padding: 10px 28px; border: 0; border-radius: 999px; background: var(--brand, #b3122e); color: #fff; font-size: 17px; font-weight: 700; }
+.table-order-submit:disabled { background: #e5e7eb; color: #6b7280; }
+
+.table-order-batch h3 { margin: 12px 0 6px; font-size: 15px; color: var(--muted, #6b7280); }
+.table-order-ordered-item { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px dashed #e5e7eb; overflow-wrap: anywhere; }
+.table-order-ordered-item > div { display: flex; flex-direction: column; gap: 2px; }
+.table-order-item-note { color: var(--muted, #6b7280); font-size: 13px; }
+.table-order-status { align-self: flex-start; padding: 1px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; background: #f3f4f6; color: #374151; }
+.table-order-status.status-preparing { background: #fff7e6; color: #92400e; }
+.table-order-status.status-ready { background: #e0f2fe; color: #075985; }
+.table-order-status.status-served { background: #ecfdf3; color: #14532d; }
+.table-order-status.status-cancelled { background: #fef2f2; color: #7f1d1d; }
+.table-order-line-total { white-space: nowrap; font-weight: 600; }
+.table-order-line-total.is-void { text-decoration: line-through; color: #9ca3af; }
+
+/* Gọn hơn: thẻ món nhỏ để vừa ít nhất 2 thẻ mỗi hàng; giỏ món và món đã đặt chữ nhỏ, khoảng cách hẹp. */
+.table-order .public-menu-list { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 16px; }
+.table-order .public-dish-image { aspect-ratio: 16 / 10; }
+.table-order .public-dish-body { padding: 12px 14px 14px; gap: 4px; }
+.table-order .public-dish-name { font-size: 17px; }
+.table-order .public-dish-desc, .table-order .public-dish-price, .table-order .public-dish-unit { font-size: 13px; }
+.table-order .public-dish-price data { font-size: 14px; }
+.table-order-add { min-height: 36px; padding: 5px 14px; font-size: 13px; margin-top: 6px; }
+
+.table-order-side { gap: 12px; }
+.table-order-cart, .table-order-ordered { padding: 12px; border-radius: 10px; }
+.table-order-cart h2, .table-order-ordered h2 { margin: 0 0 6px; font-size: 16px; }
+.table-order-count { font-size: 13px; }
+.table-order-empty { font-size: 13px; }
+.table-order-cart-item { padding: 6px 0; font-size: 13px; }
+.table-order-qty { gap: 6px; margin: 4px 0; }
+.table-order-qty button { min-width: 30px; min-height: 30px; border-radius: 8px; font-size: 15px; padding: 0; }
+.table-order-qty .table-order-remove { font-size: 12px; padding: 0 8px; }
+.table-order-note-input { min-height: 30px; padding: 4px 8px; font-size: 13px; }
+.table-order-cart-footer { gap: 6px; margin-top: 8px; }
+.table-order-total { margin: 6px 0 0; font-size: 13px; }
+.table-order-submit { min-height: 38px; padding: 6px 20px; font-size: 15px; }
+.table-order-batch h3 { margin: 8px 0 4px; font-size: 12px; }
+.table-order-ordered-item { padding: 5px 0; gap: 8px; font-size: 13px; }
+.table-order-item-note { font-size: 12px; }
+.table-order-status { font-size: 11px; padding: 0 8px; }
+.table-order-line-total { font-size: 13px; }
+@media (max-width: 991.98px) {
+  .table-order .public-menu-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+}

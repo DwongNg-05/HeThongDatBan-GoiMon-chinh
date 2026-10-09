@@ -1,5 +1,8 @@
 @model RestaurantManagement.Web.Models.Tables.TableQrScanViewModel
-@{ ViewData["Title"] = "Xác nhận bàn"; }
+@{
+    ViewData["Title"] = "Bàn " + Model.TableCode;
+    ViewData["LightweightScripts"] = true;
+}
 
 <div class="row justify-content-center mt-5">
     <div class="col-md-8 col-lg-6">
@@ -13,8 +16,29 @@
                     <dt class="col-6">Sức chứa</dt><dd class="col-6">@Model.CapacityLabel</dd>
                     <dt class="col-6">Loại bàn</dt><dd class="col-6">@Model.TableTypeLabel</dd>
                 </dl>
-                <p class="small text-muted mt-4 mb-0">Vui lòng gọi phục vụ nếu thông tin bàn không đúng.</p>
+
+                @* S3-01 Task 1: POST mới mở phiên. Khách: trình duyệt tự gửi (table-qr-start.js); không có JavaScript thì bấm nút. *@
+                <form method="post" asp-controller="TableQr" asp-action="Start" asp-route-token="@Model.Token" class="mt-4"
+                      id="qr-start-form" data-auto-start="@(Model.AutoStart ? "true" : "false")">
+                    @if (Model.AutoStart)
+                    {
+                        <p class="text-muted mb-2" id="qr-start-status" role="status">Đang mở trang gọi món của bàn @Model.TableCode…</p>
+                    }
+                    else
+                    {
+                        <div class="alert alert-warning text-start small" role="note" data-staff-preview>
+                            Bạn đang đăng nhập tài khoản nhân viên. Bấm nút dưới đây sẽ mở phiên phục vụ thật cho bàn
+                            @Model.TableCode và chuyển bàn sang “Đang phục vụ”.
+                        </div>
+                    }
+                    <button type="submit" class="btn btn-primary btn-lg w-100">Bắt đầu gọi món</button>
+                </form>
+                <p class="small text-muted mt-3 mb-0">Vui lòng gọi phục vụ nếu thông tin bàn không đúng.</p>
             </div>
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script src="~/js/table-qr-start.js" asp-append-version="true"></script>
+}
