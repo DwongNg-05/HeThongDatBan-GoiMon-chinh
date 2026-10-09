@@ -25,13 +25,13 @@ static class TableQrSessionTests
             "QR session: only a 32-byte SHA-256 of the guest token is stored");
 
         var expires = new DateTime(2026, 10, 9, 15, 0, 0, DateTimeKind.Utc);
-        var opensOrdering = new[] { QrStartOutcome.Started, QrStartOutcome.Rejoined, QrStartOutcome.Resumed };
+        var opensOrdering = new[] { QrStartOutcome.Started, QrStartOutcome.Rejoined, QrStartOutcome.Joined, QrStartOutcome.Resumed };
         foreach (var outcome in Enum.GetValues<QrStartOutcome>())
         {
-            var result = new QrStartResult(outcome, outcome is QrStartOutcome.Started or QrStartOutcome.Rejoined or QrStartOutcome.Resumed ? tokens[0] : null,
-                outcome is QrStartOutcome.Started or QrStartOutcome.Rejoined or QrStartOutcome.Resumed ? expires : null);
+            var result = new QrStartResult(outcome, outcome is QrStartOutcome.Started or QrStartOutcome.Rejoined or QrStartOutcome.Joined or QrStartOutcome.Resumed ? tokens[0] : null,
+                outcome is QrStartOutcome.Started or QrStartOutcome.Rejoined or QrStartOutcome.Joined or QrStartOutcome.Resumed ? expires : null);
             check(result.OpensOrdering == opensOrdering.Contains(outcome), $"QR session: {outcome} {(result.OpensOrdering ? "opens" : "does not open")} the ordering page");
-            check(result.IssuesCookie == (outcome is QrStartOutcome.Started or QrStartOutcome.Rejoined),
+            check(result.IssuesCookie == (outcome is QrStartOutcome.Started or QrStartOutcome.Rejoined or QrStartOutcome.Joined),
                 $"QR session: {outcome} {(result.IssuesCookie ? "sets a new" : "sets no new")} guest cookie");
         }
 
@@ -40,6 +40,7 @@ static class TableQrSessionTests
             (QrStartOutcome.TableReserved, "Bàn đã được đặt trước", 409), (QrStartOutcome.TableBusy, "Bàn đang được phục vụ", 409),
             (QrStartOutcome.TableCleaning, "Bàn đang được dọn", 409), (QrStartOutcome.NoShift, "Nhà hàng chưa nhận gọi món", 409),
             (QrStartOutcome.OutsideOpeningHours, "Nhà hàng đang ngoài giờ hoạt động", 409),
+            (QrStartOutcome.AwaitingPayment, "Bàn đang chờ thanh toán", 409),
             (QrStartOutcome.SystemBusy, "Hệ thống đang bận", 503)
         })
         {
@@ -112,5 +113,11 @@ static class TableQrSessionTests
         check(orderedView.OrderedTotal == 80000 && orderedView.OrderedItems[0].StatusLabel == "Chờ bếp nhận"
             && orderedView.OrderedItems[1].StatusLabel == "Đã huỷ" && orderedView.OrderedBatches.Count() == 1,
             "QR order: the ordered list totals charged dishes and labels kitchen statuses");
+
+        // S3-01 Task 2: phân biệt ai đã gọi từng lượt trong phiên chung của bàn.
+        check(new GuestOrderedItem(1, DateTime.UtcNow, "A", "Phần", 1, 1, null, "Pending", true, OrderSource.ThisPhone).SourceLabel == "Bạn gọi"
+            && new GuestOrderedItem(1, DateTime.UtcNow, "A", "Phần", 1, 1, null, "Pending", true, OrderSource.OtherGuest).SourceLabel == "Khách cùng bàn gọi"
+            && new GuestOrderedItem(1, DateTime.UtcNow, "A", "Phần", 1, 1, null, "Pending", true, OrderSource.Staff).SourceLabel == "Nhân viên gọi",
+            "QR join: each batch shows who ordered it (this phone, another guest at the table, staff)");
     }
 }

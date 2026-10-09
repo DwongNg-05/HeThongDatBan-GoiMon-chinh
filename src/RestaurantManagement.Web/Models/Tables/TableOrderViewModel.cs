@@ -24,6 +24,7 @@ public sealed record TableOrderViewModel(GuestOrderingContext Table, IReadOnlyLi
     public IReadOnlyList<GuestOrderedItem> OrderedItems { get; init; } = [];
 
     /// <summary>Thông báo sau khi bấm "Đặt món".</summary>
+    public string? InfoMessage { get; init; }
     public string? SuccessMessage { get; init; }
     public string? ErrorMessage { get; init; }
 

@@ -20,6 +20,8 @@ public sealed record TableQrUnavailableViewModel(QrStartOutcome Outcome, string 
             "Ca phục vụ chưa mở. Vui lòng gọi nhân viên để được hỗ trợ.", StatusCodes.Status409Conflict, false),
         QrStartOutcome.OutsideOpeningHours => new(outcome, "Nhà hàng đang ngoài giờ hoạt động",
             "Hiện chưa tới giờ mở cửa hoặc đã qua giờ đóng cửa hôm nay. Vui lòng gọi nhân viên để được hỗ trợ.", StatusCodes.Status409Conflict, false),
+        QrStartOutcome.AwaitingPayment => new(outcome, "Bàn đang chờ thanh toán",
+            "Bàn này đang thanh toán nên không gọi thêm món được. Vui lòng gọi nhân viên để được hỗ trợ.", StatusCodes.Status409Conflict, false),
         QrStartOutcome.SystemBusy => new(outcome, "Hệ thống đang bận",
             "Vui lòng thử lại sau ít giây.", StatusCodes.Status503ServiceUnavailable, true),
         _ => throw new ArgumentOutOfRangeException(nameof(outcome), outcome, "Kết quả này không dùng trang thông báo bàn.")

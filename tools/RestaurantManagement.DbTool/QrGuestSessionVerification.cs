@@ -184,19 +184,21 @@ internal static class QrGuestSessionVerification
             foreach (var p in phones)
                 Assert((await Html(p, "/TableOrder")).Contains($"Bàn {burstCode}</h1>"), $"QR: every scanning phone sees the ordering page of bàn {burstCode}");
 
-            // Hết cửa sổ quét lặp (120 giây): điện thoại mới không được tự vào phiên đang mở (vào chung phiên: task sau),
+            // S3-01 Task 2: quá 120 giây sau khi mở bàn, điện thoại mới vẫn vào CHUNG phiên đang mở (không tạo phiên mới);
             // điện thoại đã ở trong phiên vẫn quay lại được.
             await DatabaseTool.Execute(connection, $"UPDATE s SET OpenedAt=DATEADD(minute,-10,s.OpenedAt) FROM dbo.DiningSessions s JOIN dbo.SessionTables st ON st.SessionId=s.Id WHERE st.TableId={burstTable};");
             using var late = Phone(web);
-            using (var busy = await Start(late, burstToken, await Html(late, $"/q/{burstToken}")))
-                Assert(busy.StatusCode == HttpStatusCode.Conflict && (await Body(busy)).Contains("Bàn đang được phục vụ"),
-                    "QR: a new phone scanning a table that is already being served gets no new session");
+            using (var joined = await Start(late, burstToken, await Html(late, $"/q/{burstToken}")))
+                Assert(joined.StatusCode == HttpStatusCode.Redirect && Location(joined) == "/TableOrder",
+                    "QR: a new phone scanning a table that is already being served joins its current session");
             using (var back = await Start(phones[0], burstToken, await Html(phones[0], $"/q/{burstToken}")))
                 Assert(back.StatusCode == HttpStatusCode.Redirect && Location(back) == "/TableOrder", "QR: a phone already in the session can still reopen it later");
             await Check(connection, $"SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.SessionTables WHERE TableId={burstTable})=1 THEN 1 ELSE 0 END",
                 "QR: still exactly one session for the table");
         }
         finally { foreach (var p in phones) p.Dispose(); }
+
+        await JoinOpenSession(connection, web, used);
 
         // 4. Bàn không trống: đặt trước, đang dọn, đang giữ cho lượt đặt sắp tới → không tạo phiên, không đổi trạng thái.
         foreach (var (status, message) in new[] { ("Reserved", "Bàn đã được đặt trước"), ("Cleaning", "Bàn đang được dọn") })
@@ -246,6 +248,83 @@ internal static class QrGuestSessionVerification
             Assert((await Body(revoked)).Contains("data-table-order=\"no-session\""), "QR: after regenerating the QR the old guest session no longer opens the ordering page");
 
         Console.WriteLine("PASS: S3-01 Task 1 QR → new ordering session checks.");
+    }
+
+    /// <summary>
+    /// S3-01 Task 2: bàn đang phục vụ (nhân viên mở phiên và gọi trước món) → hai khách lần lượt quét cùng QR,
+    /// cùng vào phiên hiện tại (không có phiên thứ hai) và cùng thấy đầy đủ các món đã gọi trước đó.
+    /// </summary>
+    private static async Task JoinOpenSession(string connection, Web web, List<int> used)
+    {
+        var (table, code) = await FreeTable(connection, used);
+        var token = await NewQr(connection, table);
+        var waiter = await Scalar(connection, "SELECT TOP(1) u.Id FROM dbo.Users u JOIN dbo.Roles r ON r.Id=u.RoleId WHERE r.Code='Waiter' AND u.IsActive=1 ORDER BY u.Id");
+        var dishes = new List<long>();
+        foreach (var offset in new[] { 0, 1 })
+            dishes.Add(await Scalar(connection, $"SELECT v.Id FROM dbo.vw_PublicMenu v JOIN dbo.MenuItems m ON m.Id=v.Id JOIN dbo.MenuCategories c ON c.Id=v.CategoryId WHERE c.IsActive=1 AND v.IsSoldOut=0 AND m.IsTemporarilyOut=0 ORDER BY v.Id OFFSET {offset} ROWS FETCH NEXT 1 ROWS ONLY"));
+        var staffDish = await Text(connection, $"SELECT Name FROM dbo.MenuItems WHERE Id={dishes[0]}");
+        var guestDish = await Text(connection, $"SELECT Name FROM dbo.MenuItems WHERE Id={dishes[1]}");
+
+        // Nhân viên đón khách (phiên do nhân viên mở) và gọi trước 3 phần món thứ nhất.
+        await DatabaseTool.Execute(connection, $$"""
+            EXEC dbo.usp_OpenSession @TableId={{table}},@GuestCount=1,@ActorUserId={{waiter}};
+            DECLARE @session bigint=(SELECT st.SessionId FROM dbo.SessionTables st WHERE st.TableId={{table}} AND st.ReleasedAt IS NULL);
+            DECLARE @request uniqueidentifier=NEWID();
+            DECLARE @items nvarchar(max)=CONCAT(N'[{"MenuItemId":',{{dishes[0]}},N',"Quantity":3,"Notes":"S302 nhân viên gọi"}]');
+            EXEC dbo.usp_SubmitOrder @SessionId=@session,@RequestId=@request,@ItemsJson=@items,@ActorUserId={{waiter}};
+            """);
+        var session = await Scalar(connection, $"SELECT SessionId FROM dbo.SessionTables WHERE TableId={table} AND ReleasedAt IS NULL");
+        var sessionsBefore = await Scalar(connection, "SELECT COUNT(*) FROM dbo.DiningSessions");
+
+        // Khách thứ nhất quét QR: vào chung phiên, thấy món nhân viên đã gọi, rồi gọi thêm món thứ hai.
+        using var first = Phone(web);
+        using (var start = await Start(first, token, await Html(first, $"/q/{token}")))
+            Assert(start.StatusCode == HttpStatusCode.Redirect && Location(start) == "/TableOrder", $"QR join: guest 1 scanning serving bàn {code} goes to the ordering page");
+        var firstPage = await Html(first, "/TableOrder");
+        Assert(firstPage.Contains("vào chung phiên gọi món của bàn") && firstPage.Contains($"Bàn {code}</h1>")
+            && firstPage.Contains($"3 × {staffDish}") && firstPage.Contains("S302 nhân viên gọi") && firstPage.Contains("Nhân viên gọi"),
+            "QR join: guest 1 sees the joined-session notice and the dish the staff ordered earlier (marked as staff)");
+        Assert(firstPage.Contains("Món đang chọn") && firstPage.Contains("Chưa gửi bếp") && firstPage.Contains("Món bàn đã gọi"),
+            "QR join: dishes being prepared (not sent) are shown apart from dishes already ordered");
+        var requestId = System.Text.RegularExpressions.Regex.Match(firstPage, "name=\"requestId\" value=\"([0-9a-fA-F-]{36})\"").Groups[1].Value;
+        using (var placed = await first.PostAsync("/TableOrder/Submit", Form(("__RequestVerificationToken", Token(firstPage)), ("requestId", requestId),
+                   ("cartJson", $"[{{\"dishId\":{dishes[1]},\"quantity\":2}}]"))))
+            Assert(placed.StatusCode == HttpStatusCode.Redirect, "QR join: guest 1 orders more dishes into the shared session");
+        Assert((await Html(first, "/TableOrder")).Contains("Bạn gọi"), "QR join: guest 1 sees its own batch marked as \"Bạn gọi\"");
+
+        // Khách thứ hai quét cùng QR: cùng phiên, thấy đủ món của nhân viên và của khách thứ nhất.
+        using var second = Phone(web);
+        using (var start = await Start(second, token, await Html(second, $"/q/{token}")))
+            Assert(start.StatusCode == HttpStatusCode.Redirect && Location(start) == "/TableOrder", "QR join: guest 2 scanning the same QR goes to the ordering page");
+        var secondPage = await Html(second, "/TableOrder");
+        Assert(secondPage.Contains($"3 × {staffDish}") && secondPage.Contains($"2 × {guestDish}") && secondPage.Contains("Khách cùng bàn gọi")
+            && secondPage.Contains("Món bàn đã gọi <span class=\"table-order-count\">(2)</span>"),
+            "QR join: guest 2 sees every dish ordered earlier in the session (staff and guest 1)");
+        await Check(connection, $"""
+            SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.DiningSessions)={sessionsBefore}
+                AND (SELECT COUNT(*) FROM dbo.SessionTables WHERE TableId={table})=1
+                AND (SELECT COUNT(*) FROM dbo.GuestSessions WHERE SessionId={session})=2
+                AND (SELECT COUNT(*) FROM dbo.OrderBatches WHERE SessionId={session})=2
+                AND (SELECT Status FROM dbo.DiningTables WHERE Id={table})='Serving'
+            THEN 1 ELSE 0 END
+            """, "QR join: no second session — both phones are guest sessions of the one open session, all orders on it");
+
+        // Quét lần tiếp theo (cùng máy) cũng không tạo thêm phiên hay phiên khách.
+        using (var again = await Start(second, token, await Html(second, $"/q/{token}")))
+            Assert(again.StatusCode == HttpStatusCode.Redirect, "QR join: guest 2 scanning again reopens the page");
+        await Check(connection, $"SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.SessionTables WHERE TableId={table})=1 AND (SELECT COUNT(*) FROM dbo.GuestSessions WHERE SessionId={session})=2 THEN 1 ELSE 0 END",
+            "QR join: the next scan creates no extra session");
+
+        // Bàn đang chờ thanh toán: khách mới không vào để gọi thêm.
+        await DatabaseTool.Execute(connection, $"EXEC dbo.usp_SetPaymentState @SessionId={session},@Awaiting=1,@ActorUserId={waiter};");
+        using var third = Phone(web);
+        using (var paying = await Start(third, token, await Html(third, $"/q/{token}")))
+            Assert(paying.StatusCode == HttpStatusCode.Conflict && (await Body(paying)).Contains("Bàn đang chờ thanh toán"),
+                "QR join: a table awaiting payment does not take new guests");
+        await DatabaseTool.Execute(connection, $"EXEC dbo.usp_SetPaymentState @SessionId={session},@Awaiting=0,@ActorUserId={waiter};");
+        await Check(connection, $"SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.GuestSessions WHERE SessionId={session})=2 AND (SELECT COUNT(*) FROM dbo.DiningSessions)={sessionsBefore} THEN 1 ELSE 0 END",
+            "QR join: the rejected scan writes nothing");
+        Console.WriteLine("PASS: S3-01 Task 2 QR → join the open session checks.");
     }
 
     private static HttpClient Phone(Web web) =>

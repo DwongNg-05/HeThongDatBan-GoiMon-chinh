@@ -242,3 +242,7 @@ Chạy `migrate` để áp dụng `022_AuditReadOnlyHardening.sql`. Nhật ký b
 ## S3-01 Task 1 — quét QR bàn trống, vào phiên gọi món mới
 
 Chạy `migrate` để áp dụng `043_S301QrGuestSession.sql`. Khách quét QR của bàn **Trống** (cần có ca đang mở) sẽ vào thẳng trang **Gọi món tại bàn** (`/TableOrder`) của đúng bàn, không cần đăng nhập. Hệ thống tạo đúng một phiên phục vụ mới, đồng thời chuyển bàn sang **Đang phục vụ** trong cùng giao dịch. Mở đường dẫn QR (GET) không thay đổi dữ liệu. Quét lặp hoặc nhiều người quét cùng lúc không tạo thêm phiên. Quy tắc “bàn trống” cần PO chốt, demo và kiểm thử (`verify-qr-session`): [docs/S3-01-Task1.md](docs/S3-01-Task1.md).
+
+## S3-01 Task 2 — quét QR bàn đang phục vụ, vào chung phiên
+
+Chạy `migrate` để áp dụng `045_S301JoinOpenTableSession.sql`. Khách quét QR của bàn đang có phiên mở sẽ vào **chung phiên đó**, không tạo phiên mới, và thấy đầy đủ các món bàn đã gọi trước đó, mỗi lượt có ghi rõ người gọi: Bạn gọi / Khách cùng bàn gọi / Nhân viên gọi. Món đang chọn (chưa gửi bếp) được tách riêng khỏi món đã gọi. Bàn đang chờ thanh toán thì không nhận thêm khách. Chi tiết: [docs/S3-01-Task2.md](docs/S3-01-Task2.md).

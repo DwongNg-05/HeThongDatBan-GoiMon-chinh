@@ -15,6 +15,10 @@ public enum QrStartOutcome
     Rejoined,
     /// <summary>Điện thoại đã có phiên khách còn hạn của bàn này: dùng lại.</summary>
     Resumed,
+    /// <summary>S3-01 Task 2: bàn đang phục vụ, đã có phiên mở → khách vào chung phiên đó (không tạo phiên mới).</summary>
+    Joined,
+    /// <summary>S3-01 Task 2: phiên của bàn đang chờ thanh toán → không nhận thêm khách/món.</summary>
+    AwaitingPayment,
     InvalidQr,
     QrChanged,
     TableReserved,
@@ -31,10 +35,10 @@ public enum QrStartOutcome
 public sealed record QrStartResult(QrStartOutcome Outcome, string? GuestToken, DateTime? ExpiresAtUtc)
 {
     /// <summary>Khách được đưa vào trang gọi món của bàn.</summary>
-    public bool OpensOrdering => Outcome is QrStartOutcome.Started or QrStartOutcome.Rejoined or QrStartOutcome.Resumed;
+    public bool OpensOrdering => Outcome is QrStartOutcome.Started or QrStartOutcome.Rejoined or QrStartOutcome.Joined or QrStartOutcome.Resumed;
 
     /// <summary>Cần ghi cookie phiên khách mới (Resumed giữ cookie cũ).</summary>
-    public bool IssuesCookie => Outcome is QrStartOutcome.Started or QrStartOutcome.Rejoined
+    public bool IssuesCookie => Outcome is QrStartOutcome.Started or QrStartOutcome.Rejoined or QrStartOutcome.Joined
         && GuestToken is not null && ExpiresAtUtc is not null;
 }
 
@@ -46,7 +50,11 @@ public sealed record GuestOrderingContext(
     int MinCapacity,
     int MaxCapacity,
     string TableType,
-    DateTime OpenedAtUtc);
+    DateTime OpenedAtUtc,
+    long GuestSessionId = 0);
+
+/// <summary>Ai đã gọi một lượt món: S3-01 Task 2 phân biệt món của máy này, khách khác cùng bàn và nhân viên.</summary>
+public enum OrderSource { ThisPhone, OtherGuest, Staff }
 
 /// <summary>Một dòng khách chọn trong giỏ (trang /TableOrder).</summary>
 public sealed record GuestCartLine(int DishId, int Quantity, string? Notes);
@@ -64,8 +72,16 @@ public sealed record GuestOrderedItem(
     int Quantity,
     string? Notes,
     string Status,
-    bool Charged)
+    bool Charged,
+    OrderSource Source = OrderSource.OtherGuest)
 {
+    public string SourceLabel => Source switch
+    {
+        OrderSource.ThisPhone => "Bạn gọi",
+        OrderSource.Staff => "Nhân viên gọi",
+        _ => "Khách cùng bàn gọi"
+    };
+
     public decimal LineTotal => UnitPrice * Quantity;
 
     public string StatusLabel => Status switch
@@ -115,7 +131,7 @@ public sealed class GuestTableSessionService(IConfiguration configuration)
             DateTime? expires = reader.IsDBNull(2) ? null : DateTime.SpecifyKind(reader.GetDateTime(2), DateTimeKind.Utc);
             return outcome switch
             {
-                QrStartOutcome.Started or QrStartOutcome.Rejoined => new QrStartResult(outcome, guestToken, expires),
+                QrStartOutcome.Started or QrStartOutcome.Rejoined or QrStartOutcome.Joined => new QrStartResult(outcome, guestToken, expires),
                 QrStartOutcome.Resumed => new QrStartResult(outcome, existingGuestToken, expires),
                 _ => new QrStartResult(outcome, null, null)
             };
@@ -141,7 +157,7 @@ public sealed class GuestTableSessionService(IConfiguration configuration)
         if (!IsValidGuestToken(guestToken)) return null;
 
         const string sql = """
-            SELECT s.Id, t.Code, a.Name, t.MinCapacity, t.MaxCapacity, t.TableType, s.OpenedAt
+            SELECT s.Id, t.Code, a.Name, t.MinCapacity, t.MaxCapacity, t.TableType, s.OpenedAt, g.Id
             FROM dbo.GuestSessions g
             JOIN dbo.TableQrCodes q ON q.Id = g.TableQrCodeId
             JOIN dbo.DiningSessions s ON s.Id = g.SessionId
@@ -161,7 +177,7 @@ public sealed class GuestTableSessionService(IConfiguration configuration)
         return new GuestOrderingContext(
             reader.GetInt64(0), reader.GetString(1), reader.GetString(2),
             reader.GetInt32(3), reader.GetInt32(4), reader.GetString(5),
-            DateTime.SpecifyKind(reader.GetDateTime(6), DateTimeKind.Utc));
+            DateTime.SpecifyKind(reader.GetDateTime(6), DateTimeKind.Utc), reader.GetInt64(7));
     }
 
     /// <summary>Số món tối đa / số lượng tối đa mỗi dòng / độ dài ghi chú — cùng giới hạn với dbo.usp_SubmitOrder.</summary>
@@ -199,7 +215,7 @@ public sealed class GuestTableSessionService(IConfiguration configuration)
         {
             await connection.OpenAsync(cancellationToken);
             await command.ExecuteNonQueryAsync(cancellationToken);
-            return new GuestOrderResult(true, "Đã gửi món xuống bếp. Theo dõi trạng thái trong mục “Món đã đặt”.");
+            return new GuestOrderResult(true, "Đã gửi món xuống bếp. Theo dõi trạng thái trong mục “Món bàn đã gọi”.");
         }
         catch (SqlException ex) when (ex.Number is >= 51023 and <= 51028 or 51000)
         {
@@ -214,12 +230,16 @@ public sealed class GuestTableSessionService(IConfiguration configuration)
         }
     }
 
-    /// <summary>Các món đã gọi của phiên, theo thứ tự lượt gọi.</summary>
-    public async Task<IReadOnlyList<GuestOrderedItem>> GetOrderedItemsAsync(long sessionId, CancellationToken cancellationToken)
+    /// <summary>
+    /// Các món đã gọi của phiên (mọi điện thoại cùng bàn và nhân viên), theo thứ tự lượt gọi.
+    /// <paramref name="guestSessionId"/>: phiên khách của máy đang xem, để đánh dấu "Bạn gọi".
+    /// </summary>
+    public async Task<IReadOnlyList<GuestOrderedItem>> GetOrderedItemsAsync(long sessionId, long guestSessionId, CancellationToken cancellationToken)
     {
         const string sql = """
             SELECT b.BatchNumber, i.SubmittedAt, i.ItemName, i.Unit, i.UnitPrice, i.Quantity, i.Notes, i.Status,
-                   CONVERT(bit, CASE WHEN i.Status <> 'Cancelled' OR i.ChargeWhenCancelled = 1 THEN 1 ELSE 0 END)
+                   CONVERT(bit, CASE WHEN i.Status <> 'Cancelled' OR i.ChargeWhenCancelled = 1 THEN 1 ELSE 0 END),
+                   CASE WHEN b.CreatedBy IS NOT NULL THEN 2 WHEN b.GuestSessionId = @GuestSessionId THEN 0 ELSE 1 END
             FROM dbo.OrderBatches b
             JOIN dbo.OrderItems i ON i.BatchId = b.Id
             WHERE b.SessionId = @SessionId
@@ -229,13 +249,15 @@ public sealed class GuestTableSessionService(IConfiguration configuration)
         await using var connection = new SqlConnection(ConnectionString);
         await using var command = new SqlCommand(sql, connection);
         command.Parameters.Add("@SessionId", SqlDbType.BigInt).Value = sessionId;
+        command.Parameters.Add("@GuestSessionId", SqlDbType.BigInt).Value = guestSessionId;
         await connection.OpenAsync(cancellationToken);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
             items.Add(new GuestOrderedItem(
                 reader.GetInt32(0), DateTime.SpecifyKind(reader.GetDateTime(1), DateTimeKind.Utc),
                 reader.GetString(2), reader.GetString(3), reader.GetDecimal(4), reader.GetInt32(5),
-                reader.IsDBNull(6) ? null : reader.GetString(6), reader.GetString(7), reader.GetBoolean(8)));
+                reader.IsDBNull(6) ? null : reader.GetString(6), reader.GetString(7), reader.GetBoolean(8),
+                (OrderSource)reader.GetInt32(9)));
         return items;
     }
 

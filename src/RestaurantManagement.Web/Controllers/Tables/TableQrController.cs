@@ -60,6 +60,8 @@ public sealed class TableQrController(TableQrService qrService, GuestTableSessio
             if (result.IssuesCookie)
                 Response.Cookies.Append(GuestTableSessionService.CookieName, result.GuestToken!,
                     GuestTableSessionService.CreateCookieOptions(Request, result.ExpiresAtUtc!.Value));
+            if (result.Outcome == QrStartOutcome.Joined)
+                TempData[TableOrderController.JoinedKey] = "Bàn đang được phục vụ: bạn đã vào chung phiên gọi món của bàn. Các món bàn đã gọi hiện ở mục “Món bàn đã gọi”.";
             return RedirectToAction("Index", "TableOrder");
         }
 

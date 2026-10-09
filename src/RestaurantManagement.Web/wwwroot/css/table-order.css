@@ -68,7 +68,7 @@
 
 /* Gọn hơn: thẻ món nhỏ để vừa ít nhất 2 thẻ mỗi hàng; giỏ món và món đã đặt chữ nhỏ, khoảng cách hẹp. */
 .table-order .public-menu-list { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 16px; }
-.table-order .public-dish-image { aspect-ratio: 16 / 10; }
+.table-order .public-dish .public-dish-image { aspect-ratio: 16 / 10; }
 .table-order .public-dish-body { padding: 12px 14px 14px; gap: 4px; }
 .table-order .public-dish-name { font-size: 17px; }
 .table-order .public-dish-desc, .table-order .public-dish-price, .table-order .public-dish-unit { font-size: 13px; }
@@ -96,3 +96,13 @@
 @media (max-width: 991.98px) {
   .table-order .public-menu-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 }
+
+/* S3-01 Task 2: phân biệt món đang chọn (chưa gửi) với món bàn đã gọi, và ai đã gọi từng lượt. */
+.table-order-alert.is-info { background: #eff6ff; border: 1px solid #93c5fd; color: #1e3a8a; }
+.table-order-hint { margin: -2px 0 6px; color: var(--muted, #6b7280); font-size: 12px; }
+.table-order-tag { display: inline-block; vertical-align: middle; margin-left: 6px; padding: 1px 8px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0; text-transform: none; background: #f3f4f6; color: #374151; }
+.table-order-tag.is-draft { background: #fff7e6; color: #92400e; border: 1px dashed #f59e0b; }
+.table-order-tag.source-thisphone { background: #fde8ec; color: #9f1239; }
+.table-order-tag.source-staff { background: #e0f2fe; color: #075985; }
+.table-order-cart { border-style: dashed; border-color: #f59e0b; }

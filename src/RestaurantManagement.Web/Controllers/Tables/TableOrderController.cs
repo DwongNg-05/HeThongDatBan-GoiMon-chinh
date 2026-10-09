@@ -17,6 +17,8 @@ public sealed class TableOrderController(GuestTableSessionService guestSessions,
 {
     private const string SuccessKey = "TableOrderSuccess";
     private const string ErrorKey = "TableOrderError";
+    /// <summary>S3-01 Task 2: TableQrController ghi khi khách vào chung phiên đang mở của bàn.</summary>
+    public const string JoinedKey = "TableOrderJoined";
     private static readonly JsonSerializerOptions CartJsonOptions = new() { PropertyNameCaseInsensitive = true };
 
     [HttpGet("")]
@@ -31,7 +33,8 @@ public sealed class TableOrderController(GuestTableSessionService guestSessions,
 
         return View(new TableOrderViewModel(table, menu.GetPublicMenu())
         {
-            OrderedItems = await guestSessions.GetOrderedItemsAsync(table.SessionId, cancellationToken),
+            OrderedItems = await guestSessions.GetOrderedItemsAsync(table.SessionId, table.GuestSessionId, cancellationToken),
+            InfoMessage = TempData[JoinedKey] as string,
             SuccessMessage = TempData[SuccessKey] as string,
             ErrorMessage = TempData[ErrorKey] as string
         });

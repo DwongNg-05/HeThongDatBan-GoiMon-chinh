@@ -23,11 +23,15 @@
         <p class="table-order-area">@Model.Table.AreaName · @Model.TableTypeLabel · @Model.CapacityLabel</p>
         <p class="table-order-note">Phiên gọi món mở lúc @Model.OpenedAtLabel. Không đúng bàn của bạn? Vui lòng gọi nhân viên.</p>
         <p class="table-order-links">
-            <a href="#gio-mon">Giỏ món (<span data-cart-count>0</span>)</a>
-            <a href="#da-dat">Món đã đặt (@Model.OrderedItems.Count)</a>
+            <a href="#gio-mon">Món đang chọn (<span data-cart-count>0</span>)</a>
+            <a href="#da-dat">Món bàn đã gọi (@Model.OrderedItems.Count)</a>
         </p>
     </header>
 
+    @if (Model.InfoMessage is not null)
+    {
+        <div class="table-order-alert is-info" role="status" data-order-result="joined">@Model.InfoMessage</div>
+    }
     @if (Model.SuccessMessage is not null)
     {
         <div class="table-order-alert is-success" role="status" data-order-result="success">@Model.SuccessMessage</div>
@@ -91,7 +95,7 @@
     @* Giỏ món: lưu tạm trên điện thoại (sessionStorage) tới khi bấm "Đặt món". Máy chủ kiểm tra lại món, giá và số lượng. *@
     <section id="gio-mon" class="table-order-cart" aria-labelledby="gio-mon-title"
              data-cart-key="table-order-cart-@Model.Table.SessionId" data-clear-cart="@(Model.SuccessMessage is not null ? "true" : "false")">
-        <h2 id="gio-mon-title">Giỏ món</h2>
+        <h2 id="gio-mon-title">Món đang chọn <span class="table-order-tag is-draft">Chưa gửi bếp</span></h2>
         <p class="table-order-empty" data-cart-empty>Chưa chọn món nào. Bấm “+ Thêm vào giỏ” ở món bạn muốn gọi.</p>
         <ul class="table-order-cart-list table-order-scroll" data-cart-list></ul>
         <div class="table-order-cart-footer">
@@ -105,7 +109,8 @@
     </section>
 
     <section id="da-dat" class="table-order-ordered" aria-labelledby="da-dat-title">
-        <h2 id="da-dat-title">Món đã đặt <span class="table-order-count">(@Model.OrderedItems.Count)</span></h2>
+        <h2 id="da-dat-title">Món bàn đã gọi <span class="table-order-count">(@Model.OrderedItems.Count)</span></h2>
+        <p class="table-order-hint">Đã gửi bếp — gồm món của mọi người cùng bàn và món nhân viên gọi giúp.</p>
         <div class="table-order-ordered-body table-order-scroll">
         @if (Model.OrderedItems.Count == 0)
         {
@@ -116,7 +121,8 @@
             @foreach (var batch in Model.OrderedBatches)
             {
                 <div class="table-order-batch" data-batch="@batch.Key">
-                    <h3>Lượt @batch.Key · @TableOrderViewModel.TimeLabel(batch.First().SubmittedAtUtc)</h3>
+                    <h3>Lượt @batch.Key · @TableOrderViewModel.TimeLabel(batch.First().SubmittedAtUtc)
+                        <span class="table-order-tag source-@batch.First().Source.ToString().ToLowerInvariant()" data-order-source="@batch.First().Source">@batch.First().SourceLabel</span></h3>
                     <ul>
                         @foreach (var item in batch)
                         {
