@@ -1,0 +1,17 @@
+@model RestaurantManagement.Web.Models.Tables.CallStaffViewModel
+@* S3-01 Task 3: hướng dẫn gọi phục vụ dùng chung cho các trang không mở được phiên gọi món. *@
+<div class="call-staff text-start mt-3" data-call-staff>
+    <p class="fw-semibold mb-2">Vui lòng gọi phục vụ để được hỗ trợ:</p>
+    <ol class="mb-3 ps-3">
+        <li>Giơ tay hoặc báo nhân viên gần nhất.</li>
+        @if (!string.IsNullOrEmpty(Model.TableCode))
+        {
+            <li>Đọc mã bàn <strong data-call-staff-table>@Model.TableCode</strong> cho nhân viên.</li>
+        }
+        <li>Nhân viên sẽ mở hoặc sắp xếp bàn giúp bạn — bạn không cần đăng nhập hay cài ứng dụng.</li>
+    </ol>
+    @if (Model.PhoneHref is not null)
+    {
+        <a class="btn btn-primary w-100" href="@Model.PhoneHref" data-call-staff-phone>Gọi nhà hàng @Model.RestaurantPhone</a>
+    }
+</div>

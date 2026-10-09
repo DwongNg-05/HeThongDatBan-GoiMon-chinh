@@ -1,10 +1,18 @@
-@{ ViewData["Title"] = "Mã QR đã thay đổi"; }
+@{
+    ViewData["Title"] = "Mã QR đã thay đổi";
+    ViewData["LightweightScripts"] = true;
+    var callStaff = ViewData[RestaurantManagement.Web.Models.Tables.CallStaffViewModel.ViewDataKey] as RestaurantManagement.Web.Models.Tables.CallStaffViewModel
+        ?? new RestaurantManagement.Web.Models.Tables.CallStaffViewModel(null, null);
+}
 
+@* S3-01 Task 3: mã QR đã bị sinh lại (không phải phiên bản hiện tại của bàn) → không mở phiên, đề nghị gọi phục vụ. *@
 <div class="row justify-content-center mt-5">
     <div class="col-md-8 col-lg-6">
-        <div class="alert alert-warning text-center p-4" role="alert">
+        <div class="alert alert-warning text-center p-4" role="alert" data-qr-outcome="QrChanged">
             <h1 class="h4">Mã QR đã thay đổi</h1>
             <p class="mb-0">Mã QR đã thay đổi. Vui lòng gọi phục vụ.</p>
+            <p class="small mb-0 mt-2">Nhà hàng đã thay mã QR mới cho bàn này nên mã bạn vừa quét không còn dùng để gọi món.</p>
+            <partial name="_CallStaff" model="callStaff" />
         </div>
     </div>
 </div>

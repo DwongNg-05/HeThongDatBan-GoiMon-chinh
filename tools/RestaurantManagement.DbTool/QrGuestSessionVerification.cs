@@ -199,9 +199,10 @@ internal static class QrGuestSessionVerification
         finally { foreach (var p in phones) p.Dispose(); }
 
         await JoinOpenSession(connection, web, used);
+        await BlockedScans(connection, web, used);
 
         // 4. Bàn không trống: đặt trước, đang dọn, đang giữ cho lượt đặt sắp tới → không tạo phiên, không đổi trạng thái.
-        foreach (var (status, message) in new[] { ("Reserved", "Bàn đã được đặt trước"), ("Cleaning", "Bàn đang được dọn") })
+        foreach (var (status, message) in new[] { ("Reserved", "Bàn đã được đặt trước") }) // bàn đang dọn: BlockedScans (Task 3)
         {
             var (busyTable, busyCode) = await FreeTable(connection, used);
             var busyToken = await NewQr(connection, busyTable);
@@ -325,6 +326,77 @@ internal static class QrGuestSessionVerification
         await Check(connection, $"SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.GuestSessions WHERE SessionId={session})=2 AND (SELECT COUNT(*) FROM dbo.DiningSessions)={sessionsBefore} THEN 1 ELSE 0 END",
             "QR join: the rejected scan writes nothing");
         Console.WriteLine("PASS: S3-01 Task 2 QR → join the open session checks.");
+    }
+
+    /// <summary>
+    /// S3-01 Task 3: mã QR đã bị sinh lại và bàn đang dọn đều bị chặn, không tạo phiên, khách được đề nghị gọi phục vụ.
+    /// </summary>
+    private static async Task BlockedScans(string connection, Web web, List<int> used)
+    {
+        var phoneNumber = await Text(connection, "SELECT Phone FROM dbo.RestaurantSettings WHERE Id=1");
+        void CallStaffShown(string html, string? tableCode, string label)
+        {
+            Assert(html.Contains("data-call-staff") && html.Contains("Vui lòng gọi phục vụ để được hỗ trợ")
+                && (tableCode is null || html.Contains($"data-call-staff-table>{tableCode}</strong>"))
+                && (string.IsNullOrEmpty(phoneNumber) || html.Contains($"href=\"tel:{phoneNumber}\"")),
+                $"{label}: the guest is asked to call staff (table code{(string.IsNullOrEmpty(phoneNumber) ? "" : " and restaurant phone button")})");
+            Assert(!html.Contains("id=\"qr-start-form\""), $"{label}: no form that could open a session");
+        }
+
+        // a) Bàn đang phục vụ bằng mã phiên bản 1 → Quản lý sinh lại mã (phiên bản 2) → quét mã cũ bị chặn.
+        var (table, code) = await FreeTable(connection, used);
+        var oldToken = await NewQr(connection, table);
+        using var seated = Phone(web);
+        using (var start = await Start(seated, oldToken, await Html(seated, $"/q/{oldToken}")))
+            Assert(start.StatusCode == HttpStatusCode.Redirect, $"QR blocked: guest opens bàn {code} with the current QR");
+        var newToken = await NewQr(connection, table);
+        await Check(connection, $"""
+            SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.TableQrCodes WHERE TableId={table} AND RevokedAt IS NULL)=1
+                AND (SELECT Version FROM dbo.TableQrCodes WHERE PublicToken='{newToken}') = (SELECT MAX(Version) FROM dbo.TableQrCodes WHERE TableId={table})
+                AND (SELECT Version FROM dbo.TableQrCodes WHERE PublicToken='{oldToken}') + 1 = (SELECT Version FROM dbo.TableQrCodes WHERE PublicToken='{newToken}')
+                AND (SELECT RevokedAt FROM dbo.TableQrCodes WHERE PublicToken='{oldToken}') IS NOT NULL
+            THEN 1 ELSE 0 END
+            """, "QR blocked: regenerating stores a new current version and retires the old one");
+        var sessionsBefore = await Scalar(connection, "SELECT COUNT(*) FROM dbo.DiningSessions");
+        var guestsBefore = await Scalar(connection, "SELECT COUNT(*) FROM dbo.GuestSessions");
+
+        using var stranger = Phone(web);
+        using (var oldScan = await stranger.GetAsync($"/q/{oldToken}"))
+        {
+            var html = await Body(oldScan);
+            Assert(oldScan.StatusCode == HttpStatusCode.Gone && html.Contains("Mã QR đã thay đổi"), "QR blocked: opening an old (regenerated) QR shows \"Mã QR đã thay đổi\" (410)");
+            CallStaffShown(html, code, "QR blocked (old QR)");
+        }
+        var formPage = await Html(stranger, $"/q/{newToken}"); // mã chống giả mạo hợp lệ để thử gửi thẳng yêu cầu mở phiên bằng mã cũ
+        using (var forced = await Start(stranger, oldToken, formPage))
+            Assert(forced.StatusCode == HttpStatusCode.Gone && (await Body(forced)).Contains("Mã QR đã thay đổi"), "QR blocked: posting the old QR directly is also refused (410)");
+        using (var seatedOld = await Start(seated, oldToken, await Html(seated, $"/q/{newToken}")))
+            Assert(seatedOld.StatusCode == HttpStatusCode.Gone, "QR blocked: a phone that used the old QR cannot reopen a session with it");
+        Assert((await Html(seated, "/TableOrder")).Contains("data-table-order=\"no-session\""), "QR blocked: the old QR's guest session no longer opens the ordering page");
+
+        // b) Bàn đang dọn → quét mã hiện tại bị chặn ngay khi mở đường dẫn và cả khi gửi thẳng yêu cầu.
+        var (cleaning, cleaningCode) = await FreeTable(connection, used);
+        var cleaningToken = await NewQr(connection, cleaning);
+        using var guest = Phone(web);
+        var cleaningForm = await Html(guest, $"/q/{cleaningToken}");
+        await DatabaseTool.Execute(connection, $"UPDATE dbo.DiningTables SET Status='Cleaning' WHERE Id={cleaning};");
+        using (var scan = await guest.GetAsync($"/q/{cleaningToken}"))
+        {
+            var html = await Body(scan);
+            Assert(scan.StatusCode == HttpStatusCode.Conflict && html.Contains("Bàn đang được dọn"), $"QR blocked: scanning bàn {cleaningCode} while it is being cleaned shows \"Bàn đang được dọn\" (409)");
+            CallStaffShown(html, cleaningCode, "QR blocked (cleaning)");
+        }
+        using (var forced = await Start(guest, cleaningToken, cleaningForm))
+            Assert(forced.StatusCode == HttpStatusCode.Conflict && (await Body(forced)).Contains("Bàn đang được dọn"), "QR blocked: posting directly for a cleaning table is also refused (409)");
+        await Check(connection, $"""
+            SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.DiningSessions)={sessionsBefore}
+                AND (SELECT COUNT(*) FROM dbo.GuestSessions)={guestsBefore}
+                AND NOT EXISTS(SELECT 1 FROM dbo.SessionTables WHERE TableId={cleaning})
+                AND (SELECT Status FROM dbo.DiningTables WHERE Id={cleaning})='Cleaning'
+            THEN 1 ELSE 0 END
+            """, "QR blocked: refused scans create no session or guest session and keep the table status");
+        await DatabaseTool.Execute(connection, $"UPDATE dbo.DiningTables SET Status='Available' WHERE Id={cleaning};");
+        Console.WriteLine("PASS: S3-01 Task 3 regenerated QR / cleaning table checks.");
     }
 
     private static HttpClient Phone(Web web) =>

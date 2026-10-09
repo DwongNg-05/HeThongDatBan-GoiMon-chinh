@@ -102,7 +102,8 @@ public sealed class TableQrService(IConfiguration configuration)
 
         const string sql = """
             SELECT t.Id, t.Code, a.Name, t.MinCapacity, t.MaxCapacity, t.TableType,
-                   t.IsActive, q.RevokedAt
+                   t.IsActive, q.RevokedAt, t.Status, q.Version,
+                   (SELECT MAX(c.Version) FROM dbo.TableQrCodes c WHERE c.TableId = t.Id AND c.RevokedAt IS NULL)
             FROM dbo.TableQrCodes q
             JOIN dbo.DiningTables t ON t.Id = q.TableId
             JOIN dbo.Areas a ON a.Id = t.AreaId
@@ -118,7 +119,8 @@ public sealed class TableQrService(IConfiguration configuration)
         return new TableQrLookup(
             reader.GetInt32(0), reader.GetString(1), reader.GetString(2),
             reader.GetInt32(3), reader.GetInt32(4), reader.GetString(5),
-            reader.GetBoolean(6), !reader.IsDBNull(7));
+            reader.GetBoolean(6), !reader.IsDBNull(7), reader.GetString(8),
+            reader.IsDBNull(9) ? null : reader.GetInt32(9), reader.IsDBNull(10) ? null : reader.GetInt32(10));
     }
 
     public async Task<IReadOnlyList<TableQrPrintItem>> GetAreaPrintItemsAsync(int areaId, int actorUserId)
@@ -175,6 +177,23 @@ public sealed class TableQrService(IConfiguration configuration)
         return items;
     }
 
+    /// <summary>S3-01 Task 3: số điện thoại nhà hàng (RestaurantSettings) để khách gọi phục vụ khi không mở được phiên.</summary>
+    public async Task<string?> GetRestaurantPhoneAsync()
+    {
+        try
+        {
+            await using var connection = new SqlConnection(ConnectionString);
+            await using var command = new SqlCommand("SELECT Phone FROM dbo.RestaurantSettings WHERE Id = 1;", connection);
+            await connection.OpenAsync();
+            var phone = await command.ExecuteScalarAsync() as string;
+            return string.IsNullOrWhiteSpace(phone) ? null : phone.Trim();
+        }
+        catch (Exception ex) when (ex is SqlException or InvalidOperationException)
+        {
+            return null; // Trang thông báo vẫn hiện hướng dẫn gọi nhân viên tại bàn.
+        }
+    }
+
     /// <summary>SHA-256 của mã công khai; database chỉ tra cứu QR bằng giá trị này.</summary>
     public static byte[] Hash(string token) => SHA256.HashData(Encoding.UTF8.GetBytes(token));
 
@@ -205,6 +224,16 @@ public sealed record TableQrLookup(
     int MaxCapacity,
     string TableType,
     bool IsActive,
-    bool IsRevoked);
+    bool IsRevoked,
+    string Status = "",
+    int? Version = null,
+    int? CurrentVersion = null)
+{
+    /// <summary>S3-01 Task 3: mã khách quét không còn là phiên bản hiện tại của bàn (đã bị sinh lại).</summary>
+    public bool IsReplaced => IsRevoked;
+
+    /// <summary>S3-01 Task 3: bàn đang dọn — không nhận khách mở phiên.</summary>
+    public bool IsCleaning => Status == "Cleaning";
+}
 
 public sealed record TableQrPrintItem(int TableId, string TableCode, string AreaName, string? PublicToken);

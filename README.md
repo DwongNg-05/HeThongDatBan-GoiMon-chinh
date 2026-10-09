@@ -246,3 +246,7 @@ Chạy `migrate` để áp dụng `043_S301QrGuestSession.sql`. Khách quét QR 
 ## S3-01 Task 2 — quét QR bàn đang phục vụ, vào chung phiên
 
 Chạy `migrate` để áp dụng `045_S301JoinOpenTableSession.sql`. Khách quét QR của bàn đang có phiên mở sẽ vào **chung phiên đó**, không tạo phiên mới, và thấy đầy đủ các món bàn đã gọi trước đó, mỗi lượt có ghi rõ người gọi: Bạn gọi / Khách cùng bàn gọi / Nhân viên gọi. Món đang chọn (chưa gửi bếp) được tách riêng khỏi món đã gọi. Bàn đang chờ thanh toán thì không nhận thêm khách. Chi tiết: [docs/S3-01-Task2.md](docs/S3-01-Task2.md).
+
+## S3-01 Task 3 — chặn QR đã sinh lại và bàn đang dọn
+
+Chạy `migrate` để áp dụng `046_S301QrVersionAndCleaning.sql`. Mỗi mã QR có phiên bản (`TableQrCodes.Version`). Quét mã cũ đã bị sinh lại thì nhận thông báo “Mã QR đã thay đổi”; quét QR của bàn đang dọn thì nhận “Bàn đang được dọn”. Cả hai đều kèm hướng dẫn gọi phục vụ (mã bàn, nút gọi nhà hàng) và không tạo phiên. Chi tiết: [docs/S3-01-Task3.md](docs/S3-01-Task3.md).

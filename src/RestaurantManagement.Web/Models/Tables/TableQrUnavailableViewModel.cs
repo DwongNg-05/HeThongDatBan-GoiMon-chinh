@@ -8,6 +8,10 @@ public sealed record TableQrUnavailableViewModel(QrStartOutcome Outcome, string 
     /// <summary>Mã QR công khai để thử lại (chỉ khi <see cref="CanRetry"/>).</summary>
     public string Token { get; init; } = string.Empty;
 
+    /// <summary>S3-01 Task 3: mã bàn (để khách đọc cho nhân viên) và số điện thoại nhà hàng.</summary>
+    public string? TableCode { get; init; }
+    public string? RestaurantPhone { get; init; }
+
     public static TableQrUnavailableViewModel For(QrStartOutcome outcome) => outcome switch
     {
         QrStartOutcome.TableReserved => new(outcome, "Bàn đã được đặt trước",
@@ -15,7 +19,7 @@ public sealed record TableQrUnavailableViewModel(QrStartOutcome Outcome, string 
         QrStartOutcome.TableBusy => new(outcome, "Bàn đang được phục vụ",
             "Bàn này đang có phiên gọi món. Vui lòng gọi nhân viên để được hỗ trợ.", StatusCodes.Status409Conflict, false),
         QrStartOutcome.TableCleaning => new(outcome, "Bàn đang được dọn",
-            "Vui lòng chờ nhân viên dọn xong bàn hoặc gọi nhân viên để được hỗ trợ.", StatusCodes.Status409Conflict, false),
+            "Bàn đang được dọn dẹp để đón khách mới nên chưa mở được phiên gọi món. Vui lòng chờ ít phút hoặc gọi phục vụ để được sắp xếp bàn.", StatusCodes.Status409Conflict, false),
         QrStartOutcome.NoShift => new(outcome, "Nhà hàng chưa nhận gọi món",
             "Ca phục vụ chưa mở. Vui lòng gọi nhân viên để được hỗ trợ.", StatusCodes.Status409Conflict, false),
         QrStartOutcome.OutsideOpeningHours => new(outcome, "Nhà hàng đang ngoài giờ hoạt động",

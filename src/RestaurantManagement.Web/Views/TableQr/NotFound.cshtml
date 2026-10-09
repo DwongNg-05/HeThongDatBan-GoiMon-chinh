@@ -1,10 +1,16 @@
-@{ ViewData["Title"] = "Không tìm thấy mã QR"; }
+@{
+    ViewData["Title"] = "Không tìm thấy mã QR";
+    ViewData["LightweightScripts"] = true;
+    var callStaff = ViewData[RestaurantManagement.Web.Models.Tables.CallStaffViewModel.ViewDataKey] as RestaurantManagement.Web.Models.Tables.CallStaffViewModel
+        ?? new RestaurantManagement.Web.Models.Tables.CallStaffViewModel(null, null);
+}
 
 <div class="row justify-content-center mt-5">
     <div class="col-md-8 col-lg-6">
-        <div class="alert alert-secondary text-center p-4" role="alert">
+        <div class="alert alert-secondary text-center p-4" role="alert" data-qr-outcome="InvalidQr">
             <h1 class="h4">Không tìm thấy mã QR hợp lệ</h1>
-            <p class="mb-0">Vui lòng gọi phục vụ để được hỗ trợ.</p>
+            <p class="mb-0">Mã QR này không thuộc bàn nào đang sử dụng.</p>
+            <partial name="_CallStaff" model="callStaff" />
         </div>
     </div>
 </div>

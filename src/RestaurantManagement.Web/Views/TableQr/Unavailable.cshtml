@@ -10,6 +10,7 @@
         <div class="alert alert-warning text-center p-4" role="alert" data-qr-outcome="@Model.Outcome">
             <h1 class="h4">@Model.Title</h1>
             <p class="mb-0">@Model.Message</p>
+            <partial name="_CallStaff" model="new RestaurantManagement.Web.Models.Tables.CallStaffViewModel(Model.TableCode, Model.RestaurantPhone)" />
             @if (Model.CanRetry)
             {
                 <form method="post" asp-controller="TableQr" asp-action="Start" asp-route-token="@Model.Token" class="mt-3">

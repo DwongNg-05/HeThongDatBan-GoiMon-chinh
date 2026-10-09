@@ -119,5 +119,17 @@ static class TableQrSessionTests
             && new GuestOrderedItem(1, DateTime.UtcNow, "A", "Phần", 1, 1, null, "Pending", true, OrderSource.OtherGuest).SourceLabel == "Khách cùng bàn gọi"
             && new GuestOrderedItem(1, DateTime.UtcNow, "A", "Phần", 1, 1, null, "Pending", true, OrderSource.Staff).SourceLabel == "Nhân viên gọi",
             "QR join: each batch shows who ordered it (this phone, another guest at the table, staff)");
+
+        // S3-01 Task 3: mã đã thay / bàn đang dọn và hướng dẫn gọi phục vụ.
+        var replaced = new TableQrLookup(1, "A05", "Tầng một", 1, 4, "Standard", true, true, "Serving", 1, 2);
+        var cleaningTable = new TableQrLookup(1, "A05", "Tầng một", 1, 4, "Standard", true, false, "Cleaning", 2, 2);
+        check(replaced.IsReplaced && !replaced.IsCleaning && cleaningTable.IsCleaning && !cleaningTable.IsReplaced,
+            "QR blocked: an old QR version is detected as replaced and a cleaning table as cleaning");
+        check(new CallStaffViewModel("A05", "0280000000").PhoneHref == "tel:0280000000"
+            && new CallStaffViewModel("A05", null).PhoneHref is null && new CallStaffViewModel(null, "028 000").PhoneHref is null,
+            "QR blocked: the call-staff button only uses a digits-only restaurant phone");
+        var cleaningNotice = TableQrUnavailableViewModel.For(QrStartOutcome.TableCleaning) with { TableCode = "A05" };
+        check(cleaningNotice.StatusCode == 409 && cleaningNotice.Message.Contains("gọi phục vụ") && !cleaningNotice.CanRetry && cleaningNotice.TableCode == "A05",
+            "QR blocked: the cleaning notice asks the guest to call staff and offers no retry");
     }
 }
