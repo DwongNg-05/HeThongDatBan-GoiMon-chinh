@@ -159,11 +159,73 @@
             });
         });
 
-        // ensure checkout form posts the cart json
-        document.getElementById('checkoutForm').addEventListener('submit', function(e){
-            if(cart.length===0){ e.preventDefault(); return false; }
-            document.getElementById('CartJson').value = JSON.stringify(cart);
-            return true;
+        // Recheck availability at the moment the customer submits, then post only
+        // the items that are still available. The server performs its own final check.
+        document.getElementById('checkoutForm').addEventListener('submit', async function(e){
+            e.preventDefault();
+            if(cart.length===0 || this.dataset.checkoutBusy === 'true') return false;
+
+            const form = this;
+            const checkoutButton = document.getElementById('btnCheckout');
+            const notice = document.getElementById('cart-availability-notice');
+            const availabilityUrl = document.querySelector('[data-availability-url]')?.getAttribute('data-availability-url');
+            form.dataset.checkoutBusy = 'true';
+            checkoutButton.disabled = true;
+
+            try {
+                if (!availabilityUrl) throw new Error('Không tìm thấy địa chỉ kiểm tra tình trạng món.');
+                const availabilityResponse = await fetch(availabilityUrl, {
+                    cache: 'no-store', credentials: 'same-origin', headers: { 'Accept': 'application/json' }
+                });
+                if (!availabilityResponse.ok) throw new Error('Chưa kiểm tra được tình trạng món. Vui lòng thử lại.');
+                const availability = await availabilityResponse.json();
+                const unavailable = new Set(availability.unavailable || []);
+                const removed = cart.filter(item => unavailable.has(item.dishId));
+
+                if (removed.length) {
+                    for (let i = cart.length - 1; i >= 0; i--) {
+                        if (unavailable.has(cart[i].dishId)) cart.splice(i, 1);
+                    }
+                    notice.textContent = 'Đã bỏ khỏi giỏ vì món vừa tạm hết: ' + [...new Set(removed.map(item => item.name))].join(', ') + '.';
+                    notice.hidden = false;
+                    updateCartUI();
+                }
+
+                if (!cart.length) return false;
+                document.getElementById('CartJson').value = JSON.stringify(cart);
+                const result = await fetch(form.action, {
+                    method: 'POST', body: new FormData(form), credentials: 'same-origin',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+                });
+
+                if (result.redirected) {
+                    window.location.assign(result.url);
+                    return false;
+                }
+                if (result.ok) {
+                    const data = await result.json();
+                    if (data.redirectUrl) window.location.assign(data.redirectUrl);
+                    return false;
+                }
+
+                const data = await result.json().catch(() => null);
+                if (data?.unavailableDishIds?.length) {
+                    const unavailableIds = new Set(data.unavailableDishIds);
+                    for (let i = cart.length - 1; i >= 0; i--) {
+                        if (unavailableIds.has(cart[i].dishId)) cart.splice(i, 1);
+                    }
+                    updateCartUI();
+                }
+                notice.textContent = data?.message || 'Không thể gửi đơn hàng. Vui lòng kiểm tra lại giỏ món và thử lại.';
+                notice.hidden = false;
+            } catch (error) {
+                notice.textContent = error.message || 'Mất kết nối tới máy chủ. Vui lòng thử lại.';
+                notice.hidden = false;
+            } finally {
+                form.dataset.checkoutBusy = 'false';
+                checkoutButton.disabled = false;
+            }
+            return false;
         });
     })();
 </script>
