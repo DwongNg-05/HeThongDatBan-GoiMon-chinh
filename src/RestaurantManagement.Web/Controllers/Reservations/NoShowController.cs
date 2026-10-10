@@ -20,15 +20,38 @@ public sealed class NoShowController(IConfiguration configuration) : Controller
     {
         await using var cn = Connect();
         await cn.OpenAsync(ct);
-        await using var cmd = new SqlCommand("SELECT Id,Code,CustomerName,StartsAt,TableCode FROM dbo.v_NoShowAlerts ORDER BY StartsAt,Id", cn);
+        await using var cmd = new SqlCommand("SELECT Id,Code,CustomerName,StartsAt,TableCode,HoldExtendedUntil,ExtensionCount,IsOverdue,CanExtend FROM dbo.v_ReservationHoldState ORDER BY StartsAt,Id", cn);
         await using var r = await cmd.ExecuteReaderAsync(ct);
         var items = new List<object>();
         while (await r.ReadAsync(ct)) items.Add(new {
             id = r.GetInt64(0), code = r.GetString(1), customerName = r.GetString(2),
             appointment = VietnamTime.FromUtc(r.GetDateTime(3)).ToString("dd/MM/yyyy HH:mm"),
-            tableCode = r.IsDBNull(4) ? "Chưa xếp bàn" : r.GetString(4)
+            tableCode = r.IsDBNull(4) ? "Chưa xếp bàn" : r.GetString(4),
+            holdUntil = r.IsDBNull(5) ? null : VietnamTime.FromUtc(r.GetDateTime(5)).ToString("dd/MM/yyyy HH:mm:ss"),
+            extensionCount = r.GetByte(6), isOverdue = r.GetBoolean(7), canExtend = r.GetBoolean(8),
+            extensionDeadline = VietnamTime.FromUtc(r.GetDateTime(3).AddMinutes(30)).ToString("dd/MM/yyyy HH:mm:ss")
         });
         return Json(items);
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Extend(long id, CancellationToken ct)
+    {
+        try
+        {
+            await using var cn = Connect();
+            await cn.OpenAsync(ct);
+            await using var cmd = new SqlCommand("dbo.usp_ExtendReservationHold", cn) { CommandType = CommandType.StoredProcedure };
+            cmd.Parameters.Add("@ReservationId", SqlDbType.BigInt).Value = id;
+            cmd.Parameters.Add("@ActorUserId", SqlDbType.Int).Value = User.ActorUserId();
+            await cmd.ExecuteNonQueryAsync(ct);
+            return Json(new { message = "Đã gia hạn một lần. Giữ bàn đến giờ hẹn cộng 30 phút." });
+        }
+        catch (SqlException e) when (e.Number is 51015 or 51064 or 51065)
+        { return Conflict(new { message = e.Message }); }
+        catch (SqlException e) when (e.Number == 51001) { return Forbid(); }
+        catch (SqlException e) when (e.Number is 51000 or 1205)
+        { return StatusCode(503, new { message = "Hệ thống đang xử lý thao tác khác. Vui lòng làm mới và thử lại." }); }
     }
 
     [HttpPost, ValidateAntiForgeryToken]

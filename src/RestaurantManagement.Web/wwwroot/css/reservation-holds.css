@@ -1,0 +1,11 @@
+.table-card [data-no-show-badge], .table-card [data-hold-badge] {
+    display: block;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    max-width: 100%;
+    line-height: 1.4;
+    margin-top: .5rem;
+}
+#no-show-alerts [data-phone-history-form] { flex-wrap: wrap; }
+#no-show-alerts [data-phone-history-form] > div { min-width: 0; max-width: 100%; }
+#no-show-alerts [data-phone-history-form] input { width: min(100%, 26rem); }

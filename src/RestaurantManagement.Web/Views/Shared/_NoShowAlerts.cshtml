@@ -1,9 +1,12 @@
-<section id="no-show-alerts" class="mb-4" data-alerts-url="@Url.Action("Alerts", "NoShow")" data-mark-url="@Url.Action("Mark", "NoShow")" data-history-url="@Url.Action("History", "NoShow")">
+<link rel="stylesheet" href="~/css/reservation-holds.css" asp-append-version="true" />
+<section id="no-show-alerts" class="mb-4" data-alerts-url="@Url.Action("Alerts", "NoShow")" data-mark-url="@Url.Action("Mark", "NoShow")" data-extend-url="@Url.Action("Extend", "NoShow")" data-history-url="@Url.Action("History", "NoShow")">
     @Html.AntiForgeryToken()
     <h2 class="h5">Khách trễ từ 15 phút</h2>
     <p class="text-muted">Chỉ áp dụng lượt đã xác nhận, khách chưa tới. Tự cập nhật mỗi 5 giây.</p>
+    <p class="text-muted">Gia hạn tối đa một lần, đến giờ hẹn cộng 30 phút. Không thể gia hạn khi đã tới mốc này.</p>
     <p data-no-show-message role="status" aria-live="polite"></p>
     <div data-no-show-items></div>
+    <div data-extended-holds></div>
     <form data-phone-history-form action="@Url.Action("HistoryByPhone", "NoShow")" method="post" class="d-flex gap-2 mb-3 align-items-end">
         <div><label for="no-show-phone" class="form-label">Lịch sử không tới theo số điện thoại</label>
         <input id="no-show-phone" name="phone" type="tel" maxlength="30" required class="form-control" placeholder="0912345678 hoặc +84 912 345 678" /></div>

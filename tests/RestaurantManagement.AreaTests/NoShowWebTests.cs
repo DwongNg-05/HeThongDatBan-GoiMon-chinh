@@ -6,7 +6,7 @@ using RestaurantManagement.DbTool;
 
 internal static class NoShowWebTests
 {
-    internal static async Task Run(string connection, long earlyId, Action<bool,string> check)
+    internal static async Task Run(string connection, long earlyId, Action<bool,string> check, string script = "no-show-browser.cjs")
     {
         var password = "NoShowTest-" + Guid.NewGuid().ToString("N");
         await using (var cn = new SqlConnection(connection))
@@ -46,16 +46,19 @@ internal static class NoShowWebTests
             await using(var cn = new SqlConnection(connection))
             {
                 await cn.OpenAsync();
-                await using var cmd = new SqlCommand("UPDATE dbo.Reservations SET StartsAt=DATEADD(second,-870,SYSUTCDATETIME()),EndsAt=DATEADD(minute,75,SYSUTCDATETIME()) WHERE Id=@id;",cn);
+                var seconds = script == "hold-extension-browser.cjs" ? -1725 : -870;
+                await using var cmd = new SqlCommand("UPDATE dbo.Reservations SET StartsAt=DATEADD(second,@seconds,SYSUTCDATETIME()),EndsAt=DATEADD(minute,75,SYSUTCDATETIME()) WHERE Id=@id;",cn);
+                cmd.Parameters.AddWithValue("@seconds",seconds);
                 cmd.Parameters.AddWithValue("@id",earlyId); await cmd.ExecuteNonQueryAsync();
             }
             var node = new ProcessStartInfo("node") { UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true,WorkingDirectory=DatabaseTool.Root };
-            node.ArgumentList.Add(Path.Combine(DatabaseTool.Root,"tests","no-show-browser.cjs"));
+            node.ArgumentList.Add(Path.Combine(DatabaseTool.Root,"tests",script));
             node.Environment["NOSHOW_TEST_URL"] = client.BaseAddress!.ToString();
             node.Environment["NOSHOW_TEST_PASSWORD"] = password;
+            node.Environment["HOLD_TEST_ID"] = earlyId.ToString();
             using var browser = Process.Start(node)!;
             var stdout = browser.StandardOutput.ReadToEndAsync(); var stderr = browser.StandardError.ReadToEndAsync();
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(100));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(150));
             try { await browser.WaitForExitAsync(timeout.Token); }
             finally { if(!browser.HasExited)browser.Kill(true); }
             Console.WriteLine(await stdout);

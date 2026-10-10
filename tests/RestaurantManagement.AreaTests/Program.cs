@@ -15,6 +15,12 @@ void Check(bool condition, string label)
     if (!condition) throw new Exception("FAIL: " + label);
     Console.WriteLine("PASS: " + label); count++;
 }
+if (args.Contains("--hold-extension"))
+{
+    await HoldExtensionTests.Run(Check);
+    Console.WriteLine($"{count} hold extension tests passed.");
+    return;
+}
 if (args.Contains("--no-show"))
 {
     await NoShowTests.Run(Check);

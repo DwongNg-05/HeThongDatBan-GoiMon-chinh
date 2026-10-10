@@ -30,7 +30,7 @@ public sealed class TableReservationScheduleController(IConfiguration configurat
             WHERE t.IsActive=1 AND a.IsActive=1
             ORDER BY a.SortOrder, t.SortOrder, t.Code;
 
-            SELECT r.Id, r.Code, r.TableId, r.CustomerName, r.Phone, r.StartsAt, r.EndsAt, r.Status
+            SELECT r.Id, r.Code, r.TableId, r.CustomerName, r.Phone, r.StartsAt, r.EndsAt, r.Status,r.HoldExtendedUntil,r.ArrivedAt
             FROM dbo.Reservations r
             WHERE r.TableId IS NOT NULL
               AND r.StartsAt < @DayEnd
@@ -67,7 +67,9 @@ public sealed class TableReservationScheduleController(IConfiguration configurat
                 Phone = reader.GetString(4),
                 StartsAt = VietnamTime.FromUtc(reader.GetDateTime(5)),
                 EndsAt = VietnamTime.FromUtc(reader.GetDateTime(6)),
-                Status = reader.GetString(7)
+                Status = reader.GetString(7),
+                HoldExtendedUntil = reader.IsDBNull(8) ? null : VietnamTime.FromUtc(reader.GetDateTime(8)),
+                ArrivedAt = reader.IsDBNull(9) ? null : VietnamTime.FromUtc(reader.GetDateTime(9))
             });
         }
         return View(model);

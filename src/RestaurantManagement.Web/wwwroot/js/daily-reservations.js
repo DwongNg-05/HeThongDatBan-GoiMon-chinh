@@ -69,6 +69,11 @@
                     row.append(cell);
                 }
                 rows.append(row);
+                if (item.holdUntil) {
+                    const hold = document.createElement('small'); hold.className = 'd-block';
+                    hold.textContent = `Hạn gia hạn: ${item.holdUntil} · ${item.extensionCount}/1 lần`;
+                    row.lastElementChild.append(hold);
+                }
                 if (item.status === 'Khách không tới') {
                     const link = document.createElement('button'); link.type = 'button';
                     link.className = 'btn btn-link btn-sm'; link.textContent = 'Lịch sử không tới';

@@ -25,6 +25,8 @@ public sealed class TableReservationScheduleItemViewModel
     public string Phone { get; init; } = string.Empty;
     public DateTime StartsAt { get; init; }
     public DateTime EndsAt { get; init; }
+    public DateTime? HoldExtendedUntil { get; init; }
+    public DateTime? ArrivedAt { get; init; }
     public string Status { get; init; } = string.Empty;
 }
 

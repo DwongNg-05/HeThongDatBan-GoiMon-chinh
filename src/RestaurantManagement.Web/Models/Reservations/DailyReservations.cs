@@ -5,7 +5,8 @@ using System.Data;
 namespace RestaurantManagement.Web.Models.Reservations;
 
 public record DailyReservationItem(string Code, string CustomerName, string Phone, int GuestCount,
-    string TimeSlot, string TableName, string Status, bool IsUpcoming = false, long Id = 0);
+    string TimeSlot, string TableName, string Status, bool IsUpcoming = false, long Id = 0,
+    string? HoldUntil = null, int ExtensionCount = 0);
 public record DailyReservationPage(DateOnly Date, IReadOnlyList<DailyReservationItem> Reservations, DateTime EvaluatedAtUtc = default);
 
 public static class DailyReservationRules
@@ -45,7 +46,7 @@ public class DailyReservationStore(string connectionString)
         var now = utcNow ?? DateTime.UtcNow;
         await using var connection = new SqlConnection(connectionString);
         await using var command = new SqlCommand("""
-            SELECT r.Code,r.CustomerName,r.Phone,r.GuestCount,r.StartsAt,r.EndsAt,t.Code AS TableName,r.Status,r.Id
+            SELECT r.Code,r.CustomerName,r.Phone,r.GuestCount,r.StartsAt,r.EndsAt,t.Code AS TableName,r.Status,r.Id,r.HoldExtendedUntil,r.ExtensionCount
             FROM dbo.Reservations r LEFT JOIN dbo.DiningTables t ON t.Id=r.TableId
             WHERE r.StartsAt>=@start AND r.StartsAt<@end AND (@status IS NULL OR r.Status=@status)
             ORDER BY r.StartsAt ASC,r.Id ASC;
@@ -60,7 +61,8 @@ public class DailyReservationStore(string connectionString)
             items.Add(new(reader.GetString(0).TrimEnd(), reader.GetString(1), DailyReservationRules.MaskPhone(reader.GetString(2)),
                 reader.GetInt32(3), DailyReservationRules.TimeSlot(reader.GetDateTime(4), reader.GetDateTime(5)),
                 reader.IsDBNull(6) ? "Chưa xếp bàn" : reader.GetString(6), DailyReservationRules.StatusLabel(reader.GetString(7)),
-                DailyReservationRules.IsUpcoming(reader.GetDateTime(4), reader.GetString(7), now),reader.GetInt64(8)));
+                DailyReservationRules.IsUpcoming(reader.GetDateTime(4), reader.GetString(7), now),reader.GetInt64(8),
+                reader.IsDBNull(9) ? null : VietnamTime.FromUtc(reader.GetDateTime(9)).ToString("dd/MM/yyyy HH:mm:ss"),reader.GetByte(10)));
         // Stable partition retains SQL appointment/ID order within each group.
         return new(date, items.OrderByDescending(item => item.IsUpcoming).ToList(), DateTime.SpecifyKind(now, DateTimeKind.Utc));
     }
