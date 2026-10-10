@@ -318,7 +318,7 @@ public class ReservationsController : Controller
     [AllowAnonymous] // Khách đặt bàn không cần đăng nhập (form đặt bàn, trang thành công và API phục vụ form).
     public async Task<IActionResult> Create(
         ReservationCreateViewModel model,
-        [FromServices] BookingEmailDispatcher bookingEmails)
+        [FromServices] BookingEmailDispatcher bookingEmails, [FromServices] NoShowBookingWarning warning)
     {
         // The public form submits separate Vietnam-local date and time fields.
         if (model.ReservationDate.HasValue && model.ReservationTime.HasValue)
@@ -549,6 +549,7 @@ public class ReservationsController : Controller
             // THỰC THI
             // =================================================
 
+            command.Parameters.Add("@AcknowledgedNoShowCount", SqlDbType.Int).Value = warning.AcknowledgedCount(model, model.Phone);
             // usp_CreateReservation trả về ReservationId và Code của lượt vừa tạo.
             await using (var reader = await command.ExecuteReaderAsync())
             {
@@ -561,6 +562,7 @@ public class ReservationsController : Controller
         }
         catch (SqlException ex) when (ex.Number is >= 51000 and < 51500)
         {
+            if (ex.Number == 51066) { await warning.Refresh(model, model.Phone); ModelState.Remove(nameof(model.NoShowAcknowledged)); ModelState.Remove(nameof(model.NoShowWarningToken)); }
             // Refresh a stale selection when an area was deactivated during submission.
             await LoadActiveAreas(model);
             ModelState.AddModelError(ex.Number switch { 51413 or 51414 => nameof(model.TableId), 51407 or 51408 => nameof(model.PreferredAreaId), 51409 => nameof(model.GuestCount), 51003 or 51004 or 51410 or 51411 or 51412 => nameof(model.StartsAt), _ => string.Empty }, ex.Message);

@@ -1,0 +1,9 @@
+@model RestaurantManagement.Web.Models.Reservations.NoShowWarningInput
+<div data-no-show-warning data-url="@Url.Action("Check", "NoShowWarning")" class="mb-3">
+    <div class="alert alert-warning" role="status" aria-live="polite" data-warning-panel hidden="@(Model.NoShowCount < 3)">
+        <p data-warning-text>Số điện thoại này có @Model.NoShowCount lần khách không tới trong 90 ngày gần đây. Bạn vẫn có thể tiếp tục đặt bàn.</p>
+        <label><input type="checkbox" name="NoShowAcknowledged" value="true" checked="@Model.NoShowAcknowledged" /> Tôi đã đọc cảnh báo và muốn tiếp tục đặt bàn.</label>
+    </div>
+    <input type="hidden" name="NoShowWarningToken" value="@Model.NoShowWarningToken" />
+    <small data-warning-error class="text-danger" role="status"></small>
+</div>

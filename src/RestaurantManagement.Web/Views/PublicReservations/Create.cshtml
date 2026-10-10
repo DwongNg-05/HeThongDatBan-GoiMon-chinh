@@ -13,9 +13,11 @@
         <div class="mb-3"><label asp-for="ReservationTime" class="form-label"></label><select asp-for="ReservationTime" class="form-select" data-selected-time="@(Model.ReservationTime?.ToString("HH:mm"))"><option value="">-- Chọn khung giờ --</option>@if (Model.ReservationTime.HasValue) { <option value="@Model.ReservationTime.Value.ToString("HH:mm")" selected>@Model.ReservationTime.Value.ToString("HH:mm")</option> }</select><div class="form-text">Chỉ hiện các khung giờ còn trong giờ mở cửa và còn bàn phù hợp.</div><div class="text-muted small" data-reservation-slots-message></div><span asp-validation-for="ReservationTime" class="text-danger"></span></div>
         <div class="mb-3"><label asp-for="Notes" class="form-label"></label><textarea asp-for="Notes" class="form-control" rows="4" placeholder="Ví dụ: Muốn ngồi gần cửa sổ"></textarea><span asp-validation-for="Notes" class="text-danger"></span></div>
         <button type="submit" class="btn btn-primary">Đặt bàn</button>
-    </form>
+    <partial name="_NoShowBookingWarning" model="Model" />
+</form>
 </div></div></div></div></div>
 @section Scripts {
+<script src="~/js/no-show-booking-warning.js" asp-append-version="true"></script>
     <script src="~/js/reservations/reservation-validation.js" asp-append-version="true"></script>
     <script src="~/js/reservations/reservation-slots.js" asp-append-version="true"></script>
 }

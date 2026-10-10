@@ -46,7 +46,7 @@ internal static class NoShowWebTests
             await using(var cn = new SqlConnection(connection))
             {
                 await cn.OpenAsync();
-                var seconds = script == "hold-extension-browser.cjs" ? -1725 : -870;
+                var seconds = script == "hold-extension-browser.cjs" ? -1725 : script == "no-show-warning-browser.cjs" ? -1200 : -870;
                 await using var cmd = new SqlCommand("UPDATE dbo.Reservations SET StartsAt=DATEADD(second,@seconds,SYSUTCDATETIME()),EndsAt=DATEADD(minute,75,SYSUTCDATETIME()) WHERE Id=@id;",cn);
                 cmd.Parameters.AddWithValue("@seconds",seconds);
                 cmd.Parameters.AddWithValue("@id",earlyId); await cmd.ExecuteNonQueryAsync();
@@ -63,7 +63,7 @@ internal static class NoShowWebTests
             finally { if(!browser.HasExited)browser.Kill(true); }
             Console.WriteLine(await stdout);
             if(browser.ExitCode!=0) throw new Exception("Browser verification failed: "+await stderr);
-            check(true,"Real browser: both screens auto-alert, mark, release, remove warning and phone history");
+            check(true,"Real browser verification: " + script);
         }
         finally
         {

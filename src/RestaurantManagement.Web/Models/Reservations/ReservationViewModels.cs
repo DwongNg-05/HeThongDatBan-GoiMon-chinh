@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace RestaurantManagement.Web.Models.Reservations;
 
-public class ReservationCreateViewModel : IValidatableObject
+public class ReservationCreateViewModel : NoShowWarningInput, IValidatableObject
 {
     [Required(ErrorMessage = "Vui lòng nhập tên khách hàng.")]
     [StringLength(100)]
@@ -14,7 +14,7 @@ public class ReservationCreateViewModel : IValidatableObject
         @"^0[0-9]{9}$",
         ErrorMessage = "Số điện thoại phải gồm 10 chữ số.")]
     [Display(Name = "Số điện thoại")]
-    public string Phone { get; set; } = string.Empty;
+    private string phone = string.Empty; public string Phone { get => phone; set => phone = RestaurantManagement.Web.Services.ReservationPhoneNormalizer.Normalize(value) ?? value ?? string.Empty; }
 
     [Range(
         1,

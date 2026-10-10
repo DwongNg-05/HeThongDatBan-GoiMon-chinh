@@ -25,9 +25,11 @@
         <div class="mb-3"><label asp-for="Phone" class="form-label"></label><input asp-for="Phone" class="form-control" inputmode="numeric" /><span asp-validation-for="Phone" class="text-danger"></span></div>
         <div class="mb-4"><label asp-for="InitialStatus" class="form-label"></label><select asp-for="InitialStatus" class="form-select"><option value="Pending">Chờ xác nhận</option><option value="Confirmed">Đã xác nhận</option></select><span asp-validation-for="InitialStatus" class="text-danger"></span></div>
         <button class="btn btn-primary" type="submit">Tạo lượt đặt</button><a asp-action="Index" asp-route-date="@(Model.ReservationDate?.ToString("yyyy-MM-dd"))" class="btn btn-outline-secondary ms-2">Quay lại lịch</a>
-    </form>
+    <partial name="_NoShowBookingWarning" model="Model" />
+</form>
 </div></div></div></div></div>
 @section Scripts {
+<script src="~/js/no-show-booking-warning.js" asp-append-version="true"></script>
     <script>
         document.querySelectorAll("[data-suggested-time]").forEach(button => button.addEventListener("click", () => {
             const time = document.getElementById("StartTime");

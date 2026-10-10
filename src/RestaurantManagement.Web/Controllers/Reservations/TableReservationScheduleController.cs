@@ -89,7 +89,7 @@ public sealed class TableReservationScheduleController(IConfiguration configurat
     }
 
     [HttpPost("Create"), ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(ManagedTableReservationCreateViewModel model)
+    public async Task<IActionResult> Create(ManagedTableReservationCreateViewModel model, [FromServices] RestaurantManagement.Web.Services.NoShowBookingWarning warning)
     {
         Normalize(model);
         await LoadTablesAsync(model);
@@ -108,6 +108,7 @@ public sealed class TableReservationScheduleController(IConfiguration configurat
             command.Parameters.Add("@StartsAt", SqlDbType.DateTime2).Value = startsAtUtc;
             command.Parameters.Add("@CustomerName", SqlDbType.NVarChar, 100).Value = model.CustomerName;
             command.Parameters.Add("@Phone", SqlDbType.VarChar, 10).Value = model.Phone;
+            command.Parameters.Add("@AcknowledgedNoShowCount", SqlDbType.Int).Value = warning.AcknowledgedCount(model, model.Phone);
             command.Parameters.Add("@InitialStatus", SqlDbType.VarChar, 20).Value = model.InitialStatus;
             command.Parameters.Add("@ActorUserId", SqlDbType.Int).Value = actorUserId;
             await connection.OpenAsync();
@@ -115,6 +116,12 @@ public sealed class TableReservationScheduleController(IConfiguration configurat
             if (!await reader.ReadAsync()) throw new InvalidOperationException("Không nhận được kết quả khi tạo lượt đặt.");
             TempData["Success"] = $"Đã tạo lượt đặt {reader.GetString(reader.GetOrdinal("Code"))}.";
             return RedirectToAction(nameof(Index), new { date = model.ReservationDate.Value.ToString("yyyy-MM-dd") });
+        }
+        catch (SqlException ex) when (ex.Number == 51066)
+        {
+            await warning.Refresh(model, model.Phone);
+            ModelState.Remove(nameof(model.NoShowAcknowledged)); ModelState.Remove(nameof(model.NoShowWarningToken));
+            ModelState.AddModelError(string.Empty, ex.Message); return View(model);
         }
         catch (SqlException ex) when (ex.Number == 51060)
         {

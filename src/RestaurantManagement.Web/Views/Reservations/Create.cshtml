@@ -255,7 +255,8 @@
 
                         </div>
 
-                    </form>
+                    <partial name="_NoShowBookingWarning" model="Model" />
+</form>
 
                 </div>
 
@@ -269,6 +270,7 @@
 
 
 @section Scripts {
+<script src="~/js/no-show-booking-warning.js" asp-append-version="true"></script>
 
     <partial name="_ValidationScriptsPartial" />
     <script src="~/js/booking-schedule.js" asp-append-version="true"></script>

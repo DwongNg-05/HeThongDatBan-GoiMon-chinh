@@ -30,7 +30,7 @@ public sealed class TableReservationScheduleItemViewModel
     public string Status { get; init; } = string.Empty;
 }
 
-public sealed class ManagedTableReservationCreateViewModel
+public sealed class ManagedTableReservationCreateViewModel : NoShowWarningInput
 {
     [Required(ErrorMessage = "Vui lòng chọn bàn.")]
     [Display(Name = "Bàn")]
@@ -52,7 +52,7 @@ public sealed class ManagedTableReservationCreateViewModel
     [Required(ErrorMessage = "Vui lòng nhập số điện thoại.")]
     [RegularExpression(@"^0\d{9}$", ErrorMessage = "Số điện thoại phải gồm đúng 10 chữ số và bắt đầu bằng 0.")]
     [Display(Name = "Số điện thoại")]
-    public string Phone { get; set; } = string.Empty;
+    private string phone = string.Empty; public string Phone { get => phone; set => phone = RestaurantManagement.Web.Services.ReservationPhoneNormalizer.Normalize(value) ?? value ?? string.Empty; }
 
     [Required]
     [RegularExpression("Pending|Confirmed", ErrorMessage = "Trạng thái ban đầu không hợp lệ.")]

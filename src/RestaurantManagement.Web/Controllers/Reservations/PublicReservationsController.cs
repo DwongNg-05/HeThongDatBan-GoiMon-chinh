@@ -27,7 +27,7 @@ public class PublicReservationsController(IConfiguration configuration, Reservat
 
     [HttpPost("Create")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(ReservationCreateViewModel model)
+    public async Task<IActionResult> Create(ReservationCreateViewModel model, [FromServices] RestaurantManagement.Web.Services.NoShowBookingWarning warning)
     {
         await LoadActiveAreas(model);
         SetReservationDateRange(model);
@@ -62,6 +62,7 @@ public class PublicReservationsController(IConfiguration configuration, Reservat
                 Value = string.IsNullOrWhiteSpace(model.Notes) ? DBNull.Value : model.Notes.Trim()
             });
 
+            command.Parameters.Add("@AcknowledgedNoShowCount", SqlDbType.Int).Value = warning.AcknowledgedCount(model, model.Phone);
             await connection.OpenAsync();
             await using var reader = await command.ExecuteReaderAsync();
             if (!await reader.ReadAsync()) throw new InvalidOperationException("Không nhận được mã đặt bàn.");
@@ -77,6 +78,12 @@ public class PublicReservationsController(IConfiguration configuration, Reservat
                 Notes = string.IsNullOrWhiteSpace(model.Notes) ? null : model.Notes.Trim()
             });
             return RedirectToAction(nameof(Success));
+        }
+        catch (SqlException ex) when (ex.Number == 51066)
+        {
+            await warning.Refresh(model, model.Phone);
+            ModelState.Remove(nameof(model.NoShowAcknowledged)); ModelState.Remove(nameof(model.NoShowWarningToken));
+            ModelState.AddModelError(string.Empty, ex.Message); return View(model);
         }
         catch (SqlException ex) when (ex.Number == 51005)
         {
