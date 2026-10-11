@@ -26,24 +26,26 @@ public sealed class KitchenController(IConfiguration configuration) : Controller
     [Authorize(Roles = AppRoles.KitchenReaders)]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
-        var items = new List<KitchenOrderItem>();
+        var rows = new List<KitchenTicketRow>();
         await using var connection = new SqlConnection(ConnectionString);
         await using var command = new SqlCommand("""
-            SELECT i.Id,t.Code AS TableCode,i.ItemName,i.Unit,i.Quantity,i.Notes,i.Status,i.SubmittedAt,i.EstimatedPrepMinutes
+            SELECT b.Id,t.Code AS TableCode,b.BatchNumber,b.CreatedAt,
+                   i.Id,i.ItemName,i.Unit,i.Quantity,i.Notes,i.Status,i.EstimatedPrepMinutes
             FROM dbo.OrderItems i
             JOIN dbo.OrderBatches b ON b.Id=i.BatchId
             JOIN dbo.DiningSessions s ON s.Id=b.SessionId
             JOIN dbo.DiningTables t ON t.Id=i.OriginalTableId
             WHERE s.Status<>'Closed' AND i.Status IN ('Pending','Preparing','Ready')
-            ORDER BY CASE i.Status WHEN 'Pending' THEN 0 WHEN 'Preparing' THEN 1 ELSE 2 END, i.SubmittedAt, i.Id;
+            ORDER BY b.CreatedAt,b.Id,i.Id;
             """, connection);
         await connection.OpenAsync(cancellationToken);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
-            items.Add(new KitchenOrderItem(
-                reader.GetInt64(0), reader.GetString(1), reader.GetString(2), reader.GetString(3), reader.GetInt32(4),
-                reader.IsDBNull(5) ? null : reader.GetString(5), reader.GetString(6), VietnamTime.FromUtc(reader.GetDateTime(7)), reader.GetInt32(8)));
-        return View(new KitchenScreenViewModel(items, User.IsInRole(AppRoles.Kitchen)));
+            rows.Add(new KitchenTicketRow(reader.GetInt64(0), reader.GetString(1), reader.GetInt32(2), VietnamTime.FromUtc(reader.GetDateTime(3)),
+                new KitchenOrderItem(reader.GetInt64(4), reader.GetString(5), reader.GetString(6), reader.GetInt32(7),
+                    reader.IsDBNull(8) ? null : reader.GetString(8), reader.GetString(9), reader.GetInt32(10))));
+        var tickets = KitchenTicketOrdering.Group(rows);
+        return View(new KitchenScreenViewModel(tickets, User.IsInRole(AppRoles.Kitchen)));
     }
 
     /// <summary>S2-08 Task 1: danh sách món trong ngày, mỗi món có nút bật/tắt "Tạm hết".</summary>

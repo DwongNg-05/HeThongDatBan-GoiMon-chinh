@@ -27,6 +27,12 @@ if (args.Contains("--category-image-only"))
     Console.WriteLine($"{count} category image tests passed.");
     return;
 }
+if (args.Contains("--kitchen-only"))
+{
+    KitchenTicketTests.Run(Check);
+    Console.WriteLine($"{count} kitchen tests passed.");
+    return;
+}
 bool Valid(string name, int? order)
 {
     var model = new AreaFormViewModel { Name = name, SortOrder = order };
@@ -133,6 +139,7 @@ PendingReservationLimitTests.Run(Check);
 ReservationSlotPolicyTests.Run(Check);
 ReservationCapacityPolicyTests.Run(Check);
 DailyReservationTests.Run(Check);
+KitchenTicketTests.Run(Check);
 if (args.Contains("--daily-reservations-sql")) await DailyReservationTests.Sql(Check);
 MenuTests.Run(Check);
 PublicMenuTests.Run(Check);
