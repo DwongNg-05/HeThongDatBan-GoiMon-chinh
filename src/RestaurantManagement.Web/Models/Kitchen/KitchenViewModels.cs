@@ -31,9 +31,19 @@ public sealed record TemporaryOutHistoryViewModel(int? DishId, string? DishName,
     IReadOnlyList<RestaurantManagement.Web.Services.TemporaryOutLogEntry> Entries);
 
 /// <summary>Một đợt gọi món tại một bàn; BatchNumber là số đợt trong phiên phục vụ.</summary>
-public sealed record KitchenTicket(long BatchId, string TableCode, int BatchNumber, DateTime ReceivedAt,
+public sealed record KitchenTicket(long BatchId, string TableCode, int BatchNumber, DateTime ReceivedAtUtc,
     IReadOnlyList<KitchenOrderItem> Items)
 {
+    public DateTime ReceivedAtVietnam => RestaurantManagement.Web.Models.Reservations.VietnamTime.FromUtc(ReceivedAtUtc);
+
+    public bool IsOverdue => IsOverdueAt(DateTime.UtcNow);
+
+    /// <summary>Strictly greater than 15 minutes, and only while at least one item is still being worked by the kitchen.</summary>
+    public bool IsOverdueAt(DateTime utcNow) =>
+        Items.Any(item => item.Status is "Pending" or "Preparing")
+        && DateTime.SpecifyKind(utcNow, DateTimeKind.Utc)
+            > DateTime.SpecifyKind(ReceivedAtUtc, DateTimeKind.Utc).AddMinutes(15);
+
     public string StatusLabel => Items.All(item => item.Status == "Ready") ? "Đã chế biến xong"
         : Items.All(item => item.Status == "Pending") ? "Chờ chế biến"
         : Items.All(item => item.Status == "Preparing") ? "Đang chế biến"
@@ -51,5 +61,5 @@ public static class KitchenTicketOrdering
         .GroupBy(row => row.BatchId)
         .Select(group => new KitchenTicket(group.Key, group.First().TableCode, group.First().BatchNumber,
             group.First().ReceivedAt, group.Select(row => row.Item).ToArray()))
-        .OrderBy(ticket => ticket.ReceivedAt).ThenBy(ticket => ticket.BatchId).ToArray();
+        .OrderBy(ticket => ticket.ReceivedAtUtc).ThenBy(ticket => ticket.BatchId).ToArray();
 }

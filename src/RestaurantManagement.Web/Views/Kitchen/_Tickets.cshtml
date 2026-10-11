@@ -8,11 +8,14 @@ else
     <div class="row g-3" data-kitchen-tickets>
         @foreach (var ticket in Model.Tickets)
         {
+            var isOverdue = ticket.IsOverdue;
             <section class="col-12" data-kitchen-ticket="@ticket.BatchId">
-                <article class="card">
-                    <header class="card-header d-flex flex-wrap justify-content-between gap-2">
+                <article class="card @(isOverdue ? "border-danger bg-danger-subtle" : "")" data-overdue="@(isOverdue ? "true" : "false")">
+                    <header class="card-header d-flex flex-wrap justify-content-between gap-2 @(isOverdue ? "text-bg-danger" : "")">
                         <strong>Bàn @ticket.TableCode · Đợt gọi @ticket.BatchNumber</strong>
-                        <span>@ticket.ReceivedAt.ToString("dd/MM/yyyy HH:mm:ss") · @ticket.StatusLabel</span>
+                        <span>@ticket.ReceivedAtVietnam.ToString("dd/MM/yyyy HH:mm:ss") · @ticket.StatusLabel
+                            @if (isOverdue) { <span class="badge bg-light text-danger ms-1">Quá hạn</span> }
+                        </span>
                     </header>
                     <div class="table-responsive">
                         <table class="table table-bordered align-middle mb-0">

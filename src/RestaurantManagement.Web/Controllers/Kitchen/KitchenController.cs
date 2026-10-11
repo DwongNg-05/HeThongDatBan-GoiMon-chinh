@@ -55,7 +55,7 @@ public sealed class KitchenController(IConfiguration configuration) : Controller
         await connection.OpenAsync(cancellationToken);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
-            rows.Add(new KitchenTicketRow(reader.GetInt64(0), reader.GetString(1), reader.GetInt32(2), VietnamTime.FromUtc(reader.GetDateTime(3)),
+            rows.Add(new KitchenTicketRow(reader.GetInt64(0), reader.GetString(1), reader.GetInt32(2), DateTime.SpecifyKind(reader.GetDateTime(3), DateTimeKind.Utc),
                 new KitchenOrderItem(reader.GetInt64(4), reader.GetString(5), reader.GetString(6), reader.GetInt32(7),
                     reader.IsDBNull(8) ? null : reader.GetString(8), reader.GetString(9), reader.GetInt32(10))));
         var tickets = KitchenTicketOrdering.Group(rows);

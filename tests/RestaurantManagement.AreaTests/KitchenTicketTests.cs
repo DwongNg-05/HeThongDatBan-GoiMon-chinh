@@ -23,5 +23,20 @@ internal static class KitchenTicketTests
         check(tickets[0].StatusLabel == "Đang xử lý" && tickets[1].StatusLabel == "Đã chế biến xong"
             && tickets[2].StatusLabel == "Chờ chế biến", "Kitchen ticket shows a useful aggregate status");
         check(KitchenTicketOrdering.Group(Array.Empty<KitchenTicketRow>()).Count == 0, "Kitchen queue handles no waiting tickets");
+
+        var nowUtc = new DateTime(2026, 10, 11, 9, 30, 0, DateTimeKind.Utc);
+        KitchenTicket Ticket(long id, DateTime received, string status = "Pending") =>
+            new(id, $"B{id:00}", 1, received, [new KitchenOrderItem(id, "Món thử", "phần", 1, null, status, 5)]);
+        check(!Ticket(40, nowUtc.AddMinutes(-15)).IsOverdueAt(nowUtc), "Kitchen ticket exactly at 15 minutes is not overdue");
+        check(Ticket(41, nowUtc.AddMinutes(-15).AddTicks(-1)).IsOverdueAt(nowUtc), "Kitchen ticket strictly beyond 15 minutes is overdue");
+        check(!Ticket(42, nowUtc.AddMinutes(-20), "Ready").IsOverdueAt(nowUtc), "Ready ticket is not marked as waiting for kitchen work");
+
+        var mixedAgeQueue = KitchenTicketOrdering.Group(new[]
+        {
+            new KitchenTicketRow(43, "B43", 1, nowUtc.AddMinutes(-20), new KitchenOrderItem(430, "Món cũ", "phần", 1, null, "Preparing", 5)),
+            new KitchenTicketRow(44, "B44", 1, nowUtc.AddSeconds(-2), new KitchenOrderItem(440, "Món mới", "phần", 1, null, "Pending", 5))
+        });
+        check(mixedAgeQueue[0].IsOverdueAt(nowUtc) && !mixedAgeQueue[1].IsOverdueAt(nowUtc),
+            "Kitchen queue independently marks older tickets overdue while a newly received ticket stays clear");
     }
 }
