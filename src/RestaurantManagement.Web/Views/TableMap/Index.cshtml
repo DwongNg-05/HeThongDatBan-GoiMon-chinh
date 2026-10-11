@@ -32,7 +32,8 @@
     <div class="map-sync-notice alert alert-warning"
          role="status"
          aria-live="polite"
-         hidden></div>
+         hidden>
+    </div>
 
     <p class="map-sync-time text-muted">
         Đồng bộ gần nhất:
@@ -44,7 +45,8 @@
         else
         {
             <time datetime="@Model.SyncedAtUtc.ToString("O")">
-                @(Model.SyncedAtUtc.ToOffset(TimeSpan.FromHours(7)).ToString("dd/MM/yyyy HH:mm:ss"))
+                @(Model.SyncedAtUtc.ToOffset(TimeSpan.FromHours(7))
+                    .ToString("dd/MM/yyyy HH:mm:ss"))
             </time>
             <span> (giờ Việt Nam)</span>
         }
@@ -53,7 +55,11 @@
     <div class="snapshot-legend" aria-label="Chú giải trạng thái bàn">
         @foreach (var status in new[]
         {
-            "Available", "Reserved", "Serving", "Cleaning"
+            "Available",
+            "Reserved",
+            "Serving",
+            "AwaitingPayment",
+            "Cleaning"
         })
         {
             var display =
@@ -68,7 +74,8 @@
 
     <p class="text-muted">
         Chọn bàn đang phục vụ để gọi thêm món.
-        Chọn bàn ở trạng thái khác để xem chi tiết.
+        Chọn bàn chờ thanh toán để xem phiên và mở lại bàn nếu có quyền.
+        Chọn các bàn còn lại để xem chi tiết.
     </p>
 
     @if (Model.LoadFailed)
@@ -159,30 +166,42 @@
     <script>
         (() => {
             const map = document.querySelector('.snapshot-map');
+
             if (!map) return;
 
             map.addEventListener('click', event => {
                 if (!(event.target instanceof Element)) return;
 
                 const button = event.target.closest('[data-open-details]');
+
                 if (!button) return;
 
                 const card = button.closest('[data-table-code]');
-                if (!card || card.dataset.status !== 'Serving') return;
+
+                if (!card) return;
+
+                const status = card.dataset.status;
+
+                if (status !== 'Serving' && status !== 'AwaitingPayment') {
+                    return;
+                }
 
                 const orderingUrl = map.dataset.orderingUrl;
-                if (!orderingUrl) return;
+                const tableCode = card.dataset.tableCode;
 
-                // Bàn đang phục vụ mở màn hình gọi món.
+                if (!orderingUrl || !tableCode) return;
+
                 event.preventDefault();
                 event.stopImmediatePropagation();
 
-                const destination = new URL(orderingUrl, location.origin);
+                const destination = new URL(
+                    orderingUrl,
+                    window.location.origin
+                );
 
-                destination.searchParams.set(
-                    'tableCode', card.dataset.tableCode);
+                destination.searchParams.set('tableCode', tableCode);
 
-                location.assign(destination.href);
+                window.location.assign(destination.href);
             }, true);
         })();
     </script>

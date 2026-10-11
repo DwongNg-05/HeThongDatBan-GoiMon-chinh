@@ -63,7 +63,13 @@ public sealed class SessionOrderingService
         await connection.OpenAsync(cancellationToken);
 
         await using var command = new SqlCommand("""
-            SELECT t.Id, t.Code, s.Id, s.Status, root.Status
+            SELECT
+                t.Id,
+                t.Code,
+                s.Id,
+                s.Status,
+                root.Status,
+                root.Id
             FROM dbo.DiningTables t
             JOIN dbo.SessionTables st
                 ON st.TableId = t.Id
@@ -96,6 +102,7 @@ public sealed class SessionOrderingService
                 TableId = reader.GetInt32(0),
                 TableCode = reader.GetString(1),
                 SessionId = reader.GetInt64(2),
+                BillingSessionId = reader.GetInt64(5),
                 SessionStatus =
                     reader.GetString(3) == "Open"
                     && reader.GetString(4) == "Open"
@@ -233,10 +240,114 @@ public sealed class SessionOrderingService
         return Convert.ToInt64(result);
     }
 
+    public async Task ReopenAsync(
+        int tableId,
+        long expectedSessionId,
+        int actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        if (tableId <= 0 || expectedSessionId <= 0 || actorUserId <= 0)
+        {
+            throw new ArgumentException(
+                "Bàn, phiên hoặc nhân viên không hợp lệ.");
+        }
+
+        await using var connection =
+            new SqlConnection(GetConnectionString());
+
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = new SqlCommand("""
+            SET NOCOUNT ON;
+            SET XACT_ABORT ON;
+
+            BEGIN TRY
+                BEGIN TRANSACTION;
+
+                EXEC dbo.usp_LockOperations;
+                EXEC dbo.usp_RequirePermission
+                    @ActorUserId, 'Sessions.Manage';
+
+                DECLARE @RootId bigint;
+                DECLARE @SessionStatus varchar(20);
+                DECLARE @RootStatus varchar(20);
+
+                SELECT
+                    @RootId = root.Id,
+                    @SessionStatus = s.Status,
+                    @RootStatus = root.Status
+                FROM dbo.SessionTables st
+                JOIN dbo.DiningTables t
+                    ON t.Id = st.TableId
+                JOIN dbo.DiningSessions s
+                    ON s.Id = st.SessionId
+                JOIN dbo.DiningSessions root
+                    ON root.Id = COALESCE(s.BillingSessionId, s.Id)
+                WHERE st.TableId = @TableId
+                    AND st.SessionId = @ExpectedSessionId
+                    AND st.ReleasedAt IS NULL
+                    AND t.IsActive = 1;
+
+                IF @RootId IS NULL
+                    THROW 51033,
+                        N'Bàn đã thay đổi phiên hoặc không còn phiên đang mở. Vui lòng tải lại.',
+                        1;
+
+                IF @SessionStatus = 'Closed' OR @RootStatus = 'Closed'
+                    THROW 51033,
+                        N'Phiên đã đóng, không thể mở lại bàn.',
+                        1;
+
+                IF EXISTS (
+                    SELECT 1
+                    FROM dbo.Invoices
+                    WHERE SessionId = @RootId AND Status = 'Paid'
+                )
+                    THROW 51033,
+                        N'Bàn đã thanh toán, không thể mở lại.',
+                        1;
+
+                -- Gửi lại yêu cầu không tạo phiên mới.
+                IF @SessionStatus = 'Open' AND @RootStatus = 'Open'
+                BEGIN
+                    COMMIT;
+                    RETURN;
+                END;
+
+                IF @RootStatus <> 'AwaitingPayment'
+                    THROW 51033,
+                        N'Phiên không ở trạng thái chờ thanh toán. Vui lòng tải lại.',
+                        1;
+
+                EXEC dbo.usp_SetPaymentState
+                    @SessionId = @RootId,
+                    @Awaiting = 0,
+                    @ActorUserId = @ActorUserId;
+
+                COMMIT;
+            END TRY
+            BEGIN CATCH
+                IF XACT_STATE() <> 0
+                    ROLLBACK;
+                THROW;
+            END CATCH;
+            """, connection);
+
+        command.Parameters.Add("@TableId", SqlDbType.Int)
+            .Value = tableId;
+
+        command.Parameters.Add("@ExpectedSessionId", SqlDbType.BigInt)
+            .Value = expectedSessionId;
+
+        command.Parameters.Add("@ActorUserId", SqlDbType.Int)
+            .Value = actorUserId;
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
     public sealed class SubmitOrderItem
     {
         public int MenuItemId { get; set; }
-
         public int Quantity { get; set; }
     }
 }

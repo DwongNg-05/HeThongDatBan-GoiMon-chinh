@@ -13,6 +13,20 @@
 
 <h1>Gọi món</h1>
 
+@if (TempData["OrderingSuccess"] is string orderingSuccess)
+{
+    <div class="alert alert-success" role="status">
+        @orderingSuccess
+    </div>
+}
+
+@if (TempData["OrderingError"] is string orderingError)
+{
+    <div class="alert alert-danger" role="alert">
+        @orderingError
+    </div>
+}
+
 @if (!string.IsNullOrEmpty(Model.SessionError))
 {
     <div class="alert alert-warning" role="alert">
@@ -50,6 +64,38 @@
                     @session.Subtotal.ToString("N0", culture) đồng
                 </strong>
             </p>
+
+            @if (session.IsAwaitingPayment)
+            {
+                <div class="mt-3">
+                    @if (Model.CanReopen)
+                    {
+                        <form id="reopen-table-form"
+                              method="post"
+                              asp-page-handler="Reopen">
+
+                            <input type="hidden"
+                                   name="tableId"
+                                   value="@session.TableId" />
+
+                            <input type="hidden"
+                                   name="sessionId"
+                                   value="@session.SessionId" />
+
+                            <button type="submit" class="btn btn-warning">
+                                Mở lại bàn
+                            </button>
+                        </form>
+                    }
+                    else
+                    {
+                        <p class="text-muted">
+                            Bạn không có quyền mở lại bàn.
+                            Vui lòng liên hệ nhân viên có quyền.
+                        </p>
+                    }
+                </div>
+            }
         </div>
     </div>
 
@@ -137,4 +183,38 @@ else if (string.IsNullOrEmpty(Model.SessionError))
 {
     <h2 class="h4">Thực đơn</h2>
     <partial name="_MenuByCategory" model="Model.Categories" />
+}
+
+@section Scripts {
+    <script>
+        (() => {
+            const form = document.getElementById('reopen-table-form');
+
+            if (!form) return;
+
+            let submitting = false;
+
+            form.addEventListener('submit', event => {
+                if (submitting) {
+                    event.preventDefault();
+                    return;
+                }
+
+                const confirmed = window.confirm(
+                    'Mở lại bàn để gọi thêm? ' +
+                    'Yêu cầu thanh toán hiện tại sẽ được bỏ. ' +
+                    'Các món và tạm tính được giữ nguyên.'
+                );
+
+                if (!confirmed) {
+                    event.preventDefault();
+                    return;
+                }
+
+                submitting = true;
+
+                form.querySelector('button[type="submit"]').disabled = true;
+            });
+        })();
+    </script>
 }

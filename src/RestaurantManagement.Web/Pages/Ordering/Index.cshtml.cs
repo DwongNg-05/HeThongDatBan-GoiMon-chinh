@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Data.SqlClient;
 using RestaurantManagement.Web.Models;
+using RestaurantManagement.Web.Models.Reservations;
 using RestaurantManagement.Web.Security;
 using RestaurantManagement.Web.Services;
 
@@ -25,6 +26,10 @@ public class IndexModel(
 
     public string? SessionError { get; private set; }
 
+    public bool CanReopen =>
+        CurrentSession?.IsAwaitingPayment == true
+        && User.IsInRole(AppRoles.FrontOfHouse);
+
     // Giữ phương thức cho các kiểm thử hiện có.
     [NonHandler]
     public void OnGet()
@@ -43,9 +48,8 @@ public class IndexModel(
         }
         catch (SqlException)
         {
-            // Giữ cách hoạt động hiện có:
-            // trạng thái món được trình duyệt cập nhật lại,
-            // máy chủ kiểm tra món khi gửi.
+            // Trình duyệt cập nhật trạng thái món;
+            // máy chủ kiểm tra lại khi gửi món.
         }
     }
 
@@ -53,7 +57,6 @@ public class IndexModel(
     {
         OnGet();
 
-        // Chưa chọn bàn: hiển thị thực đơn để xem.
         if (tableId is null && string.IsNullOrWhiteSpace(tableCode))
         {
             return;
@@ -65,7 +68,6 @@ public class IndexModel(
             return;
         }
 
-        // Sơ đồ bàn truyền mã bàn, đổi thành ID để lấy phiên.
         if (tableId is null)
         {
             tableId = await sessionOrdering.GetTableIdByCodeAsync(
@@ -94,7 +96,47 @@ public class IndexModel(
         if (!CurrentSession.CanAddItems)
         {
             SessionError =
-                "Bàn đang chờ thanh toán, không thể gọi thêm món.";
+                "Bàn đang chờ thanh toán. "
+                + "Hãy mở lại bàn trước khi gọi thêm món.";
         }
+    }
+
+    public async Task<IActionResult> OnPostReopenAsync(
+        int tableId,
+        long sessionId)
+    {
+        if (sessionOrdering is null)
+        {
+            TempData["OrderingError"] =
+                "Chưa cấu hình dịch vụ gọi món.";
+
+            return RedirectToPage(new { tableId });
+        }
+
+        try
+        {
+            await sessionOrdering.ReopenAsync(
+                tableId,
+                sessionId,
+                User.ActorUserId(),
+                HttpContext.RequestAborted);
+
+            TempData["OrderingSuccess"] =
+                "Bàn đã được mở lại trong cùng phiên. "
+                + "Bạn có thể gọi thêm món.";
+        }
+        catch (SqlException ex)
+            when (ex.Number is >= 51000 and < 51500)
+        {
+            TempData["OrderingError"] = ex.Number == 51001
+                ? "Tài khoản không có quyền mở lại bàn."
+                : ex.Message;
+        }
+        catch (ArgumentException ex)
+        {
+            TempData["OrderingError"] = ex.Message;
+        }
+
+        return RedirectToPage(new { tableId });
     }
 }
