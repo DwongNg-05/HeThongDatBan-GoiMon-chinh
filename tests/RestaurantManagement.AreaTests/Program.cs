@@ -143,6 +143,8 @@ MenuSearchTests.Run(Check);
 SoldOutTests.Run(Check);
 TemporaryOutTests.Run(Check);
 await TemporaryOutResetWorkerTests.Run(Check);
+// Món chờ mang ra: thời gian chờ, cảnh báo quá 5 phút, thứ tự theo lúc hoàn thành, món đã phục vụ không còn trên danh sách.
+ServingQueueTests.Run(Check);
 MenuPerformanceTests.Run(Check);
 await MenuImageTests.Run(Check);
 SecurityAuditTests.Run(Check);

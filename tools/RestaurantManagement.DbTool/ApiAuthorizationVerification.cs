@@ -28,7 +28,7 @@ internal static class ApiAuthorizationVerification
     {
         ["reservations"] = "/ReservationManagement", ["areas"] = "/Areas", ["table-map"] = "/", ["opening-hours"] = "/OpeningHours",
         ["privacy"] = "/Home/Privacy", ["dish-categories"] = "/DishCategories", ["dishes"] = "/Dishes", ["menu"] = "/Menu",
-        ["ordering"] = "/Ordering", ["kitchen-orders"] = "/Kitchen", ["daily-dishes"] = "/Kitchen/Dishes",
+        ["ordering"] = "/Ordering", ["serving-queue"] = "/Serving", ["kitchen-orders"] = "/Kitchen", ["daily-dishes"] = "/Kitchen/Dishes",
         ["cashier-payments"] = "/Cashier", ["cashier-invoices"] = "/Cashier/Invoices", ["cashier-shift"] = "/Cashier/Shift",
         ["employee-accounts"] = "/admin/employee-accounts", ["audit-logs"] = "/AuditLogs"
     };
@@ -46,13 +46,13 @@ internal static class ApiAuthorizationVerification
 
     /// <summary>
     /// S1-04 Task 1/2: thanh điều hướng mong đợi theo vai trò (khoá data-nav-item) và trang đầu tiên khi mở "/".
-    /// Phục vụ: đúng 3 mục; Bếp: đúng 2 mục (màn hình bếp, món trong ngày — S2-08 Task 1); Thu ngân: đúng 3 mục.
+    /// Phục vụ: đúng 4 mục (thêm Món chờ mang ra); Bếp: đúng 2 mục (màn hình bếp, món trong ngày — S2-08 Task 1); Thu ngân: đúng 3 mục.
     /// </summary>
     internal static readonly Dictionary<string, (string Landing, string[] Nav)> ExpectedNavigation = new()
     {
-        ["Manager"] = ("/", new[] { "reservations", "areas", "table-map", "opening-hours", "privacy", "dish-categories", "dishes", "menu", "ordering",
+        ["Manager"] = ("/", new[] { "reservations", "areas", "table-map", "opening-hours", "privacy", "dish-categories", "dishes", "menu", "ordering", "serving-queue",
             "kitchen-orders", "daily-dishes", "cashier-payments", "cashier-invoices", "cashier-shift", "employee-accounts", "audit-logs" }),
-        ["Waiter"] = ("/", new[] { "reservations", "table-map", "ordering" }),
+        ["Waiter"] = ("/", new[] { "reservations", "table-map", "ordering", "serving-queue" }),
         ["Kitchen"] = ("/Kitchen", new[] { "kitchen-orders", "daily-dishes" }),
         ["Cashier"] = ("/Cashier", new[] { "cashier-payments", "cashier-invoices", "cashier-shift" })
     };
@@ -182,7 +182,7 @@ internal static class ApiAuthorizationVerification
                 && json.TryGetProperty("navigation", out var nav) && nav.ValueKind == JsonValueKind.Array
                 && nav.EnumerateArray().Select(n => Text(n, "key")).SequenceEqual(ExpectedNavigation["Waiter"].Nav);
             if (!ok)
-                problems.Add($"Phục vụ: /api/account/me phải trả vai trò Waiter và 3 mục điều hướng, thực tế {(int)me.StatusCode} {body}");
+                problems.Add($"Phục vụ: /api/account/me phải trả vai trò Waiter và 4 mục điều hướng, thực tế {(int)me.StatusCode} {body}");
         }
 
         // 2. API thực đơn / tài khoản / báo cáo: bị chặn, mã 403, dữ liệu lỗi JSON thuần.
@@ -209,7 +209,7 @@ internal static class ApiAuthorizationVerification
         }
 
         // 3. API sơ đồ bàn / đặt bàn / gọi món: thành công.
-        foreach (var url in new[] { "/", "/api/table-status", "/Reservations", "/Reservations/Create", "/Ordering" })
+        foreach (var url in new[] { "/", "/api/table-status", "/Reservations", "/Reservations/Create", "/Ordering", "/Serving", "/Serving/Queue" })
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             if (url.StartsWith("/api/", StringComparison.Ordinal)) request.Headers.Add("X-Requested-With", "XMLHttpRequest");
@@ -218,7 +218,7 @@ internal static class ApiAuthorizationVerification
                 problems.Add($"Phục vụ: {url} phải mở được (200), thực tế {(int)response.StatusCode} {LocationOf(response)}");
         }
         if (problems.Count == 0)
-            Console.WriteLine($"PASS: S1-04 Task 1 — Phục vụ: đăng nhập nhận vai trò Waiter, {blocked.Length} API thực đơn/tài khoản/báo cáo bị từ chối (403 JSON), sơ đồ bàn/đặt bàn/gọi món mở được.");
+            Console.WriteLine($"PASS: S1-04 Task 1 — Phục vụ: đăng nhập nhận vai trò Waiter, {blocked.Length} API thực đơn/tài khoản/báo cáo bị từ chối (403 JSON), sơ đồ bàn/đặt bàn/gọi món/món chờ mang ra mở được.");
         return problems;
     }
 

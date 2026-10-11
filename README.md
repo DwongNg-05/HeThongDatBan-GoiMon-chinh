@@ -114,7 +114,7 @@ Chạy `migrate` để áp dụng `031_RolePermissionsByScope.sql` và `032_Remo
 
 | Vai trò | Thấy và dùng được |
 | --- | --- |
-| Phục vụ | Đúng 3 màn hình: Đặt bàn, Sơ đồ bàn, Gọi món |
+| Phục vụ | Đặt bàn, Sơ đồ bàn, Gọi món, Món chờ mang ra |
 | Bếp | Màn hình bếp (báo món tạm hết làm ở Quản lý món, chỉ Quản lý) |
 | Thu ngân | Thanh toán, Hoá đơn, Chốt ca |
 | Quản lý | Toàn bộ |
@@ -254,3 +254,11 @@ Chạy `migrate` để áp dụng `046_S301QrVersionAndCleaning.sql`. Mỗi mã 
 ## S3-01 Task 4 — thanh toán đóng phiên, quét lại QR mở phiên mới
 
 Không cần migration mới. Thanh toán (`usp_Checkout`) sẽ đóng phiên, trả bàn (chuyển Đang dọn), thu hồi phiên khách và giữ nguyên mã QR. Điện thoại khách tải lại trang sẽ thấy “Bàn … đã thanh toán” mà không còn món cũ. Sau khi dọn xong, quét lại cùng QR sẽ mở đúng một phiên mới không có món của phiên trước. Quy tắc cần PO chốt, demo và kiểm thử: [docs/S3-01-Task4.md](docs/S3-01-Task4.md).
+
+## S3-08 Task 1 — món vừa xong hiện ở danh sách chờ, xác nhận đã mang ra
+
+Không cần migration mới. Khi Bếp bấm “Đã xong”, món hiện trên màn hình **Món chờ mang ra** (`/Serving`) của Phục vụ trong tối đa 5 giây, kèm thông báo “Món mới xong: Bàn A05 · Phở bò”. Danh sách có mã bàn, tên món, giờ xong, sắp từ sớm đến muộn. Bấm **Đã mang ra** thì món chuyển sang **Đã phục vụ** và rời danh sách ngay. Hai nhân viên cùng bấm một món thì chỉ một người được ghi nhận; người còn lại được báo ai đã mang ra. Quy tắc cần PO chốt, demo và kiểm thử: [docs/S3-08-Task1.md](docs/S3-08-Task1.md).
+
+## S3-08 Task 2 — cảnh báo món chờ quá 5 phút
+
+Không cần migration mới. Phục vụ (và Quản lý) mở **Món chờ mang ra** (`/Serving`) để thấy các món Bếp đã nấu xong nhưng chưa mang ra, sắp theo thời điểm hoàn thành (món xong trước ở trên). Đồng hồ “Đã chờ” tính từ lúc Bếp bấm “Đã xong” và chạy mỗi giây. Món chờ quá 5 phút được tô đỏ kèm nhãn “Chờ quá 5 phút” ngay trên danh sách, không đổi thứ tự. Bấm **Đã mang ra** thì món rời danh sách và không còn bị cảnh báo. Trang tự cập nhật mỗi 3 giây. Quy tắc cần PO chốt, demo và kiểm thử (`node --test tools/tests/serving-queue.test.cjs`, `verify-api-permissions`): [docs/Mon-cho-mang-ra.md](docs/Mon-cho-mang-ra.md).

@@ -1,4 +1,6 @@
 using System.Net;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.Data.SqlClient;
 using static RestaurantManagement.DbTool.BookingConfirmationVerification;
 
@@ -7,7 +9,7 @@ namespace RestaurantManagement.DbTool;
 /// <summary>
 /// S1-04 Task 2 (web thật, SQL Server thật): Bếp và Thu ngân làm đúng phần việc của mình qua giao diện,
 /// và bị chặn ở máy chủ khi làm việc của vai trò khác.
-/// Luồng: Thu ngân mở ca → (Phục vụ đón khách, gọi món) → Bếp nấu xong món → (Phục vụ mang ra) → Thu ngân thanh toán,
+/// Luồng: Thu ngân mở ca → (Phục vụ đón khách, gọi món) → Bếp nấu xong món → Phục vụ mang ra ở Món chờ mang ra (cảnh báo quá 5 phút) → Thu ngân thanh toán,
 /// xem hoá đơn → (S2-08 Task 1: Bếp/Quản lý bật/tắt "Tạm hết" ở Món trong ngày; Quản lý báo hết ở Quản lý món; vai trò khác bị chặn) → Thu ngân chốt ca. Chạy trên database mới (lệnh verify-api-permissions).
 /// </summary>
 internal static class KitchenCashierVerification
@@ -67,8 +69,85 @@ internal static class KitchenCashierVerification
             Assert(Blocked(denied), $"{who} cannot change the cooking status (blocked by the server)");
         }
 
-        // 4. Phục vụ mang món ra.
-        await DatabaseTool.Execute(connection, $"EXEC dbo.usp_TransitionOrderItem @OrderItemId={itemId},@ToStatus='Served',@ActorUserId={waiterId};");
+        // 4. Món chờ mang ra (/Serving): Phục vụ thấy món vừa xong; chờ dưới 5 phút không cảnh báo, quá 5 phút được đánh dấu nổi bật;
+        //    bấm "Đã mang ra" thì món rời danh sách chờ và không còn bị cảnh báo. Bếp, Thu ngân bị chặn.
+        static bool Row(string html, long id, bool overdue) =>
+            Regex.IsMatch(html, $"data-serving-item=\"{id}\"[^>]*data-overdue=\"{(overdue ? "true" : "false")}\"");
+        async Task<JsonElement?> QueueItem(long id)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, "/Serving/Queue");
+            request.Headers.Add("X-Requested-With", "XMLHttpRequest");
+            using var response = await waiter.SendAsync(request);
+            Assert(response.StatusCode == HttpStatusCode.OK, "Serving queue: the refresh API answers the waiter");
+            using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            Assert(json.RootElement.GetProperty("overdueAfterMs").GetInt64() == 300_000, "Serving queue: the refresh API reports the 5-minute threshold");
+            foreach (var entry in json.RootElement.GetProperty("items").EnumerateArray())
+                if (entry.GetProperty("id").GetInt64() == id) return entry.Clone();
+            return null;
+        }
+        // S3-08 Task 1: món vừa xong có ngay trong danh sách chờ (API trang tự gọi lại), đủ mã bàn và tên món;
+        // trang gọi lại mỗi data-refresh-ms nên món + thông báo hiện trong ≤ 5 giây kể từ lúc ghi nhận hoàn thành.
+        var tableCode = await Text(connection, $"SELECT t.Code FROM dbo.OrderItems i JOIN dbo.DiningTables t ON t.Id=i.OriginalTableId WHERE i.Id={itemId}");
+        var itemName = await Text(connection, $"SELECT ItemName FROM dbo.OrderItems WHERE Id={itemId}");
+        var justReady = await QueueItem(itemId);
+        var servingPage = await Html(waiter, "/Serving");
+        var refreshMs = int.Parse(Regex.Match(servingPage, "data-refresh-ms=\"(\\d+)\"").Groups[1].Value);
+        Assert(justReady is { } r0 && r0.GetProperty("tableCode").GetString() == tableCode && r0.GetProperty("itemName").GetString() == itemName
+            && r0.GetProperty("waitMs").GetInt64() + refreshMs <= 5000,
+            $"S3-08: the finished dish reaches the waiter's list with table {tableCode} and \"{itemName}\" within 5 seconds (refresh every {refreshMs} ms)");
+        Assert(Row(servingPage, itemId, overdue: false) && servingPage.Contains("Đã mang ra") && servingPage.Contains(tableCode) && servingPage.Contains(itemName),
+            "Serving queue: the waiter sees the finished dish, not highlighted right after it is ready");
+        await DatabaseTool.Execute(connection, $"UPDATE dbo.OrderItems SET ReadyAt=DATEADD(second,-290,SYSUTCDATETIME()) WHERE Id={itemId};");
+        var waiting = await QueueItem(itemId);
+        Assert(waiting is { } w1 && !w1.GetProperty("overdue").GetBoolean() && w1.GetProperty("waitMs").GetInt64() is >= 290_000 and < 300_000,
+            "Serving queue: a dish waiting 4:50 is counted from its completion time and not highlighted");
+        await DatabaseTool.Execute(connection, $"UPDATE dbo.OrderItems SET ReadyAt=DATEADD(second,-301,SYSUTCDATETIME()) WHERE Id={itemId};");
+        var late = await QueueItem(itemId);
+        Assert(late is { } w2 && w2.GetProperty("overdue").GetBoolean() && w2.GetProperty("waitMs").GetInt64() >= 301_000,
+            "Serving queue: a dish waiting over 5 minutes is flagged by the refresh API");
+        servingPage = await Html(waiter, "/Serving");
+        Assert(Row(servingPage, itemId, overdue: true) && servingPage.Contains("table-danger serving-overdue") && servingPage.Contains("Chờ quá 5 phút"),
+            "Serving queue: the overdue dish is highlighted on the waiting list");
+        foreach (var (who, client) in new[] { ("Kitchen", kitchen), ("Cashier", cashier) })
+        {
+            using var screen = await client.GetAsync("/Serving");
+            using var serve = await client.PostAsync($"/Serving/Serve/{itemId}", Form(("__RequestVerificationToken", Token(servingPage))));
+            Assert(Blocked(screen) && Blocked(serve), $"{who} cannot open the serving queue or mark dishes as served (blocked by the server)");
+        }
+        // S3-08 Task 1: Phục vụ và Quản lý bấm "Đã mang ra" cùng lúc → đúng một người thành công (200),
+        // người còn lại nhận 409 kèm tên người đã mang ra; món chỉ ghi nhận phục vụ một lần.
+        var servingManager = await SignIn(web, "manager", password);
+        var managerServingPage = await Html(servingManager, "/Serving");
+        async Task<(string Who, HttpStatusCode Status, JsonElement Body)> Confirm(string who, HttpClient client, string page)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"/Serving/Serve/{itemId}")
+                { Content = Form(("__RequestVerificationToken", Token(page))) };
+            request.Headers.Add("X-Requested-With", "XMLHttpRequest");
+            using var response = await client.SendAsync(request);
+            using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            return (who, response.StatusCode, json.RootElement.Clone());
+        }
+        var both = await Task.WhenAll(Confirm("waiter", waiter, servingPage), Confirm("manager", servingManager, managerServingPage));
+        var winners = both.Where(b => b.Status == HttpStatusCode.OK).ToArray();
+        var losers = both.Where(b => b.Status == HttpStatusCode.Conflict).ToArray();
+        Assert(winners.Length == 1 && losers.Length == 1 && winners[0].Body.GetProperty("served").GetBoolean()
+            && winners[0].Body.GetProperty("message").GetString() == $"Đã mang ra: Bàn {tableCode} · {itemName}.",
+            $"S3-08: two staff confirm at the same time — only {winners.FirstOrDefault().Who ?? "one"} succeeds");
+        var winnerId = await Scalar(connection, $"SELECT Id FROM dbo.Users WHERE UserName=N'{winners[0].Who}'");
+        var winnerName = await Text(connection, $"SELECT FullName FROM dbo.Users WHERE Id={winnerId}");
+        Assert(losers[0].Body.GetProperty("alreadyServed").GetBoolean() && !losers[0].Body.GetProperty("served").GetBoolean()
+            && losers[0].Body.GetProperty("message").GetString()!.StartsWith($"Bàn {tableCode} · {itemName} đã được {winnerName} mang ra lúc ", StringComparison.Ordinal),
+            $"S3-08: the other staff member ({losers[0].Who}) is told the dish was already served by {winnerName}");
+        var repeat = await Confirm(winners[0].Who, winners[0].Who == "waiter" ? waiter : servingManager, winners[0].Who == "waiter" ? servingPage : managerServingPage);
+        Assert(repeat.Status == HttpStatusCode.Conflict && repeat.Body.GetProperty("message").GetString()!.StartsWith("Bạn đã xác nhận mang ra", StringComparison.Ordinal),
+            "S3-08: confirming the same dish again tells the staff member they already did");
+        servingManager.Dispose();
+        await Check(connection, $"SELECT CASE WHEN Status='Served' AND ServedAt IS NOT NULL AND ServedBy={winnerId} THEN 1 ELSE 0 END FROM dbo.OrderItems WHERE Id={itemId}",
+            "S3-08: the dish moves to Served, recorded under the staff member who succeeded");
+        await Check(connection, $"SELECT CASE WHEN COUNT(*)=1 THEN 1 ELSE 0 END FROM dbo.OrderItemEvents WHERE OrderItemId={itemId} AND ToStatus='Served'",
+            "S3-08: concurrent and repeated confirmations record exactly one served event");
+        Assert(await QueueItem(itemId) is null && !(await Html(waiter, "/Serving")).Contains($"data-serving-item=\"{itemId}\""),
+            "Serving queue: a served dish leaves the waiting list and is no longer highlighted");
 
         // 5. Thu ngân thanh toán và xem hoá đơn; Bếp không thanh toán được.
         var payPage = await Html(cashier, "/Cashier");
@@ -282,6 +361,14 @@ internal static class KitchenCashierVerification
         var client = new HttpClient(handler, disposeHandler: true) { BaseAddress = web.Client.BaseAddress, Timeout = TimeSpan.FromSeconds(30) };
         await Login(client, user, password);
         return client;
+    }
+
+    private static async Task<string> Text(string connection, string sql)
+    {
+        await using var cn = new SqlConnection(connection);
+        await cn.OpenAsync();
+        await using var cmd = new SqlCommand(sql, cn);
+        return Convert.ToString(await cmd.ExecuteScalarAsync()) ?? "";
     }
 
     private static bool Blocked(HttpResponseMessage response)

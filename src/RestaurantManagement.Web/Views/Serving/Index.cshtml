@@ -1,0 +1,88 @@
+@model RestaurantManagement.Web.Models.Serving.ServingQueueSnapshot
+@using RestaurantManagement.Web.Models.Serving
+@{
+    ViewData["Title"] = "Món chờ mang ra";
+}
+@* S3-08 Task 1: danh sách món đã xong chưa mang ra (mã bàn, tên món, giờ xong), thông báo món mới xong trong ≤ 5 giây, xác nhận "Đã mang ra"
+   chống trùng. S3-08 Task 2 (Mon-cho-mang-ra.md): món Bếp đã nấu xong, chưa mang ra. Sắp theo thời điểm hoàn thành; chờ quá 5 phút thì đánh dấu nổi bật.
+   Đồng hồ chờ chạy mỗi giây và cảnh báo bật ngay khi vượt 5 phút (không đổi thứ tự); danh sách tải lại mỗi 3 giây (serving-queue.js). *@
+<div class="container mt-4" data-screen="serving-queue"
+     data-queue-url="@Url.Action("Queue")" data-serve-url="@Url.Content("~/Serving/Serve/")"
+     data-refresh-ms="@ServingQueue.RefreshIntervalMs" data-overdue-ms="@ServingQueue.OverdueAfterMs">
+    <h2>Món chờ mang ra</h2>
+    <p class="text-muted">
+        Món đã nấu xong, đang chờ ở quầy. Món xong trước đứng trước; món chờ <strong>quá @ServingQueue.OverdueMinutes phút</strong>
+        được tô đỏ — ưu tiên mang ra trước để món không bị nguội. Thời gian chờ tính từ lúc Bếp bấm “Đã xong”. Giờ Việt Nam (UTC+7).
+    </p>
+    <p>
+        Đang chờ: <strong data-waiting-count>@Model.Items.Count</strong> món ·
+        Chờ quá @ServingQueue.OverdueMinutes phút: <strong class="text-danger" data-overdue-count>@Model.OverdueCount</strong> món
+    </p>
+
+    @* Thông báo món mới xong (mã bàn, tên món) — thêm bởi serving-queue.js khi lần tải lại có món mới. *@
+    <div id="serving-notices" class="serving-notices" aria-live="polite"></div>
+
+    <div id="serving-status" role="status" aria-live="polite"
+         class="alert @(TempData.Peek("Error") is string ? "alert-danger" : "alert-success")"
+         hidden="@(TempData.Peek("Success") is null && TempData.Peek("Error") is null)">@(TempData["Success"] ?? TempData["Error"])</div>
+
+    <p class="text-muted" data-serving-empty hidden="@(Model.Items.Count > 0)">Chưa có món nào chờ mang ra.</p>
+
+    <table class="table table-bordered align-middle serving-queue" data-serving-table hidden="@(Model.Items.Count == 0)">
+        <thead>
+            <tr><th>#</th><th>Bàn</th><th>Món</th><th>Số lượng</th><th>Ghi chú</th><th>Xong lúc</th><th>Đã chờ</th><th></th></tr>
+        </thead>
+        <tbody data-serving-rows>
+            @for (var index = 0; index < Model.Items.Count; index++)
+            {
+                var item = Model.Items[index];
+                <tr data-serving-item="@item.Id" data-ready-at-utc="@item.ReadyAtUtc.ToString("o")" data-wait-ms="@item.WaitMs"
+                    data-overdue="@(item.IsOverdue ? "true" : "false")" class="@(item.IsOverdue ? "table-danger serving-overdue" : null)">
+                    <td data-cell="position">@(index + 1)</td>
+                    <td class="fw-bold" data-cell="table">@item.TableCode</td>
+                    <td data-cell="name">@item.ItemName</td>
+                    <td data-cell="quantity">@item.Quantity @item.Unit</td>
+                    <td class="text-break" data-cell="notes">@item.Notes</td>
+                    <td data-cell="ready-at"><time datetime="@item.ReadyAtUtc.ToString("o")">@item.ReadyAtVietnam.ToString("HH:mm")</time></td>
+                    <td class="text-nowrap">
+                        <span class="serving-wait" data-wait>@item.WaitLabel</span>
+                        <span class="badge bg-danger ms-1" data-overdue-badge hidden="@(!item.IsOverdue)">Chờ quá @ServingQueue.OverdueMinutes phút</span>
+                    </td>
+                    <td class="text-end">
+                        <form asp-action="Serve" asp-route-id="@item.Id" method="post" class="d-inline" data-serve-form>
+                            <button type="submit" class="btn btn-sm btn-success text-nowrap">Đã mang ra</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    @* Mẫu dòng cho món mới xong được thêm khi trang tự cập nhật (giữ đúng cấu trúc dòng ở trên). *@
+    <template id="serving-row-template">
+        <tr data-serving-item="" data-ready-at-utc="" data-wait-ms="0" data-overdue="false">
+            <td data-cell="position"></td>
+            <td class="fw-bold" data-cell="table"></td>
+            <td data-cell="name"></td>
+            <td data-cell="quantity"></td>
+            <td class="text-break" data-cell="notes"></td>
+            <td data-cell="ready-at"><time></time></td>
+            <td class="text-nowrap">
+                <span class="serving-wait" data-wait></span>
+                <span class="badge bg-danger ms-1" data-overdue-badge hidden>Chờ quá @ServingQueue.OverdueMinutes phút</span>
+            </td>
+            <td class="text-end">
+                <form method="post" class="d-inline" data-serve-form>
+                    <button type="submit" class="btn btn-sm btn-success text-nowrap">Đã mang ra</button>
+                </form>
+            </td>
+        </tr>
+    </template>
+</div>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/serving-queue.css" asp-append-version="true" />
+}
+@section Scripts {
+    <script src="~/js/serving-queue.js" asp-append-version="true"></script>
+}

@@ -127,6 +127,11 @@ internal static class ApiAccessMatrix
         new("Page /Ordering/Checkout", FrontOfHouse, "POST", "/Ordering/Checkout"),
         new("Page /Orders/Details", FrontOfHouse, "GET", $"/Orders/Details/{Missing}"),
 
+        // ---- Món chờ mang ra: Phục vụ và Quản lý (quyền Orders.Serve), Bếp/Thu ngân không ----
+        new("Serving.Index GET", FrontOfHouse, "GET", "/Serving"),
+        new("Serving.Queue GET", FrontOfHouse, "GET", "/Serving/Queue"),
+        new("Serving.Serve POST", FrontOfHouse, "POST", $"/Serving/Serve/{Missing}"),
+
         // ---- Bếp (S1-04 Task 2) ----
         new("Kitchen.Index GET", KitchenReaders, "GET", "/Kitchen"),
         new("Kitchen.Advance POST", KitchenWorkers, "POST", $"/Kitchen/Advance/{Missing}"),

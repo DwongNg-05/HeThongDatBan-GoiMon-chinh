@@ -16,7 +16,7 @@ public sealed record SignedInStaff(string UserName, string FullName, string Role
 
 /// <summary>
 /// S1-04 Task 1/2: bảng ánh xạ vai trò → màn hình được thấy trên thanh điều hướng (một nguồn duy nhất cho _Layout và kiểm thử).
-/// Phục vụ chỉ thấy 3 mục (sơ đồ bàn, đặt bàn, gọi món); Bếp thấy 2 mục (màn hình bếp; món trong ngày — S2-08 Task 1 bật/tắt tạm hết); Thu ngân chỉ thấy 3 mục (thanh toán, hoá đơn, chốt ca).
+/// Phục vụ thấy 4 mục (sơ đồ bàn, đặt bàn, gọi món, món chờ mang ra); Bếp thấy 2 mục (màn hình bếp; món trong ngày — S2-08 Task 1 bật/tắt tạm hết); Thu ngân chỉ thấy 3 mục (thanh toán, hoá đơn, chốt ca).
 /// Thanh điều hướng chỉ là phần hiển thị: máy chủ vẫn chặn từng API theo vai trò ([Authorize], xem AppRoles và docs/S1-04-Task4.md).
 /// </summary>
 public static class RoleNavigation
@@ -34,6 +34,7 @@ public static class RoleNavigation
         new("dishes", "Quản lý món", "/Dishes", M),
         new("menu", "Thực đơn", "/Menu", M),
         new("ordering", "Gọi món", "/Ordering", M, W),
+        new("serving-queue", "Món chờ mang ra", "/Serving", M, W),
         new("kitchen-orders", "Màn hình bếp", "/Kitchen", M, K),
         new("daily-dishes", "Món trong ngày", "/Kitchen/Dishes", M, K),
         new("cashier-payments", "Thanh toán", "/Cashier", M, C),

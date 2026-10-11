@@ -1,0 +1,32 @@
+/* Món chờ mang ra (/Serving): món chờ quá 5 phút được tô nổi bật (Bootstrap table-danger + viền trái đỏ, đồng hồ đậm). */
+.serving-queue .serving-wait {
+    font-variant-numeric: tabular-nums;
+}
+
+.serving-queue tr.serving-overdue > td:first-child {
+    border-left: 4px solid #dc3545;
+}
+
+.serving-queue tr.serving-overdue .serving-wait {
+    color: #b02a37;
+    font-weight: 700;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .serving-queue tr.serving-overdue-new > td {
+        animation: serving-overdue-flash 1.2s ease-out 2;
+    }
+}
+
+@keyframes serving-overdue-flash {
+    from { background-color: #f1aeb5; }
+}
+
+/* S3-08 Task 1: món vừa xong — thông báo phía trên danh sách và dòng tô xanh nhạt trong 15 giây. */
+.serving-notices .serving-notice {
+    font-weight: 600;
+}
+
+.serving-queue tr.serving-new:not(.serving-overdue) > td {
+    background-color: #cff4fc;
+}
