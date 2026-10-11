@@ -2,8 +2,13 @@
 @{
     ViewData["Title"] = "Màn hình bếp";
 }
-<div class="container mt-4" data-screen="kitchen-orders">
-    <h2>Màn hình bếp</h2>
+<div id="kitchen-screen" class="container mt-4" data-screen="kitchen-orders">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <h2 class="mb-0">Màn hình bếp</h2>
+        <button id="kitchen-large-text-toggle" class="btn btn-outline-primary" type="button" aria-pressed="false">
+            Bật chữ lớn
+        </button>
+    </div>
     <p class="text-muted">Món đang chờ, đang nấu và đã xong của các bàn đang phục vụ. Giờ Việt Nam (UTC+7).
         Hết nguyên liệu? Báo <a asp-action="Dishes">tạm hết trong Món trong ngày</a>.</p>
     @if (TempData["Success"] is string success) { <div class="alert alert-success" role="status">@success</div> }
@@ -24,7 +29,21 @@
         (() => {
             const list = document.getElementById('kitchen-ticket-list');
             const updateStatus = document.getElementById('kitchen-update-status');
+            const screen = document.getElementById('kitchen-screen');
+            const largeTextToggle = document.getElementById('kitchen-large-text-toggle');
             if (!list) return;
+
+            const textModeKey = 'kitchen-large-text';
+            function setLargeText(enabled) {
+                screen.classList.toggle('kitchen-large-text', enabled);
+                largeTextToggle.setAttribute('aria-pressed', String(enabled));
+                largeTextToggle.textContent = enabled ? 'Tắt chữ lớn' : 'Bật chữ lớn';
+                try { sessionStorage.setItem(textModeKey, String(enabled)); } catch { /* Keep the mode for this page if storage is unavailable. */ }
+            }
+            let largeTextEnabled = false;
+            try { largeTextEnabled = sessionStorage.getItem(textModeKey) === 'true'; } catch { /* Use the standard readable mode. */ }
+            setLargeText(largeTextEnabled);
+            largeTextToggle.addEventListener('click', () => setLargeText(largeTextToggle.getAttribute('aria-pressed') !== 'true'));
 
             async function refreshQueue() {
                 try {

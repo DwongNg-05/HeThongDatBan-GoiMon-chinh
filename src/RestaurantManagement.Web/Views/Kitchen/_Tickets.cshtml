@@ -18,19 +18,19 @@ else
                         </span>
                     </header>
                     <div class="table-responsive">
-                        <table class="table table-bordered align-middle mb-0">
-                            <thead><tr><th>Món</th><th>Số lượng</th><th>Ghi chú</th><th>Trạng thái</th>@if (Model.CanChangeStatus) { <th></th> }</tr></thead>
+                        <table class="table table-bordered align-middle mb-0 kitchen-item-table">
+                            <thead><tr><th class="kitchen-col-name">Món</th><th class="kitchen-col-quantity">Số lượng</th><th class="kitchen-col-notes">Ghi chú</th><th class="kitchen-col-status">Trạng thái</th>@if (Model.CanChangeStatus) { <th class="kitchen-col-action"></th> }</tr></thead>
                             <tbody>
                                 @foreach (var item in ticket.Items)
                                 {
                                     <tr data-order-item="@item.Id" data-status="@item.Status">
-                                        <td>@item.ItemName <small class="text-muted">(~@item.EstimatedPrepMinutes phút)</small></td>
-                                        <td>@item.Quantity @item.Unit</td>
-                                        <td class="text-break">@(string.IsNullOrWhiteSpace(item.Notes) ? "—" : item.Notes)</td>
-                                        <td>@item.StatusLabel</td>
+                                        <td class="kitchen-col-name"><span class="kitchen-dish-name">@item.ItemName</span><small class="text-muted">(~@item.EstimatedPrepMinutes phút)</small></td>
+                                        <td class="kitchen-col-quantity">@item.Quantity @item.Unit</td>
+                                        <td class="kitchen-col-notes">@(string.IsNullOrWhiteSpace(item.Notes) ? "—" : item.Notes)</td>
+                                        <td class="kitchen-col-status">@item.StatusLabel</td>
                                         @if (Model.CanChangeStatus)
                                         {
-                                            <td>
+                                            <td class="kitchen-col-action">
                                                 @if (item.NextStatus is not null)
                                                 {
                                                     <form asp-action="Advance" asp-route-id="@item.Id" method="post" class="d-inline">
