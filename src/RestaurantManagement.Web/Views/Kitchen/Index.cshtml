@@ -19,6 +19,7 @@
     }
 
     <p class="text-muted">Mỗi phiếu là một đợt gọi món của bàn. Phiếu cũ được xếp trước; nếu trùng giờ, mã phiếu thấp hơn được xếp trước.</p>
+    <div id="kitchen-connection-alert" class="alert alert-danger" role="alert" hidden></div>
     <div id="kitchen-ticket-list" data-refresh-url="@Url.Action("Queue", "Kitchen")">
         <partial name="_Tickets" model="Model" />
     </div>
@@ -29,6 +30,7 @@
         (() => {
             const list = document.getElementById('kitchen-ticket-list');
             const updateStatus = document.getElementById('kitchen-update-status');
+            const connectionAlert = document.getElementById('kitchen-connection-alert');
             const screen = document.getElementById('kitchen-screen');
             const largeTextToggle = document.getElementById('kitchen-large-text-toggle');
             if (!list) return;
@@ -45,6 +47,32 @@
             setLargeText(largeTextEnabled);
             largeTextToggle.addEventListener('click', () => setLargeText(largeTextToggle.getAttribute('aria-pressed') !== 'true'));
 
+            let disconnected = false;
+            let lastSuccessfulSync = null;
+            let connectionMessageTimer = null;
+            function formatTime(timestamp) {
+                return new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(timestamp);
+            }
+            function showDisconnected() {
+                disconnected = true;
+                if (connectionMessageTimer) window.clearTimeout(connectionMessageTimer);
+                connectionAlert.className = 'alert alert-danger';
+                connectionAlert.textContent = `Mất kết nối. Các phiếu đang xem là dữ liệu đã nhận trước khi mất kết nối${lastSuccessfulSync ? ` (đồng bộ lần cuối lúc ${formatTime(lastSuccessfulSync)})` : ''}. Đang tự kết nối lại...`;
+                connectionAlert.hidden = false;
+            }
+            function showConnectedAgain() {
+                if (!disconnected) {
+                    connectionAlert.hidden = true;
+                    return;
+                }
+                disconnected = false;
+                connectionAlert.className = 'alert alert-success';
+                connectionAlert.textContent = `Kết nối đã khôi phục. Phiếu đã được đồng bộ lúc ${formatTime(lastSuccessfulSync)}.`;
+                connectionAlert.hidden = false;
+                if (connectionMessageTimer) window.clearTimeout(connectionMessageTimer);
+                connectionMessageTimer = window.setTimeout(() => { connectionAlert.hidden = true; }, 4000);
+            }
+
             async function refreshQueue() {
                 try {
                     const response = await fetch(list.dataset.refreshUrl, {
@@ -52,19 +80,22 @@
                         cache: 'no-store',
                         credentials: 'same-origin'
                     });
-                    if (response.ok) {
-                        const html = await response.text();
-                        const oldIds = new Set(Array.from(list.querySelectorAll('[data-kitchen-ticket]'), node => node.dataset.kitchenTicket));
-                        const parsed = new DOMParser().parseFromString(html, 'text/html');
-                        const newIds = Array.from(parsed.querySelectorAll('[data-kitchen-ticket]'), node => node.dataset.kitchenTicket);
-                        const arrivals = newIds.filter(id => !oldIds.has(id));
-                        list.innerHTML = html;
-                        if (arrivals.length) updateStatus.textContent = arrivals.length === 1
-                            ? 'Có phiếu gọi món mới trên màn hình bếp.'
-                            : `Có ${arrivals.length} phiếu gọi món mới trên màn hình bếp.`;
-                    }
+                    if (!response.ok) throw new Error('Kitchen queue request failed.');
+                    const html = await response.text();
+                    const oldIds = new Set(Array.from(list.querySelectorAll('[data-kitchen-ticket]'), node => node.dataset.kitchenTicket));
+                    const parsed = new DOMParser().parseFromString(html, 'text/html');
+                    if (!parsed.querySelector('[data-kitchen-queue-snapshot]')) throw new Error('Invalid kitchen queue snapshot.');
+                    const newIds = Array.from(parsed.querySelectorAll('[data-kitchen-ticket]'), node => node.dataset.kitchenTicket);
+                    const arrivals = newIds.filter(id => !oldIds.has(id));
+                    // Replace only after a valid snapshot arrives; stale ticket timestamps stay untouched while disconnected.
+                    list.innerHTML = html;
+                    lastSuccessfulSync = new Date();
+                    showConnectedAgain();
+                    if (arrivals.length) updateStatus.textContent = arrivals.length === 1
+                        ? 'Có phiếu gọi món mới trên màn hình bếp.'
+                        : `Có ${arrivals.length} phiếu gọi món mới trên màn hình bếp.`;
                 } catch {
-                    // A later polling pass retries; transient connection handling is out of scope for this story.
+                    showDisconnected();
                 } finally {
                     window.setTimeout(refreshQueue, 3000);
                 }

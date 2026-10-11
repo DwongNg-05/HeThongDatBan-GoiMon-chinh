@@ -31,6 +31,7 @@ if (args.Contains("--kitchen-only"))
 {
     KitchenTicketTests.Run(Check);
     KitchenReadabilityTests.Run(Check);
+    KitchenConnectionTests.Run(Check);
     await ApiAuthorizationCoverageTests.Run(Check);
     Console.WriteLine($"{count} kitchen tests passed.");
     return;

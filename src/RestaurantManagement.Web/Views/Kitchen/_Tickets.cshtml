@@ -1,4 +1,5 @@
 @model RestaurantManagement.Web.Models.Kitchen.KitchenScreenViewModel
+<div data-kitchen-queue-snapshot>
 @if (Model.Tickets.Count == 0)
 {
     <p class="text-muted">Chưa có món nào cần chế biến.</p>
@@ -50,3 +51,4 @@ else
         }
     </div>
 }
+</div>
