@@ -30,6 +30,7 @@ if (args.Contains("--category-image-only"))
 if (args.Contains("--kitchen-only"))
 {
     KitchenTicketTests.Run(Check);
+    await ApiAuthorizationCoverageTests.Run(Check);
     Console.WriteLine($"{count} kitchen tests passed.");
     return;
 }

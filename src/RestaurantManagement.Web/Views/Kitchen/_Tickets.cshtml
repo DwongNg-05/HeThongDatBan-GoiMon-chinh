@@ -1,0 +1,49 @@
+@model RestaurantManagement.Web.Models.Kitchen.KitchenScreenViewModel
+@if (Model.Tickets.Count == 0)
+{
+    <p class="text-muted">Chưa có món nào cần chế biến.</p>
+}
+else
+{
+    <div class="row g-3" data-kitchen-tickets>
+        @foreach (var ticket in Model.Tickets)
+        {
+            <section class="col-12" data-kitchen-ticket="@ticket.BatchId">
+                <article class="card">
+                    <header class="card-header d-flex flex-wrap justify-content-between gap-2">
+                        <strong>Bàn @ticket.TableCode · Đợt gọi @ticket.BatchNumber</strong>
+                        <span>@ticket.ReceivedAt.ToString("dd/MM/yyyy HH:mm:ss") · @ticket.StatusLabel</span>
+                    </header>
+                    <div class="table-responsive">
+                        <table class="table table-bordered align-middle mb-0">
+                            <thead><tr><th>Món</th><th>Số lượng</th><th>Ghi chú</th><th>Trạng thái</th>@if (Model.CanChangeStatus) { <th></th> }</tr></thead>
+                            <tbody>
+                                @foreach (var item in ticket.Items)
+                                {
+                                    <tr data-order-item="@item.Id" data-status="@item.Status">
+                                        <td>@item.ItemName <small class="text-muted">(~@item.EstimatedPrepMinutes phút)</small></td>
+                                        <td>@item.Quantity @item.Unit</td>
+                                        <td class="text-break">@(string.IsNullOrWhiteSpace(item.Notes) ? "—" : item.Notes)</td>
+                                        <td>@item.StatusLabel</td>
+                                        @if (Model.CanChangeStatus)
+                                        {
+                                            <td>
+                                                @if (item.NextStatus is not null)
+                                                {
+                                                    <form asp-action="Advance" asp-route-id="@item.Id" method="post" class="d-inline">
+                                                        <input type="hidden" name="toStatus" value="@item.NextStatus" />
+                                                        <button type="submit" class="btn btn-sm btn-primary">@item.NextLabel</button>
+                                                    </form>
+                                                }
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+            </section>
+        }
+    </div>
+}

@@ -26,6 +26,20 @@ public sealed class KitchenController(IConfiguration configuration) : Controller
     [Authorize(Roles = AppRoles.KitchenReaders)]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
+        return View(await GetScreen(User.IsInRole(AppRoles.Kitchen), cancellationToken));
+    }
+
+    /// <summary>Snapshot endpoint polled by the kitchen screen, so new orders appear without a page reload.</summary>
+    [HttpGet("Queue")]
+    [Authorize(Roles = AppRoles.KitchenReaders)]
+    public async Task<IActionResult> Queue(CancellationToken cancellationToken)
+    {
+        Response.Headers.CacheControl = "no-store, no-cache";
+        return PartialView("_Tickets", await GetScreen(User.IsInRole(AppRoles.Kitchen), cancellationToken));
+    }
+
+    private async Task<KitchenScreenViewModel> GetScreen(bool canChangeStatus, CancellationToken cancellationToken)
+    {
         var rows = new List<KitchenTicketRow>();
         await using var connection = new SqlConnection(ConnectionString);
         await using var command = new SqlCommand("""
@@ -45,7 +59,7 @@ public sealed class KitchenController(IConfiguration configuration) : Controller
                 new KitchenOrderItem(reader.GetInt64(4), reader.GetString(5), reader.GetString(6), reader.GetInt32(7),
                     reader.IsDBNull(8) ? null : reader.GetString(8), reader.GetString(9), reader.GetInt32(10))));
         var tickets = KitchenTicketOrdering.Group(rows);
-        return View(new KitchenScreenViewModel(tickets, User.IsInRole(AppRoles.Kitchen)));
+        return new KitchenScreenViewModel(tickets, canChangeStatus);
     }
 
     /// <summary>S2-08 Task 1: danh sách món trong ngày, mỗi món có nút bật/tắt "Tạm hết".</summary>
