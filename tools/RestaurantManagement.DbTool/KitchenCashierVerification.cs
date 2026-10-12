@@ -59,6 +59,58 @@ internal static class KitchenCashierVerification
             kitchenPage = await Html(kitchen, "/Kitchen");
         }
 
+        // S3-03 Task 3: ghi chú hiển thị ngay dưới tên món trên màn hình bếp, đủ 200 ký tự, tiếng Việt có dấu;
+        // hai dòng cùng món nhưng khác yêu cầu hiển thị riêng. Đơn gọi ở một bàn khác để không ảnh hưởng các bước sau.
+        var notedDishName = await Text(connection, $"SELECT Name FROM dbo.MenuItems WHERE Id={dishId}");
+        var kitchenNote200 = string.Concat(Enumerable.Repeat("Không hành, ít đường; ", 9)) + "!!";
+        Assert(kitchenNote200.Length == 200, "Kitchen notes: the long test note has exactly 200 characters");
+        var notesItemsJson = JsonSerializer.Serialize(new object[]
+        {
+            new { MenuItemId = dishId, Quantity = 1, Notes = "S303k thêm chanh", QuickNotes = "Ít cay, Không hành" },
+            new { MenuItemId = dishId, Quantity = 1, Notes = "S303k mang ra sau", QuickNotes = "Không mỡ" },
+            new { MenuItemId = dishId, Quantity = 1, Notes = kitchenNote200, QuickNotes = (string?)null }
+        }).Replace("'", "''");
+        await DatabaseTool.Execute(connection, $$"""
+            DECLARE @table int=(SELECT TOP(1) t.Id FROM dbo.DiningTables t JOIN dbo.Areas a ON a.Id=t.AreaId
+              WHERE t.IsActive=1 AND a.IsActive=1 AND t.Status='Available' AND t.MaxCapacity>=2
+               AND NOT EXISTS(SELECT 1 FROM dbo.SessionTables st WHERE st.TableId=t.Id AND st.ReleasedAt IS NULL) ORDER BY t.Id);
+            EXEC dbo.usp_OpenSession @TableId=@table,@GuestCount=2,@ActorUserId={{waiterId}};
+            DECLARE @session bigint=(SELECT MAX(Id) FROM dbo.DiningSessions);
+            DECLARE @request uniqueidentifier=NEWID();
+            EXEC dbo.usp_SubmitOrder @SessionId=@session,@RequestId=@request,@ItemsJson=N'{{notesItemsJson}}',@ActorUserId={{waiterId}};
+            """);
+        var notesSessionId = await Scalar(connection, "SELECT MAX(Id) FROM dbo.DiningSessions");
+        var notedIds = new List<long>();
+        foreach (var n in new[] { "S303k thêm chanh", "S303k mang ra sau" })
+            notedIds.Add(await Scalar(connection, $"SELECT i.Id FROM dbo.OrderItems i JOIN dbo.OrderBatches b ON b.Id=i.BatchId WHERE b.SessionId={notesSessionId} AND i.Notes=N'{n}'"));
+        notedIds.Add(await Scalar(connection, $"SELECT i.Id FROM dbo.OrderItems i JOIN dbo.OrderBatches b ON b.Id=i.BatchId WHERE b.SessionId={notesSessionId} AND LEN(i.Notes)=200"));
+        Assert(notedIds.Distinct().Count() == 3, "Kitchen notes: the three order lines of the same dish are stored as three rows");
+        var notesKitchenPage = await Html(kitchen, "/Kitchen");
+        string KitchenRow(long id) => Regex.Match(notesKitchenPage, $"<tr data-order-item=\"{id}\"[\\s\\S]*?</tr>").Value;
+        bool NoteUnderName(string row, string text)
+        {
+            var name = row.IndexOf($"data-kitchen-name>{notedDishName}</strong>", StringComparison.Ordinal);
+            var requests = row.IndexOf("data-kitchen-requests", StringComparison.Ordinal);
+            var note = row.IndexOf(text, StringComparison.Ordinal);
+            var nameCellEnd = name < 0 ? -1 : row.IndexOf("</td>", name, StringComparison.Ordinal);
+            return name >= 0 && requests > name && note > requests && note < nameCellEnd;
+        }
+        var row1 = KitchenRow(notedIds[0]);
+        var row2 = KitchenRow(notedIds[1]);
+        var row3 = KitchenRow(notedIds[2]);
+        Assert(NoteUnderName(row1, "S303k thêm chanh") && row1.Contains("<li data-kitchen-quick>Ít cay</li>") && row1.Contains("<li data-kitchen-quick>Không hành</li>")
+            && !row1.Contains("Không mỡ") && !row1.Contains("mang ra sau"),
+            "Kitchen notes: line 1 shows its own quick choices and note right under the dish name");
+        Assert(NoteUnderName(row2, "S303k mang ra sau") && row2.Contains("<li data-kitchen-quick>Không mỡ</li>")
+            && !row2.Contains("Ít cay") && !row2.Contains("thêm chanh"),
+            "Kitchen notes: line 2 of the same dish is a separate row with its own requests");
+        Assert(NoteUnderName(row3, kitchenNote200) && row3.Contains($"<span class=\"kitchen-note-label\">Ghi chú:</span> {kitchenNote200}</p>")
+            && !row3.Contains("data-kitchen-quick"),
+            "Kitchen notes: a 200-character Vietnamese note is shown in full (not cut) under the dish name");
+        var kitchenCss = await web.Client.GetStringAsync("/css/kitchen.css");
+        Assert(!kitchenCss.Contains("ellipsis") && !kitchenCss.Contains("line-clamp") && kitchenCss.Contains("overflow-wrap: anywhere"),
+            "Kitchen notes: the kitchen stylesheet wraps notes and never truncates them");
+
         // Ngoài phạm vi: Phục vụ (S1-04 Task 1: không còn xem màn hình bếp) và Thu ngân không chuyển được trạng thái chế biến.
         using (var waiterKitchenScreen = await waiter.GetAsync("/Kitchen"))
             Assert(Blocked(waiterKitchenScreen), "Waiter cannot open the kitchen screen (blocked by the server)");

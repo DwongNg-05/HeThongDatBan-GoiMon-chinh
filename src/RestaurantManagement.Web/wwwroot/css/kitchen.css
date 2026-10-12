@@ -1,0 +1,24 @@
+/* S3-03 Task 3: màn hình bếp — yêu cầu riêng của từng dòng món (lựa chọn nhanh + ghi chú) ngay dưới tên món.
+   Chữ to (px cố định vì trang đặt font gốc 14px), tương phản cao, ngắt dòng đầy đủ: không dùng ellipsis / line-clamp / chiều cao cố định, nên ghi chú 200 ký tự luôn hiện hết. */
+.kitchen-table td { vertical-align: top; }
+.kitchen-dish { min-width: 260px; }
+.kitchen-dish-name { display: block; font-size: 18px; line-height: 1.35; overflow-wrap: anywhere; }
+.kitchen-qty { white-space: nowrap; font-size: 17px; font-weight: 700; }
+
+.kitchen-requests {
+    margin-top: 8px; padding: 8px 12px; border-left: 4px solid #d97706; border-radius: 6px;
+    background: #fffbeb; color: #1f2937; overflow: visible;
+}
+.kitchen-quick { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 6px; padding: 0; list-style: none; }
+.kitchen-quick:last-child { margin-bottom: 0; }
+.kitchen-quick li { padding: 3px 12px; border-radius: 999px; background: #b3122e; color: #fff; font-size: 15px; font-weight: 700; line-height: 1.4; }
+.kitchen-note {
+    max-width: none; margin: 0; font-size: 17px; line-height: 1.5; font-weight: 500;
+    white-space: pre-wrap; overflow-wrap: anywhere; word-break: normal; text-overflow: clip; overflow: visible;
+}
+.kitchen-note-label { font-weight: 700; color: #92400e; }
+
+@media (max-width: 575.98px) {
+    .kitchen-dish { min-width: 220px; }
+    .kitchen-note { font-size: 16px; }
+}

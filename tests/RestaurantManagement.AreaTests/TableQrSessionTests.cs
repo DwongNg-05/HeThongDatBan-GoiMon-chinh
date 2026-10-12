@@ -203,6 +203,19 @@ static class TableQrSessionTests
         var quickItem = new GuestOrderedItem(3, DateTime.UtcNow, "Gỏi cuốn", "Phần", 40000, 1, "thêm chanh", "Pending", true, OrderSource.ThisPhone, "Ít cay, Không hành");
         check(quickItem.QuickNotes == "Ít cay, Không hành" && quickItem.Notes == "thêm chanh",
             "Quick notes: an ordered line keeps its quick choices next to its free note");
+
+        // S3-03 Task 3: màn hình bếp đọc lựa chọn nhanh + ghi chú đã lưu trên từng dòng đơn.
+        var note200 = new string('ệ', 192) + " ít cay!";
+        var kitchenLine = new RestaurantManagement.Web.Models.Kitchen.KitchenOrderItem(7, "A05", "Gỏi cuốn", "Phần", 1, note200, "Pending",
+            DateTime.Now, 10, "Ít cay, Không hành");
+        check(kitchenLine.QuickNoteLabels.SequenceEqual(new[] { "Ít cay", "Không hành" }) && kitchenLine.FreeNote == note200 && kitchenLine.HasRequests,
+            "Kitchen notes: a kitchen line shows each quick choice and the full 200-character Vietnamese note (nothing cut)");
+        var plainLine = new RestaurantManagement.Web.Models.Kitchen.KitchenOrderItem(8, "A05", "Gỏi cuốn", "Phần", 1, "  ", "Pending", DateTime.Now, 10);
+        check(!plainLine.HasRequests && plainLine.QuickNoteLabels.Count == 0 && plainLine.FreeNote is null,
+            "Kitchen notes: a line without requests shows no note box");
+        var quickOnly = new RestaurantManagement.Web.Models.Kitchen.KitchenOrderItem(9, "A05", "Gỏi cuốn", "Phần", 1, null, "Pending", DateTime.Now, 10, "Không mỡ");
+        check(quickOnly.HasRequests && quickOnly.FreeNote is null && quickOnly.QuickNoteLabels.SequenceEqual(new[] { "Không mỡ" }),
+            "Kitchen notes: a line with only quick choices still shows them");
         check(orderedView.OrderedTotal == 80000 && orderedView.OrderedItems[0].StatusLabel == "Chờ bếp nhận"
             && orderedView.OrderedItems[1].StatusLabel == "Đã huỷ" && orderedView.OrderedBatches.Count() == 1,
             "QR order: the ordered list totals charged dishes and labels kitchen statuses");

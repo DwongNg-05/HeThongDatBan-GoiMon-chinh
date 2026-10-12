@@ -14,6 +14,7 @@ namespace RestaurantManagement.Web.Controllers;
 /// S1-04 Task 2: phần việc của Bếp — màn hình bếp. Quyền kiểm tra ở máy chủ: xem Quản lý/Bếp;
 /// chuyển trạng thái chế biến (Kitchen.Manage) chỉ Bếp. Thủ tục SQL kiểm tra lại lần nữa.
 /// S2-08 Task 1: danh sách món trong ngày (/Kitchen/Dishes) — Bếp và Quản lý bật/tắt "Tạm hết" bằng một chạm.
+/// S3-03 Task 3: mỗi dòng món kèm lựa chọn nhanh (OrderItems.QuickNotes) và ghi chú (OrderItems.Notes) đã lưu trên đơn.
 /// ("Báo hết" trong ngày ở Quản lý món /Dishes vẫn chỉ Quản lý.)
 /// </summary>
 [Route("Kitchen")]
@@ -29,7 +30,7 @@ public sealed class KitchenController(IConfiguration configuration) : Controller
         var items = new List<KitchenOrderItem>();
         await using var connection = new SqlConnection(ConnectionString);
         await using var command = new SqlCommand("""
-            SELECT i.Id,t.Code AS TableCode,i.ItemName,i.Unit,i.Quantity,i.Notes,i.Status,i.SubmittedAt,i.EstimatedPrepMinutes
+            SELECT i.Id,t.Code AS TableCode,i.ItemName,i.Unit,i.Quantity,i.Notes,i.Status,i.SubmittedAt,i.EstimatedPrepMinutes,i.QuickNotes
             FROM dbo.OrderItems i
             JOIN dbo.OrderBatches b ON b.Id=i.BatchId
             JOIN dbo.DiningSessions s ON s.Id=b.SessionId
@@ -42,7 +43,8 @@ public sealed class KitchenController(IConfiguration configuration) : Controller
         while (await reader.ReadAsync(cancellationToken))
             items.Add(new KitchenOrderItem(
                 reader.GetInt64(0), reader.GetString(1), reader.GetString(2), reader.GetString(3), reader.GetInt32(4),
-                reader.IsDBNull(5) ? null : reader.GetString(5), reader.GetString(6), VietnamTime.FromUtc(reader.GetDateTime(7)), reader.GetInt32(8)));
+                reader.IsDBNull(5) ? null : reader.GetString(5), reader.GetString(6), VietnamTime.FromUtc(reader.GetDateTime(7)), reader.GetInt32(8),
+                reader.IsDBNull(9) ? null : reader.GetString(9)));
         return View(new KitchenScreenViewModel(items, User.IsInRole(AppRoles.Kitchen)));
     }
 

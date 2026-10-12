@@ -2,6 +2,9 @@
 @{
     ViewData["Title"] = "Màn hình bếp";
 }
+@section Styles {
+    <link rel="stylesheet" href="~/css/kitchen.css" asp-append-version="true" />
+}
 <div class="container mt-4" data-screen="kitchen-orders">
     <h2>Màn hình bếp</h2>
     <p class="text-muted">Món đang chờ, đang nấu và đã xong của các bàn đang phục vụ. Giờ Việt Nam (UTC+7).
@@ -19,18 +22,40 @@
     }
     else
     {
-        <table class="table table-bordered align-middle">
+        @* S3-03 Task 3: yêu cầu riêng (lựa chọn nhanh + ghi chú) nằm ngay dưới tên món, chữ to, ngắt dòng đầy đủ — không cắt chữ.
+           Mỗi dòng đơn là một dòng ở đây: hai dòng cùng món nhưng khác ghi chú không bị gộp. *@
+        <div class="table-responsive kitchen-orders">
+        <table class="table table-bordered align-middle kitchen-table">
             <thead>
-                <tr><th>Bàn</th><th>Món</th><th>Số lượng</th><th>Ghi chú</th><th>Gửi lúc</th><th>Trạng thái</th>@if (Model.CanChangeStatus) { <th></th> }</tr>
+                <tr><th>Bàn</th><th>Món &amp; yêu cầu riêng</th><th>Số lượng</th><th>Gửi lúc</th><th>Trạng thái</th>@if (Model.CanChangeStatus) { <th></th> }</tr>
             </thead>
             <tbody>
                 @foreach (var item in Model.Items)
                 {
                     <tr data-order-item="@item.Id" data-status="@item.Status">
                         <td class="fw-bold">@item.TableCode</td>
-                        <td>@item.ItemName</td>
-                        <td>@item.Quantity @item.Unit</td>
-                        <td class="text-break">@item.Notes</td>
+                        <td class="kitchen-dish">
+                            <strong class="kitchen-dish-name" data-kitchen-name>@item.ItemName</strong>
+                            @if (item.HasRequests)
+                            {
+                                <div class="kitchen-requests" data-kitchen-requests>
+                                    @if (item.QuickNoteLabels.Count > 0)
+                                    {
+                                        <ul class="kitchen-quick" aria-label="Lựa chọn nhanh">
+                                            @foreach (var quick in item.QuickNoteLabels)
+                                            {
+                                                <li data-kitchen-quick>@quick</li>
+                                            }
+                                        </ul>
+                                    }
+                                    @if (item.FreeNote is not null)
+                                    {
+                                        <p class="kitchen-note" data-kitchen-note><span class="kitchen-note-label">Ghi chú:</span> @item.FreeNote</p>
+                                    }
+                                </div>
+                            }
+                        </td>
+                        <td class="kitchen-qty">@item.Quantity @item.Unit</td>
                         <td>@item.SubmittedAt.ToString("HH:mm") <small class="text-muted">(~@item.EstimatedPrepMinutes phút)</small></td>
                         <td>@item.StatusLabel</td>
                         @if (Model.CanChangeStatus)
@@ -49,5 +74,6 @@
                 }
             </tbody>
         </table>
+        </div>
     }
 </div>

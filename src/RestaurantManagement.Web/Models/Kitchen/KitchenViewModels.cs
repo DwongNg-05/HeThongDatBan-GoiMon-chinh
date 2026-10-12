@@ -1,9 +1,24 @@
 namespace RestaurantManagement.Web.Models.Kitchen;
 
-/// <summary>Một món trên màn hình bếp (dbo.OrderItems của phiên chưa đóng).</summary>
+/// <summary>
+/// Một món trên màn hình bếp (dbo.OrderItems của phiên chưa đóng). Mỗi dòng đơn là một dòng bếp: hai dòng cùng món
+/// nhưng khác ghi chú hiển thị riêng. S3-03 Task 3: <paramref name="QuickNotes"/> là lựa chọn nhanh đã lưu
+/// (dbo.OrderItems.QuickNotes, ví dụ "Ít cay, Không hành"), hiển thị cùng ghi chú tự do ngay dưới tên món.
+/// </summary>
 public sealed record KitchenOrderItem(long Id, string TableCode, string ItemName, string Unit, int Quantity, string? Notes,
-    string Status, DateTime SubmittedAt, int EstimatedPrepMinutes)
+    string Status, DateTime SubmittedAt, int EstimatedPrepMinutes, string? QuickNotes = null)
 {
+    /// <summary>Các lựa chọn nhanh, mỗi lựa chọn một nhãn riêng ("Ít cay", "Không hành"…).</summary>
+    public IReadOnlyList<string> QuickNoteLabels => string.IsNullOrWhiteSpace(QuickNotes)
+        ? Array.Empty<string>()
+        : QuickNotes.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+
+    /// <summary>Ghi chú tự do đầy đủ (không cắt), hoặc null.</summary>
+    public string? FreeNote => string.IsNullOrWhiteSpace(Notes) ? null : Notes.Trim();
+
+    /// <summary>Dòng có yêu cầu riêng của khách (lựa chọn nhanh hoặc ghi chú) cần bếp đọc.</summary>
+    public bool HasRequests => QuickNoteLabels.Count > 0 || FreeNote is not null;
+
     public string StatusLabel => Status switch
     {
         "Pending" => "Chờ nấu",
