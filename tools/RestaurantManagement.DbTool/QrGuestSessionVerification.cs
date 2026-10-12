@@ -187,6 +187,38 @@ internal static class QrGuestSessionVerification
         await Check(connection, $"SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM dbo.OrderBatches WHERE RequestId='{tooLongRequest}') THEN 1 ELSE 0 END",
             "Order notes: an order with a 201-character note is not saved");
 
+        // S3-03 Task 2: lựa chọn ghi chú nhanh lưu ở dbo.OrderItems.QuickNotes, đi cùng ghi chú tự do của đúng dòng đó.
+        var quickPage = await Html(phone, "/TableOrder");
+        Assert(quickPage.Contains("data-quick-notes=") && quickPage.Contains("\"Code\":\"it-cay\"") && quickPage.Contains("\"Code\":\"khong-mo\""),
+            "Quick notes: the ordering page sends the quick choices to the cart");
+        var quickRequest = RequestIdOf(quickPage);
+        var quickCart = System.Text.Json.JsonSerializer.Serialize(new object[]
+        {
+            new { dishId = orderDish, quantity = 1, notes = (string?)"S303b thêm chanh", quickNotes = new[] { "khong-hanh", "it-cay" } },
+            new { dishId = orderDish, quantity = 1, notes = (string?)"S303b mang ra sau", quickNotes = new[] { "khong-mo" } },
+            new { dishId = orderDish, quantity = 1, notes = (string?)null, quickNotes = new[] { "khong-hanh" } },
+            new { dishId = orderDish, quantity = 1, notes = (string?)"S303b không chọn nhanh", quickNotes = Array.Empty<string>() }
+        });
+        using (var placed = await phone.PostAsync("/TableOrder/Submit", Form(("__RequestVerificationToken", Token(quickPage)), ("requestId", quickRequest), ("cartJson", quickCart))))
+            Assert(placed.StatusCode == HttpStatusCode.Redirect && Location(placed) == "/TableOrder#da-dat", "Quick notes: an order with quick choices is accepted");
+        await Check(connection, $"""
+            SELECT CASE WHEN (SELECT STRING_AGG(CONCAT(COALESCE(i.QuickNotes, N'<null>'), N'/', COALESCE(i.Notes, N'<null>')), N'|') WITHIN GROUP (ORDER BY i.Id)
+                              FROM dbo.OrderItems i JOIN dbo.OrderBatches b ON b.Id=i.BatchId WHERE b.RequestId='{quickRequest}')
+                    = N'Ít cay, Không hành/S303b thêm chanh|Không mỡ/S303b mang ra sau|Không hành/<null>|<null>/S303b không chọn nhanh'
+                AND NOT EXISTS(SELECT 1 FROM dbo.OrderItems i JOIN dbo.OrderBatches b ON b.Id=i.BatchId WHERE b.RequestId='{notesRequest}' AND i.QuickNotes IS NOT NULL)
+            THEN 1 ELSE 0 END
+            """, "Quick notes: each line stores its own quick choices (display order, no duplicates) next to its own free note; older lines have none");
+        var quickOrdered = await Html(phone, "/TableOrder");
+        Assert(quickOrdered.Contains("<span class=\"table-order-item-quick\">Ít cay, Không hành</span>") && quickOrdered.Contains("<span class=\"table-order-item-quick\">Không mỡ</span>")
+            && quickOrdered.Contains("Ghi chú: S303b thêm chanh") && quickOrdered.Contains("Ghi chú: S303b mang ra sau"),
+            "Quick notes: after ordering, the ordered list shows each line's quick choices and free note");
+        var badQuickRequest = RequestIdOf(quickOrdered);
+        var badQuickCart = System.Text.Json.JsonSerializer.Serialize(new object[] { new { dishId = orderDish, quantity = 1, quickNotes = new[] { "them-ot" } } });
+        using (var rejected = await phone.PostAsync("/TableOrder/Submit", Form(("__RequestVerificationToken", Token(quickOrdered)), ("requestId", badQuickRequest), ("cartJson", badQuickCart))))
+            Assert(rejected.StatusCode == HttpStatusCode.Redirect && Location(rejected) == "/TableOrder#gio-mon", "Quick notes: an unknown quick choice sends the guest back to the cart");
+        await Check(connection, $"SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM dbo.OrderBatches WHERE RequestId='{badQuickRequest}') THEN 1 ELSE 0 END",
+            "Quick notes: an order with an unknown quick choice is not saved");
+
         // 2. Quét lại trên cùng điện thoại: vào lại đúng phiên, không ghi thêm gì.
         var rescan = await Html(phone, $"/q/{token}");
         using (var again = await Start(phone, token, rescan))

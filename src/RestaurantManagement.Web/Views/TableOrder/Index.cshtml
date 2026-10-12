@@ -95,13 +95,15 @@
     <aside class="table-order-side" aria-label="Giỏ món và món đã đặt">
     @* Giỏ món: lưu tạm trên điện thoại (sessionStorage) tới khi bấm "Đặt món". Máy chủ kiểm tra lại món, giá và số lượng.
        S3-03 Task 1: mỗi dòng có ô ghi chú riêng (tối đa @GuestOrderNotes.MaxLength ký tự); "Đặt món" mở bước xác nhận
-       liệt kê món + ghi chú, khách bấm "Xác nhận gửi bếp" mới gửi. *@
+       liệt kê món + ghi chú, khách bấm "Xác nhận gửi bếp" mới gửi.
+       S3-03 Task 2: mỗi dòng có thêm nút lựa chọn nhanh (data-quick-notes = GuestOrderNotes.QuickOptions). *@
     <section id="gio-mon" class="table-order-cart" aria-labelledby="gio-mon-title"
-             data-cart-key="table-order-cart-@Model.Table.SessionId" data-clear-cart="@(Model.SuccessMessage is not null ? "true" : "false")">
+             data-cart-key="table-order-cart-@Model.Table.SessionId" data-clear-cart="@(Model.SuccessMessage is not null ? "true" : "false")"
+             data-quick-notes="@(System.Text.Json.JsonSerializer.Serialize(GuestOrderNotes.QuickOptions))">
         <h2 id="gio-mon-title">Món đang chọn <span class="table-order-tag is-draft">Chưa gửi bếp</span></h2>
         <p class="table-order-empty" data-cart-empty>Chưa chọn món nào. Bấm “+ Thêm vào giỏ” ở món bạn muốn gọi.</p>
         <div data-cart-editor>
-            <p class="table-order-hint">Mỗi dòng có ghi chú riêng (tối đa @GuestOrderNotes.MaxLength ký tự). Cùng một món nhưng muốn ghi chú khác, bấm “+ Dòng ghi chú khác”.</p>
+            <p class="table-order-hint">Mỗi dòng có lựa chọn nhanh (@(string.Join(", ", GuestOrderNotes.QuickOptions.Select(o => o.Label)))) và ghi chú riêng (tối đa @GuestOrderNotes.MaxLength ký tự). Cùng một món nhưng muốn ghi chú khác, bấm “+ Dòng ghi chú khác”.</p>
             <ul class="table-order-cart-list table-order-scroll" data-cart-list></ul>
         </div>
         <div class="table-order-review" data-cart-review hidden>
@@ -142,6 +144,10 @@
                             <li class="table-order-ordered-item" data-ordered-status="@item.Status">
                                 <div>
                                     <strong>@item.Quantity × @item.Name</strong>
+                                    @if (!string.IsNullOrEmpty(item.QuickNotes))
+                                    {
+                                        <span class="table-order-item-quick">@item.QuickNotes</span>
+                                    }
                                     @if (!string.IsNullOrEmpty(item.Notes))
                                     {
                                         <span class="table-order-item-note">Ghi chú: @item.Notes</span>

@@ -3,10 +3,18 @@
 // Máy chủ (usp_SubmitOrder) kiểm tra lại món, giá, số lượng; giá ở đây chỉ để khách xem tạm tính.
 // S3-03 Task 1: mỗi dòng món có ô ghi chú riêng (tối đa 200 ký tự). Hai dòng cùng món nhưng khác ghi chú là hai dòng
 // riêng, không gộp số lượng. Bấm "Đặt món" mở bước xác nhận liệt kê món + ghi chú; khách bấm "Xác nhận gửi bếp" mới gửi.
+// S3-03 Task 2: mỗi dòng có thêm các nút lựa chọn nhanh ("Ít cay", "Không hành", "Không mỡ"), chọn được nhiều nút; lựa chọn
+// nhanh đi kèm ghi chú tự do của CHÍNH dòng đó và được gửi riêng (quickNotes) để không chiếm 200 ký tự của ghi chú tự do.
 (function (global) {
     'use strict';
 
     var MAX_QTY = 99, MAX_NOTES = 200, MAX_LINES = 100;
+    // Danh sách mặc định; trang thật lấy từ data-quick-notes (GuestOrderNotes.QuickOptions ở máy chủ).
+    var quickOptions = [
+        { code: 'it-cay', label: 'Ít cay' },
+        { code: 'khong-hanh', label: 'Không hành' },
+        { code: 'khong-mo', label: 'Không mỡ' }
+    ];
 
     // ---- Logic giỏ món (không phụ thuộc DOM; tools/tests/table-order-notes.test.cjs kiểm thử trực tiếp) ----
     var Cart = {
@@ -34,7 +42,43 @@
             return value === '' ? null : value;
         },
 
-        hasNote: function (line) { return Cart.noteForSubmit(line && line.notes) !== null; },
+        /** Danh sách lựa chọn nhanh [{code, label}] theo thứ tự hiển thị. */
+        quickOptions: function () { return quickOptions.slice(); },
+
+        /** Đặt danh sách lựa chọn nhanh (từ máy chủ). Bỏ qua dữ liệu hỏng, giữ danh sách mặc định. */
+        setQuickOptions: function (options) {
+            if (!Array.isArray(options)) return;
+            var clean = options.map(function (o) {
+                return o && { code: String(o.code || o.Code || ''), label: String(o.label || o.Label || '') };
+            }).filter(function (o) { return o && o.code && o.label; });
+            if (clean.length > 0) quickOptions = clean;
+        },
+
+        /** Lựa chọn nhanh hợp lệ của một dòng: chỉ mã có trong danh sách, không trùng, theo thứ tự hiển thị. */
+        cleanQuick: function (codes) {
+            var chosen = Array.isArray(codes) ? codes.map(String) : [];
+            return quickOptions.filter(function (o) { return chosen.indexOf(o.code) >= 0; }).map(function (o) { return o.code; });
+        },
+
+        /** Bật/tắt một lựa chọn nhanh trên một dòng; trả về true nếu sau đó đang được chọn. */
+        toggleQuick: function (line, code) {
+            if (!line || !quickOptions.some(function (o) { return o.code === code; })) return false;
+            var current = Cart.cleanQuick(line.quick);
+            var on = current.indexOf(code) < 0;
+            line.quick = Cart.cleanQuick(on ? current.concat([code]) : current.filter(function (c) { return c !== code; }));
+            return on;
+        },
+
+        /** Nhãn các lựa chọn nhanh đã chọn của dòng, ví dụ ["Ít cay", "Không hành"]. */
+        quickLabels: function (line) {
+            var chosen = Cart.cleanQuick(line && line.quick);
+            return quickOptions.filter(function (o) { return chosen.indexOf(o.code) >= 0; }).map(function (o) { return o.label; });
+        },
+
+        /** Dòng đã có yêu cầu riêng (ghi chú tự do hoặc lựa chọn nhanh) thì không được cộng dồn phần mới vào. */
+        hasNote: function (line) {
+            return Cart.noteForSubmit(line && line.notes) !== null || Cart.cleanQuick(line && line.quick).length > 0;
+        },
 
         /**
          * "+ Thêm vào giỏ": cộng vào dòng cùng món CHƯA có ghi chú; nếu mọi dòng của món đã có ghi chú thì thêm dòng mới
@@ -48,7 +92,7 @@
                 }
             }
             if (cart.length >= MAX_LINES) return -1;
-            cart.push({ dishId: dish.dishId, name: dish.name, price: dish.price, quantity: 1, notes: '' });
+            cart.push({ dishId: dish.dishId, name: dish.name, price: dish.price, quantity: 1, notes: '', quick: [] });
             return cart.length - 1;
         },
 
@@ -56,7 +100,7 @@
         addSeparateLine: function (cart, index) {
             var line = cart[index];
             if (!line || cart.length >= MAX_LINES) return -1;
-            cart.splice(index + 1, 0, { dishId: line.dishId, name: line.name, price: line.price, quantity: 1, notes: '' });
+            cart.splice(index + 1, 0, { dishId: line.dishId, name: line.name, price: line.price, quantity: 1, notes: '', quick: [] });
             return index + 1;
         },
 
@@ -72,7 +116,9 @@
 
         /** Giỏ gửi máy chủ: giữ nguyên từng dòng và thứ tự — không gộp hai dòng cùng món. */
         payload: function (cart) {
-            return cart.map(function (l) { return { dishId: l.dishId, quantity: l.quantity, notes: Cart.noteForSubmit(l.notes) }; });
+            return cart.map(function (l) {
+                return { dishId: l.dishId, quantity: l.quantity, notes: Cart.noteForSubmit(l.notes), quickNotes: Cart.cleanQuick(l.quick) };
+            });
         },
 
         /** Đọc lại giỏ đã lưu: bỏ dòng hỏng, ghi chú cũ quá dài được cắt về 200 ký tự. */
@@ -83,7 +129,8 @@
             }).slice(0, MAX_LINES).map(function (l) {
                 return {
                     dishId: l.dishId, name: String(l.name || ''), price: Number(l.price) || 0,
-                    quantity: Math.min(MAX_QTY, Math.floor(l.quantity)), notes: Cart.cleanNoteInput(l.notes).value
+                    quantity: Math.min(MAX_QTY, Math.floor(l.quantity)), notes: Cart.cleanNoteInput(l.notes).value,
+                    quick: Cart.cleanQuick(l.quick)
                 };
             });
         }
@@ -96,6 +143,7 @@
     if (!cartSection) return;
 
     var key = cartSection.getAttribute('data-cart-key');
+    try { Cart.setQuickOptions(JSON.parse(cartSection.getAttribute('data-quick-notes') || 'null')); } catch (e) { /* giữ mặc định */ }
     var editor = cartSection.querySelector('[data-cart-editor]');
     var list = cartSection.querySelector('[data-cart-list]');
     var empty = cartSection.querySelector('[data-cart-empty]');
@@ -141,7 +189,7 @@
         label.setAttribute('for', id);
         var input = el('input', 'table-order-note-input');
         input.type = 'text'; input.id = id; input.maxLength = MAX_NOTES; input.autocomplete = 'off';
-        input.placeholder = 'Ghi chú (ví dụ: ít cay, không hành)';
+        input.placeholder = 'Ghi chú thêm (ví dụ: thêm chanh, mang ra sau)';
         input.value = line.notes || '';
         input.setAttribute('data-cart-note', String(index));
         var counter = el('span', 'table-order-note-count', counterText(input.value.length));
@@ -167,8 +215,34 @@
         }
         input.addEventListener('input', function (event) { if (!event || !event.isComposing) apply(); });
         input.addEventListener('compositionend', apply);
+        wrap.appendChild(quickGroup(line, index));
         wrap.appendChild(label); wrap.appendChild(input); wrap.appendChild(counter); wrap.appendChild(warning);
         return wrap;
+    }
+
+    // S3-03 Task 2: các nút lựa chọn nhanh của MỘT dòng (bật/tắt, chọn được nhiều nút). Chỉ đổi line.quick của dòng này.
+    function quickGroup(line, index) {
+        var group = el('div', 'table-order-quick');
+        group.setAttribute('role', 'group');
+        group.setAttribute('aria-label', 'Lựa chọn nhanh cho ' + line.name + ' (dòng ' + (index + 1) + ')');
+        group.setAttribute('data-cart-quick', String(index));
+        var chosen = Cart.cleanQuick(line.quick);
+        Cart.quickOptions().forEach(function (option) {
+            var button = el('button', 'table-order-quick-option', option.label);
+            button.type = 'button';
+            button.setAttribute('data-quick-code', option.code);
+            var on = chosen.indexOf(option.code) >= 0;
+            button.setAttribute('aria-pressed', on ? 'true' : 'false');
+            button.classList.toggle('is-on', on);
+            button.addEventListener('click', function () {
+                var nowOn = Cart.toggleQuick(line, option.code);
+                button.setAttribute('aria-pressed', nowOn ? 'true' : 'false');
+                button.classList.toggle('is-on', nowOn);
+                save();
+            });
+            group.appendChild(button);
+        });
+        return group;
     }
 
     function renderEditor() {
@@ -220,10 +294,19 @@
             var head = el('div', 'table-order-cart-head');
             head.appendChild(el('strong', null, line.quantity + ' × ' + line.name));
             head.appendChild(el('span', null, money(line.price * line.quantity)));
+            li.appendChild(head);
+            var quick = Cart.quickLabels(line);
+            if (quick.length > 0) {
+                var quickEl = el('span', 'table-order-item-quick', quick.join(' · '));
+                quickEl.setAttribute('data-review-quick', '');
+                li.appendChild(quickEl);
+            }
             var note = Cart.noteForSubmit(line.notes);
-            var noteEl = el('span', note ? 'table-order-item-note' : 'table-order-item-note is-empty', note ? 'Ghi chú: ' + note : 'Không có ghi chú');
-            noteEl.setAttribute('data-review-note', '');
-            li.appendChild(head); li.appendChild(noteEl);
+            if (note || quick.length === 0) {
+                var noteEl = el('span', note ? 'table-order-item-note' : 'table-order-item-note is-empty', note ? 'Ghi chú: ' + note : 'Không có ghi chú');
+                noteEl.setAttribute('data-review-note', '');
+                li.appendChild(noteEl);
+            }
             reviewList.appendChild(li);
         });
     }

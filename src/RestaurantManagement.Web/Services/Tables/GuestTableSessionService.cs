@@ -63,7 +63,14 @@ public sealed record GuestEndedSession(string TableCode, DateTime ClosedAtUtc);
 /// Một dòng khách chọn trong giỏ (trang /TableOrder). S3-03 Task 1: mỗi dòng có ghi chú riêng; hai dòng cùng món
 /// nhưng khác ghi chú là hai dòng độc lập, lưu thành hai dòng dbo.OrderItems, không gộp số lượng.
 /// </summary>
-public sealed record GuestCartLine(int DishId, int Quantity, string? Notes);
+/// <remarks>
+/// S3-03 Task 2: <paramref name="QuickNotes"/> là các lựa chọn nhanh khách bấm cho dòng đó (mã "it-cay", "khong-hanh", "khong-mo"
+/// hoặc nhãn "Ít cay"…); sau <see cref="GuestTableSessionService.PrepareCart"/> là nhãn theo thứ tự chuẩn, null khi không chọn.
+/// </remarks>
+public sealed record GuestCartLine(int DishId, int Quantity, string? Notes, IReadOnlyList<string>? QuickNotes = null);
+
+/// <summary>S3-03 Task 2: một lựa chọn ghi chú nhanh (mã gửi từ trình duyệt và nhãn lưu trên đơn).</summary>
+public sealed record GuestQuickNote(string Code, string Label);
 
 /// <summary>Kết quả kiểm tra giỏ trước khi gửi bếp: giỏ đã chuẩn hoá, hoặc thông báo lỗi cho khách.</summary>
 public sealed record GuestCartCheck(IReadOnlyList<GuestCartLine>? Lines, string? Error)
@@ -79,6 +86,42 @@ public sealed record GuestCartCheck(IReadOnlyList<GuestCartLine>? Lines, string?
 public static class GuestOrderNotes
 {
     public const int MaxLength = 200;
+
+    /// <summary>S3-03 Task 2: độ dài tối đa của chuỗi lựa chọn nhanh đã ghép (cột dbo.OrderItems.QuickNotes nvarchar(100)).</summary>
+    public const int MaxQuickNotesLength = 100;
+
+    /// <summary>S3-03 Task 2: các lựa chọn nhanh, theo thứ tự hiển thị và thứ tự lưu.</summary>
+    public static readonly IReadOnlyList<GuestQuickNote> QuickOptions =
+    [
+        new("it-cay", "Ít cay"),
+        new("khong-hanh", "Không hành"),
+        new("khong-mo", "Không mỡ")
+    ];
+
+    /// <summary>
+    /// Chuẩn hoá lựa chọn nhanh của một dòng: nhận mã hoặc nhãn (không phân biệt hoa thường), bỏ trùng, xếp theo thứ tự
+    /// <see cref="QuickOptions"/>; không chọn gì → null. Ném <see cref="ArgumentException"/> khi có lựa chọn không có trong danh sách.
+    /// </summary>
+    public static IReadOnlyList<string>? NormalizeQuickNotes(IReadOnlyList<string>? quickNotes)
+    {
+        if (quickNotes is null || quickNotes.Count == 0) return null;
+        var chosen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var raw in quickNotes)
+        {
+            var value = (raw ?? "").Normalize(NormalizationForm.FormC).Trim();
+            if (value.Length == 0) continue;
+            var option = QuickOptions.FirstOrDefault(o => string.Equals(o.Code, value, StringComparison.OrdinalIgnoreCase)
+                                                          || string.Equals(o.Label, value, StringComparison.OrdinalIgnoreCase))
+                         ?? throw new ArgumentException("Lựa chọn nhanh không hợp lệ.", nameof(quickNotes));
+            chosen.Add(option.Code);
+        }
+        var labels = QuickOptions.Where(o => chosen.Contains(o.Code)).Select(o => o.Label).ToList();
+        return labels.Count == 0 ? null : labels;
+    }
+
+    /// <summary>Chuỗi lưu vào dbo.OrderItems.QuickNotes, ví dụ "Ít cay, Không hành"; null khi không chọn.</summary>
+    public static string? JoinQuickNotes(IReadOnlyList<string>? labels)
+        => labels is { Count: > 0 } ? string.Join(", ", labels) : null;
 
     /// <summary>
     /// Chuẩn hoá ghi chú khách nhập: rỗng / chỉ khoảng trắng → null; tiếng Việt về dạng dựng sẵn (NFC) để "ế" luôn là
@@ -116,7 +159,8 @@ public sealed record GuestOrderedItem(
     string? Notes,
     string Status,
     bool Charged,
-    OrderSource Source = OrderSource.OtherGuest)
+    OrderSource Source = OrderSource.OtherGuest,
+    string? QuickNotes = null)
 {
     public string SourceLabel => Source switch
     {
@@ -319,17 +363,32 @@ public sealed class GuestTableSessionService(IConfiguration configuration)
             {
                 return new GuestCartCheck(null, $"Ghi chú ở món thứ {index + 1} trong giỏ có ký tự không hợp lệ. Vui lòng nhập lại ghi chú.");
             }
+            IReadOnlyList<string>? quickNotes;
+            try
+            {
+                quickNotes = GuestOrderNotes.NormalizeQuickNotes(lines[index].QuickNotes);
+            }
+            catch (ArgumentException)
+            {
+                return new GuestCartCheck(null, $"Lựa chọn nhanh ở món thứ {index + 1} trong giỏ không hợp lệ. Vui lòng chọn lại.");
+            }
             if (notes is { Length: > MaxNotesLength })
                 return new GuestCartCheck(null,
                     $"Ghi chú ở món thứ {index + 1} trong giỏ dài {notes.Length} ký tự, vượt giới hạn {MaxNotesLength} ký tự. Vui lòng rút gọn rồi đặt lại.");
-            prepared.Add(lines[index] with { Notes = notes });
+            prepared.Add(lines[index] with { Notes = notes, QuickNotes = quickNotes });
         }
         return new GuestCartCheck(prepared, null);
     }
 
     /// <summary>Danh sách món gửi cho dbo.usp_SubmitOrder (@ItemsJson): mỗi dòng giỏ là một phần tử, đúng thứ tự.</summary>
     public static string BuildItemsJson(IEnumerable<GuestCartLine> lines)
-        => System.Text.Json.JsonSerializer.Serialize(lines.Select(l => new { MenuItemId = l.DishId, l.Quantity, l.Notes }));
+        => System.Text.Json.JsonSerializer.Serialize(lines.Select(l => new
+        {
+            MenuItemId = l.DishId,
+            l.Quantity,
+            l.Notes,
+            QuickNotes = GuestOrderNotes.JoinQuickNotes(l.QuickNotes)
+        }));
 
     /// <summary>
     /// Các món đã gọi của phiên (mọi điện thoại cùng bàn và nhân viên), theo thứ tự lượt gọi.
@@ -340,7 +399,8 @@ public sealed class GuestTableSessionService(IConfiguration configuration)
         const string sql = """
             SELECT b.BatchNumber, i.SubmittedAt, i.ItemName, i.Unit, i.UnitPrice, i.Quantity, i.Notes, i.Status,
                    CONVERT(bit, CASE WHEN i.Status <> 'Cancelled' OR i.ChargeWhenCancelled = 1 THEN 1 ELSE 0 END),
-                   CASE WHEN b.CreatedBy IS NOT NULL THEN 2 WHEN b.GuestSessionId = @GuestSessionId THEN 0 ELSE 1 END
+                   CASE WHEN b.CreatedBy IS NOT NULL THEN 2 WHEN b.GuestSessionId = @GuestSessionId THEN 0 ELSE 1 END,
+                   i.QuickNotes
             FROM dbo.OrderBatches b
             JOIN dbo.OrderItems i ON i.BatchId = b.Id
             WHERE b.SessionId = @SessionId
@@ -358,7 +418,7 @@ public sealed class GuestTableSessionService(IConfiguration configuration)
                 reader.GetInt32(0), DateTime.SpecifyKind(reader.GetDateTime(1), DateTimeKind.Utc),
                 reader.GetString(2), reader.GetString(3), reader.GetDecimal(4), reader.GetInt32(5),
                 reader.IsDBNull(6) ? null : reader.GetString(6), reader.GetString(7), reader.GetBoolean(8),
-                (OrderSource)reader.GetInt32(9)));
+                (OrderSource)reader.GetInt32(9), reader.IsDBNull(10) ? null : reader.GetString(10)));
         return items;
     }
 

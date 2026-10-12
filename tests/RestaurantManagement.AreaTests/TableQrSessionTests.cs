@@ -164,6 +164,45 @@ static class TableQrSessionTests
         check(notedView.OrderedItems.Count == 2 && notedView.OrderedBatches.Single().Count() == 2 && notedView.OrderedTotal == 80000
             && notedView.OrderedItems.Select(i => i.Notes).SequenceEqual(new[] { "ít cay", "không hành" }),
             "Order notes: after ordering, the two lines of the same dish are listed separately with their notes");
+
+        // S3-03 Task 2: lựa chọn ghi chú nhanh cho từng dòng món.
+        check(GuestOrderNotes.QuickOptions.Select(o => o.Label).SequenceEqual(new[] { "Ít cay", "Không hành", "Không mỡ" }),
+            "Quick notes: the quick choices are Ít cay, Không hành and Không mỡ");
+        foreach (var option in GuestOrderNotes.QuickOptions)
+        {
+            var single = GuestTableSessionService.PrepareCart([new GuestCartLine(3, 1, null, [option.Code])]);
+            check(single.IsValid && single.Lines[0].QuickNotes?.SequenceEqual(new[] { option.Label }) == true && single.Lines[0].Notes is null,
+                $"Quick notes: choosing only \"{option.Label}\" is kept on its line");
+        }
+        var many = GuestTableSessionService.PrepareCart([new GuestCartLine(3, 1, "  thêm chanh ", ["khong-mo", "IT-CAY", "Không hành", "it-cay"])]);
+        check(many.IsValid && many.Lines[0].Notes == "thêm chanh"
+            && GuestOrderNotes.JoinQuickNotes(many.Lines[0].QuickNotes) == "Ít cay, Không hành, Không mỡ",
+            "Quick notes: several choices on one line are de-duplicated and kept in display order with the free note");
+        var manyJson = System.Text.Json.JsonDocument.Parse(GuestTableSessionService.BuildItemsJson(many.Lines ?? [])).RootElement[0];
+        check(manyJson.GetProperty("QuickNotes").GetString() == "Ít cay, Không hành, Không mỡ" && manyJson.GetProperty("Notes").GetString() == "thêm chanh",
+            "Quick notes: quick choices and the free note are sent to the kitchen order as separate fields of the same line");
+        var unticked = GuestTableSessionService.PrepareCart([new GuestCartLine(3, 1, null, []), new GuestCartLine(3, 1, "ít đá", [" "])]);
+        check(unticked.IsValid && unticked.Lines[0].QuickNotes is null && unticked.Lines[1].QuickNotes is null
+            && System.Text.Json.JsonDocument.Parse(GuestTableSessionService.BuildItemsJson(unticked.Lines)).RootElement[1].GetProperty("QuickNotes").ValueKind == System.Text.Json.JsonValueKind.Null,
+            "Quick notes: unticking every choice leaves no quick note (null)");
+        var twoLines = GuestTableSessionService.PrepareCart([new GuestCartLine(3, 1, "dòng một", ["it-cay"]), new GuestCartLine(3, 1, "dòng hai", ["khong-mo"])]);
+        var twoJson = System.Text.Json.JsonDocument.Parse(GuestTableSessionService.BuildItemsJson(twoLines.Lines ?? [])).RootElement;
+        check(twoJson.GetArrayLength() == 2
+            && twoJson[0].GetProperty("Notes").GetString() == "dòng một" && twoJson[0].GetProperty("QuickNotes").GetString() == "Ít cay"
+            && twoJson[1].GetProperty("Notes").GetString() == "dòng hai" && twoJson[1].GetProperty("QuickNotes").GetString() == "Không mỡ",
+            "Quick notes: choices and notes of two lines of the same dish do not mix");
+        check(GuestTableSessionService.PrepareCart([new GuestCartLine(3, 1, exact, ["it-cay", "khong-hanh", "khong-mo"])]).IsValid,
+            "Quick notes: quick choices do not use up the 200 characters of the free note");
+        var unknownQuick = GuestTableSessionService.PrepareCart([new GuestCartLine(3, 1, null), new GuestCartLine(3, 1, null, ["them-ot"])]);
+        check(!unknownQuick.IsValid && (unknownQuick.Error ?? "").Contains("món thứ 2"),
+            "Quick notes: an unknown quick choice is rejected and the message names the line");
+        var parsedQuick = TableOrderController.ParseCart("[{\"dishId\":3,\"quantity\":1,\"notes\":\"thêm chanh\",\"quickNotes\":[\"it-cay\",\"khong-hanh\"]},{\"dishId\":3,\"quantity\":1}]");
+        check(parsedQuick is { Count: 2 } && parsedQuick[0].QuickNotes is { Count: 2 } && parsedQuick[0].QuickNotes![1] == "khong-hanh"
+            && parsedQuick[1].QuickNotes is null,
+            "Quick notes: the posted cart reads quick choices per line; a line without them stays without");
+        var quickItem = new GuestOrderedItem(3, DateTime.UtcNow, "Gỏi cuốn", "Phần", 40000, 1, "thêm chanh", "Pending", true, OrderSource.ThisPhone, "Ít cay, Không hành");
+        check(quickItem.QuickNotes == "Ít cay, Không hành" && quickItem.Notes == "thêm chanh",
+            "Quick notes: an ordered line keeps its quick choices next to its free note");
         check(orderedView.OrderedTotal == 80000 && orderedView.OrderedItems[0].StatusLabel == "Chờ bếp nhận"
             && orderedView.OrderedItems[1].StatusLabel == "Đã huỷ" && orderedView.OrderedBatches.Count() == 1,
             "QR order: the ordered list totals charged dishes and labels kitchen statuses");

@@ -125,3 +125,14 @@
 .table-order-item-note.is-empty { color: #9ca3af; font-style: italic; }
 .table-order-cart-footer form { display: flex; flex-wrap: wrap; gap: 6px; }
 .table-order-back { min-height: 38px; padding: 6px 16px; border: 1px solid #d1d5db; border-radius: 999px; background: #fff; font-size: 14px; }
+
+/* S3-03 Task 2: nút lựa chọn ghi chú nhanh trên từng dòng món (bật/tắt, chọn nhiều) và nhãn lựa chọn đã chọn. */
+.table-order-quick { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 6px; }
+.table-order-quick-option { min-height: 30px; padding: 2px 12px; border: 1px solid #d1d5db; border-radius: 999px;
+  background: #fff; color: #374151; font-size: 12px; }
+.table-order-quick-option::before { content: "+ "; }
+.table-order-quick-option.is-on { background: #fde8ec; border-color: var(--brand, #b3122e); color: #9f1239; font-weight: 700; }
+.table-order-quick-option.is-on::before { content: "✓ "; }
+.table-order-quick-option:focus-visible { outline: 2px solid var(--brand, #b3122e); outline-offset: 2px; }
+.table-order-item-quick { color: #9f1239; font-size: 12px; font-weight: 700; }
+

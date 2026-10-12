@@ -259,6 +259,10 @@ Không cần migration mới. Thanh toán (`usp_Checkout`) sẽ đóng phiên, t
 
 Không cần migration mới. Trên trang **Gọi món tại bàn** (`/TableOrder`), mỗi dòng món trong giỏ có ô ghi chú tự do tối đa 200 ký tự, kèm bộ đếm. Ô không nhận ký tự thứ 201, và máy chủ từ chối ghi chú quá dài chứ không tự cắt. Bấm “+ Thêm vào giỏ” với món đã có ghi chú, hoặc bấm “+ Dòng ghi chú khác”, sẽ tạo dòng riêng. Hai dòng cùng món nhưng khác ghi chú được lưu thành hai dòng, không gộp số lượng. Bấm **Đặt món** sẽ mở bước xác nhận liệt kê món kèm ghi chú, khách bấm **Xác nhận gửi bếp** mới gửi. Quy tắc cần PO chốt, demo và kiểm thử (`node --test tools/tests/table-order-notes.test.cjs`, `verify-qr-session`): [docs/S3-03-Task1.md](docs/S3-03-Task1.md).
 
+## S3-03 Task 2 — lựa chọn ghi chú nhanh
+
+Chạy `migrate` để áp dụng `047_S303QuickNotes.sql`. Mỗi dòng món trong giỏ có thêm 3 nút **Ít cay**, **Không hành**, **Không mỡ**, chọn được nhiều nút và bấm lại để bỏ chọn. Các lựa chọn này đi kèm ghi chú tự do (200 ký tự) của chính dòng đó. Bước xác nhận hiện đủ lựa chọn và ghi chú của từng dòng. Lựa chọn được lưu ở cột riêng `OrderItems.QuickNotes`, nên không chiếm chỗ của ghi chú tự do. Quy tắc cần PO chốt, demo và kiểm thử: [docs/S3-03-Task2.md](docs/S3-03-Task2.md).
+
 ## S3-08 Task 1 — món vừa xong hiện ở danh sách chờ, xác nhận đã mang ra
 
 Không cần migration mới. Khi Bếp bấm “Đã xong”, món hiện trên màn hình **Món chờ mang ra** (`/Serving`) của Phục vụ trong tối đa 5 giây, kèm thông báo “Món mới xong: Bàn A05 · Phở bò”. Danh sách có mã bàn, tên món, giờ xong, sắp từ sớm đến muộn. Bấm **Đã mang ra** thì món chuyển sang **Đã phục vụ** và rời danh sách ngay. Hai nhân viên cùng bấm một món thì chỉ một người được ghi nhận; người còn lại được báo ai đã mang ra. Quy tắc cần PO chốt, demo và kiểm thử: [docs/S3-08-Task1.md](docs/S3-08-Task1.md).

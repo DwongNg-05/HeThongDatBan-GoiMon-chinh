@@ -1,4 +1,5 @@
-// S3-03 Task 1: ghi chú riêng cho từng dòng món trong giỏ của khách (wwwroot/js/table-order.js → TableOrderCart).
+// S3-03 Task 1 + Task 2: ghi chú riêng và lựa chọn ghi chú nhanh cho từng dòng món trong giỏ của khách
+// (wwwroot/js/table-order.js → TableOrderCart).
 // Chạy: node --test tools/tests/table-order-notes.test.cjs (từ thư mục gốc của repo, không cần cài gói nào).
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -23,8 +24,8 @@ test('hai dòng cùng món, ghi chú "ít cay" và "không hành" → hai dòng 
     cart[1].notes = 'không hành';
     assert.equal(cart.length, 2);
     assert.deepEqual(plain(Cart.payload(cart)), [
-        { dishId: 3, quantity: 1, notes: 'ít cay' },
-        { dishId: 3, quantity: 1, notes: 'không hành' }
+        { dishId: 3, quantity: 1, notes: 'ít cay', quickNotes: [] },
+        { dishId: 3, quantity: 1, notes: 'không hành', quickNotes: [] }
     ]);
     assert.equal(Cart.count(cart), 2);
     assert.equal(Cart.total(cart), 90000);
@@ -110,4 +111,108 @@ test('số lượng tối đa 99 mỗi dòng, giỏ tối đa 100 dòng', () => 
     assert.equal(Cart.addDish(cart, goi), -1);
     Cart.changeQuantity(cart, 0, -99);
     assert.equal(cart.length, 99, 'bớt về 0 thì bỏ dòng');
+});
+
+// ---- S3-03 Task 2: lựa chọn ghi chú nhanh ----
+
+test('có đủ 3 lựa chọn nhanh: Ít cay, Không hành, Không mỡ', () => {
+    assert.deepEqual(plain(Cart.quickOptions().map(o => o.label)), ['Ít cay', 'Không hành', 'Không mỡ']);
+});
+
+test('chọn từng lựa chọn nhanh', () => {
+    for (const [code, label] of [['it-cay', 'Ít cay'], ['khong-hanh', 'Không hành'], ['khong-mo', 'Không mỡ']]) {
+        const cart = [];
+        Cart.addDish(cart, goi);
+        assert.equal(Cart.toggleQuick(cart[0], code), true);
+        assert.deepEqual(plain(Cart.quickLabels(cart[0])), [label]);
+        assert.deepEqual(plain(Cart.payload(cart)[0].quickNotes), [code]);
+        assert.equal(Cart.payload(cart)[0].notes, null);
+    }
+});
+
+test('chọn nhiều lựa chọn trên cùng một dòng, luôn theo thứ tự hiển thị', () => {
+    const cart = [];
+    Cart.addDish(cart, goi);
+    Cart.toggleQuick(cart[0], 'khong-mo');
+    Cart.toggleQuick(cart[0], 'it-cay');
+    Cart.toggleQuick(cart[0], 'khong-hanh');
+    assert.deepEqual(plain(Cart.quickLabels(cart[0])), ['Ít cay', 'Không hành', 'Không mỡ']);
+    assert.deepEqual(plain(Cart.payload(cart)[0].quickNotes), ['it-cay', 'khong-hanh', 'khong-mo']);
+});
+
+test('kết hợp lựa chọn nhanh với ghi chú tự do của chính dòng đó', () => {
+    const cart = [];
+    Cart.addDish(cart, goi);
+    Cart.toggleQuick(cart[0], 'it-cay');
+    Cart.toggleQuick(cart[0], 'khong-hanh');
+    cart[0].notes = '  thêm chanh  ';
+    assert.deepEqual(plain(Cart.payload(cart)), [{ dishId: 3, quantity: 1, notes: 'thêm chanh', quickNotes: ['it-cay', 'khong-hanh'] }]);
+    // Lựa chọn nhanh không tính vào 200 ký tự của ghi chú tự do.
+    cart[0].notes = 'ệ'.repeat(200);
+    assert.equal(Cart.payload(cart)[0].notes.length, 200);
+    assert.equal(Cart.payload(cart)[0].quickNotes.length, 2);
+});
+
+test('bỏ chọn một lựa chọn nhanh', () => {
+    const cart = [];
+    Cart.addDish(cart, goi);
+    Cart.toggleQuick(cart[0], 'it-cay');
+    Cart.toggleQuick(cart[0], 'khong-hanh');
+    assert.equal(Cart.toggleQuick(cart[0], 'it-cay'), false);
+    assert.deepEqual(plain(Cart.quickLabels(cart[0])), ['Không hành']);
+    Cart.toggleQuick(cart[0], 'khong-hanh');
+    assert.deepEqual(plain(Cart.payload(cart)[0].quickNotes), []);
+    assert.equal(Cart.hasNote(cart[0]), false, 'bỏ hết thì dòng lại như chưa có yêu cầu');
+});
+
+test('ghi chú và lựa chọn nhanh của hai dòng cùng món không bị lẫn nhau', () => {
+    const cart = [];
+    Cart.addDish(cart, goi);
+    Cart.toggleQuick(cart[0], 'it-cay');
+    cart[0].notes = 'dòng một';
+    Cart.addDish(cart, goi); // dòng 1 đã có yêu cầu → dòng mới
+    assert.equal(cart.length, 2);
+    assert.deepEqual(plain(cart[1].quick), [], 'dòng mới không thừa hưởng lựa chọn của dòng cũ');
+    Cart.toggleQuick(cart[1], 'khong-mo');
+    cart[1].notes = 'dòng hai';
+    Cart.toggleQuick(cart[0], 'khong-hanh');
+    assert.deepEqual(plain(Cart.payload(cart)), [
+        { dishId: 3, quantity: 1, notes: 'dòng một', quickNotes: ['it-cay', 'khong-hanh'] },
+        { dishId: 3, quantity: 1, notes: 'dòng hai', quickNotes: ['khong-mo'] }
+    ]);
+    const split = Cart.addSeparateLine(cart, 0);
+    assert.deepEqual(plain(cart[split].quick), [], '"+ Dòng ghi chú khác" tạo dòng không có lựa chọn nhanh');
+});
+
+test('dòng chỉ có lựa chọn nhanh cũng không bị cộng dồn khi thêm cùng món', () => {
+    const cart = [];
+    Cart.addDish(cart, goi);
+    Cart.toggleQuick(cart[0], 'khong-hanh');
+    Cart.addDish(cart, goi);
+    assert.equal(cart.length, 2);
+    assert.equal(cart[0].quantity, 1);
+});
+
+test('mã lựa chọn lạ bị bỏ qua; giỏ cũ chưa có lựa chọn nhanh vẫn đọc được', () => {
+    const cart = [];
+    Cart.addDish(cart, goi);
+    assert.equal(Cart.toggleQuick(cart[0], 'them-ot'), false);
+    assert.deepEqual(plain(cart[0].quick), []);
+    const restored = Cart.sanitize([
+        { dishId: 3, name: 'Gỏi', price: 45000, quantity: 1, notes: 'ít cay' },
+        { dishId: 3, name: 'Gỏi', price: 45000, quantity: 1, notes: '', quick: ['khong-mo', 'la', 'it-cay', 'it-cay'] }
+    ]);
+    assert.deepEqual(plain(restored.map(l => l.quick)), [[], ['it-cay', 'khong-mo']]);
+});
+
+test('danh sách lựa chọn nhanh lấy từ máy chủ (data-quick-notes dạng {Code, Label})', () => {
+    const vmContext = {};
+    vmContext.globalThis = vmContext;
+    vm.runInNewContext(source, vmContext);
+    const C = vmContext.TableOrderCart;
+    C.setQuickOptions([{ Code: 'it-cay', Label: 'Ít cay' }, { Code: 'khong-hanh', Label: 'Không hành' }]);
+    assert.deepEqual(plain(C.quickOptions()), [{ code: 'it-cay', label: 'Ít cay' }, { code: 'khong-hanh', label: 'Không hành' }]);
+    C.setQuickOptions('hỏng');
+    C.setQuickOptions([]);
+    assert.equal(C.quickOptions().length, 2, 'dữ liệu hỏng không xoá danh sách');
 });
