@@ -148,6 +148,45 @@ internal static class QrGuestSessionVerification
         await Check(connection, $"SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.OrderBatches b JOIN dbo.SessionTables st ON st.SessionId=b.SessionId WHERE st.TableId={table})=1 THEN 1 ELSE 0 END",
             "QR order: rejected submissions add nothing");
 
+        // S3-03 Task 1: ghi chú riêng cho từng dòng món. Hai dòng cùng món với ghi chú "ít cay" / "không hành" được lưu thành
+        // hai dòng riêng (không gộp số lượng), ghi chú rỗng lưu NULL, ghi chú tiếng Việt đúng 200 ký tự được lưu nguyên vẹn.
+        static string RequestIdOf(string html) => System.Text.RegularExpressions.Regex.Match(html, "name=\"requestId\" value=\"([0-9a-fA-F-]{36})\"").Groups[1].Value;
+        var note200 = new string('ệ', 200);
+        var notesPage = await Html(phone, "/TableOrder");
+        var notesRequest = RequestIdOf(notesPage);
+        var notesCart = System.Text.Json.JsonSerializer.Serialize(new object[]
+        {
+            new { dishId = orderDish, quantity = 1, notes = "S303 ít cay" },
+            new { dishId = orderDish, quantity = 1, notes = "S303 không hành" },
+            new { dishId = orderDish, quantity = 1, notes = "   " },
+            new { dishId = orderDish, quantity = 1, notes = note200 }
+        });
+        using (var placed = await phone.PostAsync("/TableOrder/Submit", Form(("__RequestVerificationToken", Token(notesPage)), ("requestId", notesRequest), ("cartJson", notesCart))))
+            Assert(placed.StatusCode == HttpStatusCode.Redirect && Location(placed) == "/TableOrder#da-dat", "Order notes: an order with per-line notes is accepted");
+        await Check(connection, $"""
+            SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.OrderItems i JOIN dbo.OrderBatches b ON b.Id=i.BatchId WHERE b.RequestId='{notesRequest}')=4
+                AND (SELECT STRING_AGG(COALESCE(i.Notes, N'<null>'), N'|') WITHIN GROUP (ORDER BY i.Id)
+                     FROM dbo.OrderItems i JOIN dbo.OrderBatches b ON b.Id=i.BatchId
+                     WHERE b.RequestId='{notesRequest}' AND i.MenuItemId={orderDish} AND i.Quantity=1)
+                    = N'S303 ít cay|S303 không hành|<null>|{note200}'
+                AND (SELECT MAX(LEN(i.Notes)) FROM dbo.OrderItems i JOIN dbo.OrderBatches b ON b.Id=i.BatchId WHERE b.RequestId='{notesRequest}')=200
+            THEN 1 ELSE 0 END
+            """, "Order notes: two lines of the same dish keep their own notes as separate rows, an empty note is NULL and a 200-character Vietnamese note is stored intact");
+        var notesOrdered = await Html(phone, "/TableOrder");
+        Assert(System.Text.RegularExpressions.Regex.Matches(notesOrdered, $"<strong>1 × {System.Text.RegularExpressions.Regex.Escape(orderDishName)}</strong>").Count == 4
+            && notesOrdered.Contains("Ghi chú: S303 ít cay") && notesOrdered.Contains("Ghi chú: S303 không hành") && notesOrdered.Contains("Ghi chú: " + note200),
+            "Order notes: after ordering, the ordered list shows the same dish as separate lines, each with its own note");
+        Assert(notesOrdered.Contains("data-cart-review-open") && notesOrdered.Contains("data-cart-review") && notesOrdered.Contains("Xác nhận gửi bếp"),
+            "Order notes: the cart has a confirmation step before sending the order to the kitchen");
+
+        var tooLongRequest = RequestIdOf(notesOrdered);
+        var tooLongCart = System.Text.Json.JsonSerializer.Serialize(new object[] { new { dishId = orderDish, quantity = 1, notes = note200 + "a" } });
+        using (var rejected = await phone.PostAsync("/TableOrder/Submit", Form(("__RequestVerificationToken", Token(notesOrdered)), ("requestId", tooLongRequest), ("cartJson", tooLongCart))))
+            Assert(rejected.StatusCode == HttpStatusCode.Redirect && Location(rejected) == "/TableOrder#gio-mon", "Order notes: a 201-character note sends the guest back to the cart");
+        Assert((await Html(phone, "/TableOrder")).Contains("vượt giới hạn 200 ký tự"), "Order notes: the guest is told the note exceeds 200 characters");
+        await Check(connection, $"SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM dbo.OrderBatches WHERE RequestId='{tooLongRequest}') THEN 1 ELSE 0 END",
+            "Order notes: an order with a 201-character note is not saved");
+
         // 2. Quét lại trên cùng điện thoại: vào lại đúng phiên, không ghi thêm gì.
         var rescan = await Html(phone, $"/q/{token}");
         using (var again = await Start(phone, token, rescan))

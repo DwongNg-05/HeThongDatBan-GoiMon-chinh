@@ -225,7 +225,7 @@ Lệnh `verify` bao gồm kiểm tra phiên ở phút 29, làm mới thời gian
 
 ## S2-01 Task 1 — thực đơn công khai
 
-Khách mở `/Menu` trên điện thoại mà không cần đăng nhập, xem món theo nhóm với ảnh, tên, mô tả ngắn và giá VND (`45.000 ₫`). API công khai: `GET /api/menu`. Nạp dữ liệu mẫu bằng `dotnet run --project tools/RestaurantManagement.DbTool -- seed-menu-demo` (chạy lại an toàn, không cần mật khẩu). Quy tắc món đang bán / hết trong ngày / ngừng bán, kịch bản demo và kiểm thử: xem [docs/S2-01-Task1.md](docs/S2-01-Task1.md).
+Khách mở `/Menu` trên điện thoại mà không cần đăng nhập, xem món theo nhóm với ảnh, tên, mô tả ngắn và giá VND (`45.000 ₫`). API công khai: `GET /api/menu`. Nạp dữ liệu mẫu bằng `dotnet run --project tools/RestaurantManagement.DbTool -- seed-menu-demo` (chạy lại an toàn, không cần mật khẩu). Muốn thực đơn phong phú hơn, chạy thêm `seed-menu-extra` để bổ sung 50 món ăn, đồ uống thuộc 8 nhóm (Khai vị, Món chính, Lẩu, Món nướng, Hải sản, Món chay, Tráng miệng, Đồ uống); món đã có cùng tên được giữ nguyên. Quy tắc món đang bán / hết trong ngày / ngừng bán, kịch bản demo và kiểm thử: xem [docs/S2-01-Task1.md](docs/S2-01-Task1.md).
 
 ## S1-05 Task 1 — nhật ký đăng nhập và sửa giá món
 
@@ -254,6 +254,10 @@ Chạy `migrate` để áp dụng `046_S301QrVersionAndCleaning.sql`. Mỗi mã 
 ## S3-01 Task 4 — thanh toán đóng phiên, quét lại QR mở phiên mới
 
 Không cần migration mới. Thanh toán (`usp_Checkout`) sẽ đóng phiên, trả bàn (chuyển Đang dọn), thu hồi phiên khách và giữ nguyên mã QR. Điện thoại khách tải lại trang sẽ thấy “Bàn … đã thanh toán” mà không còn món cũ. Sau khi dọn xong, quét lại cùng QR sẽ mở đúng một phiên mới không có món của phiên trước. Quy tắc cần PO chốt, demo và kiểm thử: [docs/S3-01-Task4.md](docs/S3-01-Task4.md).
+
+## S3-03 Task 1 — ghi chú riêng cho từng món
+
+Không cần migration mới. Trên trang **Gọi món tại bàn** (`/TableOrder`), mỗi dòng món trong giỏ có ô ghi chú tự do tối đa 200 ký tự, kèm bộ đếm. Ô không nhận ký tự thứ 201, và máy chủ từ chối ghi chú quá dài chứ không tự cắt. Bấm “+ Thêm vào giỏ” với món đã có ghi chú, hoặc bấm “+ Dòng ghi chú khác”, sẽ tạo dòng riêng. Hai dòng cùng món nhưng khác ghi chú được lưu thành hai dòng, không gộp số lượng. Bấm **Đặt món** sẽ mở bước xác nhận liệt kê món kèm ghi chú, khách bấm **Xác nhận gửi bếp** mới gửi. Quy tắc cần PO chốt, demo và kiểm thử (`node --test tools/tests/table-order-notes.test.cjs`, `verify-qr-session`): [docs/S3-03-Task1.md](docs/S3-03-Task1.md).
 
 ## S3-08 Task 1 — món vừa xong hiện ở danh sách chờ, xác nhận đã mang ra
 

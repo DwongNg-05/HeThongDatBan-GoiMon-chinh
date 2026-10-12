@@ -59,8 +59,48 @@ public enum OrderSource { ThisPhone, OtherGuest, Staff }
 /// <summary>S3-01 Task 4: phiên gọi món của điện thoại này đã kết thúc vì bàn đã thanh toán.</summary>
 public sealed record GuestEndedSession(string TableCode, DateTime ClosedAtUtc);
 
-/// <summary>Một dòng khách chọn trong giỏ (trang /TableOrder).</summary>
+/// <summary>
+/// Một dòng khách chọn trong giỏ (trang /TableOrder). S3-03 Task 1: mỗi dòng có ghi chú riêng; hai dòng cùng món
+/// nhưng khác ghi chú là hai dòng độc lập, lưu thành hai dòng dbo.OrderItems, không gộp số lượng.
+/// </summary>
 public sealed record GuestCartLine(int DishId, int Quantity, string? Notes);
+
+/// <summary>Kết quả kiểm tra giỏ trước khi gửi bếp: giỏ đã chuẩn hoá, hoặc thông báo lỗi cho khách.</summary>
+public sealed record GuestCartCheck(IReadOnlyList<GuestCartLine>? Lines, string? Error)
+{
+    [System.Diagnostics.CodeAnalysis.MemberNotNullWhen(true, nameof(Lines))]
+    public bool IsValid => Lines is not null;
+}
+
+/// <summary>
+/// S3-03 Task 1: ghi chú riêng cho từng dòng món (tối đa 200 ký tự, cùng giới hạn cột dbo.OrderItems.Notes nvarchar(200)).
+/// Ghi chú dài hơn 200 ký tự bị từ chối — không tự cắt, để bếp không nhận một ghi chú bị mất nửa câu.
+/// </summary>
+public static class GuestOrderNotes
+{
+    public const int MaxLength = 200;
+
+    /// <summary>
+    /// Chuẩn hoá ghi chú khách nhập: rỗng / chỉ khoảng trắng → null; tiếng Việt về dạng dựng sẵn (NFC) để "ế" luôn là
+    /// 1 ký tự dù bàn phím gõ dạng tổ hợp; ký tự điều khiển (xuống dòng, tab) → khoảng trắng; bỏ khoảng trắng hai đầu.
+    /// Ném <see cref="ArgumentException"/> khi chuỗi chứa ký tự Unicode hỏng (nửa cặp surrogate).
+    /// </summary>
+    public static string? Normalize(string? notes)
+    {
+        if (string.IsNullOrWhiteSpace(notes)) return null;
+        for (var index = 0; index < notes.Length; index++)
+        {
+            if (char.IsHighSurrogate(notes[index]) && index + 1 < notes.Length && char.IsLowSurrogate(notes[index + 1])) { index++; continue; }
+            if (char.IsSurrogate(notes[index])) throw new ArgumentException("Ghi chú chứa ký tự Unicode không hợp lệ.", nameof(notes));
+        }
+        var composed = notes.Normalize(NormalizationForm.FormC);
+        var builder = new StringBuilder(composed.Length);
+        foreach (var character in composed)
+            builder.Append(char.IsControl(character) ? ' ' : character);
+        var result = builder.ToString().Trim();
+        return result.Length == 0 ? null : result;
+    }
+}
 
 /// <summary>Kết quả gửi giỏ món xuống bếp.</summary>
 public sealed record GuestOrderResult(bool Succeeded, string Message);
@@ -210,7 +250,7 @@ public sealed class GuestTableSessionService(IConfiguration configuration)
     }
 
     /// <summary>Số món tối đa / số lượng tối đa mỗi dòng / độ dài ghi chú — cùng giới hạn với dbo.usp_SubmitOrder.</summary>
-    public const int MaxCartLines = 100, MaxQuantity = 99, MaxNotesLength = 200;
+    public const int MaxCartLines = 100, MaxQuantity = 99, MaxNotesLength = GuestOrderNotes.MaxLength;
 
     /// <summary>
     /// Gửi giỏ món của khách xuống bếp qua dbo.usp_SubmitOrder (đường khách: @GuestTokenHash, không có nhân viên).
@@ -222,16 +262,11 @@ public sealed class GuestTableSessionService(IConfiguration configuration)
     {
         if (!IsValidGuestToken(guestToken))
             return new GuestOrderResult(false, "Phiên gọi món đã hết hạn. Vui lòng quét lại mã QR trên bàn.");
-        if (requestId == Guid.Empty || lines.Count == 0 || lines.Count > MaxCartLines
-            || lines.Any(l => l.DishId <= 0 || l.Quantity is < 1 or > MaxQuantity || (l.Notes?.Length ?? 0) > MaxNotesLength))
-            return new GuestOrderResult(false, "Giỏ món không hợp lệ. Mỗi món từ 1 đến 99 phần, ghi chú tối đa 200 ký tự.");
+        var cart = PrepareCart(lines);
+        if (requestId == Guid.Empty || !cart.IsValid)
+            return new GuestOrderResult(false, cart.Error ?? InvalidCartMessage);
 
-        var itemsJson = System.Text.Json.JsonSerializer.Serialize(lines.Select(l => new
-        {
-            MenuItemId = l.DishId,
-            l.Quantity,
-            Notes = string.IsNullOrWhiteSpace(l.Notes) ? null : l.Notes.Trim()
-        }));
+        var itemsJson = BuildItemsJson(cart.Lines!);
 
         await using var connection = new SqlConnection(ConnectionString);
         await using var command = new SqlCommand("dbo.usp_SubmitOrder", connection)
@@ -258,6 +293,43 @@ public sealed class GuestTableSessionService(IConfiguration configuration)
             });
         }
     }
+
+    private const string InvalidCartMessage = "Giỏ món không hợp lệ. Mỗi món từ 1 đến 99 phần, ghi chú tối đa 200 ký tự.";
+
+    /// <summary>
+    /// S3-03 Task 1: kiểm tra và chuẩn hoá giỏ trước khi gửi bếp (không chạm database).
+    /// Giữ nguyên thứ tự và từng dòng như khách đã chọn — hai dòng cùng món khác ghi chú không bị gộp.
+    /// Ghi chú quá 200 ký tự (sau khi chuẩn hoá) bị từ chối kèm số thứ tự dòng để khách sửa.
+    /// </summary>
+    public static GuestCartCheck PrepareCart(IReadOnlyList<GuestCartLine>? lines)
+    {
+        if (lines is null || lines.Count == 0 || lines.Count > MaxCartLines
+            || lines.Any(l => l is null || l.DishId <= 0 || l.Quantity is < 1 or > MaxQuantity))
+            return new GuestCartCheck(null, InvalidCartMessage);
+
+        var prepared = new List<GuestCartLine>(lines.Count);
+        for (var index = 0; index < lines.Count; index++)
+        {
+            string? notes;
+            try
+            {
+                notes = GuestOrderNotes.Normalize(lines[index].Notes);
+            }
+            catch (ArgumentException)
+            {
+                return new GuestCartCheck(null, $"Ghi chú ở món thứ {index + 1} trong giỏ có ký tự không hợp lệ. Vui lòng nhập lại ghi chú.");
+            }
+            if (notes is { Length: > MaxNotesLength })
+                return new GuestCartCheck(null,
+                    $"Ghi chú ở món thứ {index + 1} trong giỏ dài {notes.Length} ký tự, vượt giới hạn {MaxNotesLength} ký tự. Vui lòng rút gọn rồi đặt lại.");
+            prepared.Add(lines[index] with { Notes = notes });
+        }
+        return new GuestCartCheck(prepared, null);
+    }
+
+    /// <summary>Danh sách món gửi cho dbo.usp_SubmitOrder (@ItemsJson): mỗi dòng giỏ là một phần tử, đúng thứ tự.</summary>
+    public static string BuildItemsJson(IEnumerable<GuestCartLine> lines)
+        => System.Text.Json.JsonSerializer.Serialize(lines.Select(l => new { MenuItemId = l.DishId, l.Quantity, l.Notes }));
 
     /// <summary>
     /// Các món đã gọi của phiên (mọi điện thoại cùng bàn và nhân viên), theo thứ tự lượt gọi.

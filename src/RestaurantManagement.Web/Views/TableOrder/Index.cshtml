@@ -1,5 +1,6 @@
 @model RestaurantManagement.Web.Models.Tables.TableOrderViewModel
 @using RestaurantManagement.Web.Models.Tables
+@using RestaurantManagement.Web.Services
 @{
     ViewData["Title"] = "Gọi món – Bàn " + Model.Table.TableCode;
     // Trang khách: không cần jQuery/Bootstrap JS (xem _Layout.cshtml).
@@ -92,18 +93,30 @@
     </div>
 
     <aside class="table-order-side" aria-label="Giỏ món và món đã đặt">
-    @* Giỏ món: lưu tạm trên điện thoại (sessionStorage) tới khi bấm "Đặt món". Máy chủ kiểm tra lại món, giá và số lượng. *@
+    @* Giỏ món: lưu tạm trên điện thoại (sessionStorage) tới khi bấm "Đặt món". Máy chủ kiểm tra lại món, giá và số lượng.
+       S3-03 Task 1: mỗi dòng có ô ghi chú riêng (tối đa @GuestOrderNotes.MaxLength ký tự); "Đặt món" mở bước xác nhận
+       liệt kê món + ghi chú, khách bấm "Xác nhận gửi bếp" mới gửi. *@
     <section id="gio-mon" class="table-order-cart" aria-labelledby="gio-mon-title"
              data-cart-key="table-order-cart-@Model.Table.SessionId" data-clear-cart="@(Model.SuccessMessage is not null ? "true" : "false")">
         <h2 id="gio-mon-title">Món đang chọn <span class="table-order-tag is-draft">Chưa gửi bếp</span></h2>
         <p class="table-order-empty" data-cart-empty>Chưa chọn món nào. Bấm “+ Thêm vào giỏ” ở món bạn muốn gọi.</p>
-        <ul class="table-order-cart-list table-order-scroll" data-cart-list></ul>
+        <div data-cart-editor>
+            <p class="table-order-hint">Mỗi dòng có ghi chú riêng (tối đa @GuestOrderNotes.MaxLength ký tự). Cùng một món nhưng muốn ghi chú khác, bấm “+ Dòng ghi chú khác”.</p>
+            <ul class="table-order-cart-list table-order-scroll" data-cart-list></ul>
+        </div>
+        <div class="table-order-review" data-cart-review hidden>
+            <h3 tabindex="-1" data-review-title>Kiểm tra lại trước khi gửi bếp</h3>
+            <p class="table-order-hint">Xem lại số lượng và ghi chú từng món. Cần đổi gì, bấm “Sửa lại”.</p>
+            <ul class="table-order-review-list table-order-scroll" data-review-list></ul>
+        </div>
         <div class="table-order-cart-footer">
             <p class="table-order-total">Tạm tính: <strong data-cart-total>0 ₫</strong></p>
             <form method="post" asp-controller="TableOrder" asp-action="Submit" data-cart-form>
                 <input type="hidden" name="requestId" value="@Model.RequestId" />
                 <input type="hidden" name="cartJson" value="" data-cart-json />
-                <button type="submit" class="table-order-submit" data-cart-submit disabled>Đặt món</button>
+                <button type="button" class="table-order-submit" data-cart-review-open disabled>Đặt món</button>
+                <button type="button" class="table-order-back" data-cart-review-back hidden>Sửa lại</button>
+                <button type="submit" class="table-order-submit" data-cart-submit hidden disabled>Xác nhận gửi bếp</button>
             </form>
         </div>
     </section>

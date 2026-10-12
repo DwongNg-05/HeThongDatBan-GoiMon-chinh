@@ -102,6 +102,49 @@ static class TableQrSessionTests
                 $"QR order: {label} is rejected before reaching the database");
         check(!(await guestSessions.SubmitOrderAsync(null, 1, Guid.NewGuid(), [new GuestCartLine(3, 1, null)], CancellationToken.None)).Succeeded,
             "QR order: ordering without a guest session is rejected");
+
+        // S3-03 Task 1: ghi chú riêng cho từng dòng món.
+        check(GuestOrderNotes.Normalize(null) is null && GuestOrderNotes.Normalize("") is null && GuestOrderNotes.Normalize(" \t\n ") is null,
+            "Order notes: an empty or blank note is saved as no note (null)");
+        check(GuestOrderNotes.Normalize("  Không hành, ít đường – cảm ơn!  ") == "Không hành, ít đường – cảm ơn!",
+            "Order notes: a Vietnamese note keeps its accents and loses only the outer spaces");
+        check(GuestOrderNotes.Normalize("ít cay".Normalize(System.Text.NormalizationForm.FormD)) == "ít cay",
+            "Order notes: a note typed in decomposed Vietnamese (NFD) is stored in composed form (NFC)");
+        check(GuestOrderNotes.Normalize("ít cay\r\nkhông hành") == "ít cay  không hành",
+            "Order notes: line breaks and control characters become spaces");
+
+        var twoNotes = GuestTableSessionService.PrepareCart([new GuestCartLine(3, 1, "ít cay"), new GuestCartLine(3, 1, "không hành")]);
+        check(twoNotes.IsValid && twoNotes.Lines.Count == 2
+            && twoNotes.Lines[0] == new GuestCartLine(3, 1, "ít cay") && twoNotes.Lines[1] == new GuestCartLine(3, 1, "không hành"),
+            "Order notes: two lines of the same dish with different notes stay two separate lines, in order");
+        var itemsJson = System.Text.Json.JsonDocument.Parse(GuestTableSessionService.BuildItemsJson(twoNotes.Lines ?? [])).RootElement;
+        check(itemsJson.GetArrayLength() == 2
+            && itemsJson[0].GetProperty("MenuItemId").GetInt32() == 3 && itemsJson[0].GetProperty("Quantity").GetInt32() == 1
+            && itemsJson[0].GetProperty("Notes").GetString() == "ít cay" && itemsJson[1].GetProperty("Notes").GetString() == "không hành",
+            "Order notes: the kitchen order JSON keeps one entry per line with its own note (quantities not merged)");
+        var blank = GuestTableSessionService.PrepareCart([new GuestCartLine(3, 2, "   ")]);
+        check(blank.IsValid && blank.Lines[0].Notes is null
+            && System.Text.Json.JsonDocument.Parse(GuestTableSessionService.BuildItemsJson(blank.Lines)).RootElement[0].GetProperty("Notes").ValueKind == System.Text.Json.JsonValueKind.Null,
+            "Order notes: an empty note is sent as null");
+        var exact = new string('ệ', GuestOrderNotes.MaxLength);
+        check(GuestTableSessionService.PrepareCart([new GuestCartLine(3, 1, exact)]).Lines?[0].Notes == exact,
+            "Order notes: a Vietnamese note of exactly 200 characters is accepted unchanged");
+        check(GuestTableSessionService.PrepareCart([new GuestCartLine(3, 1, exact.Normalize(System.Text.NormalizationForm.FormD))]).Lines?[0].Notes == exact,
+            "Order notes: 200 characters typed in decomposed form (400 code units) still count as 200");
+        check(GuestTableSessionService.PrepareCart([new GuestCartLine(3, 1, "  " + exact + "  ")]).IsValid,
+            "Order notes: outer spaces do not count toward the 200-character limit");
+        var tooLong = GuestTableSessionService.PrepareCart([new GuestCartLine(5, 1, null), new GuestCartLine(3, 1, exact + "a")]);
+        var tooLongError = tooLong.Error ?? "";
+        check(!tooLong.IsValid && tooLongError.Contains("món thứ 2") && tooLongError.Contains("201 ký tự") && tooLongError.Contains("200"),
+            "Order notes: a 201-character note is rejected (not cut) and the message names the line and the limit");
+        check(!GuestTableSessionService.PrepareCart([new GuestCartLine(3, 1, "ít cay\ud800")]).IsValid,
+            "Order notes: a note with broken Unicode is rejected instead of crashing");
+        var tooLongResult = await guestSessions.SubmitOrderAsync(tokens[0], 1, Guid.NewGuid(), [new GuestCartLine(3, 1, exact + "a")], CancellationToken.None);
+        check(!tooLongResult.Succeeded && tooLongResult.Message.Contains("vượt giới hạn 200 ký tự"),
+            "Order notes: submitting a 201-character note is refused before reaching the database with a clear message");
+        var parsedTwo = TableOrderController.ParseCart("[{\"dishId\":3,\"quantity\":1,\"notes\":\"ít cay\"},{\"dishId\":3,\"quantity\":1,\"notes\":\"không hành\"}]");
+        check(parsedTwo is { Count: 2 } && parsedTwo[0].Notes == "ít cay" && parsedTwo[1].Notes == "không hành",
+            "Order notes: the posted cart keeps two lines of the same dish with their own notes");
         var orderedView = new TableOrderViewModel(view.Table, [])
         {
             OrderedItems =
@@ -110,6 +153,17 @@ static class TableQrSessionTests
                 new GuestOrderedItem(1, DateTime.UtcNow, "Salad", "Đĩa", 20000, 1, null, "Cancelled", false)
             ]
         };
+        var notedView = new TableOrderViewModel(view.Table, [])
+        {
+            OrderedItems =
+            [
+                new GuestOrderedItem(2, DateTime.UtcNow, "Gỏi cuốn", "Phần", 40000, 1, "ít cay", "Pending", true, OrderSource.ThisPhone),
+                new GuestOrderedItem(2, DateTime.UtcNow, "Gỏi cuốn", "Phần", 40000, 1, "không hành", "Pending", true, OrderSource.ThisPhone)
+            ]
+        };
+        check(notedView.OrderedItems.Count == 2 && notedView.OrderedBatches.Single().Count() == 2 && notedView.OrderedTotal == 80000
+            && notedView.OrderedItems.Select(i => i.Notes).SequenceEqual(new[] { "ít cay", "không hành" }),
+            "Order notes: after ordering, the two lines of the same dish are listed separately with their notes");
         check(orderedView.OrderedTotal == 80000 && orderedView.OrderedItems[0].StatusLabel == "Chờ bếp nhận"
             && orderedView.OrderedItems[1].StatusLabel == "Đã huỷ" && orderedView.OrderedBatches.Count() == 1,
             "QR order: the ordered list totals charged dishes and labels kitchen statuses");

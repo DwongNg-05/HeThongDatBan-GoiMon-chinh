@@ -106,3 +106,22 @@
 .table-order-tag.source-thisphone { background: #fde8ec; color: #9f1239; }
 .table-order-tag.source-staff { background: #e0f2fe; color: #075985; }
 .table-order-cart { border-style: dashed; border-color: #f59e0b; }
+
+/* S3-03 Task 1: ghi chú riêng từng dòng món (bộ đếm 0/200, cảnh báo khi đủ 200 ký tự) và bước xác nhận trước khi gửi bếp. */
+.table-order [hidden] { display: none !important; }
+.table-order-qty { flex-wrap: wrap; }
+.table-order-qty .table-order-split { min-width: 0; padding: 0 8px; font-size: 12px; color: #374151; }
+.table-order-note-field { display: flex; flex-direction: column; gap: 2px; }
+.table-order-note-field .table-order-note-input { box-sizing: border-box; max-width: 100%; }
+.table-order-note-count { align-self: flex-end; color: var(--muted, #6b7280); font-size: 11px; font-variant-numeric: tabular-nums; }
+.table-order-note-count.is-full { color: #92400e; font-weight: 700; }
+.table-order-note-warning { color: #92400e; font-size: 12px; }
+.table-order-review h3 { margin: 4px 0; font-size: 15px; }
+.table-order-review .table-order-hint { margin: 0 0 6px; }
+.table-order-review h3:focus { outline: 2px solid var(--brand, #b3122e); outline-offset: 2px; }
+.table-order-review-list { list-style: none; margin: 0; padding: 0; max-height: 50vh; }
+.table-order-review-item { display: flex; flex-direction: column; gap: 2px; padding: 6px 0; border-bottom: 1px dashed #e5e7eb; font-size: 13px; overflow-wrap: anywhere; }
+.table-order-review-item .table-order-item-note { color: #374151; }
+.table-order-item-note.is-empty { color: #9ca3af; font-style: italic; }
+.table-order-cart-footer form { display: flex; flex-wrap: wrap; gap: 6px; }
+.table-order-back { min-height: 38px; padding: 6px 16px; border: 1px solid #d1d5db; border-radius: 999px; background: #fff; font-size: 14px; }
