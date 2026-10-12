@@ -13,6 +13,11 @@ public sealed class SessionActivityFilter(LoginSessionStore sessions) : IAsyncAc
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
         var executed = await next();
+        // The response already went out (for example the table map's live stream api/table-status/stream, which ends when
+        // the user logs out or leaves the page): headers are read-only, so we can neither sign out nor redirect. Leave it;
+        // the next request is checked again by the cookie events (IdleSessionEvents), which sign out an ended session.
+        if (context.HttpContext.Response.HasStarted || context.HttpContext.RequestAborted.IsCancellationRequested)
+            return;
         var endpoint = context.HttpContext.GetEndpoint();
         var status = (executed.Result as IStatusCodeActionResult)?.StatusCode ?? context.HttpContext.Response.StatusCode;
         if (executed.Exception is null && !executed.Canceled && context.ModelState.IsValid && status < 400

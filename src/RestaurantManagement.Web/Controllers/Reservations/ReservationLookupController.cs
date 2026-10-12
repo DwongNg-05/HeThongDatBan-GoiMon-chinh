@@ -27,11 +27,19 @@ public class ReservationLookupController : Controller
         _auditLogService = auditLogService;
     }
 
+    /// <summary>
+    /// Trang tra cứu. <paramref name="code"/>: mã đặt bàn điền sẵn từ liên kết trong email xác nhận / trang đặt bàn thành công,
+    /// để khách không phải gõ lại mã (chỉ nhập số điện thoại).
+    /// </summary>
     [HttpGet]
-    public IActionResult Index()
+    public IActionResult Index(string? code = null)
     {
+        var prefilled = code?.Trim().ToUpperInvariant();
         return View(
-            new ReservationLookupViewModel());
+            new ReservationLookupViewModel
+            {
+                Code = prefilled is { Length: > 0 and <= 30 } ? prefilled : ""
+            });
     }
 
     [HttpPost]

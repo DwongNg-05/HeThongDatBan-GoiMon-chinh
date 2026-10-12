@@ -6,62 +6,72 @@
     <link rel="stylesheet" href="~/css/reservation-email.css" asp-append-version="true" />
 }
 
+@* Khách vừa đặt bàn: lượt ở trạng thái "Chờ xác nhận". Email (mã đặt bàn + bàn) chỉ gửi khi nhà hàng xác nhận (migration 050).
+   Khách sao chép mã đặt bàn bằng một chạm (copy-code.js) để tra cứu, không phải gõ từng chữ. *@
 <div class="container mt-4 booking-success">
-
-    <div class="alert alert-success">
-        <h3>Đặt bàn thành công!</h3>
-        @if (Model?.EmailOutcome is RestaurantManagement.Web.Services.BookingEmailOutcome.NotRequested or null)
-        {
-            <p class="mb-0">Yêu cầu đặt bàn đã được ghi nhận và đang chờ nhà hàng xác nhận.</p>
-        }
-        else
-        {
-            <p class="mb-0">Yêu cầu đặt bàn đã được ghi nhận. Vui lòng mở email và bấm nút <strong>“Xác nhận đặt bàn”</strong> để nhà hàng giữ bàn cho bạn.</p>
-        }
-    </div>
+    <header class="booking-success-head">
+        <span class="booking-success-icon" aria-hidden="true"><i class="fa-regular fa-calendar-check"></i></span>
+        <div>
+            <h1 class="booking-success-title">Đặt bàn thành công!</h1>
+            <p class="booking-success-lead">Yêu cầu đã được ghi nhận và đang <strong>chờ nhà hàng xác nhận</strong>.</p>
+        </div>
+    </header>
 
     @if (Model is not null)
     {
-        @* S2-09 Task 1: mã đặt bàn luôn hiển thị đầy đủ, không phụ thuộc kết quả gửi email. *@
         <section class="booking-code-card" aria-labelledby="booking-code-label">
-            @* Mã đặt bàn chính là mã bàn khách đã chọn (ví dụ A05). *@
             <p id="booking-code-label" class="booking-code-label">Mã đặt bàn của bạn</p>
             <p class="booking-code" data-booking-code="@Model.DisplayCode">@Model.DisplayCode</p>
+            <button type="button" class="booking-copy" data-copy-code="@Model.DisplayCode" aria-label="Sao chép mã đặt bàn @Model.DisplayCode">
+                <i class="fa-regular fa-copy" aria-hidden="true"></i><span data-copy-label>Sao chép mã</span>
+            </button>
             <dl class="booking-code-facts">
                 @if (Model.StartsAt is not null)
                 {
                     <dt>Ngày giờ</dt>
-                    <dd>@RestaurantManagement.Web.Services.BookingConfirmationEmail.FormatDateTime(Model.StartsAt.Value) (giờ Việt Nam)</dd>
+                    <dd>@RestaurantManagement.Web.Services.BookingConfirmationEmail.FormatDateTime(Model.StartsAt.Value)</dd>
                 }
                 @if (Model.GuestCount is not null)
                 {
                     <dt>Số khách</dt>
                     <dd>@Model.GuestCount người</dd>
                 }
+                @if (Model.TableCode is not null)
+                {
+                    <dt>Bàn đã chọn</dt>
+                    <dd>@Model.TableCode</dd>
+                }
+                <dt>Trạng thái</dt>
+                <dd><span class="booking-pending">Chờ xác nhận</span></dd>
             </dl>
-            <p class="booking-code-hint">Vui lòng lưu lại mã đặt bàn @Model.DisplayCode và đọc cho nhân viên khi đến quán.</p>
         </section>
 
-        @* S2-09 Task 2: email chưa gửi được thì hệ thống tự gửi lại; thông báo tự cập nhật tới khi có kết quả cuối cùng. *@
-        <div class="alert @Model.EmailCssClass booking-email-notice"
-             role="status" aria-live="polite" data-email-outcome="@Model.EmailOutcome"
-             data-email-state="@(Model.EmailStatus?.State.ToString() ?? "")"
-             data-email-final="@(Model.EmailFinal ? "true" : "false")"
-             data-status-url="@Url.Action("BookingEmailStatus", "Reservations")">@Model.CurrentEmailMessage</div>
+        <ol class="booking-steps" aria-label="Các bước tiếp theo">
+            <li><strong>Nhà hàng xác nhận</strong> lượt đặt và giữ bàn cho bạn.</li>
+            <li>@Model.CurrentEmailMessage</li>
+            <li><strong>Tra cứu</strong> bằng mã đặt bàn và số điện thoại bất cứ lúc nào; khi đến quán, đọc mã cho nhân viên.</li>
+        </ol>
     }
 
-    <a asp-controller="Reservations" asp-action="Create" class="btn btn-primary">Đặt bàn tiếp</a>
-    @if (User.Identity?.IsAuthenticated == true)
-    {
-        <a asp-controller="Reservations" asp-action="Index" class="btn btn-secondary">Xem danh sách đặt bàn</a>
-    }
-    else
-    {
-        <a asp-controller="Menu" asp-action="Index" class="btn btn-secondary">Xem thực đơn</a>
-    }
-
+    <div class="booking-actions">
+        @if (Model is not null)
+        {
+            <a class="btn btn-primary" asp-controller="ReservationLookup" asp-action="Index" asp-route-code="@Model.DisplayCode">
+                <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Tra cứu đặt bàn
+            </a>
+        }
+        <a asp-controller="Reservations" asp-action="Create" class="btn btn-outline-secondary">Đặt bàn tiếp</a>
+        @if (User.Identity?.IsAuthenticated == true)
+        {
+            <a asp-controller="Reservations" asp-action="Index" class="btn btn-outline-secondary">Xem danh sách đặt bàn</a>
+        }
+        else
+        {
+            <a asp-controller="Menu" asp-action="Index" class="btn btn-outline-secondary">Xem thực đơn</a>
+        }
+    </div>
 </div>
 
 @section Scripts {
-    <script src="~/js/booking-email-status.js" asp-append-version="true"></script>
+    <script src="~/js/copy-code.js" asp-append-version="true"></script>
 }

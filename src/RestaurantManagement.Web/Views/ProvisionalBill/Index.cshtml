@@ -1,0 +1,98 @@
+@model RestaurantManagement.Web.Models.Orders.ProvisionalBillViewModel
+@using RestaurantManagement.Web.Models.Cashier
+@using RestaurantManagement.Web.Models.Reservations
+@using RestaurantManagement.Web.Security
+@{
+    ViewData["Title"] = "Hoá đơn tạm tính · Bàn " + Model.Tables;
+    var backToCashier = User.IsInRole(AppRoles.Cashier) && !User.IsInRole(AppRoles.Waiter) && !User.IsInRole(AppRoles.Manager);
+    var position = 0;
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/provisional-bill.css" asp-append-version="true" />
+}
+@* S3-04 Task 4: mỗi dòng đơn là một dòng hoá đơn; lựa chọn nhanh + ghi chú nằm ngay dưới tên món, đúng nội dung đã gửi bếp
+   (cùng lớp OrderItemRequests với màn hình bếp). Hai dòng cùng món nhưng khác yêu cầu hiển thị riêng, không gộp. *@
+<div class="container mt-4 provisional-bill" data-screen="provisional-bill" data-session-id="@Model.SessionId">
+    <div class="provisional-bill-actions">
+        <a class="btn btn-outline-secondary btn-sm" href="@(backToCashier ? Url.Content("~/Cashier") : Url.Content("~/"))">← @(backToCashier ? "Thanh toán" : "Sơ đồ bàn")</a>
+        <button type="button" class="btn btn-outline-primary btn-sm" data-bill-print>In tạm tính</button>
+    </div>
+
+    <header class="provisional-bill-head">
+        <p class="provisional-bill-kicker">Hoá đơn tạm tính</p>
+        <h2>Bàn <span data-bill-tables>@Model.Tables</span></h2>
+        <p class="provisional-bill-meta">
+            @Model.GuestCount khách · Vào lúc @Model.OpenedAt.ToString("HH:mm dd/MM/yyyy") ·
+            <strong data-bill-status="@Model.Status">@Model.StatusLabel</strong>
+        </p>
+        <p class="provisional-bill-hint">
+            Đối chiếu yêu cầu riêng của khách trước khi mang món ra. Mỗi dòng là một lần gọi món, ghi chú đúng như bếp đã nhận.
+            @if (Model.RequestLineCount > 0) { <strong>@Model.RequestLineCount dòng có yêu cầu riêng.</strong> }
+        </p>
+    </header>
+
+    @if (Model.Lines.Count == 0)
+    {
+        <p class="text-muted" data-bill-empty>Bàn chưa gọi món nào.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table align-middle provisional-bill-table">
+                <thead>
+                    <tr><th scope="col">#</th><th scope="col">Món &amp; yêu cầu riêng</th><th scope="col" class="text-end">SL</th><th scope="col" class="text-end">Đơn giá</th><th scope="col" class="text-end">Thành tiền</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var line in Model.Lines)
+                    {
+                        position++;
+                        var requests = line.Requests;
+                        <tr data-bill-line="@line.Id" data-status="@line.Status" class="@(line.IsCancelled ? "provisional-bill-cancelled" : null)">
+                            <td class="provisional-bill-index">@position</td>
+                            <td class="provisional-bill-dish">
+                                <strong class="provisional-bill-name" data-bill-name>@line.ItemName</strong>
+                                @if (requests.HasAny)
+                                {
+                                    <div class="provisional-bill-requests" data-bill-requests>
+                                        @if (requests.QuickLabels.Count > 0)
+                                        {
+                                            <ul class="provisional-bill-quick" aria-label="Lựa chọn nhanh">
+                                                @foreach (var quick in requests.QuickLabels)
+                                                {
+                                                    <li data-bill-quick>@quick</li>
+                                                }
+                                            </ul>
+                                        }
+                                        @if (requests.FreeNote is not null)
+                                        {
+                                            <p class="provisional-bill-note" data-bill-note><span class="provisional-bill-note-label">Ghi chú:</span> @requests.FreeNote</p>
+                                        }
+                                    </div>
+                                }
+                                <small class="provisional-bill-line-meta">
+                                    @(Model.HasSeveralTables ? "Bàn " + line.TableCode + " · " : "")Gọi lúc @line.SubmittedAt.ToString("HH:mm") ·
+                                    <span data-bill-line-status>@line.StatusLabel</span>
+                                </small>
+                            </td>
+                            <td class="text-end text-nowrap provisional-bill-qty">@line.Quantity @line.Unit</td>
+                            <td class="text-end text-nowrap provisional-bill-price">@Vnd.Format(line.UnitPrice)</td>
+                            <td class="text-end text-nowrap fw-semibold provisional-bill-amount">@(line.IsCharged ? Vnd.Format(line.LineTotal) : "—")</td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th scope="row" colspan="4" class="text-end">Tạm tính (@Model.ChargedLineCount dòng)</th>
+                        <td class="text-end text-nowrap provisional-bill-total" data-bill-subtotal="@Model.Subtotal.ToString("0")">@Vnd.Format(Model.Subtotal)</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        <p class="text-muted small">Chưa trừ giảm giá. Số tiền chính thức theo hoá đơn khi thanh toán. Giờ Việt Nam (UTC+7); xem lúc @VietnamTime.Now.ToString("HH:mm dd/MM/yyyy").</p>
+    }
+</div>
+@section Scripts {
+    <script>
+        document.querySelector('[data-bill-print]')?.addEventListener('click', () => window.print());
+    </script>
+}

@@ -54,9 +54,10 @@ internal static class RoleNavigationTests
             .Select(e => e.Key).ToArray();
         static bool Own(string key, params string[] prefixes) => prefixes.Any(p => key.StartsWith(p, StringComparison.Ordinal));
         var kitchenExtra = Allowed("Kitchen").Where(k => !Own(k, "Kitchen.", "Account.")).ToArray();
-        var cashierExtra = Allowed("Cashier").Where(k => !Own(k, "Cashier.", "Account.")).ToArray();
+        // S3-04 Task 4: Thu ngân xem thêm hoá đơn tạm tính (chỉ đọc).
+        var cashierExtra = Allowed("Cashier").Where(k => !Own(k, "Cashier.", "ProvisionalBill.", "Account.")).ToArray();
         check(kitchenExtra.Length == 0, "Server scope: kitchen can only call kitchen APIs and its own account" + (kitchenExtra.Length > 0 ? ": " + string.Join(", ", kitchenExtra) : ""));
-        check(cashierExtra.Length == 0, "Server scope: cashier can only call cashier APIs and its own account" + (cashierExtra.Length > 0 ? ": " + string.Join(", ", cashierExtra) : ""));
+        check(cashierExtra.Length == 0, "Server scope: cashier can only call cashier APIs, the provisional bill and its own account" + (cashierExtra.Length > 0 ? ": " + string.Join(", ", cashierExtra) : ""));
         check(!ApiAccessMatrix.IsAllowed(ApiAccessMatrix.All.Single(e => e.Key == "Kitchen.Advance POST"), "Manager")
             && !ApiAccessMatrix.IsAllowed(ApiAccessMatrix.All.Single(e => e.Key == "Cashier.Checkout POST"), "Kitchen")
             && !ApiAccessMatrix.IsAllowed(ApiAccessMatrix.All.Single(e => e.Key == "Management.Availability POST"), "Kitchen")
@@ -70,12 +71,15 @@ internal static class RoleNavigationTests
             && !ApiAccessMatrix.IsAllowed(ApiAccessMatrix.All.Single(e => e.Key == "TableStatus.Snapshot GET"), "Kitchen")
             && !ApiAccessMatrix.IsAllowed(ApiAccessMatrix.All.Single(e => e.Key == "Page /Dishes/Index"), "Cashier")
             && !ApiAccessMatrix.IsAllowed(ApiAccessMatrix.All.Single(e => e.Key == "Reservations.Index GET"), "Kitchen")
-            && !ApiAccessMatrix.IsAllowed(ApiAccessMatrix.All.Single(e => e.Key == "Reservations.Details GET"), "Cashier"),
+            && !ApiAccessMatrix.IsAllowed(ApiAccessMatrix.All.Single(e => e.Key == "Reservations.Details GET"), "Cashier")
+            // S3-04 Task 4: hoá đơn tạm tính cho Quản lý, Phục vụ, Thu ngân; Bếp không.
+            && !ApiAccessMatrix.IsAllowed(ApiAccessMatrix.All.Single(e => e.Key == "ProvisionalBill.Index GET"), "Kitchen")
+            && ApiAccessMatrix.IsAllowed(ApiAccessMatrix.All.Single(e => e.Key == "ProvisionalBill.Index GET"), "Cashier"),
             "Server scope: cooking status is Kitchen only; payments are not for Kitchen; sold-out-today only in dish management (Manager); \"Tạm hết\" toggle for Kitchen and Manager; table map and dish management are not for Kitchen/Cashier");
 
         // S1-04 Task 1: Phục vụ chỉ gọi được API sơ đồ bàn, đặt bàn, gọi món (và tài khoản của chính mình).
-        var waiterExtra = Allowed("Waiter").Where(k => !Own(k, "Account.", "Home.Index", "TableDetails.", "TableStatus.", "TableMap.", "Reservations.", "ReservationConfirmations.", "ReservationManagement.", "Page /Ordering/", "Page /Orders/", "Serving.")).ToArray();
-        check(waiterExtra.Length == 0, "Server scope: waiter can only call table map, reservation, ordering and serving-queue APIs and its own account" + (waiterExtra.Length > 0 ? ": " + string.Join(", ", waiterExtra) : ""));
+        var waiterExtra = Allowed("Waiter").Where(k => !Own(k, "Account.", "Home.Index", "TableDetails.", "TableStatus.", "TableMap.", "Reservations.", "ReservationConfirmations.", "ReservationManagement.", "ReservationAlerts.", "Page /Ordering/", "Page /Orders/", "Serving.", "ProvisionalBill.")).ToArray();
+        check(waiterExtra.Length == 0, "Server scope: waiter can only call table map, reservation, ordering, serving-queue and provisional-bill APIs and its own account" + (waiterExtra.Length > 0 ? ": " + string.Join(", ", waiterExtra) : ""));
         ApiEndpoint Api(string key) => ApiAccessMatrix.All.Single(e => e.Key == key);
         var waiterBlocked = new[]
         {
@@ -93,7 +97,9 @@ internal static class RoleNavigationTests
             "Home.Index ANY", "TableStatus.Snapshot GET", "TableStatus.Update POST", "TableDetails.Get GET",
             "Reservations.Index GET", "Reservations.Create POST", "Reservations.Details GET",
             "Page /Ordering/Index", "Page /Ordering/Checkout", "Page /Orders/Details", "Account.Me GET",
-            "Serving.Index GET", "Serving.Queue GET", "Serving.Serve POST"
+            "Serving.Index GET", "Serving.Queue GET", "Serving.Serve POST",
+            // S3-04 Task 4: phục vụ mở hoá đơn tạm tính để đối chiếu ghi chú khi mang món ra.
+            "ProvisionalBill.Index GET", "ProvisionalBill.Table GET"
         }.Where(k => !ApiAccessMatrix.IsAllowed(Api(k), "Waiter")).ToArray();
         check(waiterAllowed.Length == 0, "Server scope: table map, reservation, ordering and serving-queue APIs are open to the waiter" + (waiterAllowed.Length > 0 ? ": " + string.Join(", ", waiterAllowed) : ""));
 

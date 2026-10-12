@@ -70,10 +70,41 @@ internal static class Verification
             await BookingEmailEndToEndVerification.Run(connection, password);
             // S1-04 Task 4: gọi toàn bộ API với từng vai trò, chưa đăng nhập và vai trò không xác định.
             await ApiAuthorizationVerification.Run(connection);
+            // S3-09 Task 1: cảnh báo đặt bàn trễ 15 phút, đánh dấu khách không tới (cần tài khoản do bước trên tạo).
+            await LateReservationVerification.Run(connection);
             // S3-01 Task 1: khách quét QR bàn trống → mở đúng một phiên mới, bàn chuyển "Đang phục vụ" (chạy sau cùng vì để lại bàn đang phục vụ).
             await QrGuestSessionVerification.Run(connection);
             await DatabaseTool.Execute(connection, "EXEC dbo.usp_RunMaintenance; EXEC dbo.usp_RunMaintenance;");
             Console.WriteLine("PASS: all SQL Server integration checks.");
+        }
+        finally
+        {
+            SqlConnection.ClearAllPools();
+            builder.InitialCatalog = "master";
+            await using var cn = new SqlConnection(builder.ConnectionString);
+            await cn.OpenAsync();
+            await using var drop = new SqlCommand($"IF DB_ID(@name) IS NOT NULL BEGIN ALTER DATABASE [{name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{name}]; END", cn);
+            drop.Parameters.AddWithValue("@name", name);
+            await drop.ExecuteNonQueryAsync();
+        }
+    }
+
+    /// <summary>
+    /// S3-09 Task 1: chỉ chạy kiểm thử cảnh báo đặt bàn trễ + đánh dấu khách không tới (lệnh "verify-late-reservations")
+    /// trên database tạm riêng. Cần build Debug trước (kiểm thử chạy web thật).
+    /// </summary>
+    internal static async Task RunLateReservations(string baseConnection)
+    {
+        var builder = new SqlConnectionStringBuilder(baseConnection);
+        var name = "RestaurantManagement_Test_" + Guid.NewGuid().ToString("N");
+        builder.InitialCatalog = name;
+        var connection = builder.ConnectionString;
+        try
+        {
+            await DatabaseTool.Migrate(connection);
+            await DatabaseTool.Seed(connection, "VerificationOnly9!" + Guid.NewGuid().ToString("N"));
+            await ApiAuthorizationVerification.Run(connection);
+            await LateReservationVerification.Run(connection);
         }
         finally
         {

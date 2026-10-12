@@ -1,0 +1,59 @@
+/* S3-04 Task 4: hoá đơn tạm tính — yêu cầu riêng (lựa chọn nhanh + ghi chú) ngay dưới tên món, cùng cách trình bày với màn hình bếp
+   để phục vụ đối chiếu nhanh. Px cố định (font gốc 14px). Không cắt chữ: không ellipsis / line-clamp / chiều cao cố định. */
+.provisional-bill { max-width: 960px; }
+.provisional-bill-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; margin-bottom: 12px; }
+.provisional-bill-head { margin-bottom: 16px; }
+.provisional-bill-kicker { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #92400e; }
+.provisional-bill-head h2 { margin: 2px 0 4px; }
+.provisional-bill-meta { margin: 0 0 6px; color: #374151; }
+.provisional-bill-hint { margin: 0; color: #4b5563; font-size: 15px; }
+
+.provisional-bill-table td, .provisional-bill-table th { vertical-align: top; }
+.provisional-bill-index { width: 36px; color: #6b7280; }
+.provisional-bill-dish { min-width: 240px; }
+.provisional-bill-name { display: block; font-size: 17px; line-height: 1.35; overflow-wrap: anywhere; }
+.provisional-bill-requests {
+    margin-top: 6px; padding: 6px 10px; border-left: 4px solid #d97706; border-radius: 6px;
+    background: #fffbeb; color: #1f2937; overflow: visible;
+}
+.provisional-bill-quick { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 4px; padding: 0; list-style: none; }
+.provisional-bill-quick:last-child { margin-bottom: 0; }
+.provisional-bill-quick li { padding: 2px 10px; border-radius: 999px; background: #b3122e; color: #fff; font-size: 14px; font-weight: 700; line-height: 1.4; }
+.provisional-bill-note {
+    max-width: none; margin: 0; font-size: 16px; line-height: 1.5; font-weight: 500;
+    white-space: pre-wrap; overflow-wrap: anywhere; word-break: normal; text-overflow: clip; overflow: visible;
+}
+.provisional-bill-note-label { font-weight: 700; color: #92400e; }
+.provisional-bill-line-meta { display: block; margin-top: 4px; color: #6b7280; font-size: 13px; }
+.provisional-bill-total { font-size: 18px; font-weight: 800; }
+
+/* Món đã huỷ: vẫn giữ dòng và ghi chú để đối chiếu, nhưng mờ đi và gạch tên món. */
+.provisional-bill-cancelled .provisional-bill-name { text-decoration: line-through; color: #6b7280; }
+.provisional-bill-cancelled .provisional-bill-requests { opacity: .75; }
+
+/* Điện thoại: mỗi dòng món thành một khối — tên món + yêu cầu chiếm hết chiều ngang, số lượng / đơn giá / thành tiền ở dòng dưới,
+   nên không phải cuộn ngang mới đọc được ghi chú hay số tiền. */
+@media (max-width: 575.98px) {
+    .provisional-bill-table thead { display: none; }
+    .provisional-bill-table tbody tr {
+        display: grid; grid-template-columns: 24px minmax(0, 1fr) auto auto; column-gap: 10px; row-gap: 6px;
+        padding: 12px 0; border-bottom: 1px solid #dee2e6;
+    }
+    .provisional-bill-table tbody td { display: block; padding: 0; border: 0; }
+    .provisional-bill-table td.provisional-bill-index { grid-row: 1 / span 2; }
+    .provisional-bill-table td.provisional-bill-dish { grid-column: 2 / 5; min-width: 0; }
+    .provisional-bill-table td.provisional-bill-qty { grid-column: 2; text-align: left !important; }
+    .provisional-bill-table td.provisional-bill-price { grid-column: 3; color: #6b7280; }
+    .provisional-bill-table td.provisional-bill-amount { grid-column: 4; }
+    .provisional-bill-table tfoot tr { display: flex; justify-content: space-between; align-items: baseline; padding-top: 10px; }
+    .provisional-bill-table tfoot th, .provisional-bill-table tfoot td { border: 0; padding: 0; }
+    .provisional-bill-note { font-size: 15px; }
+}
+
+@media print {
+    .provisional-bill-actions, .admin-sidebar, .workspace-header, .skip-navigation { display: none !important; }
+    .admin-workspace { margin-left: 0 !important; }
+    .provisional-bill { max-width: none; margin: 0 !important; }
+    .provisional-bill-requests { background: none; border-left-color: #000; }
+    .provisional-bill-quick li { background: none; color: #000; border: 1px solid #000; }
+}

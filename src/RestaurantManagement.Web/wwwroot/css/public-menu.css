@@ -76,3 +76,8 @@
     .public-dish-desc { font-size: 13px; }
     .public-dish-price data { font-size: 16px; }
 }
+
+/* Thanh nhóm món dính trên cùng: chỉ các nút nhóm món có nền; phần nền của thanh trong suốt để vẫn nhìn thấy món ăn phía sau.
+   (.public-menu .public-menu-tabs mạnh hơn .public-menu-tabs của michelin.css nạp sau.) */
+.public-menu .public-menu-tabs { background: transparent; border-bottom: 0; box-shadow: none; pointer-events: none; }
+.public-menu .public-menu-tabs a { pointer-events: auto; background: #fff; box-shadow: 0 4px 14px rgba(0, 0, 0, .12); }

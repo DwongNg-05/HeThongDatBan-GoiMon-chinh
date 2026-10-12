@@ -97,6 +97,14 @@
             byId('details-reservation-time').textContent = formattedTime(reservation.startsAtUtc);
         }
         byId('details-source').hidden = !details.isDemoData;
+
+        // S3-04 Task 4: bàn đang có phiên phục vụ (dữ liệu thật) → nút mở hoá đơn tạm tính của bàn.
+        const billLink = byId('details-bill-link');
+        if (billLink) {
+            const hasBill = details.hasActiveSession && !details.isDemoData;
+            billLink.hidden = !hasBill;
+            billLink.href = hasBill ? `${billLink.dataset.billUrl}${encodeURIComponent(details.code)}` : '#';
+        }
     }
 
     async function openDetails(code) {
@@ -106,6 +114,7 @@
         byId('table-details-title').textContent = `Bàn ${code}`;
         byId('details-context').textContent = 'Đang tải thông tin…';
         byId('details-reservation').hidden = true;
+        if (byId('details-bill-link')) byId('details-bill-link').hidden = true;
         detailsOverlay.hidden = false;
         byId('details-close-button').focus();
         try {
@@ -171,6 +180,7 @@
         try {
             const update = JSON.parse(event.data);
             applyStatus(update);
+            refreshAlertsSoon();
             if (!detailsOverlay.hidden && selectedDetailCode === update.code)
                 refreshDetails(update.code).catch(() => {});
         } catch {
@@ -225,4 +235,93 @@
             }
         });
     });
+    // ---------- S3-09 Task 1: cảnh báo đặt bàn trễ 15 phút + "Đánh dấu khách không tới" ----------
+    // Tải cảnh báo ngay, rồi tải lại đúng lúc lượt kế tiếp đạt mốc (theo đồng hồ máy chủ) hoặc tối đa 30 giây/lần,
+    // và mỗi khi sơ đồ nhận thay đổi trạng thái bàn. Không cần tải lại trang.
+    const noShow = window.ReservationNoShow;
+    const alertsPanel = byId('late-alerts');
+    const alertList = byId('late-alert-list');
+    let alertsTimer = 0;
+    let alertsRequest = null;
+
+    const element = (tag, className, text) => {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text != null) node.textContent = text;
+        return node;
+    };
+
+    function noShowButton(alert, label) {
+        const button = element('button', 'late-no-show', label);
+        button.type = 'button';
+        button.dataset.noShowId = alert.id;
+        button.setAttribute('aria-label', `Đánh dấu khách không tới: lượt ${alert.code}, ${alert.customerName}`);
+        button.addEventListener('click', () => markNoShow(alert));
+        return button;
+    }
+
+    function renderAlerts(alerts) {
+        const firstByTable = new Map();
+        alerts.forEach(alert => { if (alert.tableCode && !firstByTable.has(alert.tableCode)) firstByTable.set(alert.tableCode, alert); });
+        document.querySelectorAll('[data-table-code]').forEach(card => {
+            const alert = firstByTable.get(card.dataset.tableCode);
+            const slot = card.querySelector('[data-late-slot]');
+            card.classList.toggle('has-late-alert', Boolean(alert));
+            if (!slot) return;
+            slot.hidden = !alert;
+            slot.replaceChildren();
+            if (!alert) return;
+            slot.append(element('span', 'table-late-label', `${alert.lateLabel} · ${alert.customerName}`), noShowButton(alert, 'Khách không tới'));
+        });
+
+        alertList.replaceChildren(...alerts.map(alert => {
+            const item = element('li', 'late-alert');
+            item.dataset.lateReservation = alert.id;
+            const text = element('div', 'late-alert-text');
+            text.append(
+                element('strong', 'late-alert-table', alert.tableCode ? `Bàn ${alert.tableCode}` : 'Chưa xếp bàn'),
+                element('span', null, ` · ${alert.customerName} (${alert.guestCount} khách) · ${alert.phone} · hẹn ${alert.appointmentTime} · `),
+                element('span', 'late-alert-minutes', alert.lateLabel),
+                element('span', 'late-alert-code', ` · Mã ${alert.code} · ${alert.statusLabel}`));
+            item.append(text, noShowButton(alert, 'Đánh dấu khách không tới'));
+            return item;
+        }));
+        byId('late-alerts-count').textContent = alerts.length ? `(${alerts.length})` : '';
+        alertsPanel.hidden = alerts.length === 0;
+    }
+
+    async function loadAlerts() {
+        if (!noShow?.api || !alertsPanel) return;
+        clearTimeout(alertsTimer);
+        alertsRequest?.abort();
+        const request = new AbortController();
+        alertsRequest = request;
+        let delay = 30000;
+        try {
+            const response = await fetch(noShow.api, { cache: 'no-store', signal: request.signal, headers: { Accept: 'application/json' } });
+            if (!response.ok) throw new Error('Không tải được cảnh báo đặt bàn trễ.');
+            const snapshot = await response.json();
+            if (alertsRequest !== request) return;
+            renderAlerts(snapshot.alerts);
+            delay = noShow.nextDelay(snapshot, Date.now());
+        } catch (failure) {
+            if (failure.name === 'AbortError') return;   // đã có lần tải mới thay thế
+        }
+        if (alertsRequest === request) alertsTimer = setTimeout(loadAlerts, delay);
+    }
+
+    function refreshAlertsSoon() {
+        clearTimeout(alertsTimer);
+        alertsTimer = setTimeout(loadAlerts, 300);
+    }
+
+    async function markNoShow(alert) {
+        const result = await noShow.mark(alert.id, `lượt ${alert.code} – ${alert.customerName}${alert.tableCode ? `, bàn ${alert.tableCode}` : ''}`);
+        if (!result) return;
+        // Thành công hoặc bị từ chối (khách vừa tới, người khác đã đánh dấu…): đồng bộ lại ngay bàn và cảnh báo.
+        await Promise.allSettled([refreshSnapshot(), loadAlerts()]);
+    }
+
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshAlertsSoon(); });
+    loadAlerts();
 })();

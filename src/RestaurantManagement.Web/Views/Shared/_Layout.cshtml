@@ -30,17 +30,40 @@
     @await RenderSectionAsync("Styles", required: false)
     @* Giao diện phong cách Michelin: nạp cuối để ghi đè màu, chữ, khoảng cách của các file trên. *@
     <link rel="stylesheet" href="~/css/michelin.css" asp-append-version="true" />
+    @* Icon Font Awesome Free (wwwroot/lib/fontawesome) dùng chung cho khách và nhân viên. *@
+    <partial name="_FontAwesome" />
+    @if (signedIn)
+    {
+        @* Màu đỏ thương hiệu cho các màn hình nhân viên: tab, bảng, sơ đồ bàn, đơn chờ xử lý. *@
+        <link rel="stylesheet" href="~/css/staff-theme.css" asp-append-version="true" />
+    }
+    else
+    {
+        @* Hộp đăng nhập — chỉ người chưa đăng nhập cần. *@
+        <link rel="stylesheet" href="~/css/login-dialog.css" asp-append-version="true" />
+    }
 </head>
 <body class="@(signedIn ? "admin-shell" : "guest-shell")">
+    @if (signedIn)
+    {
+        @* Áp dụng ngay trạng thái "thu gọn thanh bên" đã lưu để trang không bị nháy (site.js xử lý nút bấm). *@
+        <script>try { if (localStorage.getItem('rm.sidebar-collapsed') === '1') document.body.classList.add('sidebar-collapsed'); } catch (e) { }</script>
+    }
     <a class="skip-navigation" href="#main-content">Đi đến nội dung chính</a>
     @if (signedIn)
     {
         <aside class="offcanvas-lg offcanvas-start admin-sidebar" tabindex="-1" id="adminSidebar" aria-labelledby="sidebar-title">
             <div class="sidebar-brand-row">
-                <a class="sidebar-brand" asp-area="" asp-controller="Home" asp-action="Index">
-                    <span class="brand-wordmark" id="sidebar-title">BẾP NHÀ</span>
+                @* Logo Bếp Nhà (nét trắng, nền trong suốt) trên thanh bên màu đỏ của logo; tên quán vẫn có cho trình đọc màn hình. *@
+                <a class="sidebar-logo" asp-area="" asp-controller="Home" asp-action="Index">
+                    <img src="~/images/brand/bep-nha-logo-white.png" asp-append-version="true" alt="" width="140" height="130" />
+                    <span class="visually-hidden" id="sidebar-title">Bếp Nhà</span>
                 </a>
                 <button type="button" class="btn-close d-lg-none" data-bs-dismiss="offcanvas" data-bs-target="#adminSidebar" aria-label="Đóng menu"></button>
+                @* Máy tính: thu gọn thanh điều hướng để có thêm chỗ; mở lại bằng nút ☰ trên đầu trang. *@
+                <button type="button" class="sidebar-collapse" data-sidebar-collapse aria-controls="adminSidebar" aria-expanded="true" aria-label="Thu gọn menu" title="Thu gọn menu">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5" /></svg>
+                </button>
             </div>
             <nav class="sidebar-navigation" aria-label="Điều hướng chính">
                 <ul class="sidebar-links">
@@ -69,21 +92,58 @@
                 <button class="menu-toggle d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#adminSidebar" aria-controls="adminSidebar" aria-label="Mở menu điều hướng">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
                 </button>
+                <button class="menu-toggle sidebar-expand" type="button" data-sidebar-expand aria-controls="adminSidebar" aria-expanded="false" aria-label="Mở menu điều hướng" title="Mở menu điều hướng">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+                </button>
                 <span class="workspace-caption">@(User.FindFirst("FullName")?.Value ?? User.Identity?.Name) · @RestaurantManagement.Web.Security.AppRoles.DisplayName(userRole)</span>
             }
             else
             {
                 @* S2-01 Task 1: khách chưa đăng nhập luôn có đường tới thực đơn công khai. *@
-                <a class="sidebar-brand" asp-area="" asp-controller="Menu" asp-action="Index" aria-label="Bếp Nhà – thực đơn"><span class="brand-wordmark">BẾP NHÀ</span></a>
+                <a class="guest-brand" asp-area="" asp-controller="Menu" asp-action="Index" aria-label="Bếp Nhà – thực đơn"><img src="~/images/brand/bep-nha-logo-white.png" asp-append-version="true" alt="" width="75" height="70" /></a>
                 <nav class="guest-links" aria-label="Điều hướng khách">
                     <a asp-area="" asp-controller="Menu" asp-action="Index" aria-current="@(IsCurrent("Menu", "Index") ? "page" : null)">Thực đơn</a>
                     @* Khách đặt bàn không cần đăng nhập. *@
                     <a asp-area="" asp-controller="Reservations" asp-action="Create" aria-current="@(IsCurrent("Reservations", "Create") ? "page" : null)">Đặt bàn</a>
                     <a asp-area="" asp-controller="ReservationLookup" asp-action="Index">Tra cứu đặt bàn</a>
-                    <a class="guest-login" asp-area="" asp-controller="Account" asp-action="Login" aria-current="@(IsCurrent("Account", "Login") ? "page" : null)">Đăng nhập</a>
                 </nav>
+                @* Avatar tài khoản: mở hộp đăng nhập ngay trên trang (login-dialog.js); không có JS thì sang trang Đăng nhập. *@
+                <a class="guest-avatar" asp-area="" asp-controller="Account" asp-action="Login" data-login-open aria-haspopup="dialog" aria-label="Đăng nhập" title="Đăng nhập" aria-current="@(IsCurrent("Account", "Login") ? "page" : null)"><i class="fa-regular fa-user" aria-hidden="true"></i></a>
             }
         </header>
+        @if (!signedIn)
+        {
+            @* Hộp đăng nhập (kiểu "Register or Sign In"): gửi tới đúng POST /Account/Login bằng fetch (X-Requested-With) nên giữ nguyên
+               khoá đăng nhập tạm thời, nhật ký, xác minh email. Mã chống giả mạo chỉ lấy khi mở hộp, để trang công khai không bị đổi header cache. *@
+            <dialog class="login-dialog" id="login-dialog" aria-labelledby="login-dialog-title" aria-describedby="login-dialog-lead" data-login-dialog>
+                <button type="button" class="login-dialog-close" data-login-close aria-label="Đóng"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+                <h2 class="login-dialog-title" id="login-dialog-title">Đăng nhập</h2>
+                <p class="login-dialog-lead" id="login-dialog-lead">Dành cho nhân viên Bếp Nhà: Quản lý, Phục vụ, Bếp và Thu ngân.</p>
+                <form class="login-dialog-form" method="post" asp-area="" asp-controller="Account" asp-action="Login" asp-antiforgery="false" data-login-form>
+                    <input type="hidden" name="returnUrl" value="" />
+                    <div class="login-dialog-error" role="alert" hidden data-login-error>
+                        <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+                        <span data-login-error-text></span>
+                    </div>
+                    <label class="visually-hidden" for="login-dialog-identifier">Tên đăng nhập hoặc số điện thoại</label>
+                    <div class="login-dialog-field">
+                        <i class="fa-regular fa-user" aria-hidden="true"></i>
+                        <input id="login-dialog-identifier" name="Identifier" placeholder="Tên đăng nhập hoặc số điện thoại" autocomplete="username" maxlength="50" required />
+                    </div>
+                    <label class="visually-hidden" for="login-dialog-password">Mật khẩu</label>
+                    <div class="login-dialog-field">
+                        <i class="fa-solid fa-lock" aria-hidden="true"></i>
+                        <input id="login-dialog-password" type="password" name="Password" placeholder="Mật khẩu" autocomplete="current-password" maxlength="72" required />
+                        <button type="button" class="login-dialog-reveal" data-login-reveal aria-label="Hiện mật khẩu" aria-pressed="false"><i class="fa-regular fa-eye" aria-hidden="true"></i></button>
+                    </div>
+                    <button type="submit" class="login-dialog-submit" data-login-submit>Đăng nhập</button>
+                </form>
+                <p class="login-dialog-or"><span>HOẶC</span></p>
+                <a class="login-dialog-alt" asp-area="" asp-controller="Menu" asp-action="Index"><i class="fa-solid fa-utensils" aria-hidden="true"></i><span>Xem thực đơn</span></a>
+                <a class="login-dialog-alt" asp-area="" asp-controller="Reservations" asp-action="Create"><i class="fa-regular fa-calendar-check" aria-hidden="true"></i><span>Đặt bàn</span></a>
+                <p class="login-dialog-foot">Khách hàng không cần tài khoản để xem thực đơn và đặt bàn.</p>
+            </dialog>
+        }
         <main id="main-content" class="workspace-content" tabindex="-1">
             @RenderBody()
         </main>
@@ -97,6 +157,10 @@
         <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     }
     <script src="~/js/site.js" asp-append-version="true"></script>
+    @if (!signedIn)
+    {
+        <script src="~/js/login-dialog.js" asp-append-version="true"></script>
+    }
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

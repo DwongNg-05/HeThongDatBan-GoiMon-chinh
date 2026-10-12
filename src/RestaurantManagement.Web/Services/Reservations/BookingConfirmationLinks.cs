@@ -13,6 +13,8 @@ public sealed class BookingConfirmationLinks
 {
     public const string Purpose = "RestaurantManagement.BookingConfirmation.v1";
     public const string ConfirmPath = "/Reservations/Confirm";
+    /// <summary>Trang "Tra cứu đặt bàn" — liên kết trong email điền sẵn mã đặt bàn (?code=ED095C).</summary>
+    public const string LookupPath = "/ReservationLookup";
 
     private readonly IDataProtector _protector;
     private readonly string? _configuredBaseUrl;
@@ -51,6 +53,13 @@ public sealed class BookingConfirmationLinks
         {
             return null;
         }
+    }
+
+    /// <summary>Liên kết "Tra cứu đặt bàn" đã điền sẵn mã đặt bàn; null khi chưa biết địa chỉ web.</summary>
+    public string? CreateLookupUrl(string reservationCode)
+    {
+        var baseUrl = BaseUrl;
+        return baseUrl is null ? null : $"{baseUrl}{LookupPath}?code={Uri.EscapeDataString(reservationCode.Trim())}";
     }
 
     /// <summary>Liên kết đầy đủ để đặt vào email; null khi chưa biết địa chỉ web.</summary>

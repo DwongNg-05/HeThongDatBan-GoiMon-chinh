@@ -23,16 +23,20 @@ public sealed record BookingEmailDetails(
     string? TableCode = null,
     string? CancelReason = null)
 {
-    /// <summary>Mã đặt bàn gửi cho khách = mã bàn đã chọn (ví dụ A05); lượt cũ chưa có bàn dùng mã nội bộ.</summary>
-    public string DisplayCode => TableCode ?? Code;
+    /// <summary>
+    /// Mã đặt bàn gửi cho khách: luôn là mã đặt bàn 6 ký tự (ví dụ ED095C) — đúng mã khách nhập ở "Tra cứu đặt bàn".
+    /// Bàn đã giữ (ví dụ LAU02) hiển thị ở dòng riêng.
+    /// </summary>
+    public string DisplayCode => Code;
 
     /// <summary>Giờ bắt đầu theo giờ Việt Nam.</summary>
     public DateTime StartsAtVietnam => VietnamTime.FromUtc(StartsAtUtc);
 }
 
 /// <summary>
-/// Nội dung email xác nhận đặt bàn đã chốt với PO: mã đặt bàn, ngày giờ, số khách, địa chỉ quán.
-/// Có bản HTML và bản chữ thường; mọi dữ liệu khách nhập đều được mã hoá HTML.
+/// Nội dung email đặt bàn: mã đặt bàn (để tra cứu), bàn đã giữ, ngày giờ, số khách, địa chỉ quán.
+/// Email chỉ gửi khi Quản lý / Phục vụ xác nhận lượt đặt (BookingConfirmed, migration 050); email huỷ khi lượt bị huỷ.
+/// Tiêu đề dạng "Bếp Nhà - Xác nhận đặt bàn ED095C". Có bản HTML và bản chữ thường; mọi dữ liệu khách nhập đều được mã hoá HTML.
 /// </summary>
 public static class BookingConfirmationEmail
 {
@@ -70,68 +74,82 @@ public static class BookingConfirmationEmail
         $"{vietnamTime.ToString("HH:mm", CultureInfo.InvariantCulture)}, {Weekdays[(int)vietnamTime.DayOfWeek]} ngày {vietnamTime.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)}";
 
     public const string Received = "BookingReceived";
+    public const string Confirmed = "BookingConfirmed";
     public const string Cancelled = "BookingCancelled";
 
-    public static string Subject(BookingEmailDetails d, string messageType = Received) => messageType == Cancelled
-        ? $"Đã huỷ đặt bàn {d.DisplayCode} – {d.RestaurantName}"
-        : $"Xác nhận đặt bàn {d.DisplayCode} – {d.RestaurantName}";
+    /// <summary>Màu thương hiệu (đỏ logo Bếp Nhà) dùng trong email.</summary>
+    private const string Brand = "#b40829", BrandDark = "#8f0620", BrandSoft = "#fff4f5";
 
-    /// <summary>Email xác nhận (BookingReceived) hoặc email báo huỷ (BookingCancelled) của một lượt đặt bàn.</summary>
-    /// <param name="confirmUrl">
-    /// Liên kết "Xác nhận đặt bàn" (có mã bảo mật) để khách tự xác nhận mà không cần đăng nhập.
-    /// Chỉ hiện trong email xác nhận của lượt đã chọn bàn.
-    /// </param>
-    public static EmailMessage Create(string to, BookingEmailDetails d, string messageType = Received, string? confirmUrl = null)
+    /// <summary>Ví dụ: "Bếp Nhà - Xác nhận đặt bàn ED095C" (tên nhà hàng đứng trước).</summary>
+    public static string Subject(BookingEmailDetails d, string messageType = Confirmed) => messageType == Cancelled
+        ? $"{d.RestaurantName} - Đã huỷ đặt bàn {d.Code}"
+        : $"{d.RestaurantName} - Xác nhận đặt bàn {d.Code}";
+
+    /// <summary>Email xác nhận (BookingConfirmed; BookingReceived cũ dùng cùng mẫu) hoặc email báo huỷ (BookingCancelled).</summary>
+    /// <param name="confirmUrl">Chỉ cho email "đã ghi nhận" cũ: liên kết để khách tự xác nhận (lượt đã có bàn).</param>
+    /// <param name="lookupUrl">Liên kết "Tra cứu đặt bàn" đã điền sẵn mã đặt bàn (khách không phải gõ lại mã).</param>
+    public static EmailMessage Create(string to, BookingEmailDetails d, string messageType = Confirmed, string? confirmUrl = null,
+        string? lookupUrl = null)
     {
         var cancelled = messageType == Cancelled;
-        var showConfirm = !cancelled && !string.IsNullOrWhiteSpace(confirmUrl) && d.TableCode is not null;
+        var confirmed = messageType == Confirmed;
+        var showConfirm = messageType == Received && !string.IsNullOrWhiteSpace(confirmUrl) && d.TableCode is not null;
+        var showLookup = !cancelled && !string.IsNullOrWhiteSpace(lookupUrl);
         var title = cancelled ? "Huỷ đặt bàn" : "Xác nhận đặt bàn";
         var intro = cancelled
             ? "Nhà hàng rất tiếc phải thông báo lượt đặt bàn dưới đây đã bị huỷ."
-            : showConfirm
-                ? "Nhà hàng đã ghi nhận yêu cầu đặt bàn của bạn. Vui lòng bấm nút “Xác nhận đặt bàn” bên dưới để giữ bàn."
-                : "Nhà hàng đã ghi nhận yêu cầu đặt bàn của bạn. Vui lòng giữ lại mã đặt bàn dưới đây.";
+            : confirmed
+                ? d.TableCode is null
+                    ? "Nhà hàng đã xác nhận lượt đặt bàn của bạn."
+                    : $"Nhà hàng đã xác nhận lượt đặt bàn của bạn và giữ bàn {d.TableCode} trong khung giờ dưới đây."
+                : showConfirm
+                    ? "Nhà hàng đã ghi nhận yêu cầu đặt bàn của bạn. Vui lòng bấm nút “Xác nhận đặt bàn” bên dưới để giữ bàn."
+                    : "Nhà hàng đã ghi nhận yêu cầu đặt bàn của bạn. Vui lòng giữ lại mã đặt bàn dưới đây.";
         var note = cancelled
             ? "Nếu bạn vẫn muốn dùng bữa, vui lòng đặt bàn mới hoặc gọi điện cho nhà hàng."
-            : $"Giờ hiển thị theo giờ Việt Nam (UTC+7). Nhà hàng sẽ sắp xếp bàn và liên hệ nếu cần thay đổi.";
+            : "Giờ hiển thị theo giờ Việt Nam (UTC+7). Dùng mã đặt bàn và số điện thoại để tra cứu hoặc huỷ đặt bàn.";
         // Mã hoá ký tự HTML nguy hiểm nhưng giữ nguyên chữ tiếng Việt để email dễ đọc (kể cả khi xem mã nguồn).
         static string E(string? value) => Html.Encode(value ?? string.Empty);
         var when = FormatDateTime(d.StartsAtVietnam);
         var guestName = string.IsNullOrWhiteSpace(d.CustomerName) ? "quý khách" : d.CustomerName;
         var address = string.IsNullOrWhiteSpace(d.RestaurantAddress) ? "(nhà hàng sẽ liên hệ để báo địa chỉ)" : d.RestaurantAddress;
         string Row(string label, string valueHtml) =>
-            $"<tr><td style=\"padding:8px 0;color:#766b6e;width:120px;vertical-align:top\">{label}</td><td style=\"padding:8px 0;font-weight:600\">{valueHtml}</td></tr>";
+            $"<tr><td style=\"padding:8px 0;color:#6e6e6e;width:120px;vertical-align:top\">{label}</td><td style=\"padding:8px 0;font-weight:600\">{valueHtml}</td></tr>";
+        // Nút dạng bảng lồng để hiện đúng trên Gmail/Outlook, kèm liên kết dự phòng dạng chữ.
+        string Button(string url, string label, string hint) => $"""
+            <tr><td align="center" style="padding:4px 24px 20px">
+              <table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:10px;background:{Brand}">
+                <a href="{E(url)}" target="_blank" style="display:inline-block;padding:14px 30px;font-size:16px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:10px">{label}</a>
+              </td></tr></table>
+              <div style="font-size:12px;color:#8a8a8a;margin-top:10px;line-height:1.5">{hint}<br><a href="{E(url)}" style="color:{Brand};word-break:break-all">{E(url)}</a></div>
+            </td></tr>
+            """;
 
-        // Nút "Xác nhận đặt bàn" (bảng lồng để hiện đúng trên Gmail/Outlook) + liên kết dự phòng dạng chữ.
-        var confirmHtml = showConfirm
-            ? $"""
-                <tr><td align="center" style="padding:4px 24px 20px">
-                  <table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:10px;background:#c92d3e">
-                    <a href="{E(confirmUrl)}" target="_blank" style="display:inline-block;padding:14px 30px;font-size:16px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:10px">Xác nhận đặt bàn</a>
-                  </td></tr></table>
-                  <div style="font-size:12px;color:#9a8f91;margin-top:10px;line-height:1.5">Nút không bấm được? Mở liên kết sau trong trình duyệt:<br><a href="{E(confirmUrl)}" style="color:#c92d3e;word-break:break-all">{E(confirmUrl)}</a></div>
-                </td></tr>
-                """
-            : string.Empty;
+        var actionHtml = showConfirm
+            ? Button(confirmUrl!, "Xác nhận đặt bàn", "Nút không bấm được? Mở liên kết sau trong trình duyệt:")
+            : showLookup
+                ? Button(lookupUrl!, "Tra cứu đặt bàn", "Mã đặt bàn đã được điền sẵn, bạn chỉ cần nhập số điện thoại. Hoặc mở liên kết:")
+                : string.Empty;
 
         var html = $"""
             <!doctype html>
-            <html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{title} {E(d.DisplayCode)}</title></head>
-            <body style="margin:0;padding:0;background:#f4f1f1;font-family:Arial,Helvetica,sans-serif;color:#30282a">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f1f1;padding:24px 12px">
+            <html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{E(d.RestaurantName)} - {title} {E(d.Code)}</title></head>
+            <body style="margin:0;padding:0;background:#f6f6f6;font-family:Arial,Helvetica,sans-serif;color:#222222">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f6f6;padding:24px 12px">
                 <tr><td align="center">
                   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:16px;overflow:hidden">
-                    <tr><td style="background:#c92d3e;padding:18px 24px;color:#ffffff;font-size:20px;font-weight:700">{E(d.RestaurantName)} · {title}</td></tr>
+                    <tr><td style="background:{Brand};padding:18px 24px;color:#ffffff;font-size:20px;font-weight:700">{E(d.RestaurantName)} - {title}</td></tr>
                     <tr><td style="padding:24px 24px 8px;font-size:16px;line-height:1.6">
                       <p style="margin:0 0 12px">Xin chào <strong>{E(guestName)}</strong>,</p>
                       <p style="margin:0">{E(intro)}</p>
                     </td></tr>
                     <tr><td align="center" style="padding:12px 24px">
-                      <div style="font-size:13px;color:#766b6e;margin-bottom:6px">Mã đặt bàn</div>
-                      <div style="display:inline-block;padding:10px 22px;border:2px solid #c92d3e;border-radius:12px;background:#fff3f4;font-family:'Courier New',Consolas,monospace;font-size:32px;font-weight:700;letter-spacing:6px;color:#1f1a1b">{E(d.DisplayCode)}</div>
+                      <div style="font-size:13px;color:#6e6e6e;margin-bottom:6px">Mã đặt bàn (dùng để tra cứu)</div>
+                      <div style="display:inline-block;padding:10px 22px;border:2px solid {Brand};border-radius:12px;background:{BrandSoft};font-family:'Courier New',Consolas,monospace;font-size:32px;font-weight:700;letter-spacing:6px;color:{BrandDark};-webkit-user-select:all;user-select:all">{E(d.Code)}</div>
                     </td></tr>
                     <tr><td style="padding:8px 24px 16px">
-                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:15px;border-top:1px solid #eee3e5">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:15px;border-top:1px solid #eeeeee">
+                        {(d.TableCode is null ? "" : Row("Bàn", E(d.TableCode)))}
                         {Row("Ngày giờ", E(when))}
                         {Row("Số khách", E($"{d.GuestCount} người"))}
                         {(d.AreaName is null ? "" : Row("Khu vực", E(d.AreaName)))}
@@ -140,14 +158,14 @@ public static class BookingConfirmationEmail
                         {(cancelled && d.CancelReason is not null ? Row("Lý do huỷ", E(d.CancelReason)) : "")}
                       </table>
                     </td></tr>
-                    {confirmHtml}
+                    {actionHtml}
                     <tr><td style="padding:0 24px 24px">
-                      <div style="background:#fff8e5;border:1px solid #f2d68a;border-radius:10px;padding:12px 14px;font-size:14px;line-height:1.5">
+                      <div style="background:{BrandSoft};border:1px solid #f1b8c2;border-radius:10px;padding:12px 14px;font-size:14px;line-height:1.5">
                         {E(note)}
-                        {(cancelled ? "" : $"Khi đến quán, vui lòng đọc mã đặt bàn <strong>{E(d.DisplayCode)}</strong> cho nhân viên.")}
+                        {(cancelled ? "" : $" Khi đến quán, vui lòng đọc mã đặt bàn <strong>{E(d.Code)}</strong> cho nhân viên.")}
                       </div>
                     </td></tr>
-                    <tr><td style="background:#faf7f7;padding:14px 24px;font-size:12px;color:#9a8f91">Email được gửi tự động, vui lòng không trả lời.</td></tr>
+                    <tr><td style="background:#fafafa;padding:14px 24px;font-size:12px;color:#8a8a8a">Email được gửi tự động, vui lòng không trả lời.</td></tr>
                   </table>
                 </td></tr>
               </table>
@@ -158,9 +176,10 @@ public static class BookingConfirmationEmail
         {
             $"Xin chào {guestName},",
             "",
-            cancelled ? $"{d.RestaurantName} rất tiếc phải thông báo lượt đặt bàn dưới đây đã bị huỷ." : $"{d.RestaurantName} đã ghi nhận yêu cầu đặt bàn của bạn.",
+            cancelled ? $"{d.RestaurantName} rất tiếc phải thông báo lượt đặt bàn dưới đây đã bị huỷ." : intro,
             "",
-            $"Mã đặt bàn:   {d.DisplayCode}",
+            $"Mã đặt bàn:   {d.Code}",
+            d.TableCode is null ? null : $"Bàn:          {d.TableCode}",
             $"Ngày giờ:     {when} (giờ Việt Nam)",
             $"Số khách:     {d.GuestCount} người",
             d.AreaName is null ? null : $"Khu vực:      {d.AreaName}",
@@ -168,9 +187,9 @@ public static class BookingConfirmationEmail
             d.RestaurantPhone is null ? null : $"Điện thoại:   {d.RestaurantPhone}",
             cancelled && d.CancelReason is not null ? $"Lý do huỷ:    {d.CancelReason}" : null,
             "",
-            showConfirm ? $"Xác nhận đặt bàn: {confirmUrl}" : null,
-            showConfirm ? "" : null,
-            cancelled ? note : $"Khi đến quán, vui lòng đọc mã đặt bàn {d.DisplayCode} cho nhân viên.",
+            showConfirm ? $"Xác nhận đặt bàn: {confirmUrl}" : showLookup ? $"Tra cứu đặt bàn: {lookupUrl}" : null,
+            showConfirm || showLookup ? "" : null,
+            cancelled ? note : $"Khi đến quán, vui lòng đọc mã đặt bàn {d.Code} cho nhân viên.",
             "Email được gửi tự động, vui lòng không trả lời."
         }.Where(line => line is not null));
 

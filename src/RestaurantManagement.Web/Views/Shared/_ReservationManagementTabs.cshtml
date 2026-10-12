@@ -4,11 +4,11 @@
     var isPending = string.Equals(controller, "ReservationConfirmations", StringComparison.OrdinalIgnoreCase);
     var isSchedule = string.Equals(controller, "TableReservationSchedule", StringComparison.OrdinalIgnoreCase);
 }
-<nav class="nav nav-pills gap-2 mb-4" aria-label="Quản lý đặt bàn">
-    <a class="nav-link @(isList ? "active" : "")" asp-controller="ReservationManagement" asp-action="Index" aria-current="@(isList ? "page" : null)">Danh sách đơn</a>
-    <a class="nav-link @(isPending ? "active" : "")" asp-controller="ReservationConfirmations" asp-action="Index" aria-current="@(isPending ? "page" : null)">Đơn chờ xử lý</a>
+<nav class="nav nav-pills staff-tabs gap-2 mb-4" aria-label="Quản lý đặt bàn">
+    <a class="nav-link @(isList ? "active" : "")" asp-controller="ReservationManagement" asp-action="Index" aria-current="@(isList ? "page" : null)"><i class="fa-regular fa-calendar-check" aria-hidden="true"></i>Danh sách đơn</a>
+    <a class="nav-link @(isPending ? "active" : "")" asp-controller="ReservationConfirmations" asp-action="Index" aria-current="@(isPending ? "page" : null)"><i class="fa-regular fa-clock" aria-hidden="true"></i>Đơn chờ xử lý</a>
     @if (User.IsInRole("Manager"))
     {
-        <a class="nav-link @(isSchedule ? "active" : "")" asp-controller="TableReservationSchedule" asp-action="Index" aria-current="@(isSchedule ? "page" : null)">Lịch bàn theo ngày</a>
+        <a class="nav-link @(isSchedule ? "active" : "")" asp-controller="TableReservationSchedule" asp-action="Index" aria-current="@(isSchedule ? "page" : null)"><i class="fa-regular fa-calendar" aria-hidden="true"></i>Lịch bàn theo ngày</a>
     }
 </nav>

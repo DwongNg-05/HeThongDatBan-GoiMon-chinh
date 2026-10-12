@@ -20,8 +20,8 @@ public static class EmailRetryPolicy
     /// <summary>Khoảng cách giữa các lần thử.</summary>
     public static readonly TimeSpan RetryDelay = TimeSpan.FromMinutes(5);
 
-    /// <summary>Loại email worker của web tự gửi lại (web biết dựng nội dung).</summary>
-    public static readonly IReadOnlyList<string> RetryableMessageTypes = ["BookingReceived", "BookingCancelled"];
+    /// <summary>Loại email worker của web tự gửi lại (web biết dựng nội dung) — khớp usp_ClaimDueBookingEmail (migration 050).</summary>
+    public static readonly IReadOnlyList<string> RetryableMessageTypes = ["BookingReceived", "BookingConfirmed", "BookingCancelled"];
 
     /// <summary>Trạng thái sau một lần thử: thành công → Sent; thất bại còn lần thử → Pending, gửi lại sau 5 phút; hết lần thử → Failed.</summary>
     public static EmailAttemptOutcome AfterAttempt(int attemptNumber, bool succeeded, DateTime completedAtUtc)

@@ -88,12 +88,16 @@ public sealed class SqlBookingEmailOutbox(string connectionString) : IBookingEma
 /// Lỗi gửi email không bao giờ làm mất lượt đặt bàn: đặt bàn đã được ghi trước khi gửi.
 /// S2-09 Task 2: email lỗi được hẹn gửi lại sau 5 phút; <see cref="RetryDueAsync"/> (gọi từ BookingEmailRetryWorker)
 /// gửi lại tối đa 3 lần rồi ghi kết quả cuối cùng (xem <see cref="EmailRetryPolicy"/>).
-/// Email xác nhận (BookingReceived) kèm nút "Xác nhận đặt bàn" khi có <see cref="BookingConfirmationLinks"/>.
+/// Migration 050: email chỉ gửi khi Quản lý / Phục vụ xác nhận lượt đặt (<see cref="SendBookingConfirmedAsync"/>), kèm mã đặt bàn,
+/// bàn đã giữ và nút "Tra cứu đặt bàn" điền sẵn mã (<see cref="BookingConfirmationLinks"/>). Lúc khách vừa đặt không gửi email.
 /// </summary>
 public sealed class BookingEmailDispatcher(IBookingEmailOutbox outbox, IEmailSender sender, ILogger<BookingEmailDispatcher> logger,
     BookingConfirmationLinks? confirmationLinks = null)
 {
     public const string BookingReceived = "BookingReceived";
+
+    /// <summary>Email gửi khi nhân viên xác nhận lượt đặt (usp_ConfirmReservation xếp vào dbo.EmailOutbox).</summary>
+    public const string BookingConfirmed = "BookingConfirmed";
 
     /// <summary>Thời gian tối đa chờ máy chủ email (AC: email gửi trong vòng 60 giây).</summary>
     public static readonly TimeSpan SendTimeout = TimeSpan.FromSeconds(30);
@@ -104,6 +108,10 @@ public sealed class BookingEmailDispatcher(IBookingEmailOutbox outbox, IEmailSen
 
     public Task<BookingEmailResult> SendBookingReceivedAsync(long reservationId, CancellationToken cancellationToken = default) =>
         SendAsync(reservationId, BookingReceived, cancellationToken);
+
+    /// <summary>Gửi ngay email xác nhận (mã đặt bàn + bàn) sau khi Quản lý / Phục vụ xác nhận lượt đặt.</summary>
+    public Task<BookingEmailResult> SendBookingConfirmedAsync(long reservationId, CancellationToken cancellationToken = default) =>
+        SendAsync(reservationId, BookingConfirmed, cancellationToken);
 
     /// <summary>Gửi ngay email báo huỷ sau khi quản lý huỷ lượt đặt bàn.</summary>
     public Task<BookingEmailResult> SendBookingCancelledAsync(long reservationId, CancellationToken cancellationToken = default) =>
@@ -156,7 +164,8 @@ public sealed class BookingEmailDispatcher(IBookingEmailOutbox outbox, IEmailSen
         {
             var details = BookingConfirmationEmail.ParsePayload(claimed.PayloadJson);
             var confirmUrl = messageType == BookingReceived ? confirmationLinks?.CreateUrl(details.Code) : null;
-            var message = BookingConfirmationEmail.Create(claimed.Recipient, details, messageType, confirmUrl);
+            var lookupUrl = messageType == BookingCancelled ? null : confirmationLinks?.CreateLookupUrl(details.Code);
+            var message = BookingConfirmationEmail.Create(claimed.Recipient, details, messageType, confirmUrl, lookupUrl);
             // Không gắn với yêu cầu HTTP: khách đóng trình duyệt giữa chừng thì email vẫn gửi xong và kết quả vẫn được lưu.
             using var timeout = new CancellationTokenSource(SendTimeout);
             await sender.SendAsync(message, timeout.Token);

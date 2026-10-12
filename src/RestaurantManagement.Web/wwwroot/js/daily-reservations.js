@@ -14,6 +14,44 @@
     let followToday = root.dataset.followToday === 'true';
     let refreshTimer;
     let busy = false;
+    let nextDelay = 30000;
+    // S3-09 Task 1 (reservation-no-show.js): đánh dấu khách không tới và hẹn giờ tải lại đúng lúc một lượt đạt mốc trễ.
+    const noShow = globalThis.ReservationNoShow;
+    const groupOf = item => item.isLate ? 'late' : item.isUpcoming ? 'upcoming' : 'rest';
+    const groups = {
+        late: { title: 'Đang trễ quá 15 phút – khách chưa tới', className: 'table-danger' },
+        upcoming: { title: 'Sắp đến trong 30 phút tới', className: 'table-warning' },
+        rest: { title: 'Các lượt đặt còn lại', className: 'table-light' }
+    };
+    // Màu nhãn trạng thái (staff-theme.css): chờ xác nhận = vàng, đã xác nhận / đã tới = xanh, kết thúc = xám, không tới = đỏ.
+    const tones = { 'Chờ xác nhận': 'pending', 'Đã xác nhận': 'confirmed', 'Khách đã tới': 'confirmed', 'Khách không tới': 'no-show' };
+    function statusCell(item) {
+        const cell = document.createElement('td');
+        cell.className = 'reservation-status';
+        cell.dataset.tone = tones[item.status] || 'closed';
+        if (!item.isLate) { cell.textContent = item.status; return cell; }
+        const status = document.createElement('span');
+        status.textContent = item.status;
+        const badge = document.createElement('span');
+        badge.className = 'reservation-late-badge';
+        badge.textContent = item.lateLabel || 'Trễ quá 15 phút';
+        cell.append(status);
+        cell.append(badge);
+        if (noShow && item.id) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'btn btn-sm btn-outline-danger reservation-no-show';
+            button.textContent = 'Khách không tới';
+            button.dataset.noShowId = String(item.id);
+            button.setAttribute('aria-label', `Đánh dấu khách không tới: lượt ${item.code}, ${item.customerName}`);
+            button.addEventListener('click', async () => {
+                const result = await noShow.mark(item.id, `lượt ${item.code} – ${item.customerName}`);
+                if (result) load(selectedDate, selectedStatus, true);
+            });
+            cell.append(button);
+        }
+        return cell;
+    }
     async function load(date, status = selectedStatus, background = false) {
         clearTimeout(refreshTimer);
         busy = true;
@@ -47,29 +85,34 @@
                 document.getElementById('viewing-date').textContent = `${day}/${month}/${year}`;
             }
             rows.replaceChildren();
-            const hasUpcoming = data.reservations.some(item => item.isUpcoming);
+            // Nhóm: đang trễ (S3-09) → sắp đến trong 30 phút → còn lại; chỉ có tiêu đề nhóm khi có lượt trễ hoặc sắp đến.
+            const grouped = data.reservations.some(item => item.isLate || item.isUpcoming);
             let lastGroup;
             for (const item of data.reservations) {
-                if (hasUpcoming && lastGroup !== !!item.isUpcoming) {
+                const group = groupOf(item);
+                if (grouped && lastGroup !== group) {
                     const heading = document.createElement('tr');
                     const cell = document.createElement('th');
                     cell.colSpan = 7;
                     cell.setAttribute('scope', 'rowgroup');
-                    cell.textContent = item.isUpcoming ? 'Sắp đến trong 30 phút tới' : 'Các lượt đặt còn lại';
-                    heading.className = item.isUpcoming ? 'table-warning' : 'table-light';
+                    cell.textContent = groups[group].title;
+                    heading.className = groups[group].className;
                     heading.append(cell);
                     rows.append(heading);
-                    lastGroup = !!item.isUpcoming;
+                    lastGroup = group;
                 }
                 const row = document.createElement('tr');
-                if (item.isUpcoming) row.className = 'table-warning';
-                for (const field of ['code', 'customerName', 'phone', 'guestCount', 'timeSlot', 'tableName', 'status']) {
+                if (group !== 'rest') row.className = groups[group].className;
+                if (item.isLate) row.dataset.lateReservation = String(item.id);
+                for (const field of ['code', 'customerName', 'phone', 'guestCount', 'timeSlot', 'tableName']) {
                     const cell = document.createElement('td');
                     cell.textContent = item[field];
                     row.append(cell);
                 }
+                row.append(statusCell(item));
                 rows.append(row);
             }
+            nextDelay = noShow ? noShow.nextDelay(data, Date.now()) : 30000;
             empty.hidden = data.reservations.length !== 0;
             empty.textContent = status ? 'Không có lượt đặt bàn phù hợp với ngày và trạng thái đã chọn.' : 'Chưa có lượt đặt bàn trong ngày này.';
             results.hidden = data.reservations.length === 0;
@@ -86,7 +129,8 @@
                 loading.hidden = true;
                 busy = false;
                 root.setAttribute('aria-busy', 'false');
-                refreshTimer = setTimeout(() => load(selectedDate, selectedStatus, true), 30000);
+                refreshTimer = setTimeout(() => load(selectedDate, selectedStatus, true), nextDelay);
+                nextDelay = 30000;
             }
         }
     }

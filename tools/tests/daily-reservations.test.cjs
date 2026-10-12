@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const source = fs.readFileSync('src/RestaurantManagement.Web/wwwroot/js/daily-reservations.js', 'utf8');
-function setup(fetch, followToday = false) {
+function setup(fetch, followToday = false, extra = {}) {
     const elements = {};
     function element() {
         return { hidden: false, children: [], dataset: {}, listeners: {}, textContent: '', value: '',
@@ -14,7 +14,7 @@ function setup(fetch, followToday = false) {
     document.getElementById('daily-reservations').dataset = { url: '/Reservations/Daily', date: '2026-10-02', followToday: String(followToday) };
     elements.timers = [];
     vm.runInNewContext(source, { document, fetch, AbortController, Intl, Date,
-        setTimeout(callback, delay) { elements.timers.push({ callback, delay }); return elements.timers.length; }, clearTimeout() {} });
+        setTimeout(callback, delay) { elements.timers.push({ callback, delay }); return elements.timers.length; }, clearTimeout() {}, ...extra });
     return elements;
 }
 const flush = () => new Promise(resolve => setImmediate(resolve));
@@ -167,4 +167,41 @@ test('today mode follows server midnight and keeps filter, explicit past day rem
     elements['reservation-date-form'].listeners.submit({ preventDefault() {} });
     await flush();
     assert.equal(urls.at(-1), '/Reservations/Daily?date=2026-10-01&status=Pending');
+});
+
+// S3-09 Task 1: lượt trễ quá 15 phút đứng đầu, ô trạng thái có nhãn trễ + nút "Khách không tới", hẹn giờ tải lại đúng mốc kế tiếp.
+test('late bookings form the first red group with a no-show button and the refresh waits for the next mark', async () => {
+    const marked = [];
+    const noShow = {
+        mark: async (id, description) => { marked.push({ id, description }); return { ok: true }; },
+        nextDelay: data => (data.nextWarnAtUtc ? 4500 : 30000)
+    };
+    const make = (code, extra) => ({ code, customerName: 'Khách ' + code, phone: '090****123', guestCount: 2,
+        timeSlot: '17:45–19:15', tableName: 'A01', status: 'Đã xác nhận', ...extra });
+    const urls = [];
+    const elements = setup(async url => {
+        urls.push(url);
+        return { ...response([]), json: async () => ({ reservations: [
+            make('LATE01', { id: 11, isLate: true, lateLabel: 'Trễ 17 phút' }),
+            make('SOON02', { id: 12, isUpcoming: true }),
+            make('OTHER3', { id: 13 })], nextWarnAtUtc: '2026-10-12T11:05:00Z', evaluatedAtUtc: '2026-10-12T11:00:00Z' }) };
+    }, false, { ReservationNoShow: noShow });
+    await flush();
+    const rows = elements['reservation-rows'].children;
+    assert.equal(rows[0].children[0].textContent, 'Đang trễ quá 15 phút – khách chưa tới');
+    assert.equal(rows[0].className, 'table-danger');
+    assert.equal(rows[1].className, 'table-danger');
+    assert.equal(rows[1].children.length, 7);
+    const status = rows[1].children[6];
+    assert.deepEqual(status.children.map(child => child.textContent), ['Đã xác nhận', 'Trễ 17 phút', 'Khách không tới']);
+    assert.equal(status.children[2].dataset.noShowId, '11');
+    assert.equal(rows[2].children[0].textContent, 'Sắp đến trong 30 phút tới');
+    assert.equal(rows[3].className, 'table-warning');
+    assert.equal(rows[4].children[0].textContent, 'Các lượt đặt còn lại');
+    assert.equal(rows[5].children[6].textContent, 'Đã xác nhận');
+    assert.equal(elements.timers.at(-1).delay, 4500);
+    await status.children[2].listeners.click();
+    await flush();
+    assert.deepEqual(marked, [{ id: 11, description: 'lượt LATE01 – Khách LATE01' }]);
+    assert.equal(urls.length, 2);
 });

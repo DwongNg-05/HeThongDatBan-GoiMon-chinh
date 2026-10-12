@@ -1,0 +1,11 @@
+@model RestaurantManagement.Web.Models.Orders.ProvisionalBillMissingViewModel
+@using RestaurantManagement.Web.Security
+@{
+    ViewData["Title"] = "Hoá đơn tạm tính";
+    var backToCashier = User.IsInRole(AppRoles.Cashier) && !User.IsInRole(AppRoles.Waiter) && !User.IsInRole(AppRoles.Manager);
+}
+<div class="container mt-4" data-screen="provisional-bill-missing">
+    <h2>Hoá đơn tạm tính</h2>
+    <p class="alert alert-warning" role="status">@Model.Message</p>
+    <a class="btn btn-outline-secondary" href="@(backToCashier ? Url.Content("~/Cashier") : Url.Content("~/"))">@(backToCashier ? "Về Thanh toán" : "Về Sơ đồ bàn")</a>
+</div>

@@ -29,6 +29,8 @@ internal static class ApiAccessMatrix
     public const string KitchenReaders = "Manager,Kitchen";
     public const string KitchenWorkers = "Kitchen";
     public const string Cashiers = "Manager,Cashier";
+    // S3-04 Task 4: hoá đơn tạm tính (chỉ đọc) — Quản lý, Phục vụ đối chiếu khi mang món ra, Thu ngân; Bếp không.
+    public const string BillReaders = "Manager,Waiter,Cashier";
 
     public static readonly string[] Roles = ["Manager", "Waiter", "Kitchen", "Cashier"];
 
@@ -36,6 +38,9 @@ internal static class ApiAccessMatrix
 
     public static readonly IReadOnlyList<ApiEndpoint> All =
     [
+        // S3-09 Task 1: cảnh báo đặt bàn trễ 15 phút và đánh dấu khách không tới — Quản lý, Phục vụ.
+        new("ReservationAlerts.Index GET", FrontOfHouse, "GET", "/api/reservation-alerts"),
+        new("ReservationAlerts.MarkNoShow POST", FrontOfHouse, "POST", "/api/reservation-alerts/999999/no-show"),
         new("ReservationConfirmations.Index GET", FrontOfHouse, "GET", "/ReservationConfirmations/Index?id=999999"),
         new("ReservationConfirmations.Details GET", FrontOfHouse, "GET", "/ReservationConfirmations/Details?id=999999"),
         new("ReservationConfirmations.Schedule GET", FrontOfHouse, "GET", "/ReservationConfirmations/Schedule?id=999999"),
@@ -93,6 +98,8 @@ internal static class ApiAccessMatrix
         new("Home.Index ANY", FrontOfHouse, "GET", "/Home/Index"),
         new("Home.Privacy ANY", Manager, "GET", "/Home/Privacy"),
         new("Home.Error ANY", Anonymous, "GET", "/Home/Error"),
+        new("Page /GuestOrdering/Index", Anonymous, "GET", "/GuestOrdering/Index"),
+        new("Page /GuestOrdering/Success", Anonymous, "GET", "/GuestOrdering/Success"),
         new("TableDetails.Get GET", FrontOfHouse, "GET", "/api/table-map/ZZ99"),
         new("TableStatus.Snapshot GET", FrontOfHouse, "GET", "/api/table-status"),
         new("TableStatus.Stream GET", FrontOfHouse, "GET", "/api/table-status/stream"),
@@ -147,6 +154,10 @@ internal static class ApiAccessMatrix
         new("Cashier.Shift GET", Cashiers, "GET", "/Cashier/Shift"),
         new("Cashier.OpenShift POST", Cashiers, "POST", "/Cashier/OpenShift"),
         new("Cashier.CloseShift POST", Cashiers, "POST", "/Cashier/CloseShift"),
+
+        // ---- Hoá đơn tạm tính (S3-04 Task 4) ----
+        new("ProvisionalBill.Index GET", BillReaders, "GET", $"/ProvisionalBill/{Missing}"),
+        new("ProvisionalBill.Table GET", BillReaders, "GET", "/ProvisionalBill/Table/khong-ton-tai"),
 
         // ---- Đặt bàn ----
         new("Reservations.Index GET", FrontOfHouse, "GET", "/Reservations"),

@@ -4,8 +4,8 @@
    Nạp SAU các file CSS cũ nên ghi đè được màu, chữ và khoảng cách.
    ===================================================================== */
 :root {
-    --m-red: #ba0c2f;
-    --m-red-dark: #970a26;
+    --m-red: #b40829;        /* đỏ của logo Bếp Nhà */
+    --m-red-dark: #8f0620;
     --m-ink: #222222;
     --m-muted: #6e6e6e;
     --m-line: #e5e5e5;
@@ -53,38 +53,45 @@ a:hover { color: var(--m-red); }
 .workspace-content { padding: 36px 40px 64px; }
 .guest-shell .workspace-content { max-width: 1360px; }
 
-/* Tên thương hiệu: chữ đỏ in hoa như logo MICHELIN GUIDE. */
-.sidebar-brand { gap: 0; color: var(--m-red); text-decoration: none; }
-.brand-wordmark { color: var(--m-red); font-size: 26px; font-weight: 700; letter-spacing: .01em; line-height: 1; white-space: nowrap; }
-.brand-wordmark span { font-weight: 400; }
-.sidebar-brand:hover .brand-wordmark { color: var(--m-red-dark); }
-.brand-mark { display: none; }
+/* Khách (chưa đăng nhập): thanh đầu trang đỏ như logo, logo trắng, chữ trắng; mục đang mở có viền bo góc. */
+.guest-shell .workspace-header { justify-content: flex-start; background: var(--m-red); color: #fff; box-shadow: 0 2px 10px rgba(0, 0, 0, .12); }
+.guest-brand { flex: 0 0 auto; line-height: 0; border-radius: 6px; }
+.guest-brand img { display: block; width: auto; height: 70px; }
+.guest-links { flex: 1; justify-content: flex-start; gap: 8px; font-size: 17px; }
+.guest-links a, .guest-links a:visited { padding: 11px 26px; border: 1px solid transparent; border-radius: var(--m-radius); color: #fff; text-decoration: none; }
+.guest-links a:hover { color: #fff; border-color: rgba(255, 255, 255, .55); }
+.guest-links a[aria-current="page"] { font-weight: 400; text-decoration: none; border-color: #fff; }
+/* Avatar tài khoản (icon user nét mảnh, trắng trên nền đỏ): mở hộp đăng nhập (login-dialog.js). */
+.guest-avatar, .guest-avatar:visited {
+    display: grid; flex: 0 0 auto; place-items: center; width: 50px; height: 50px; margin-left: auto; border: 2px solid #fff; border-radius: 50%;
+    background: var(--m-red); color: #fff; font-size: 22px; line-height: 1; text-decoration: none; transition: background-color .15s, box-shadow .15s;
+}
+.guest-avatar i { width: auto; }
+.guest-avatar:hover, .guest-avatar[aria-current="page"] { background: var(--m-red-dark); color: #fff; box-shadow: 0 0 0 3px rgba(255, 255, 255, .35); }
+.guest-shell .workspace-header a:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 
-/* Khách: điều hướng giữa, mục đang mở có viền bo góc (như nút "Restaurants"). */
-.guest-links { flex: 1; justify-content: center; gap: 8px; font-size: 17px; }
-.guest-links a { padding: 11px 26px; border: 1px solid transparent; border-radius: var(--m-radius); color: var(--m-ink); text-decoration: none; }
-.guest-links a:hover { color: var(--m-ink); border-color: var(--m-line); }
-.guest-links a[aria-current="page"] { font-weight: 400; text-decoration: none; border-color: var(--m-ink); }
-.guest-links .guest-login { flex: 0 0 auto; margin-left: auto; background: var(--m-ink); border-color: var(--m-ink); color: var(--m-white); }
-.guest-links .guest-login:hover, .guest-links .guest-login[aria-current="page"] { background: var(--m-white); color: var(--m-ink); }
-.guest-shell .workspace-header { justify-content: flex-start; }
-
-/* Nhân viên: thanh bên trắng, chữ thường, mục đang mở có viền đen bo góc. */
-.admin-sidebar { background: var(--m-white) !important; border-right: 1px solid var(--m-line) !important; }
-.sidebar-brand-row { padding: 30px 24px 26px; border-bottom: 0; }
-.sidebar-brand-row .brand-wordmark { font-size: 24px; }
-.sidebar-navigation { padding: 4px 16px 20px; }
+/* Nhân viên: thanh bên đỏ như logo, chữ trắng; mục đang mở nền trắng chữ đỏ. */
+.admin-sidebar { background: var(--m-red) !important; border-right: 0 !important; color: #fff; }
+.sidebar-brand-row { padding: 18px 20px 12px 22px; border-bottom: 0; }
+.sidebar-logo { display: block; line-height: 0; border-radius: 8px; }
+.sidebar-logo img { display: block; width: 140px; height: auto; }
+.sidebar-logo:hover img { opacity: .9; }
+.sidebar-collapse { background: transparent; border-color: rgba(255, 255, 255, .6); color: #fff; }
+.sidebar-collapse:hover { background: rgba(255, 255, 255, .14); border-color: #fff; color: #fff; }
+.admin-sidebar .btn-close { filter: invert(1) grayscale(100%) brightness(200%); opacity: .9; }
+.sidebar-navigation { padding: 4px 16px 20px; scrollbar-color: rgba(255, 255, 255, .45) transparent; }
 .sidebar-links { gap: 2px; }
-.sidebar-link { min-height: 46px; padding: 11px 16px; border: 1px solid transparent; border-radius: var(--m-radius); color: var(--m-ink); font-size: 15px; font-weight: 400; }
+.sidebar-link, .sidebar-link:visited { min-height: 46px; padding: 11px 16px; border: 1px solid transparent; border-radius: var(--m-radius); color: #fff; font-size: 15px; font-weight: 400; }
 .sidebar-link::before { display: none; }
-.sidebar-link:hover { background: var(--m-surface); color: var(--m-ink); }
-.sidebar-link.is-active { background: var(--m-white); color: var(--m-ink); border-color: var(--m-ink); box-shadow: none; font-weight: 500; }
-.sidebar-account { padding: 20px 24px 24px; border-top: 1px solid var(--m-line); grid-template-columns: 40px minmax(0, 1fr); }
-.account-avatar { width: 40px; height: 40px; background: var(--m-surface); color: var(--m-ink); font-weight: 500; }
-.account-details small { font-size: 12px; color: var(--m-muted); }
-.account-details strong { font-size: 15px; font-weight: 500; }
-.sidebar-logout { padding: 10px; border-radius: var(--m-radius); border-color: var(--m-line); color: var(--m-ink); font-size: 14px; }
-.sidebar-logout:hover { background: var(--m-white); color: var(--m-ink); border-color: var(--m-ink); }
+.sidebar-link:hover { background: rgba(255, 255, 255, .14); color: #fff; }
+.sidebar-link.is-active { background: #fff; border-color: #fff; color: var(--m-red); box-shadow: none; font-weight: 600; }
+.sidebar-account { padding: 20px 24px 24px; border-top: 1px solid rgba(255, 255, 255, .28); grid-template-columns: 40px minmax(0, 1fr); }
+.account-avatar { width: 40px; height: 40px; background: rgba(255, 255, 255, .18); color: #fff; font-weight: 500; }
+.account-details small { font-size: 12px; color: rgba(255, 255, 255, .82); }
+.account-details strong { font-size: 15px; font-weight: 500; color: #fff; }
+.sidebar-logout { padding: 10px; border-radius: var(--m-radius); border-color: rgba(255, 255, 255, .7); background: transparent; color: #fff; font-size: 14px; }
+.sidebar-logout:hover, .sidebar-logout:focus-visible { background: #fff; border-color: #fff; color: var(--m-red); }
+.admin-sidebar a:focus-visible, .admin-sidebar button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; box-shadow: none; }
 .workspace-location { font-size: 15px; gap: 10px; }
 .workspace-location > span { color: var(--m-muted); }
 .workspace-location strong { font-weight: 500; font-size: 20px; }
@@ -286,12 +293,13 @@ a:hover { color: var(--m-red); }
     .workspace-content { padding: 24px 18px 48px; }
     .guest-links { justify-content: flex-end; font-size: 15px; gap: 2px; }
     .guest-links a { padding: 9px 12px; }
+    .guest-brand img { height: 58px; }
     .public-menu-tabs { top: 68px; }
 }
 @media (max-width: 640px) {
     .guest-shell .workspace-header { flex-wrap: wrap; padding: 12px 16px; gap: 8px; }
     .guest-links { flex: 1 1 100%; justify-content: flex-start; overflow-x: auto; flex-wrap: nowrap; }
-    .brand-wordmark { font-size: 22px; }
+    .guest-brand img { height: 52px; }
     .public-menu-tabs { position: static; }
     .public-menu-list, .menu-catalog .row { grid-template-columns: 1fr; gap: 22px; }
     .public-menu-search-input, .public-menu-search-button { min-height: 52px; }
@@ -318,19 +326,12 @@ a:hover { color: var(--m-red); }
 [data-availability-label].badge, td .badge.bg-warning { display: inline-flex; align-items: center; gap: 8px; border: 0; padding: 0; color: var(--m-ink) !important; font-size: 15px; }
 td .badge.bg-warning::before, [data-availability-id] td [data-availability-label]::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--m-red); }
 .workspace-content > .container { margin-top: 0 !important; padding-top: 0; padding-left: 0; padding-right: 0; max-width: none; }
-/* Điện thoại: nút Đăng nhập lên hàng tên quán, các mục còn lại xếp hàng dưới. */
+/* Điện thoại: avatar lên góc phải hàng logo, các mục điều hướng xếp hàng dưới. */
 @media (max-width: 640px) {
-    .guest-links .guest-login { position: absolute; top: 10px; right: 16px; min-height: 0; padding: 7px 14px; font-size: 14px; }
-    .guest-links a:not(.guest-login) { padding: 8px 14px; font-size: 15px; }
+    .guest-avatar { position: absolute; top: 12px; right: 16px; width: 42px; height: 42px; font-size: 19px; }
+    .guest-links a { padding: 8px 14px; font-size: 15px; }
     .guest-shell .workspace-header { min-height: 0; padding-top: 14px; }
 }
-
-/* Chữ thanh bên luôn đen (ghi đè màu link xanh mặc định của layout). */
-.admin-sidebar .sidebar-link, .admin-sidebar .sidebar-link:visited, .admin-sidebar .sidebar-link:hover, .admin-sidebar .sidebar-link.is-active { color: var(--m-ink); }
-.workspace-header a, .workspace-header a:visited { color: var(--m-ink); }
-.workspace-header .sidebar-brand, .admin-sidebar .sidebar-brand { color: var(--m-red); }
-.guest-links .guest-login, .guest-links .guest-login:visited { color: var(--m-white); }
-.guest-links .guest-login:hover, .guest-links .guest-login[aria-current="page"] { color: var(--m-ink); }
 
 /* Tab trong trang (nav-pills, vd. Danh sách đơn / Đơn chờ xử lý / Lịch bàn theo ngày):
    cùng kiểu với thanh bên — chữ đen, tab đang mở có viền đen bo góc, không nền xanh. */

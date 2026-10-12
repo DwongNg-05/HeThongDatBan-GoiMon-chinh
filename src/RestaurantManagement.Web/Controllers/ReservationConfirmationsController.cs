@@ -50,7 +50,7 @@ public sealed class ReservationConfirmationsController(ReservationConfirmationSe
         catch(SqlException ex) when(ex.Number==51001) { return Forbid(); }
     }
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Confirm(long id, int? selectedTableId,CancellationToken ct)
+    public async Task<IActionResult> Confirm(long id, int? selectedTableId,[FromServices] BookingEmailDispatcher bookingEmails,CancellationToken ct)
     {
         if(!selectedTableId.HasValue || selectedTableId<=0)
             ModelState.AddModelError(nameof(ReservationConfirmation.SelectedTableId),"Vui lòng chọn một bàn trong danh sách gợi ý.");
@@ -59,7 +59,10 @@ public sealed class ReservationConfirmationsController(ReservationConfirmationSe
             if(ModelState.IsValid)
             {
                 await service.Confirm(Actor,id,selectedTableId!.Value,ct);
-                TempData["Success"]="Đã xác nhận lượt đặt và giữ bàn trong khung giờ hẹn.";
+                // Email chỉ gửi ở bước này (migration 050): mã đặt bàn + bàn đã giữ + liên kết tra cứu.
+                // Gửi lỗi không ảnh hưởng tới việc xác nhận; hệ thống tự gửi lại sau 5 phút (tối đa 3 lần).
+                var email=await bookingEmails.SendBookingConfirmedAsync(id,CancellationToken.None);
+                TempData["Success"]=ConfirmationEmailNotice.AfterConfirm(email);
                 return RedirectToAction(nameof(Details),new {id});
             }
         }
@@ -114,4 +117,15 @@ public sealed class ReservationConfirmationsController(ReservationConfirmationSe
         }
         catch(SqlException ex) when(ex.Number==51001) { return Forbid(); }
     }
+}
+
+/// <summary>Thông báo cho nhân viên sau khi xác nhận lượt đặt: kết quả gửi email cho khách.</summary>
+public static class ConfirmationEmailNotice
+{
+    public static string AfterConfirm(BookingEmailResult email) => "Đã xác nhận lượt đặt và giữ bàn trong khung giờ hẹn. " + email.Outcome switch
+    {
+        BookingEmailOutcome.Sent => $"Đã gửi email kèm mã đặt bàn tới {BookingSuccessViewModel.MaskEmail(email.Recipient) ?? "khách"}.",
+        BookingEmailOutcome.Failed => "Email cho khách chưa gửi được; hệ thống sẽ tự gửi lại sau 5 phút.",
+        _ => "Khách không để lại email — hãy báo mã đặt bàn qua điện thoại."
+    };
 }

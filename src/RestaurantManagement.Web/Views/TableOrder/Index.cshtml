@@ -92,7 +92,16 @@
 
     </div>
 
-    <aside class="table-order-side" aria-label="Giỏ món và món đã đặt">
+    @* Điện thoại (< 992px): cột phải thành một màn hình riêng, mở bằng thanh nút cố định ở cuối màn hình
+       (data-side-panel / data-mobile-bar, wwwroot/js/table-order.js). Máy tính: vẫn là cột phải như cũ. *@
+    <aside class="table-order-side" id="gio-va-mon-da-goi" aria-label="Giỏ món và món đã đặt" data-side-panel data-active="gio-mon">
+    <div class="table-order-panel-head" data-panel-head>
+        <button type="button" class="table-order-panel-back" data-close-panel aria-label="Quay lại thực đơn">← Chọn món</button>
+        <div class="table-order-panel-tabs" role="tablist" aria-label="Chọn danh sách">
+            <button type="button" role="tab" data-panel-tab="gio-mon" aria-controls="gio-mon">Đang chọn (<span data-cart-count>0</span>)</button>
+            <button type="button" role="tab" data-panel-tab="da-dat" aria-controls="da-dat">Đã gọi (@Model.OrderedItems.Count)</button>
+        </div>
+    </div>
     @* Giỏ món: lưu tạm trên điện thoại (sessionStorage) tới khi bấm "Đặt món". Máy chủ kiểm tra lại món, giá và số lượng.
        S3-03 Task 1: mỗi dòng có ô ghi chú riêng (tối đa @GuestOrderNotes.MaxLength ký tự); "Đặt món" mở bước xác nhận
        liệt kê món + ghi chú, khách bấm "Xác nhận gửi bếp" mới gửi.
@@ -168,6 +177,16 @@
         }
     </section>
     </aside>
+    <nav class="table-order-mobilebar" aria-label="Giỏ món và món đã gọi" data-mobile-bar>
+        <button type="button" class="table-order-mobilebar-ordered" data-open-panel="da-dat" aria-controls="gio-va-mon-da-goi">
+            <span class="table-order-mobilebar-label">Món đã gọi</span>
+            <strong>@Model.OrderedItems.Count</strong>
+        </button>
+        <button type="button" class="table-order-mobilebar-cart" data-open-panel="gio-mon" aria-controls="gio-va-mon-da-goi">
+            <span class="table-order-mobilebar-label">Món đang chọn (<span data-cart-count>0</span>)</span>
+            <strong data-cart-total-mirror>0 ₫</strong>
+        </button>
+    </nav>
     </div>
 </div>
 

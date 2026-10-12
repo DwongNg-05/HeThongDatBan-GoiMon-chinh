@@ -106,7 +106,8 @@ public class ReservationsController : Controller
         }
 
         var email = await bookingEmails.SendBookingCancelledAsync(id);
-        var code = reservation.TableCode ?? reservation.Code;
+        // Mã đặt bàn 6 ký tự (đúng mã khách tra cứu và trong email), kèm bàn nếu đã xếp.
+        var code = reservation.TableCode is null ? reservation.Code : $"{reservation.Code} (bàn {reservation.TableCode})";
         TempData["Success"] = email.Outcome switch
         {
             BookingEmailOutcome.Sent => $"Đã huỷ đặt bàn {code}. Đã gửi email báo huỷ cho khách.",
@@ -317,8 +318,7 @@ public class ReservationsController : Controller
     [ValidateAntiForgeryToken]
     [AllowAnonymous] // Khách đặt bàn không cần đăng nhập (form đặt bàn, trang thành công và API phục vụ form).
     public async Task<IActionResult> Create(
-        ReservationCreateViewModel model,
-        [FromServices] BookingEmailDispatcher bookingEmails)
+        ReservationCreateViewModel model)
     {
         // The public form submits separate Vietnam-local date and time fields.
         if (model.ReservationDate.HasValue && model.ReservationTime.HasValue)
@@ -568,10 +568,10 @@ public class ReservationsController : Controller
         }
 
         // =====================================================
-        // S2-09 Task 1: lượt đặt bàn ĐÃ được lưu. Gửi email xác nhận ngay;
-        // gửi lỗi không ảnh hưởng tới lượt đặt bàn và mã đặt bàn.
+        // Lượt đặt bàn ĐÃ được lưu ở trạng thái "Chờ xác nhận". Migration 050: CHƯA gửi email lúc này —
+        // email (mã đặt bàn + bàn) chỉ gửi khi Quản lý / Phục vụ xác nhận (ReservationConfirmationsController.Confirm).
         // =====================================================
-        var email = await bookingEmails.SendBookingReceivedAsync(reservationId);
+        var email = new BookingEmailResult(BookingEmailOutcome.NotRequested);
 
         TempData["Success"] = "Đặt bàn thành công.";
         TempData[BookingSuccessViewModel.CodeKey] = reservationCode;
@@ -624,7 +624,7 @@ public class ReservationsController : Controller
         try
         {
             var record = (await emails.GetByReservationAsync(reservationId, cancellationToken))
-                .FirstOrDefault(e => e.MessageType == BookingEmailDispatcher.BookingReceived);
+                .FirstOrDefault(e => e.MessageType is BookingEmailDispatcher.BookingConfirmed or BookingEmailDispatcher.BookingReceived);
             return BookingEmailCustomerStatus.From(record, model.DisplayCode, model.MaskedEmail);
         }
         catch (SqlException)

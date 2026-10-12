@@ -10,14 +10,15 @@
     var isManager = User.IsInRole(RestaurantManagement.Web.Security.AppRoles.Manager);
 }
 
-<section class="map-page" data-status-api="@Url.Content("~/api/table-status")" data-details-api="@Url.Content("~/api/table-map")" data-rendered-table-count="@shownCount">
+<section class="map-page" data-status-api="@Url.Content("~/api/table-status")" data-details-api="@Url.Content("~/api/table-map")" data-rendered-table-count="@shownCount"
+         data-reservation-alerts-api="@Url.Content("~/api/reservation-alerts")">
     <div class="map-heading">
         <div>
             <div class="eyebrow">VẬN HÀNH NHÀ HÀNG <span>•</span> HÔM NAY</div>
             <h1>Sơ đồ bàn</h1>
             <p class="map-subtitle">Theo dõi nhanh tình trạng bàn tại các khu vực.</p>
         </div>
-        <div class="map-summary"><span class="summary-icon">▦</span><span><strong>@Model.TotalCount</strong><small>bàn trong nhà hàng</small></span></div>
+        <div class="map-summary"><span class="summary-icon"><i class="fa-solid fa-table-cells-large" aria-hidden="true"></i></span><span><strong>@Model.TotalCount</strong><small>bàn trong nhà hàng</small></span></div>
     </div>
 
     <div class="map-toolbar">
@@ -29,16 +30,24 @@
                 <a class="area-tab @(selected ? "active" : "")" asp-action="Index" asp-route-areaId="@area.Id" aria-current="@(selected ? "page" : null)">@area.Name <span>@area.TableCount</span></a>
             }
         </nav>
-        <div class="quick-count"><i></i><span id="available-table-count">@freeCount</span> bàn trống <span>·</span> @shownCount bàn đang xem</div>
+        <div class="quick-count"><i aria-hidden="true"></i><span id="available-table-count">@freeCount</span> bàn trống <span>·</span> @shownCount bàn đang xem</div>
     </div>
+
+    @* S3-09 Task 1: đặt bàn trễ từ mốc 15 phút mà khách chưa tới — tự cập nhật (reservation-no-show.js + table-map.js),
+       kèm thao tác "Đánh dấu khách không tới" (giải phóng bàn, ghi lịch sử số điện thoại). *@
+    @Html.AntiForgeryToken()
+    <section class="late-alerts" id="late-alerts" aria-labelledby="late-alerts-title" hidden>
+        <h2 class="late-alerts-title" id="late-alerts-title"><span aria-hidden="true">⚠</span> Đặt bàn trễ quá 15 phút, khách chưa tới <span class="late-alerts-count" id="late-alerts-count"></span></h2>
+        <ul class="late-alert-list" id="late-alert-list"></ul>
+    </section>
 
     @if (Model.LoadError is not null)
     {
-        <div class="empty-state" role="alert"><span>▦</span><h2>Không tải được sơ đồ bàn</h2><p>@Model.LoadError</p></div>
+        <div class="empty-state" role="alert"><span><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i></span><h2>Không tải được sơ đồ bàn</h2><p>@Model.LoadError</p></div>
     }
     else if (Model.Areas.Count == 0)
     {
-        <div class="empty-state"><span>▦</span><h2>Chưa có khu vực nào</h2>
+        <div class="empty-state"><span><i class="fa-solid fa-table-cells-large" aria-hidden="true"></i></span><h2>Chưa có khu vực nào</h2>
             <p>Sơ đồ bàn lấy dữ liệu từ màn hình “Khu vực &amp; bàn”. Hãy tạo khu vực và thêm bàn để hiển thị tại đây.</p>
             @if (isManager) { <p><a asp-controller="Areas" asp-action="Index">Mở Khu vực &amp; bàn</a></p> }
         </div>
@@ -61,9 +70,9 @@
                     {
                         <article class="table-card status-@table.StatusClass" data-table-code="@table.Code" data-status="@table.Status" data-changed-at="@table.ChangedAtUtc.ToString("O")" aria-label="Bàn @table.Code, sức chứa @table.Capacity người, trạng thái @table.StatusLabel">
                             <button class="table-detail-trigger" type="button" data-open-details="@table.Code" aria-label="Xem chi tiết bàn @table.Code">
-                                <span class="table-card-top"><span class="table-glyph">♧</span><span class="table-status"><i></i><span class="table-status-label">@table.StatusLabel</span></span></span>
+                                <span class="table-card-top"><span class="table-glyph"><i class="fa-solid fa-chair" aria-hidden="true"></i></span><span class="table-status"><i></i><span class="table-status-label">@table.StatusLabel</span></span></span>
                                 <strong class="table-code">@table.Code</strong>
-                                <span class="table-capacity"><span class="person-icon">♙</span> @table.Capacity chỗ</span>
+                                <span class="table-capacity"><span class="person-icon"><i class="fa-solid fa-user-group" aria-hidden="true"></i></span> @table.Capacity chỗ</span>
                             </button>
                             <label class="visually-hidden" for="status-@table.Code">Cập nhật trạng thái bàn @table.Code</label>
                             <select class="table-status-editor" id="status-@table.Code" data-status-editor aria-label="Cập nhật trạng thái bàn @table.Code">
@@ -72,6 +81,7 @@
                                 <option value="Serving" selected="@(table.Status == "Serving")">Đang phục vụ</option>
                                 <option value="Cleaning" selected="@(table.Status == "Cleaning")">Đang dọn</option>
                             </select>
+                            <div class="table-late" data-late-slot hidden></div>
                         </article>
                     }
                 </div>
@@ -102,10 +112,13 @@
         <span id="details-reservation-guests"></span>
         <time id="details-reservation-time"></time>
     </section>
+    @* S3-04 Task 4: bàn đang có khách → mở hoá đơn tạm tính để đối chiếu ghi chú của từng món khi mang ra. *@
+    <a class="btn btn-outline-primary btn-sm details-bill-link" id="details-bill-link" hidden href="#" data-bill-url="@Url.Content("~/ProvisionalBill/Table/")">Xem hoá đơn tạm tính</a>
     <p class="details-source" id="details-source" hidden>Dữ liệu mẫu phát triển</p>
 </section>
 </div>
 
 @section Scripts {
+    <script src="~/js/reservation-no-show.js" asp-append-version="true"></script>
     <script src="~/js/table-map.js" asp-append-version="true"></script>
 }

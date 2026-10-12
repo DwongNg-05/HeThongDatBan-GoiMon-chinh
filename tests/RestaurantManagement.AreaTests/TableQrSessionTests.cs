@@ -216,6 +216,40 @@ static class TableQrSessionTests
         var quickOnly = new RestaurantManagement.Web.Models.Kitchen.KitchenOrderItem(9, "A05", "Gỏi cuốn", "Phần", 1, null, "Pending", DateTime.Now, 10, "Không mỡ");
         check(quickOnly.HasRequests && quickOnly.FreeNote is null && quickOnly.QuickNoteLabels.SequenceEqual(new[] { "Không mỡ" }),
             "Kitchen notes: a line with only quick choices still shows them");
+        // S3-04 Task 4: hoá đơn tạm tính — mỗi dòng đơn một dòng hoá đơn, yêu cầu riêng đọc giống hệt màn hình bếp.
+        var billLines = new[]
+        {
+            new RestaurantManagement.Web.Models.Orders.ProvisionalBillLine(7, "A05", "Gỏi cuốn", "Phần", 40000, 1, 40000, "Preparing", false,
+                DateTime.Now, note200, "Ít cay, Không hành"),
+            new RestaurantManagement.Web.Models.Orders.ProvisionalBillLine(8, "A05", "Gỏi cuốn", "Phần", 40000, 2, 80000, "Pending", false,
+                DateTime.Now, "mang ra sau", "Không mỡ"),
+            new RestaurantManagement.Web.Models.Orders.ProvisionalBillLine(9, "A05", "Gỏi cuốn", "Phần", 40000, 1, 40000, "Cancelled", false,
+                DateTime.Now, "  ", null),
+            new RestaurantManagement.Web.Models.Orders.ProvisionalBillLine(10, "A06", "Trà đá", "Ly", 5000, 1, 5000, "Cancelled", true,
+                DateTime.Now, null, null)
+        };
+        var bill = new RestaurantManagement.Web.Models.Orders.ProvisionalBillViewModel(1, "A05, A06", 4, "Open", DateTime.Now, billLines);
+        check(bill.Lines[0].Requests.QuickLabels.SequenceEqual(kitchenLine.QuickNoteLabels) && bill.Lines[0].Requests.FreeNote == kitchenLine.FreeNote
+            && bill.Lines[0].Requests.FreeNote == note200 && bill.Lines[0].Requests.Summary == kitchenLine.Requests.Summary,
+            "Bill notes: a bill line shows exactly the quick choices and full 200-character note the kitchen reads");
+        check(bill.Lines.Count == 4 && bill.Lines[0].Requests.Summary == "Ít cay · Không hành | Ghi chú: " + note200
+            && bill.Lines[1].Requests.Summary == "Không mỡ | Ghi chú: mang ra sau" && bill.Lines[0].Id != bill.Lines[1].Id,
+            "Bill notes: two lines of the same dish stay separate, each with its own requests");
+        check(!bill.Lines[2].Requests.HasAny && bill.Lines[2].Requests == RestaurantManagement.Web.Models.Orders.OrderItemRequests.None
+            && bill.RequestLineCount == 2,
+            "Bill notes: a line without requests shows no note box");
+        check(bill.Subtotal == 125000 && bill.ChargedLineCount == 3 && !bill.Lines[2].IsCharged && bill.Lines[3].IsCharged
+            && bill.Lines[2].StatusLabel == "Đã huỷ" && bill.Lines[3].StatusLabel == "Đã huỷ (vẫn tính tiền)" && bill.HasSeveralTables,
+            "Bill notes: the provisional total follows the session total rules (cancelled before cooking is free)");
+        var reopened = new RestaurantManagement.Web.Models.Orders.ProvisionalBillViewModel(1, "A05, A06", 4, "AwaitingPayment", DateTime.Now,
+            billLines.Select(l => l with { Status = l.Status == "Preparing" ? "Served" : l.Status }).ToArray());
+        check(reopened.Lines.Select(l => l.Requests.Summary).SequenceEqual(bill.Lines.Select(l => l.Requests.Summary)),
+            "Bill notes: changing a line's status (order update) keeps its notes unchanged");
+        var migration048 = File.ReadAllText(Path.Combine(RestaurantManagement.DbTool.DatabaseTool.Root, "database", "migrations", "048_S304KeepOrderNotes.sql"));
+        check(migration048.Contains("tr_OrderItems_KeepNotes") && migration048.Contains("UPDATE(Notes) OR UPDATE(QuickNotes)")
+            && migration048.Contains("Latin1_General_BIN2") && migration048.Contains("THROW 51113"),
+            "Bill notes: the database refuses to change a note once it has been sent to the kitchen");
+
         check(orderedView.OrderedTotal == 80000 && orderedView.OrderedItems[0].StatusLabel == "Chờ bếp nhận"
             && orderedView.OrderedItems[1].StatusLabel == "Đã huỷ" && orderedView.OrderedBatches.Count() == 1,
             "QR order: the ordered list totals charged dishes and labels kitchen statuses");

@@ -8,8 +8,9 @@ using Microsoft.Data.SqlClient;
 namespace RestaurantManagement.DbTool;
 
 /// <summary>
-/// S2-09 Task 1 (HTTP thật, SQL Server thật): đặt bàn có email → email xác nhận được gửi ngay với đúng mã đặt bàn,
-/// ngày giờ, số khách, địa chỉ quán; trang xác nhận hiển thị đầy đủ mã; nhân viên thấy trạng thái gửi.
+/// S2-09 (HTTP thật, SQL Server thật) theo quy tắc migration 050: khách đặt bàn → CHƯA gửi email, tra cứu thấy "Chờ xác nhận"
+/// → Quản lý / Phục vụ xác nhận và chọn bàn → email "Bếp Nhà - Xác nhận đặt bàn MÃ" gửi ngay với mã đặt bàn (đúng mã tra cứu),
+/// bàn đã giữ, ngày giờ, số khách, địa chỉ quán và liên kết tra cứu → khách tra cứu thấy "Đã xác nhận" và bàn.
 /// Lần 1: Email:Host trống nên email được ghi thành tệp (giống hộp thư). Lần 2: máy chủ SMTP không tồn tại → gửi thất bại
 /// nhưng lượt đặt bàn và mã đặt bàn vẫn được ghi nhận.
 /// S2-09 Task 2: worker của web (Email:RetryPollSeconds=1) tự gửi lại email thất bại: thành công ở lần thử thứ 2 (lần 1);
@@ -48,16 +49,14 @@ internal static class BookingConfirmationVerification
 
             // Khách chọn bàn trong danh sách bàn còn trống của khung giờ.
             var (tableId, tableCode) = await FirstFreeTable(web.Client, slots[0].Local, 4);
-            var watch = Stopwatch.StartNew();
             var (shown, page) = await Book(web.Client, "Khách S2-09 <b>OK</b>", "0912090901", 4, slots[0].Local, "khach.s209@example.com", tableId);
             var code = await InternalCode(connection, "0912090901");
-            watch.Stop();
-            Assert(watch.Elapsed < TimeSpan.FromSeconds(60), $"Booking + confirmation email finished in {watch.ElapsedMilliseconds} ms (< 60 s)");
-            Assert(shown == tableCode && page.Contains($"data-booking-code=\"{tableCode}\">{tableCode}</p>") && page.Contains("Mã đặt bàn của bạn"),
-                $"Confirmation page shows the chosen table code {tableCode} as the booking code");
-            Assert(!page.Contains(code), "Confirmation page shows only one code (the internal reference stays hidden)");
-            Assert(page.Contains("data-email-outcome=\"Sent\"") && page.Contains("Email xác nhận đã được gửi tới k***9@example.com"), "Confirmation page says the email was sent (masked address)");
-            Assert((await Html(web.Client, "/Reservations/Success")).Contains($">{tableCode}</p>"), "Reloading the confirmation page still shows the table code");
+            Assert(shown == code && code.Length == 6 && page.Contains($"data-booking-code=\"{code}\">{code}</p>") && page.Contains("Mã đặt bàn của bạn")
+                   && page.Contains(tableCode) && page.Contains($"data-copy-code=\"{code}\"") && page.Contains($"/ReservationLookup?code={code}"),
+                $"Booking page shows the 6-character booking code {code} (copy button, lookup link) and the chosen table {tableCode}");
+            Assert(page.Contains("chờ nhà hàng xác nhận") && page.Contains("Khi nhà hàng xác nhận, email") && page.Contains("k***9@example.com"),
+                "Booking page says the email comes only after the restaurant confirms (masked address)");
+            Assert((await Html(web.Client, "/Reservations/Success")).Contains($">{code}</p>"), "Reloading the booking page still shows the booking code");
             await Check(connection, $"SELECT CASE WHEN r.TableId={tableId} AND r.Status='Pending' AND t.Code='{tableCode}' THEN 1 ELSE 0 END FROM dbo.Reservations r JOIN dbo.DiningTables t ON t.Id=r.TableId WHERE r.Code='{code}'",
                 "Reservation holds the chosen table");
             var stillFree = await FreeTables(web.Client, slots[0].Local, 4);
@@ -67,28 +66,51 @@ internal static class BookingConfirmationVerification
             Assert(doublePage.Contains("vừa có khách khác đặt") && await Scalar(connection, "SELECT COUNT(*) FROM dbo.Reservations") == beforeDouble,
                 "The same table cannot be booked twice in overlapping time");
 
+            // Khách vừa đặt: KHÔNG có email nào (kể cả trong hàng đợi); tra cứu thấy "Chờ xác nhận".
+            await Task.Delay(1500);
+            Assert(Directory.GetFiles(mailDir, "*.txt").Length == 0
+                   && await Scalar(connection, $"SELECT COUNT(*) FROM dbo.EmailOutbox o JOIN dbo.Reservations r ON r.Id=o.ReservationId WHERE r.Code='{code}'") == 0,
+                "No email is sent (or queued) when the customer books");
+            var pendingLookup = await LookupPage(web.Client, code, "0912090901");
+            Assert(pendingLookup.Contains("Chờ xác nhận") && pendingLookup.Contains("data-lookup-pending") && pendingLookup.Contains($"data-copy-code=\"{code}\""),
+                "Customer lookup before confirmation shows 'Chờ xác nhận'");
+
+            // Phục vụ / Quản lý xác nhận lượt đặt (màn hình chọn bàn) → email gửi ngay.
+            var id = await Scalar(connection, $"SELECT Id FROM dbo.Reservations WHERE Code='{code}'");
+            var watch = Stopwatch.StartNew();
+            var confirmedPage = await ConfirmAsStaff(web.Client, id, tableId);
+            watch.Stop();
+            Assert(watch.Elapsed < TimeSpan.FromSeconds(60), $"Staff confirmation + email finished in {watch.ElapsedMilliseconds} ms (< 60 s)");
+            Assert(confirmedPage.Contains("Đã xác nhận lượt đặt") && confirmedPage.Contains("Đã gửi email kèm mã đặt bàn tới k***9@example.com"),
+                "Staff see that the booking code was emailed to the customer");
+
             var mails = Directory.GetFiles(mailDir, "*.txt");
-            Assert(mails.Length == 1, "Exactly one confirmation email delivered");
+            Assert(mails.Length == 1, "Exactly one email delivered — after the staff confirmation");
             var text = await File.ReadAllTextAsync(mails[0]);
             var html = await File.ReadAllTextAsync(mails[0].Replace(".txt", ".html"));
             var when = BookingWhen(slots[0].Local);
-            Assert(text.Contains("To: khach.s209@example.com") && text.Contains($"Subject: Xác nhận đặt bàn {tableCode}"), "Email goes to the customer with the table code in the subject");
+            Assert(text.Contains("To: khach.s209@example.com") && text.Contains($"Subject: Bếp Nhà - Xác nhận đặt bàn {code}"),
+                "Email subject reads 'Bếp Nhà - Xác nhận đặt bàn <code>'");
             foreach (var (body, kind) in new[] { (text, "text"), (html, "HTML") })
-                Assert(body.Contains($"Mã đặt bàn") && body.Contains(tableCode) && !body.Contains(code) && body.Contains(when) && body.Contains("4 người") && body.Contains(Address),
-                    $"Email ({kind}) has the booking code (= table code {tableCode}), date/time {when}, guest count and restaurant address");
-            Assert(!html.Contains("<b>OK</b>"), "Customer name is HTML-encoded in the email");
+                Assert(body.Contains(code) && body.Contains(tableCode) && body.Contains(when) && body.Contains("4 người") && body.Contains(Address)
+                       && body.Contains($"/ReservationLookup?code={code}"),
+                    $"Email ({kind}) has the booking code {code}, table {tableCode}, date/time {when}, guest count, address and the lookup link");
+            Assert(!html.Contains("<b>OK</b>") && html.Contains("Bếp Nhà - Xác nhận đặt bàn"), "Email header reads 'Bếp Nhà - Xác nhận đặt bàn'; customer name is HTML-encoded");
 
             await Check(connection, $"""
                 SELECT CASE WHEN o.Status='Sent' AND o.AttemptCount=1 AND o.SentAt IS NOT NULL AND o.LastAttemptAt IS NOT NULL AND o.LastError IS NULL
+                 AND o.Subject=N'Bếp Nhà - Xác nhận đặt bàn {code}'
                  AND JSON_VALUE(o.PayloadJson,'$.RestaurantAddress')=N'{Address}' AND JSON_VALUE(o.PayloadJson,'$.Code')='{code}'
                  AND JSON_VALUE(o.PayloadJson,'$.TableCode')='{tableCode}'
-                 AND CONVERT(int,JSON_VALUE(o.PayloadJson,'$.GuestCount'))=4 AND r.Status='Pending' THEN 1 ELSE 0 END
-                FROM dbo.Reservations r JOIN dbo.EmailOutbox o ON o.ReservationId=r.Id AND o.MessageType='BookingReceived' WHERE r.Code='{code}'
-                """, "Send status, booking code, guest count and restaurant address are stored for the reservation");
+                 AND CONVERT(int,JSON_VALUE(o.PayloadJson,'$.GuestCount'))=4 AND r.Status='Confirmed' AND r.ConfirmationEmailStatus='Sent' THEN 1 ELSE 0 END
+                FROM dbo.Reservations r JOIN dbo.EmailOutbox o ON o.ReservationId=r.Id AND o.MessageType='BookingConfirmed' WHERE r.Code='{code}'
+                """, "Confirmation email status, booking code, guest count and address are stored for the reservation");
+            var confirmedLookup = await LookupPage(web.Client, code, "0912090901");
+            Assert(confirmedLookup.Contains("Đã xác nhận") && confirmedLookup.Contains(tableCode) && !confirmedLookup.Contains("data-lookup-pending"),
+                "Customer lookup after confirmation shows 'Đã xác nhận' and the table");
 
-            var id = await Scalar(connection, $"SELECT Id FROM dbo.Reservations WHERE Code='{code}'");
             var details = await Html(web.Client, $"/Reservations/Details/{id}");
-            Assert(details.Contains("Email xác nhận") && details.Contains("Đã gửi thành công") && details.Contains("1/4") && details.Contains("Chờ xác nhận"),
+            Assert(details.Contains("Email xác nhận") && details.Contains("Đã gửi thành công") && details.Contains("1/4") && details.Contains("Đã xác nhận"),
                 "Staff sees 'sent' email status separately from the booking status");
             Assert(details.Contains($"data-table-code=\"{tableCode}\">{tableCode}</strong>"), "Staff details show the table code");
 
@@ -109,7 +131,7 @@ internal static class BookingConfirmationVerification
 
             // Khách không nhập email: vẫn có mã đặt bàn, không gửi gì.
             var (noEmailCode, noEmailPage) = await Book(web.Client, "Khách không email", "0912090902", 2, slots[1].Local, null);
-            Assert(noEmailPage.Contains($">{noEmailCode}</p>") && noEmailPage.Contains("data-email-outcome=\"NotRequested\"") && Directory.GetFiles(mailDir, "*.txt").Length == 1,
+            Assert(noEmailPage.Contains($">{noEmailCode}</p>") && noEmailPage.Contains("không nhập email") && Directory.GetFiles(mailDir, "*.txt").Length == 1,
                 "Booking without email shows the code and sends nothing");
 
             // Quản lý xoá bàn: bàn còn lượt đặt sắp tới thì không xoá được.
@@ -129,7 +151,7 @@ internal static class BookingConfirmationVerification
                 using var denied = await kitchen.PostAsync($"/Reservations/Cancel/{id}", Form(("reason", "thử"), ("__RequestVerificationToken", Token(kitchenPage))));
                 var refused = denied.StatusCode == HttpStatusCode.Forbidden
                     || (denied.StatusCode == HttpStatusCode.Redirect && Location(denied).Contains("AccessDenied"));
-                Assert(refused && await Scalar(connection, $"SELECT CASE WHEN Status='Pending' THEN 1 ELSE 0 END FROM dbo.Reservations WHERE Id={id}") == 1,
+                Assert(refused && await Scalar(connection, $"SELECT CASE WHEN Status='Confirmed' THEN 1 ELSE 0 END FROM dbo.Reservations WHERE Id={id}") == 1,
                     "Kitchen cannot cancel a reservation");
             }
 
@@ -139,13 +161,13 @@ internal static class BookingConfirmationVerification
             using (var noReason = await web.Client.PostAsync($"/Reservations/Cancel/{id}", Form(("reason", "  "), ("__RequestVerificationToken", Token(details)))))
                 Assert(noReason.StatusCode == HttpStatusCode.Redirect, "Cancel without reason is answered");
             Assert((await Html(web.Client, $"/Reservations/Details/{id}")).Contains("Vui lòng nhập lý do huỷ")
-                && await Scalar(connection, $"SELECT CASE WHEN Status='Pending' THEN 1 ELSE 0 END FROM dbo.Reservations WHERE Id={id}") == 1,
+                && await Scalar(connection, $"SELECT CASE WHEN Status='Confirmed' THEN 1 ELSE 0 END FROM dbo.Reservations WHERE Id={id}") == 1,
                 "A reason is required to cancel");
             details = await Html(web.Client, $"/Reservations/Details/{id}");
             using (var cancel = await web.Client.PostAsync($"/Reservations/Cancel/{id}", Form(("reason", "Nhà hàng có sự cố điện"), ("__RequestVerificationToken", Token(details)))))
                 Assert(cancel.StatusCode == HttpStatusCode.Redirect, "Manager cancels the reservation");
             var cancelledPage = await Html(web.Client, $"/Reservations/Details/{id}");
-            Assert(cancelledPage.Contains($"Đã huỷ đặt bàn {tableCode}. Đã gửi email báo huỷ cho khách.") && cancelledPage.Contains("Đã huỷ")
+            Assert(cancelledPage.Contains($"Đã huỷ đặt bàn {code} (bàn {tableCode}). Đã gửi email báo huỷ cho khách.") && cancelledPage.Contains("Đã huỷ")
                 && cancelledPage.Contains("Nhà hàng có sự cố điện") && !cancelledPage.Contains("Huỷ đặt bàn</button>"),
                 "Cancelled reservation shows its status and reason; it cannot be cancelled twice");
             await Check(connection, $"""
@@ -154,8 +176,8 @@ internal static class BookingConfirmationVerification
                  AND EXISTS(SELECT 1 FROM dbo.EmailOutbox o WHERE o.ReservationId=r.Id AND o.MessageType='BookingCancelled' AND o.Status='Sent')
                  THEN 1 ELSE 0 END FROM dbo.Reservations r WHERE r.Id={id}
                 """, "Cancellation, its reason, the acting manager and the cancellation email are stored");
-            var cancelMail = Directory.GetFiles(mailDir, "*.txt").Select(f => File.ReadAllText(f)).Single(t => t.Contains("Subject: Đã huỷ đặt bàn"));
-            Assert(cancelMail.Contains($"Subject: Đã huỷ đặt bàn {tableCode}") && cancelMail.Contains("Nhà hàng có sự cố điện") && cancelMail.Contains("To: khach.s209@example.com"),
+            var cancelMail = Directory.GetFiles(mailDir, "*.txt").Select(f => File.ReadAllText(f)).Single(t => t.Contains("Subject: Bếp Nhà - Đã huỷ đặt bàn"));
+            Assert(cancelMail.Contains($"Subject: Bếp Nhà - Đã huỷ đặt bàn {code}") && cancelMail.Contains("Nhà hàng có sự cố điện") && cancelMail.Contains("To: khach.s209@example.com"),
                 "Customer receives a cancellation email with the booking code and reason");
             Assert((await FreeTables(web.Client, slots[0].Local, 4)).Contains(tableId), "Cancelled table is free again for that time slot");
 
@@ -184,8 +206,8 @@ internal static class BookingConfirmationVerification
             var retryId = await Scalar(connection, $"SELECT Id FROM dbo.Reservations WHERE Code='{await InternalCode(connection, "0912090902")}'");
             await DatabaseTool.Execute(connection, $"""
                 UPDATE dbo.Reservations SET Email=N'gui.lai.s209@example.com' WHERE Id={retryId};
-                EXEC dbo.usp_QueueBookingEmail @ReservationId={retryId},@Kind='BookingReceived';
-                DECLARE @e bigint=(SELECT Id FROM dbo.EmailOutbox WHERE ReservationId={retryId} AND MessageType='BookingReceived');
+                EXEC dbo.usp_QueueBookingEmail @ReservationId={retryId},@Kind='BookingConfirmed';
+                DECLARE @e bigint=(SELECT Id FROM dbo.EmailOutbox WHERE ReservationId={retryId} AND MessageType='BookingConfirmed');
                 BEGIN TRANSACTION;
                 UPDATE dbo.EmailOutbox SET AttemptCount=1,LastAttemptAt=DATEADD(minute,-5,SYSUTCDATETIME()),LastError=N'{FirstAttemptError}',
                  NextAttemptAt=DATEADD(year,1,SYSUTCDATETIME()) WHERE Id=@e;
@@ -196,8 +218,8 @@ internal static class BookingConfirmationVerification
                 """);
             await Check(connection, $"SELECT CASE WHEN ConfirmationEmailStatus='Retrying' AND ConfirmationEmailAttempts=1 THEN 1 ELSE 0 END FROM dbo.Reservations WHERE Id={retryId}",
                 "Retry: after a failed first attempt the reservation shows the email is waiting to be sent again");
-            await DatabaseTool.Execute(connection, $"UPDATE dbo.EmailOutbox SET NextAttemptAt=SYSUTCDATETIME() WHERE ReservationId={retryId} AND MessageType='BookingReceived';");
-            await WaitFor(connection, $"SELECT CASE WHEN Status='Sent' THEN 1 ELSE 0 END FROM dbo.EmailOutbox WHERE ReservationId={retryId} AND MessageType='BookingReceived'",
+            await DatabaseTool.Execute(connection, $"UPDATE dbo.EmailOutbox SET NextAttemptAt=SYSUTCDATETIME() WHERE ReservationId={retryId} AND MessageType='BookingConfirmed';");
+            await WaitFor(connection, $"SELECT CASE WHEN Status='Sent' THEN 1 ELSE 0 END FROM dbo.EmailOutbox WHERE ReservationId={retryId} AND MessageType='BookingConfirmed'",
                 "Retry: the web worker sends the email again after the first attempt failed");
             await Check(connection, $"""
                 SELECT CASE WHEN o.AttemptCount=2 AND o.LastError IS NULL AND o.SentAt IS NOT NULL
@@ -205,7 +227,7 @@ internal static class BookingConfirmationVerification
                  AND EXISTS(SELECT 1 FROM dbo.EmailAttempts a WHERE a.EmailId=o.Id AND a.AttemptNumber=1 AND a.Status='Failed' AND a.Error=N'{FirstAttemptError}')
                  AND EXISTS(SELECT 1 FROM dbo.EmailAttempts a WHERE a.EmailId=o.Id AND a.AttemptNumber=2 AND a.Status='Succeeded' AND a.CompletedAt IS NOT NULL AND a.Error IS NULL)
                  AND r.ConfirmationEmailStatus='Sent' AND r.ConfirmationEmailAttempts=2 THEN 1 ELSE 0 END
-                FROM dbo.EmailOutbox o JOIN dbo.Reservations r ON r.Id=o.ReservationId WHERE o.ReservationId={retryId} AND o.MessageType='BookingReceived'
+                FROM dbo.EmailOutbox o JOIN dbo.Reservations r ON r.Id=o.ReservationId WHERE o.ReservationId={retryId} AND o.MessageType='BookingConfirmed'
                 """, "Retry: success on attempt 2 is the final result; both attempts and the reservation email status are recorded");
             Assert(Directory.GetFiles(mailDir, "*.txt").Count(f => File.ReadAllText(f).Contains("To: gui.lai.s209@example.com")) == 1,
                 "Retry: the customer receives exactly one confirmation email");
@@ -228,22 +250,24 @@ internal static class BookingConfirmationVerification
             await Login(web.Client, "manager", password);
             var before = await Scalar(connection, "SELECT COUNT(*) FROM dbo.Reservations");
             var (code, page) = await Book(web.Client, "Khách S2-09 lỗi email", "0912090903", 3, slots[2].Local, "loi.s209@example.com");
-            Assert(await Scalar(connection, "SELECT COUNT(*) FROM dbo.Reservations") == before + 1, "Booking is saved even though the email fails");
-            Assert(page.Contains($"data-booking-code=\"{code}\">{code}</p>") && page.Contains("data-email-outcome=\"Failed\"")
-                && page.Contains("Email xác nhận chưa gửi được") && page.Contains("vẫn được ghi nhận"),
-                "Confirmation page keeps the full booking code and explains the email was not sent");
+            Assert(await Scalar(connection, "SELECT COUNT(*) FROM dbo.Reservations") == before + 1, "Booking is saved");
+            Assert(page.Contains($"data-booking-code=\"{code}\">{code}</p>") && page.Contains("chờ nhà hàng xác nhận"),
+                "Booking page shows the full booking code while waiting for the restaurant");
+            var id = await Scalar(connection, $"SELECT Id FROM dbo.Reservations WHERE Code='{code}'");
+            var staffPage = await ConfirmAsStaff(web.Client, id, null);
+            Assert(staffPage.Contains("Đã xác nhận lượt đặt") && staffPage.Contains("Email cho khách chưa gửi được; hệ thống sẽ tự gửi lại sau 5 phút."),
+                "Confirmation is saved even though the email fails; staff are told it will be retried");
             await Check(connection, $"""
                 SELECT CASE WHEN o.Status='Pending' AND o.AttemptCount=1 AND o.SentAt IS NULL AND o.LastAttemptAt IS NOT NULL AND LEN(o.LastError)>0
-                 THEN 1 ELSE 0 END
-                FROM dbo.Reservations r JOIN dbo.EmailOutbox o ON o.ReservationId=r.Id AND o.MessageType='BookingReceived' WHERE r.Code='{code}'
-                """, "Failed attempt and its error are stored for the reservation");
-            var id = await Scalar(connection, $"SELECT Id FROM dbo.Reservations WHERE Code='{code}'");
+                 AND r.Status='Confirmed' THEN 1 ELSE 0 END
+                FROM dbo.Reservations r JOIN dbo.EmailOutbox o ON o.ReservationId=r.Id AND o.MessageType='BookingConfirmed' WHERE r.Code='{code}'
+                """, "Failed attempt and its error are stored for the confirmed reservation");
             var details = await Html(web.Client, $"/Reservations/Details/{id}");
-            Assert(details.Contains("Email xác nhận") && details.Contains("1/4") && details.Contains("Lỗi lần thử trước") && details.Contains("Chờ xác nhận"),
-                "Staff sees the failed attempt and its error, booking status unchanged");
+            Assert(details.Contains("Email xác nhận") && details.Contains("1/4") && details.Contains("Lỗi lần thử trước") && details.Contains("Đã xác nhận"),
+                "Staff sees the failed attempt and its error, booking stays confirmed");
 
             // S2-09 Task 2: tự gửi lại tối đa 3 lần, cách nhau 5 phút; cả 3 lần đều lỗi → kết quả cuối cùng là thất bại.
-            var emailId = await Scalar(connection, $"SELECT Id FROM dbo.EmailOutbox WHERE ReservationId={id} AND MessageType='BookingReceived'");
+            var emailId = await Scalar(connection, $"SELECT Id FROM dbo.EmailOutbox WHERE ReservationId={id} AND MessageType='BookingConfirmed'");
             string Waiting(int attempt) => $"""
                 SELECT CASE WHEN o.Status='Pending' AND o.AttemptCount={attempt} AND a.Status='Failed' AND LEN(a.Error)>0 AND a.CompletedAt IS NOT NULL
                  AND DATEDIFF(second,a.CompletedAt,o.NextAttemptAt)=300
@@ -255,10 +279,6 @@ internal static class BookingConfirmationVerification
             await Task.Delay(3000);
             await Check(connection, $"SELECT CASE WHEN AttemptCount=1 AND Status='Pending' THEN 1 ELSE 0 END FROM dbo.EmailOutbox WHERE Id={emailId}",
                 "Retry: the worker does not send again before the 5 minutes are up");
-            var waitingPage = await Html(web.Client, "/Reservations/Success");
-            Assert(waitingPage.Contains($"data-booking-code=\"{code}\">{code}</p>") && waitingPage.Contains("Hệ thống sẽ tự gửi lại lúc")
-                && waitingPage.Contains("đã thử 1/4 lần") && waitingPage.Contains("data-email-final=\"false\""),
-                "Customer: confirmation page says the email will be sent again automatically");
             for (var attempt = 2; attempt <= 4; attempt++)
             {
                 // Tua nhanh 5 phút chờ.
@@ -270,9 +290,9 @@ internal static class BookingConfirmationVerification
             await Check(connection, $"""
                 SELECT CASE WHEN o.Status='Failed' AND o.AttemptCount=4 AND o.SentAt IS NULL AND LEN(o.LastError)>0
                  AND (SELECT COUNT(*) FROM dbo.EmailAttempts a WHERE a.EmailId=o.Id AND a.Status='Failed' AND a.CompletedAt IS NOT NULL)=4
-                 AND r.ConfirmationEmailStatus='Failed' AND r.ConfirmationEmailAttempts=4 AND r.Status='Pending' THEN 1 ELSE 0 END
+                 AND r.ConfirmationEmailStatus='Failed' AND r.ConfirmationEmailAttempts=4 AND r.Status='Confirmed' THEN 1 ELSE 0 END
                 FROM dbo.EmailOutbox o JOIN dbo.Reservations r ON r.Id=o.ReservationId WHERE o.Id={emailId}
-                """, "Retry: after the first attempt and 3 failed retries the final result 'failed' is recorded (booking unchanged)");
+                """, "Retry: after the first attempt and 3 failed retries the final result 'failed' is recorded (booking stays confirmed)");
             await DatabaseTool.Execute(connection, $"UPDATE dbo.EmailOutbox SET NextAttemptAt=SYSUTCDATETIME() WHERE Id={emailId};");
             await Task.Delay(3000);
             await Check(connection, $"""
@@ -286,17 +306,36 @@ internal static class BookingConfirmationVerification
                 && failedDetails.Contains("Email: gửi thất bại sau 4 lần thử") && failedDetails.Contains("data-email-final-result=\"true\""),
                 "Staff see 4 attempts, each attempt's error and the final result 'failed'");
             Assert((await Html(web.Client, "/Reservations")).Contains("Email: gửi thất bại sau 4 lần thử"), "Reservation list shows the final email result");
-            var finalPage = await Html(web.Client, "/Reservations/Success");
-            Assert(finalPage.Contains("Không gửi được email xác nhận") && finalPage.Contains("sau 4 lần thử") && finalPage.Contains($"mã đặt bàn {code}")
-                && finalPage.Contains("data-email-final=\"true\""), "Customer: confirmation page shows the final result when the email could not be sent");
-            using (var statusJson = await web.Client.GetAsync("/Reservations/BookingEmailStatus"))
-            {
-                var body = await statusJson.Content.ReadAsStringAsync();
-                Assert(statusJson.StatusCode == HttpStatusCode.OK && body.Contains("\"state\":\"Failed\"") && body.Contains("\"final\":true"),
-                    "Customer: email status endpoint reports the final result");
-            }
+            var failedLookup = await LookupPage(web.Client, code, "0912090903");
+            Assert(failedLookup.Contains("Đã xác nhận") && failedLookup.Contains($"data-copy-code=\"{code}\""),
+                "Customer: even without the email, the lookup shows the confirmed booking with its code");
         }
         Console.WriteLine("PASS: S2-09 Task 1 booking confirmation email checks.");
+    }
+
+    /// <summary>
+    /// Quản lý / Phục vụ xác nhận lượt đặt trên màn hình "Lượt đặt" (chọn bàn dạng ô bấm). <paramref name="tableId"/> null:
+    /// chọn bàn đang được chọn sẵn hoặc bàn đầu tiên trong danh sách. Trả về trang chi tiết sau khi xác nhận.
+    /// </summary>
+    internal static async Task<string> ConfirmAsStaff(HttpClient client, long reservationId, int? tableId)
+    {
+        var details = await Html(client, $"/ReservationConfirmations/Details?id={reservationId}");
+        var table = tableId?.ToString() ?? Regex.Match(details, "name=\"SelectedTableId\" id=\"table-(\\d+)\"").Groups[1].Value;
+        Assert(table.Length > 0 && details.Contains("Chọn bàn") && details.Contains($"value=\"{table}\""), $"Staff confirmation screen lists table {table}");
+        using var response = await client.PostAsync($"/ReservationConfirmations/Confirm?id={reservationId}",
+            Form(("SelectedTableId", table), ("__RequestVerificationToken", Token(details))));
+        Assert(response.StatusCode == HttpStatusCode.Redirect, $"Staff confirm reservation {reservationId}");
+        return await Html(client, $"/ReservationConfirmations/Details?id={reservationId}");
+    }
+
+    /// <summary>Khách tra cứu bằng mã đặt bàn (điền sẵn qua liên kết ?code=) và số điện thoại.</summary>
+    internal static async Task<string> LookupPage(HttpClient client, string code, string phone)
+    {
+        var form = await Html(client, $"/ReservationLookup?code={code}");
+        Assert(form.Contains($"value=\"{code}\""), $"Lookup link fills in the booking code {code}");
+        using var response = await client.PostAsync("/ReservationLookup/Lookup",
+            Form(("Code", code), ("Phone", phone), ("__RequestVerificationToken", Token(form))));
+        return WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
     }
 
     /// <summary>Tìm các khung giờ hợp lệ (giờ mở cửa, không phải ngày nghỉ) trong tương lai bằng usp_ValidateBookingSchedule.</summary>

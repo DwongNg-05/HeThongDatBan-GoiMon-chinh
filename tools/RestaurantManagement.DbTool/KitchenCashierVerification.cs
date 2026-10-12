@@ -111,6 +111,101 @@ internal static class KitchenCashierVerification
         Assert(!kitchenCss.Contains("ellipsis") && !kitchenCss.Contains("line-clamp") && kitchenCss.Contains("overflow-wrap: anywhere"),
             "Kitchen notes: the kitchen stylesheet wraps notes and never truncates them");
 
+        // S3-04 Task 4: hoá đơn tạm tính — ghi chú và lựa chọn nhanh dưới từng dòng món, khớp màn hình bếp; mở lại hoặc cập nhật đơn
+        // không làm đổi ghi chú; hai dòng cùng món không bị gộp. Phục vụ, Thu ngân, Quản lý mở được; Bếp bị chặn.
+        static string Requests(string row, string prefix)
+        {
+            var quick = Regex.Matches(row, $"<li data-{prefix}-quick>([^<]*)</li>").Select(m => m.Groups[1].Value).ToArray();
+            var note = Regex.Match(row, $"data-{prefix}-note><span class=\"[^\"]*\">Ghi chú:</span> ([\\s\\S]*?)</p>");
+            var parts = new List<string>();
+            if (quick.Length > 0) parts.Add(string.Join(" · ", quick));
+            if (note.Success) parts.Add("Ghi chú: " + note.Groups[1].Value);
+            return string.Join(" | ", parts);
+        }
+        static string BillRow(string page, long id) => Regex.Match(page, $"<tr data-bill-line=\"{id}\"[\\s\\S]*?</tr>").Value;
+        static bool BillNoteUnderName(string row)
+        {
+            var name = row.IndexOf("data-bill-name>", StringComparison.Ordinal);
+            var requests = row.IndexOf("data-bill-requests", StringComparison.Ordinal);
+            var cellEnd = name < 0 ? -1 : row.IndexOf("</td>", name, StringComparison.Ordinal);
+            return name >= 0 && requests > name && requests < cellEnd;
+        }
+        var expectedRequests = new[]
+        {
+            "Ít cay · Không hành | Ghi chú: S303k thêm chanh",
+            "Không mỡ | Ghi chú: S303k mang ra sau",
+            "Ghi chú: " + kitchenNote200
+        };
+        var kitchenRequests = notedIds.Select(id => Requests(KitchenRow(id), "kitchen")).ToArray();
+        Assert(kitchenRequests.SequenceEqual(expectedRequests), "Bill notes: the kitchen screen shows the requests the bill will be checked against");
+        var billUrl = $"/ProvisionalBill/{notesSessionId}";
+        var billPage = await Html(waiter, billUrl);
+        var billRows = notedIds.Select(id => BillRow(billPage, id)).ToArray();
+        Assert(billRows.All(r => r.Length > 0 && r.Contains($"data-bill-name>{notedDishName}</strong>") && BillNoteUnderName(r)),
+            "Bill notes: the waiter opens the provisional bill and every line shows its requests right under the dish name");
+        Assert(billRows.Select(r => Requests(r, "bill")).SequenceEqual(expectedRequests),
+            "Bill notes: each bill line shows its own quick choices and full note (200 Vietnamese characters not cut)");
+        Assert(billRows.Select(r => Requests(r, "bill")).SequenceEqual(kitchenRequests),
+            "Bill notes: the notes on the provisional bill match the kitchen screen line by line");
+        Assert(Regex.Matches(billPage, "<tr data-bill-line=\"").Count == 3 && notedIds.Distinct().Count() == 3,
+            "Bill notes: the three lines of the same dish are not merged on the bill");
+        var notesTableCode = await Text(connection, $"SELECT TOP(1) t.Code FROM dbo.SessionTables st JOIN dbo.DiningTables t ON t.Id=st.TableId WHERE st.SessionId={notesSessionId}");
+        using (var byTable = await waiter.GetAsync($"/ProvisionalBill/Table/{notesTableCode}"))
+            Assert(byTable.StatusCode == HttpStatusCode.Redirect && Location(byTable).EndsWith(billUrl, StringComparison.Ordinal),
+                $"Bill notes: table {notesTableCode} on the table map opens its provisional bill");
+        foreach (var (who, client) in new[] { ("Cashier", cashier), ("Waiter (reopened)", waiter) })
+        {
+            var again = await Html(client, billUrl);
+            Assert(notedIds.Select(id => BillRow(again, id)).SequenceEqual(billRows),
+                $"Bill notes: {who} reopens the bill and every line, note and quick choice is exactly the same");
+        }
+        using (var kitchenBill = await kitchen.GetAsync(billUrl))
+            Assert(Blocked(kitchenBill), "Bill notes: the kitchen account cannot open the provisional bill (blocked by the server)");
+
+        // Đơn được cập nhật: bếp nấu dòng 1, phục vụ gọi thêm cùng món với yêu cầu khác, khách huỷ dòng 2 → ghi chú các dòng cũ giữ nguyên.
+        using (var cook = await kitchen.PostAsync($"/Kitchen/Advance/{notedIds[0]}", Form(("toStatus", "Preparing"), ("__RequestVerificationToken", Token(notesKitchenPage)))))
+            Assert(cook.StatusCode == HttpStatusCode.Redirect && !Blocked(cook), "Bill notes: the kitchen starts cooking line 1");
+        var moreJson = JsonSerializer.Serialize(new object[] { new { MenuItemId = dishId, Quantity = 1, Notes = "S304 thêm đá", QuickNotes = "Ít cay" } }).Replace("'", "''");
+        await DatabaseTool.Execute(connection, $$"""
+            DECLARE @request uniqueidentifier=NEWID();
+            EXEC dbo.usp_SubmitOrder @SessionId={{notesSessionId}},@RequestId=@request,@ItemsJson=N'{{moreJson}}',@ActorUserId={{waiterId}};
+            EXEC dbo.usp_CancelOrderItem @OrderItemId={{notedIds[1]}},@Reason='ChangedMind',@ActorUserId={{waiterId}};
+            """);
+        var addedId = await Scalar(connection, $"SELECT i.Id FROM dbo.OrderItems i JOIN dbo.OrderBatches b ON b.Id=i.BatchId WHERE b.SessionId={notesSessionId} AND i.Notes=N'S304 thêm đá'");
+        var updatedBill = await Html(waiter, billUrl);
+        var updatedRows = notedIds.Select(id => BillRow(updatedBill, id)).ToArray();
+        Assert(updatedRows.Select(r => Requests(r, "bill")).SequenceEqual(expectedRequests),
+            "Bill notes: after the order is updated (cooking, another round, a cancelled line) every earlier note is unchanged");
+        Assert(updatedRows[0].Contains("data-status=\"Preparing\"") && updatedRows[1].Contains("data-status=\"Cancelled\"") && updatedRows[1].Contains("provisional-bill-cancelled"),
+            "Bill notes: the bill shows the new status of the updated lines (cooking, cancelled) next to their kept notes");
+        var addedRow = BillRow(updatedBill, addedId);
+        Assert(Regex.Matches(updatedBill, "<tr data-bill-line=\"").Count == 4 && Requests(addedRow, "bill") == "Ít cay | Ghi chú: S304 thêm đá" && BillNoteUnderName(addedRow),
+            "Bill notes: the new round of the same dish is a separate bill line with its own requests");
+        var updatedKitchen = await Html(kitchen, "/Kitchen");
+        string UpdatedKitchenRow(long id) => Regex.Match(updatedKitchen, $"<tr data-order-item=\"{id}\"[\\s\\S]*?</tr>").Value;
+        Assert(Requests(UpdatedKitchenRow(notedIds[0]), "kitchen") == Requests(updatedRows[0], "bill")
+            && Requests(UpdatedKitchenRow(addedId), "kitchen") == Requests(addedRow, "bill")
+            && Requests(UpdatedKitchenRow(notedIds[2]), "kitchen") == Requests(updatedRows[2], "bill"),
+            "Bill notes: after the update the bill still matches the kitchen screen for every line the kitchen shows");
+        var noteChangeRefused = false;
+        try { await DatabaseTool.Execute(connection, $"UPDATE dbo.OrderItems SET Notes=N'S304 sửa lén' WHERE Id={notedIds[0]};"); }
+        catch (SqlException ex) when (ex.Number == 51113) { noteChangeRefused = true; }
+        var quickChangeRefused = false;
+        try { await DatabaseTool.Execute(connection, $"UPDATE dbo.OrderItems SET QuickNotes=N'ít cay, không hành' WHERE Id={notedIds[0]};"); }
+        catch (SqlException ex) when (ex.Number == 51113) { quickChangeRefused = true; }
+        await DatabaseTool.Execute(connection, $"UPDATE dbo.OrderItems SET Notes=Notes,QuickNotes=QuickNotes WHERE Id={notedIds[0]};");
+        Assert(noteChangeRefused && quickChangeRefused, "Bill notes: the database refuses to change a note or quick choice already sent to the kitchen (even letter case)");
+        Assert(Requests(BillRow(await Html(cashier, billUrl), notedIds[0]), "bill") == expectedRequests[0],
+            "Bill notes: after the refused edits the bill still shows the original note");
+
+        // Dọn dẹp: đóng phiên thử ghi chú (không xuất hoá đơn) để bước chốt ca phía sau không bị chặn vì còn bàn đang phục vụ.
+        await DatabaseTool.Execute(connection, $"""
+            UPDATE t SET Status='Available' FROM dbo.DiningTables t
+             WHERE t.Id IN (SELECT TableId FROM dbo.SessionTables WHERE SessionId={notesSessionId} AND ReleasedAt IS NULL);
+            UPDATE dbo.SessionTables SET ReleasedAt=SYSUTCDATETIME() WHERE SessionId={notesSessionId} AND ReleasedAt IS NULL;
+            UPDATE dbo.DiningSessions SET Status='Closed',ClosedAt=SYSUTCDATETIME(),ClosedBy={waiterId} WHERE Id={notesSessionId};
+            """);
+
         // Ngoài phạm vi: Phục vụ (S1-04 Task 1: không còn xem màn hình bếp) và Thu ngân không chuyển được trạng thái chế biến.
         using (var waiterKitchenScreen = await waiter.GetAsync("/Kitchen"))
             Assert(Blocked(waiterKitchenScreen), "Waiter cannot open the kitchen screen (blocked by the server)");

@@ -1,0 +1,66 @@
+/* Hộp đăng nhập ngay trên trang (kiểu "Register or Sign In"): khung trắng giữa màn hình, nền mờ phía sau, nút X góc phải.
+   Chỉ nạp cho người chưa đăng nhập (_Layout). Màu đỏ lấy từ michelin.css (--m-red = đỏ logo, --m-red-dark = đỏ đậm). */
+html.login-dialog-open { overflow: hidden; }
+.login-dialog {
+    width: min(560px, calc(100% - 32px)); max-height: calc(100% - 32px); padding: 56px 64px 36px; overflow-y: auto;
+    border: 0; border-radius: 12px; background: #fff; color: #222; box-shadow: 0 24px 80px rgba(0, 0, 0, .22);
+}
+.login-dialog::backdrop { background: rgba(40, 40, 40, .45); }
+.login-dialog[open] { animation: login-dialog-in .18s ease-out; }
+@keyframes login-dialog-in { from { opacity: 0; transform: translateY(12px); } }
+.login-dialog :focus-visible { outline: 2px solid var(--m-red-dark); outline-offset: 2px; }
+
+.login-dialog-close, .login-dialog-reveal {
+    position: absolute; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%;
+    background: transparent; color: #555; cursor: pointer;
+}
+.login-dialog-close:hover, .login-dialog-reveal:hover { background: #f5e6e9; color: var(--m-red-dark); }
+.login-dialog-close { top: 18px; right: 18px; width: 44px; height: 44px; font-size: 26px; }
+.login-dialog-title { margin: 0 0 14px; font-size: 32px; font-weight: 500; text-align: center; }
+.login-dialog-lead { margin: 0 0 30px; color: #444; font-size: 16px; line-height: 1.6; text-align: center; }
+
+/* Ô tài khoản / mật khẩu: viền đỏ đậm, đậm hơn khi đang nhập. */
+.login-dialog-form { display: grid; gap: 16px; }
+.login-dialog-field { position: relative; }
+.login-dialog-field > i { position: absolute; top: 50%; left: 18px; transform: translateY(-50%); color: var(--m-red-dark); font-size: 17px; pointer-events: none; }
+.login-dialog-field input {
+    width: 100%; min-height: 56px; padding: 12px 16px 12px 48px; border: 1.5px solid var(--m-red-dark); border-radius: 6px;
+    background: #fff; color: #222; font-size: 17px;
+}
+.login-dialog-field:has(.login-dialog-reveal) input { padding-right: 52px; }
+.login-dialog-field input::placeholder { color: #8a8a8a; }
+.login-dialog-field input:focus { border-color: var(--m-red-dark); outline: 0; box-shadow: 0 0 0 3px rgba(143, 6, 32, .18); }
+/* Chrome tự điền: giữ nền trắng thay cho nền xanh mặc định. */
+.login-dialog-field input:-webkit-autofill { -webkit-box-shadow: 0 0 0 40px #fff inset; -webkit-text-fill-color: #222; }
+.login-dialog-field input:-webkit-autofill:focus { -webkit-box-shadow: 0 0 0 40px #fff inset, 0 0 0 3px rgba(143, 6, 32, .18); }
+.login-dialog-reveal { top: 50%; right: 8px; transform: translateY(-50%); width: 40px; height: 40px; font-size: 17px; }
+
+.login-dialog-submit {
+    min-height: 56px; margin-top: 8px; border: 0; border-radius: 6px; background: var(--m-red); color: #fff;
+    font-size: 19px; font-weight: 600; cursor: pointer; transition: background-color .15s;
+}
+.login-dialog-submit:hover, .login-dialog-submit:focus-visible { background: var(--m-red-dark); }
+.login-dialog-submit:disabled { opacity: .7; cursor: progress; }
+.login-dialog-error { display: flex; gap: 10px; padding: 12px 14px; border-radius: 6px; background: #fdecee; color: var(--m-red-dark); font-size: 15px; line-height: 1.5; }
+.login-dialog-error[hidden] { display: none; }
+.login-dialog-error i { margin-top: 4px; }
+
+.login-dialog-or { margin: 34px 0 22px; font-size: 15px; text-align: center; }
+.login-dialog-alt {
+    position: relative; display: flex; align-items: center; justify-content: center; min-height: 54px; margin-top: 14px; padding: 10px 52px;
+    border: 1px solid #cfcfcf; border-radius: 6px; color: #222; font-size: 17px; font-weight: 500; text-decoration: none;
+}
+.login-dialog-alt:hover { border-color: var(--m-red-dark); color: var(--m-red-dark); }
+.login-dialog-alt > i { position: absolute; left: 20px; color: var(--m-red); font-size: 20px; }
+.login-dialog-foot { margin: 30px 0 0; color: #555; font-size: 14px; text-align: center; }
+
+@media (max-width: 575.98px) {
+    .login-dialog { width: calc(100% - 24px); padding: 52px 22px 26px; }
+    .login-dialog-close { top: 10px; right: 10px; }
+    .login-dialog-title { font-size: 26px; }
+    .login-dialog-lead { margin-bottom: 22px; font-size: 15px; }
+    .login-dialog-field input { min-height: 52px; padding-left: 44px; font-size: 16px; }
+    .login-dialog-field > i { left: 16px; }
+    .login-dialog-or { margin: 26px 0 16px; }
+}
+@media (prefers-reduced-motion: reduce) { .login-dialog[open] { animation: none; } }

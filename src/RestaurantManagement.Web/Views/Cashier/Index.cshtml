@@ -33,7 +33,7 @@
                         <td>@s.GuestCount</td>
                         <td>@s.StatusLabel</td>
                         <td>@s.ItemCount @if (s.UnservedCount > 0) { <span class="text-danger">(@s.UnservedCount món chưa mang ra)</span> }</td>
-                        <td>@Vnd.Format(s.Subtotal)</td>
+                        <td>@Vnd.Format(s.Subtotal)<br /><a class="small" href="@Url.Content($"~/ProvisionalBill/{s.SessionId}")" data-bill-link="@s.SessionId">Xem hoá đơn tạm tính</a></td>
                         <td>
                             @if (s.CanCheckout && Model.OpenShift is not null)
                             {

@@ -8,16 +8,18 @@ namespace RestaurantManagement.Web.Models.Kitchen;
 public sealed record KitchenOrderItem(long Id, string TableCode, string ItemName, string Unit, int Quantity, string? Notes,
     string Status, DateTime SubmittedAt, int EstimatedPrepMinutes, string? QuickNotes = null)
 {
+    /// <summary>Yêu cầu riêng của dòng — cùng cách đọc với hoá đơn tạm tính (S3-04 Task 4) để hai nơi luôn khớp.</summary>
+    public RestaurantManagement.Web.Models.Orders.OrderItemRequests Requests =>
+        RestaurantManagement.Web.Models.Orders.OrderItemRequests.From(QuickNotes, Notes);
+
     /// <summary>Các lựa chọn nhanh, mỗi lựa chọn một nhãn riêng ("Ít cay", "Không hành"…).</summary>
-    public IReadOnlyList<string> QuickNoteLabels => string.IsNullOrWhiteSpace(QuickNotes)
-        ? Array.Empty<string>()
-        : QuickNotes.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+    public IReadOnlyList<string> QuickNoteLabels => Requests.QuickLabels;
 
     /// <summary>Ghi chú tự do đầy đủ (không cắt), hoặc null.</summary>
-    public string? FreeNote => string.IsNullOrWhiteSpace(Notes) ? null : Notes.Trim();
+    public string? FreeNote => Requests.FreeNote;
 
     /// <summary>Dòng có yêu cầu riêng của khách (lựa chọn nhanh hoặc ghi chú) cần bếp đọc.</summary>
-    public bool HasRequests => QuickNoteLabels.Count > 0 || FreeNote is not null;
+    public bool HasRequests => Requests.HasAny;
 
     public long SessionId { get; init; }
     public long BatchId { get; init; }
@@ -38,6 +40,7 @@ public sealed record KitchenOrderItem(long Id, string TableCode, string ItemName
     public string? NextLabel => Status switch { "Pending" => "Bắt đầu nấu", "Preparing" => "Đã xong", _ => null };
 }
 
+/// <summary>S2-08 Task 1: danh sách món trong ngày, gom theo nhóm món.</summary>
 public sealed record KitchenOrderBatch(
     long SessionId,
     long BatchId,

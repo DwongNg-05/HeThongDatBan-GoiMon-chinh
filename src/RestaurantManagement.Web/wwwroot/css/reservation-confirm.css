@@ -1,0 +1,73 @@
+/* Màn hình xử lý lượt đặt (ReservationConfirmations/Details): các khối thông tin, chọn bàn dạng ô bấm, màu theo logo Bếp Nhà
+   (--m-red / --m-red-dark khai báo trong michelin.css). */
+.rc-page { max-width: 980px; display: grid; gap: 18px; }
+.rc-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.rc-head-main { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
+.rc-kicker { flex-basis: 100%; margin: 0; color: #6e6e6e; font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.rc-code { margin: 0; font-family: ui-monospace, SFMono-Regular, Consolas, "Courier New", monospace; font-size: 36px; font-weight: 700; letter-spacing: .08em; color: var(--m-red-dark, #8f0620); }
+.rc-copy {
+    display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 6px 14px; border: 1px solid var(--m-red, #b40829);
+    border-radius: 999px; background: #fff; color: var(--m-red, #b40829); font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.rc-copy:hover, .rc-copy:focus-visible { background: var(--m-red, #b40829); color: #fff; }
+.rc-copy.is-copied { background: #1e7a46; border-color: #1e7a46; color: #fff; }
+.rc-status { display: inline-flex; align-items: center; padding: 6px 14px; border-radius: 999px; font-size: 15px; font-weight: 700; background: #f0f0f0; color: #333; }
+.rc-status.is-pending { background: #fff4e5; color: #8a4b00; }
+.rc-status.is-confirmed { background: #e6f4ec; color: #1e7a46; }
+.rc-status.is-closed { background: #f0f0f0; color: #6e6e6e; }
+.rc-errors:empty, .rc-errors.validation-summary-valid { display: none; }
+.rc-errors ul { margin: 0; padding-left: 18px; }
+
+.rc-card { padding: 20px 22px; border: 1px solid #e5e5e5; border-radius: 14px; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .04); }
+.rc-title { margin: 0 0 14px; font-size: 20px; font-weight: 600; }
+.rc-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin: 0; }
+.rc-fact { min-width: 0; padding: 12px 14px; border-radius: 10px; background: #f8f8f8; }
+.rc-fact dt { margin-bottom: 4px; color: #6e6e6e; font-size: 13px; font-weight: 600; }
+.rc-fact dt i { width: 18px; color: var(--m-red, #b40829); }
+.rc-fact dd { display: grid; gap: 2px; margin: 0; font-size: 16px; overflow-wrap: anywhere; }
+.rc-fact dd span, .rc-phone { color: #555; font-size: 14px; }
+.rc-phone { width: fit-content; text-decoration: none; }
+.rc-phone:hover { color: var(--m-red, #b40829); text-decoration: underline; }
+.rc-note { margin: 14px 0 0; padding: 10px 14px; border-radius: 10px; background: #f6f6f6; color: #333; }
+.rc-note-warning { background: #fff4e5; color: #6b3a00; }
+.rc-card > .rc-note:first-child { margin-top: 0; }
+
+/* Chọn bàn: mỗi bàn là một ô bấm lớn; ô đang chọn viền đỏ + dấu tích. */
+.rc-confirm-form fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
+.rc-tables { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+.rc-table {
+    position: relative; display: grid; gap: 4px; min-height: 92px; padding: 14px 16px; border: 2px solid #e2e2e2; border-radius: 12px;
+    background: #fff; cursor: pointer; transition: border-color .15s, box-shadow .15s, background-color .15s;
+}
+.rc-table:hover { border-color: #c9c9c9; }
+.rc-table input { position: absolute; opacity: 0; pointer-events: none; }
+.rc-table-code { font-size: 20px; font-weight: 700; color: #222; overflow-wrap: anywhere; }
+.rc-table-meta { color: #6e6e6e; font-size: 14px; }
+.rc-table-tag { width: fit-content; margin-top: 2px; padding: 1px 8px; border-radius: 999px; background: var(--m-red, #b40829); color: #fff; font-size: 12px; font-weight: 700; }
+.rc-table-tag.is-soft { background: #fdecee; color: var(--m-red-dark, #8f0620); }
+.rc-table-check { position: absolute; top: 12px; right: 12px; color: var(--m-red, #b40829); font-size: 20px; opacity: 0; transition: opacity .15s; }
+.rc-table:has(input:checked) { border-color: var(--m-red, #b40829); background: #fff8f9; box-shadow: 0 0 0 3px rgba(180, 8, 41, .12); }
+.rc-table:has(input:checked) .rc-table-check { opacity: 1; }
+.rc-table:has(input:focus-visible) { outline: 3px solid rgba(180, 8, 41, .45); outline-offset: 2px; }
+.rc-confirm-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 18px; padding-top: 16px; border-top: 1px solid #eee; }
+.rc-confirm { min-height: 50px; padding: 10px 26px; font-size: 17px; }
+.rc-confirm-hint { color: #555; font-size: 14px; }
+
+/* Từ chối, đổi bàn: khối thu gọn. */
+.rc-fold { padding: 0; }
+.rc-fold > summary { display: flex; align-items: center; gap: 10px; padding: 16px 22px; font-weight: 600; cursor: pointer; list-style: none; }
+.rc-fold > summary::-webkit-details-marker { display: none; }
+.rc-fold > summary::after { content: "▾"; margin-left: auto; color: #8a8a8a; transition: transform .15s; }
+.rc-fold[open] > summary::after { transform: rotate(180deg); }
+.rc-fold > summary i { color: var(--m-red, #b40829); }
+.rc-fold-body { margin: 0; padding: 0 22px 20px; }
+.rc-history { display: grid; gap: 8px; margin: 0; padding-left: 18px; }
+.rc-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+@media (max-width: 575.98px) {
+    .rc-code { font-size: 30px; }
+    .rc-card { padding: 16px; }
+    .rc-tables { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .rc-confirm-bar { position: sticky; bottom: 0; margin: 18px -16px -16px; padding: 12px 16px; background: #fff; border-radius: 0 0 14px 14px; box-shadow: 0 -4px 12px rgba(0, 0, 0, .06); }
+    .rc-confirm { width: 100%; }
+}

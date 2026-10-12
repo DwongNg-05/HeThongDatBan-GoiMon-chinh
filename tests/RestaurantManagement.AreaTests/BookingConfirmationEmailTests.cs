@@ -1,9 +1,14 @@
 using Microsoft.Extensions.Logging.Abstractions;
+using RestaurantManagement.Web.Controllers;
 using RestaurantManagement.Web.Models.Reservations;
 using RestaurantManagement.Web.Services;
 using RestaurantManagement.Web.Services.EmailVerification;
 
-/// <summary>S2-09 Task 1: email xác nhận đặt bàn, gửi ngay sau khi đặt bàn, trang xác nhận luôn có mã đặt bàn (không cần database).</summary>
+/// <summary>
+/// Email đặt bàn (không cần database). Migration 050: email chỉ gửi khi Quản lý / Phục vụ xác nhận lượt đặt (BookingConfirmed),
+/// kèm mã đặt bàn 6 ký tự (đúng mã tra cứu), bàn đã giữ và liên kết tra cứu; tiêu đề "Bếp Nhà - Xác nhận đặt bàn ...".
+/// Trang đặt bàn thành công luôn có mã đặt bàn.
+/// </summary>
 internal static class BookingConfirmationEmailTests
 {
     // Đúng dạng JSON mà usp_QueueBookingEmail (migration 026) lưu: thời gian UTC không có hậu tố Z.
@@ -22,7 +27,10 @@ internal static class BookingConfirmationEmailTests
             "Booking email: payload read with UTC time converted to Vietnam time");
         var message = BookingConfirmationEmail.Create("khach@example.com", details);
         const string address = "12 Lê Lợi, Phường Bến Nghé, Quận 1, TP.HCM";
-        check(message.To == "khach@example.com" && message.Subject.Contains("A1B2C3"), "Booking email: sent to the customer with the code in the subject");
+        check(message.To == "khach@example.com" && message.Subject == "Bếp Nhà - Xác nhận đặt bàn A1B2C3",
+            "Booking email: subject starts with the restaurant name — \"Bếp Nhà - Xác nhận đặt bàn A1B2C3\"");
+        check(message.HtmlBody.Contains(">Bếp Nhà - Xác nhận đặt bàn</td>") && message.HtmlBody.Contains("#b40829") && !message.HtmlBody.Contains("#c92d3e"),
+            "Booking email: header reads \"Bếp Nhà - Xác nhận đặt bàn\" in the project red");
         foreach (var (body, name) in new[] { (message.TextBody, "text"), (message.HtmlBody, "HTML") })
             check(body.Contains("A1B2C3") && body.Contains("19:00, Thứ Hai ngày 05/10/2026") && body.Contains("4 người") && body.Contains(address),
                 $"Booking email ({name}): booking code, date and time, guest count and restaurant address");
@@ -36,35 +44,38 @@ internal static class BookingConfirmationEmailTests
         try { BookingConfirmationEmail.ParsePayload("""{"StartsAt":"2026-10-05T12:00:00"}"""); } catch (FormatException) { invalid = true; }
         check(invalid, "Booking email: payload without a booking code is rejected");
 
-        // Gửi ngay sau khi đặt bàn: thành công.
-        var claimed = new ClaimedEmail(77, 1, "khach@example.com", "Xác nhận đặt bàn A1B2C3", Payload, BookingEmailDispatcher.BookingReceived);
+        // Gửi ngay khi nhân viên xác nhận lượt đặt: thành công.
+        var claimed = new ClaimedEmail(77, 1, "khach@example.com", "Bếp Nhà - Xác nhận đặt bàn A1B2C3", Payload, BookingEmailDispatcher.BookingConfirmed);
         var outbox = new FakeOutbox(claimed);
         var sender = new FakeSender();
-        var sent = await Dispatcher(outbox, sender).SendBookingReceivedAsync(500);
+        var sent = await Dispatcher(outbox, sender).SendBookingConfirmedAsync(500);
         check(sent is { Outcome: BookingEmailOutcome.Sent, Recipient: "khach@example.com", Error: null }
-            && outbox.ClaimedFor == (500, "BookingReceived") && outbox.Completed == (77L, 1, true, (string?)null),
-            "Booking email: sent right after booking and success stored in the outbox");
+            && outbox.ClaimedFor == (500, "BookingConfirmed") && outbox.Completed == (77L, 1, true, (string?)null),
+            "Booking email: sent right after the staff confirmation and success stored in the outbox");
         check(sender.Sent.Count == 1 && sender.Sent[0].TextBody.Contains("A1B2C3"), "Booking email: the customer receives one email with the booking code");
 
         // Gửi thất bại: lưu lỗi, trả về Failed — lượt đặt bàn không bị ảnh hưởng.
         outbox = new FakeOutbox(claimed);
-        var failed = await Dispatcher(outbox, new FakeSender(new System.Net.Mail.SmtpException("Mailbox unavailable"))).SendBookingReceivedAsync(500);
+        var failed = await Dispatcher(outbox, new FakeSender(new System.Net.Mail.SmtpException("Mailbox unavailable"))).SendBookingConfirmedAsync(500);
         check(failed is { Outcome: BookingEmailOutcome.Failed, Recipient: "khach@example.com" } && failed.Error!.Contains("Mailbox unavailable")
             && outbox.Completed is { Succeeded: false } c && c.Error!.Contains("SmtpException"),
             "Booking email: failure is caught and stored with its error");
         outbox = new FakeOutbox(claimed);
-        var timedOut = await Dispatcher(outbox, new FakeSender(new OperationCanceledException())).SendBookingReceivedAsync(500);
+        var timedOut = await Dispatcher(outbox, new FakeSender(new OperationCanceledException())).SendBookingConfirmedAsync(500);
         check(timedOut.Outcome == BookingEmailOutcome.Failed && outbox.Completed?.Error?.Contains("Hết thời gian") == true, "Booking email: timeout is reported as a failure");
         check(BookingEmailDispatcher.SendTimeout < TimeSpan.FromSeconds(60), "Booking email: send timeout keeps within the 60-second requirement");
         outbox = new FakeOutbox(claimed with { PayloadJson = "{}" });
-        check((await Dispatcher(outbox, new FakeSender()).SendBookingReceivedAsync(500)).Outcome == BookingEmailOutcome.Failed && outbox.Completed?.Succeeded == false,
+        check((await Dispatcher(outbox, new FakeSender()).SendBookingConfirmedAsync(500)).Outcome == BookingEmailOutcome.Failed && outbox.Completed?.Succeeded == false,
             "Booking email: broken payload is recorded as failed, not thrown");
 
         // Không có email cần gửi / không đọc được hàng đợi.
         outbox = new FakeOutbox(null);
-        var none = await Dispatcher(outbox, sender).SendBookingReceivedAsync(501);
-        check(none.Outcome == BookingEmailOutcome.NotRequested && outbox.Completed is null, "Booking email: booking without email sends nothing");
-        var broken = await Dispatcher(new FakeOutbox(null, claimThrows: true), sender).SendBookingReceivedAsync(502);
+        var none = await Dispatcher(outbox, sender).SendBookingConfirmedAsync(501);
+        check(none.Outcome == BookingEmailOutcome.NotRequested && outbox.Completed is null, "Booking email: a confirmed booking without email sends nothing");
+        check(ConfirmationEmailNotice.AfterConfirm(sent).Contains("Đã gửi email kèm mã đặt bàn tới k***h@example.com")
+              && ConfirmationEmailNotice.AfterConfirm(failed).Contains("tự gửi lại") && ConfirmationEmailNotice.AfterConfirm(none).Contains("không để lại email"),
+            "Staff confirmation: the waiter sees whether the code was emailed, will be retried, or must be phoned");
+        var broken = await Dispatcher(new FakeOutbox(null, claimThrows: true), sender).SendBookingConfirmedAsync(502);
         check(broken.Outcome == BookingEmailOutcome.Failed, "Booking email: database error while claiming does not throw");
 
         // Trang xác nhận: mã đặt bàn luôn hiển thị đầy đủ.
@@ -84,26 +95,36 @@ internal static class BookingConfirmationEmailTests
         var sentPage = BookingSuccessViewModel.FromTempData(k => Data("Sent", "k***h@example.com").GetValueOrDefault(k))!;
         check(sentPage.EmailMessage.Contains("đã được gửi tới k***h@example.com") && failedPage.EmailMessage.Contains("chưa gửi được")
             && failedPage.EmailMessage.Contains("vẫn được ghi nhận"), "Booking confirmation page: success and failure email messages");
+        // Migration 050: lúc đặt bàn không gửi email — trang báo email sẽ đến khi nhà hàng xác nhận.
+        var waitingPage = BookingSuccessViewModel.FromTempData(k => Data("NotRequested", "k***h@example.com").GetValueOrDefault(k))!;
+        var noEmailPage = BookingSuccessViewModel.FromTempData(k => Data("NotRequested", null).GetValueOrDefault(k))!;
+        check(waitingPage.EmailMessage.Contains("Khi nhà hàng xác nhận") && waitingPage.EmailMessage.Contains("k***h@example.com")
+              && noEmailPage.EmailMessage.Contains("không nhập email") && noEmailPage.EmailMessage.Contains("tra cứu"),
+            "Booking confirmation page: the email arrives only after the restaurant confirms (or the code must be kept)");
         check(BookingSuccessViewModel.FromTempData(_ => null) is null, "Booking confirmation page: opened directly shows no stale code");
         check(BookingSuccessViewModel.MaskEmail("khach@example.com") == "k***h@example.com" && BookingSuccessViewModel.MaskEmail("ab@x.vn") == "a***@x.vn"
             && BookingSuccessViewModel.MaskEmail(null) is null, "Booking confirmation page: email address is masked");
 
-        // Khách tự chọn bàn: mã bàn (ví dụ A05) là mã khách nhận trên trang xác nhận và trong email.
+        // Khách tự chọn bàn: mã khách nhận vẫn là mã đặt bàn 6 ký tự (đúng mã tra cứu); bàn hiện ở dòng riêng.
         var withTable = BookingConfirmationEmail.ParsePayload(Payload.Replace("\"Code\":\"A1B2C3\",", "\"Code\":\"A1B2C3\",\"TableCode\":\"A05\","));
-        var tableMessage = BookingConfirmationEmail.Create("khach@example.com", withTable);
-        check(withTable is { TableCode: "A05", DisplayCode: "A05", Code: "A1B2C3" } && tableMessage.Subject.StartsWith("Xác nhận đặt bàn A05"),
-            "Table code: email subject uses the table code as the booking code");
-        check(tableMessage.HtmlBody.Contains(">Mã đặt bàn</div>") && tableMessage.HtmlBody.Contains(">A05</div>")
-            && tableMessage.TextBody.Contains("Mã đặt bàn:   A05") && tableMessage.TextBody.Contains("đọc mã đặt bàn A05")
-            && !tableMessage.HtmlBody.Contains("A1B2C3") && !tableMessage.TextBody.Contains("A1B2C3"),
-            "Table code: the booking code in the email is the table code, no second code");
-        check(details.TableCode is null && details.DisplayCode == "A1B2C3" && !message.TextBody.Contains("Mã bàn:"), "Table code: booking without a table still uses the booking code");
+        const string lookupUrl = "https://bepnha.vn/ReservationLookup?code=A1B2C3";
+        var tableMessage = BookingConfirmationEmail.Create("khach@example.com", withTable, BookingConfirmationEmail.Confirmed, lookupUrl: lookupUrl);
+        check(withTable is { TableCode: "A05", DisplayCode: "A1B2C3", Code: "A1B2C3" } && tableMessage.Subject == "Bếp Nhà - Xác nhận đặt bàn A1B2C3",
+            "Booking code: the subject carries the 6-character booking code, not the table code");
+        check(tableMessage.HtmlBody.Contains("Mã đặt bàn (dùng để tra cứu)") && tableMessage.HtmlBody.Contains(">A1B2C3</div>")
+            && tableMessage.TextBody.Contains("Mã đặt bàn:   A1B2C3") && tableMessage.TextBody.Contains("Bàn:          A05")
+            && tableMessage.HtmlBody.Contains("giữ bàn A05") && tableMessage.TextBody.Contains("đọc mã đặt bàn A1B2C3"),
+            "Booking code: the confirmation email shows the booking code to look up and the held table on its own line");
+        check(tableMessage.HtmlBody.Contains(">Tra cứu đặt bàn</a>") && tableMessage.HtmlBody.Contains(lookupUrl) && tableMessage.TextBody.Contains("Tra cứu đặt bàn: " + lookupUrl)
+            && !tableMessage.HtmlBody.Contains("Xác nhận đặt bàn</a>"),
+            "Booking code: the email links to the lookup page with the code filled in (no confirm button any more)");
+        check(details.TableCode is null && details.DisplayCode == "A1B2C3" && !message.TextBody.Contains("Bàn:"), "Booking code: a booking without a table has no table line");
 
-        var tableData = Data("Failed", null);
+        var tableData = Data("NotRequested", null);
         tableData[BookingSuccessViewModel.TableCodeKey] = "A05";
         var tablePage = BookingSuccessViewModel.FromTempData(k => tableData.GetValueOrDefault(k))!;
-        check(tablePage is { TableCode: "A05", DisplayCode: "A05", Code: "A1B2C3" } && tablePage.EmailMessage.Contains("lưu lại mã đặt bàn"),
-            "Table code: confirmation page shows the table code");
+        check(tablePage is { TableCode: "A05", DisplayCode: "A1B2C3", Code: "A1B2C3" } && tablePage.EmailMessage.Contains("lưu lại mã đặt bàn"),
+            "Booking code: the booking success page shows the booking code (the table is listed separately)");
         check(new RestaurantManagement.Web.Models.Reservations.BookingTableOption { Code = "A05", AreaName = "Tầng 1", MaxCapacity = 4 }.Label == "A05 · Tầng 1 · tối đa 4 khách",
             "Table code: table choices show code, area and capacity");
 
@@ -111,17 +132,17 @@ internal static class BookingConfirmationEmailTests
         string? Roles(string action) => typeof(RestaurantManagement.Web.Controllers.ReservationsController).GetMethods()
             .Where(m => m.Name == action).SelectMany(m => m.GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), true))
             .Cast<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>().Select(a => a.Roles).FirstOrDefault();
-        // Quản lý huỷ đặt bàn: email báo huỷ có mã đặt bàn (mã bàn) và lý do.
+        // Quản lý huỷ đặt bàn: email báo huỷ có mã đặt bàn và lý do.
         var cancelDetails = withTable with { CancelReason = "Nhà hàng có sự cố điện" };
         var cancelMessage = BookingConfirmationEmail.Create("khach@example.com", cancelDetails, BookingConfirmationEmail.Cancelled);
-        check(cancelMessage.Subject.StartsWith("Đã huỷ đặt bàn A05") && cancelMessage.TextBody.Contains("Lý do huỷ:    Nhà hàng có sự cố điện")
+        check(cancelMessage.Subject == "Bếp Nhà - Đã huỷ đặt bàn A1B2C3" && cancelMessage.TextBody.Contains("Lý do huỷ:    Nhà hàng có sự cố điện")
             && cancelMessage.HtmlBody.Contains("Nhà hàng có sự cố điện") && cancelMessage.TextBody.Contains("đã bị huỷ") && !cancelMessage.TextBody.Contains("Khi đến quán"),
             "Cancel: cancellation email has the booking code, reason and no arrival instructions");
         check(!tableMessage.TextBody.Contains("Lý do huỷ"), "Cancel: confirmation email never shows a cancellation reason");
         outbox = new FakeOutbox(claimed with { MessageType = BookingEmailDispatcher.BookingCancelled });
         var cancelSender = new FakeSender();
         var cancelSent = await Dispatcher(outbox, cancelSender).SendBookingCancelledAsync(500);
-        check(cancelSent.Outcome == BookingEmailOutcome.Sent && outbox.ClaimedFor == (500, "BookingCancelled") && cancelSender.Sent.Single().Subject.StartsWith("Đã huỷ đặt bàn"),
+        check(cancelSent.Outcome == BookingEmailOutcome.Sent && outbox.ClaimedFor == (500, "BookingCancelled") && cancelSender.Sent.Single().Subject.StartsWith("Bếp Nhà - Đã huỷ đặt bàn"),
             "Cancel: cancellation email is sent right away");
         check(new ReservationListItemViewModel { Status = "Pending" }.CanCancel && new ReservationListItemViewModel { Status = "Confirmed" }.CanCancel
             && !new ReservationListItemViewModel { Status = "Cancelled" }.CanCancel && !new ReservationListItemViewModel { Status = "Arrived" }.CanCancel,

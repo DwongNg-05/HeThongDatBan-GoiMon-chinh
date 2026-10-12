@@ -267,6 +267,14 @@ Chạy `migrate` để áp dụng `047_S303QuickNotes.sql`. Mỗi dòng món tro
 
 Không cần migration mới (dùng cột `QuickNotes` của Task 2). Trên **Màn hình bếp**, mỗi dòng món hiển thị lựa chọn nhanh (nhãn đỏ) và ghi chú tự do ngay dưới tên món, trong khung nền vàng. Chữ cỡ 16–18px, tự ngắt dòng và không bao giờ bị cắt, kể cả ghi chú đủ 200 ký tự. Hai dòng cùng món nhưng khác yêu cầu vẫn là hai dòng riêng. Chi tiết: [docs/S3-03-Task3.md](docs/S3-03-Task3.md).
 
+## S3-04 Task 4 — giữ ghi chú trên hoá đơn tạm tính
+
+Chạy `migrate` để áp dụng `048_S304KeepOrderNotes.sql`. Phục vụ mở **Sơ đồ bàn**, bấm bàn đang có khách rồi bấm **Xem hoá đơn tạm tính**; Thu ngân mở từ trang **Thanh toán**. Hoá đơn hiển thị mỗi dòng đơn là một dòng riêng, nên các dòng cùng món không bị gộp. Ngay dưới tên món là lựa chọn nhanh và ghi chú, đọc từ đúng hai cột mà màn hình bếp đọc. Trigger trong database chặn sửa ghi chú đã gửi bếp, nên khi đơn được cập nhật hay hoá đơn được mở lại, nội dung vẫn giữ nguyên. Chi tiết: [docs/S3-04-Task4.md](docs/S3-04-Task4.md).
+
+## S3-09 Task 1 — cảnh báo đặt bàn trễ 15 phút, đánh dấu khách không tới
+
+Chạy `migrate` để áp dụng `049_S309LateReservationNoShow.sql`. Từ đúng mốc giờ hẹn + 15 phút, lượt **Chờ xác nhận** hoặc **Đã xác nhận** mà khách chưa tới sẽ tự hiện cảnh báo đỏ trên **Sơ đồ bàn** và **Danh sách đặt bàn**, không cần tải lại trang. Phục vụ hoặc Quản lý bấm **Khách không tới**: một giao dịch đổi lượt sang "Khách không tới", giải phóng bàn (bàn hiện Trống ngay) và ghi thêm một lần vào lịch sử số điện thoại (`dbo.ReservationNoShowHistory`). Bấm lặp hoặc nhiều người cùng bấm chỉ được ghi một lần. Khách đã được đánh dấu tới thì không bị giải phóng bàn nhầm. Quy tắc cần PO chốt, demo và kiểm thử (`verify-late-reservations`): [docs/S3-09-Task1.md](docs/S3-09-Task1.md).
+
 ## S3-08 Task 1 — món vừa xong hiện ở danh sách chờ, xác nhận đã mang ra
 
 Không cần migration mới. Khi Bếp bấm “Đã xong”, món hiện trên màn hình **Món chờ mang ra** (`/Serving`) của Phục vụ trong tối đa 5 giây, kèm thông báo “Món mới xong: Bàn A05 · Phở bò”. Danh sách có mã bàn, tên món, giờ xong, sắp từ sớm đến muộn. Bấm **Đã mang ra** thì món chuyển sang **Đã phục vụ** và rời danh sách ngay. Hai nhân viên cùng bấm một món thì chỉ một người được ghi nhận; người còn lại được báo ai đã mang ra. Quy tắc cần PO chốt, demo và kiểm thử: [docs/S3-08-Task1.md](docs/S3-08-Task1.md).

@@ -49,10 +49,10 @@ internal static class BookingEmailFlowTests
         async Task<BookingEmailResult> Book(Booking b)
         {
             outbox.Queue(b.Id, b.Id * 100, recipient: b.Email, payloadJson: b.Payload);
-            return await dispatcher.SendBookingReceivedAsync(b.Id * 100);
+            return await dispatcher.SendBookingConfirmedAsync(b.Id * 100);
         }
 
-        // Đặt bàn và gửi email ngay.
+        // Nhân viên xác nhận lượt đặt → gửi email ngay (migration 050: lúc khách đặt chưa gửi email).
         var okResult = await Book(ok);
         var retryResult = await Book(retry);
         var failResult = await Book(fail);
@@ -65,8 +65,8 @@ internal static class BookingEmailFlowTests
         CheckMail(check, smtp.MailsTo(ok.Email).Single(), ok, [retry, fail]);
 
         // Trang xác nhận khi email chưa gửi được vẫn có mã đặt bàn.
-        var waiting = BookingEmailCustomerStatus.From(outbox.Record(retry.Id), retry.TableCode, "r***y@example.com")!;
-        check(waiting is { IsFinal: false } && waiting.Message.Contains($"mã đặt bàn {retry.TableCode}") && waiting.Message.Contains("tự gửi lại lúc"),
+        var waiting = BookingEmailCustomerStatus.From(outbox.Record(retry.Id), retry.Code, "r***y@example.com")!;
+        check(waiting is { IsFinal: false } && waiting.Message.Contains($"mã đặt bàn {retry.Code}") && waiting.Message.Contains("tự gửi lại lúc"),
             "Booking flow B: the customer keeps the booking code and sees the automatic retry");
 
         // Lần gửi lại 1 (sau 5 phút): B thành công, C lỗi.
@@ -97,8 +97,8 @@ internal static class BookingEmailFlowTests
             && failItem is { State: EmailDeliveryState.Failed, AttemptCount: 4, RetryCount: 3 } && failItem.FinalResult == "Thất bại sau 4 lần thử (lần gửi đầu và 3 lần gửi lại)"
             && new[] { okItem, retryItem, failItem }.Select(i => i.Recipient).SequenceEqual(new[] { ok.Email, retry.Email, fail.Email }),
             "Booking flow: staff see the right status, attempt count and final result for each of the three cases");
-        var final = BookingEmailCustomerStatus.From(outbox.Record(fail.Id), fail.TableCode, "f***l@example.com")!;
-        check(final is { State: EmailDeliveryState.Failed, IsFinal: true } && final.Message.Contains($"mã đặt bàn {fail.TableCode}"),
+        var final = BookingEmailCustomerStatus.From(outbox.Record(fail.Id), fail.Code, "f***l@example.com")!;
+        check(final is { State: EmailDeliveryState.Failed, IsFinal: true } && final.Message.Contains($"mã đặt bàn {fail.Code}"),
             "Booking flow C: the customer sees the final result and the booking code");
 
         // Nhiều lượt đặt bàn liên tiếp: không nhầm mã hay thông tin email.
@@ -118,10 +118,10 @@ internal static class BookingEmailFlowTests
     private static void CheckMail(Action<bool, string> check, ReceivedMail mail, Booking b, IEnumerable<Booking> others)
     {
         var html = System.Net.WebUtility.HtmlDecode(mail.Html);
-        check(mail.Subject == $"Xác nhận đặt bàn {b.TableCode} – Bếp Nhà", $"Booking flow {b.TableCode}: subject decoded from SMTP has the booking code");
+        check(mail.Subject == $"Bếp Nhà - Xác nhận đặt bàn {b.Code}", $"Booking flow {b.Code}: subject decoded from SMTP starts with the restaurant and has the booking code");
         foreach (var body in new[] { mail.Text, html })
-            check(body.Contains(b.TableCode) && body.Contains(b.When) && body.Contains($"{b.Guests} người") && body.Contains(Address)
-                && body.Contains(b.Name) && !body.Contains(b.Code) && others.All(o => !body.Contains(o.Name) && !body.Contains(o.TableCode)),
+            check(body.Contains(b.Code) && body.Contains(b.TableCode) && body.Contains(b.When) && body.Contains($"{b.Guests} người") && body.Contains(Address)
+                && body.Contains(b.Name) && others.All(o => !body.Contains(o.Name) && !body.Contains(o.Code) && !body.Contains(o.TableCode)),
                 $"Booking flow {b.TableCode}: email content matches its reservation only");
     }
 

@@ -44,7 +44,9 @@ internal static class PublicMenuVerification
             var html = WebUtility.HtmlDecode(await page.Content.ReadAsStringAsync());
             Assert(html.Contains("name=\"viewport\"") && html.Contains("public-menu.css"), "Public menu has mobile viewport and menu styles");
             Assert(!html.Contains("href=\"/Areas\"") && !html.Contains("Đăng xuất"), "Public menu hides staff navigation");
-            Assert(html.Contains(">Đăng nhập</a>") && !html.Contains("href=\"/\""), "Guest header links to menu and staff login, never to the staff home");
+            Assert(Regex.IsMatch(html, "<a class=\"guest-avatar\"[^>]*href=\"/Account/Login\"")
+                && html.Contains("data-login-dialog") && !html.Contains("href=\"/\""),
+                "Guest header: the account avatar opens staff login (dialog, falls back to /Account/Login), never the staff home");
 
             string[] groups = ["Khai vị", "Món chính", "Lẩu", "Tráng miệng", "Đồ uống"];
             var headings = Regex.Matches(html, "<h2 id=\"tieu-de-nhom-[0-9]+\">(.*?)</h2>").Select(m => m.Groups[1].Value).ToArray();

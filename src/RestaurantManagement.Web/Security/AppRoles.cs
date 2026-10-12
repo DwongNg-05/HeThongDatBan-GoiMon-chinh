@@ -37,6 +37,12 @@ public static class AppRoles
     /// <summary>Thanh toán, hoá đơn, mở/chốt ca (Payments.Manage: Quản lý, Thu ngân).</summary>
     public const string Cashiers = Manager + "," + Cashier;
 
+    /// <summary>
+    /// S3-04 Task 4: xem hoá đơn tạm tính (chỉ đọc) — Phục vụ đối chiếu ghi chú khi mang món ra, Thu ngân trước khi thanh toán, Quản lý.
+    /// Bếp không cần (đã có màn hình bếp).
+    /// </summary>
+    public const string BillReaders = Manager + "," + Waiter + "," + Cashier;
+
     public static readonly IReadOnlyList<string> All = [Manager, Waiter, Kitchen, Cashier];
 
     /// <summary>Chỉ cần đã đăng nhập, kể cả vai trò không xác định (dùng cho Đăng xuất).</summary>

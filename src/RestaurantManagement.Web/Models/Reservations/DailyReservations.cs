@@ -5,8 +5,11 @@ using System.Data;
 namespace RestaurantManagement.Web.Models.Reservations;
 
 public record DailyReservationItem(string Code, string CustomerName, string Phone, int GuestCount,
-    string TimeSlot, string TableName, string Status, bool IsUpcoming = false);
-public record DailyReservationPage(DateOnly Date, IReadOnlyList<DailyReservationItem> Reservations, DateTime EvaluatedAtUtc = default);
+    string TimeSlot, string TableName, string Status, bool IsUpcoming = false, long Id = 0,
+    bool IsLate = false, int LateMinutes = 0, string? LateLabel = null);
+/// <param name="NextWarnAtUtc">S3-09 Task 1: mốc cảnh báo trễ kế tiếp — màn hình hẹn giờ tải lại đúng lúc đó.</param>
+public record DailyReservationPage(DateOnly Date, IReadOnlyList<DailyReservationItem> Reservations, DateTime EvaluatedAtUtc = default,
+    DateTime? NextWarnAtUtc = null, int LateCount = 0);
 
 public static class DailyReservationRules
 {
@@ -29,6 +32,22 @@ public static class DailyReservationRules
         return start.ToString("HH:mm", CultureInfo.InvariantCulture) + "–" +
             end.ToString(start.Date == end.Date ? "HH:mm" : "HH:mm (dd/MM/yyyy)", CultureInfo.InvariantCulture);
     }
+    /// <summary>
+    /// S3-09 Task 1: gắn cảnh báo trễ (dbo.fn_LateReservationAlerts) vào các lượt của danh sách; lượt đang trễ lên đầu
+    /// (giữ thứ tự cũ trong từng nhóm). Lượt không có trong cảnh báo (đã tới, đã huỷ, chưa tới mốc…) giữ nguyên.
+    /// </summary>
+    public static DailyReservationPage WithLateAlerts(DailyReservationPage page, LateReservationSnapshot alerts)
+    {
+        var late = alerts.Alerts.ToDictionary(alert => alert.Id);
+        var items = page.Reservations
+            .Select(item => late.TryGetValue(item.Id, out var alert)
+                ? item with { IsLate = true, IsUpcoming = false, LateMinutes = alert.LateMinutes, LateLabel = alert.LateLabel }
+                : item)
+            .OrderByDescending(item => item.IsLate)
+            .ToList();
+        return page with { Reservations = items, NextWarnAtUtc = alerts.NextWarnAtUtc, LateCount = items.Count(item => item.IsLate) };
+    }
+
     public static string StatusLabel(string status) => status switch
     {
         "Pending" => "Chờ xác nhận", "Confirmed" => "Đã xác nhận", "Rejected" => "Đã từ chối",
@@ -45,7 +64,7 @@ public class DailyReservationStore(string connectionString)
         var now = utcNow ?? DateTime.UtcNow;
         await using var connection = new SqlConnection(connectionString);
         await using var command = new SqlCommand("""
-            SELECT r.Code,r.CustomerName,r.Phone,r.GuestCount,r.StartsAt,r.EndsAt,t.Code AS TableName,r.Status
+            SELECT r.Code,r.CustomerName,r.Phone,r.GuestCount,r.StartsAt,r.EndsAt,t.Code AS TableName,r.Status,r.Id
             FROM dbo.Reservations r LEFT JOIN dbo.DiningTables t ON t.Id=r.TableId
             WHERE r.StartsAt>=@start AND r.StartsAt<@end AND (@status IS NULL OR r.Status=@status)
             ORDER BY r.StartsAt ASC,r.Id ASC;
@@ -60,7 +79,7 @@ public class DailyReservationStore(string connectionString)
             items.Add(new(reader.GetString(0).TrimEnd(), reader.GetString(1), DailyReservationRules.MaskPhone(reader.GetString(2)),
                 reader.GetInt32(3), DailyReservationRules.TimeSlot(reader.GetDateTime(4), reader.GetDateTime(5)),
                 reader.IsDBNull(6) ? "Chưa xếp bàn" : reader.GetString(6), DailyReservationRules.StatusLabel(reader.GetString(7)),
-                DailyReservationRules.IsUpcoming(reader.GetDateTime(4), reader.GetString(7), now)));
+                DailyReservationRules.IsUpcoming(reader.GetDateTime(4), reader.GetString(7), now), reader.GetInt64(8)));
         // Stable partition retains SQL appointment/ID order within each group.
         return new(date, items.OrderByDescending(item => item.IsUpcoming).ToList(), DateTime.SpecifyKind(now, DateTimeKind.Utc));
     }

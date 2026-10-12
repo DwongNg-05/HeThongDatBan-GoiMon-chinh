@@ -40,7 +40,7 @@ internal static class EmailRetryTests
         var sender = new ScriptedSender(failures: 1);
         var dispatcher = Dispatcher(outbox, sender);
         outbox.Queue(1, 500);
-        var first = await dispatcher.SendBookingReceivedAsync(500);
+        var first = await dispatcher.SendBookingConfirmedAsync(500);
         var email = outbox.Email(1);
         check(first.Outcome == BookingEmailOutcome.Failed && email is { Status: "Pending", AttemptCount: 1 } && email.NextAttemptAtUtc == Start.AddMinutes(5),
             "Email retry: the failed first send is kept for a retry in 5 minutes");
@@ -73,7 +73,7 @@ internal static class EmailRetryTests
         var failing = new ScriptedSender(failures: int.MaxValue);
         dispatcher = Dispatcher(outbox, failing);
         outbox.Queue(2, 600);
-        await dispatcher.SendBookingReceivedAsync(600);
+        await dispatcher.SendBookingConfirmedAsync(600);
         var lost = outbox.Email(2);
         for (var retry = 1; retry <= EmailRetryPolicy.MaxRetries; retry++)
         {
@@ -133,7 +133,7 @@ internal static class EmailRetryTests
         public string PayloadJson { get; init; } = Payload;
         public long Id { get; init; }
         public long ReservationId { get; init; }
-        public string MessageType { get; init; } = "BookingReceived";
+        public string MessageType { get; init; } = "BookingConfirmed";
         public string Status { get; set; } = "Pending";
         public int AttemptCount { get; set; }
         public DateTime NextAttemptAtUtc { get; set; }
@@ -149,7 +149,7 @@ internal static class EmailRetryTests
     {
         private readonly List<SimulatedEmail> _emails = [];
 
-        public SimulatedEmail Queue(long id, long reservationId, string messageType = "BookingReceived", string? recipient = null, string? payloadJson = null)
+        public SimulatedEmail Queue(long id, long reservationId, string messageType = "BookingConfirmed", string? recipient = null, string? payloadJson = null)
         {
             var email = new SimulatedEmail
             {

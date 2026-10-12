@@ -20,6 +20,41 @@ internal static partial class DatabaseTool
         catch { await tx.RollbackAsync(); throw; }
     }
 
+    /// <summary>Bổ sung 50 món ăn, đồ uống (8 nhóm) cho thực đơn. Chạy lại an toàn, không ghi đè món đã có.</summary>
+    internal static async Task SeedMenuExtra(string connection)
+    {
+        await using var cn = new SqlConnection(connection);
+        await cn.OpenAsync();
+        await using var tx = (SqlTransaction)await cn.BeginTransactionAsync(IsolationLevel.Serializable);
+        try
+        {
+            await Batches(cn, tx, await File.ReadAllTextAsync(Path.Combine(Root, "database", "seeds", "MenuExtra50.sql")));
+            await tx.CommitAsync();
+            Console.WriteLine("Menu extra ready: 50 more dishes and drinks in 8 groups. Existing dishes preserved.");
+        }
+        catch { await tx.RollbackAsync(); throw; }
+    }
+
+    /// <summary>Thêm 6 món Khai vị (đang bán): khoai tây chiên, ngô chiên, phô mai que, gỏi tai heo, mực chiên giòn, hành tây chiên giòn.</summary>
+    internal static async Task SeedKhaiVi(string connection)
+    {
+        await using var cn = new SqlConnection(connection);
+        await cn.OpenAsync();
+        await using var tx = (SqlTransaction)await cn.BeginTransactionAsync(IsolationLevel.Serializable);
+        try
+        {
+            await Batches(cn, tx, await File.ReadAllTextAsync(Path.Combine(Root, "database", "seeds", "KhaiVi6.sql")));
+            await tx.CommitAsync();
+        }
+        catch { await tx.RollbackAsync(); throw; }
+        await using var count = new SqlCommand("""
+            SELECT COUNT(*) FROM dbo.MenuItems i JOIN dbo.MenuCategories c ON c.Id = i.CategoryId
+            WHERE c.NormalizedName = N'KHAI VỊ' AND i.IsActive = 1
+              AND i.Name IN (N'Khoai tây chiên', N'Ngô chiên', N'Phô mai que', N'Gỏi tai heo', N'Mực chiên giòn', N'Hành tây chiên giòn');
+            """, cn);
+        Console.WriteLine($"Khai vị: {await count.ExecuteScalarAsync()}/6 new dishes are on sale. Existing dishes preserved.");
+    }
+
     /// <summary>Hậu tố tên của 200 món kiểm thử hiệu năng (S2-01 Task 4), ví dụ "Cơm rang (mẫu 006)".</summary>
     internal const string LoadTestNamePattern = "N'% (mẫu [0-9][0-9][0-9])'";
 

@@ -319,6 +319,7 @@
         editor.hidden = reviewing;
         review.hidden = !reviewing;
         totalEl.textContent = money(Cart.total(cart));
+        document.querySelectorAll('[data-cart-total-mirror]').forEach(function (t) { t.textContent = money(Cart.total(cart)); });
         openReview.hidden = reviewing;
         openReview.disabled = cart.length === 0;
         backButton.hidden = !reviewing;
@@ -344,6 +345,7 @@
                 price: parseInt(button.getAttribute('data-price'), 10) || 0
             });
             update();
+            bumpMobileBar();
             var original = button.textContent;
             button.textContent = '✓ Đã thêm';
             setTimeout(function () { button.textContent = original; }, 900);
@@ -384,6 +386,88 @@
         setTimeout(function () { submit.disabled = true; submit.textContent = 'Đang gửi…'; }, 0);
     });
 
+    // ---- Điện thoại (< 992px): "Món đang chọn" và "Món bàn đã gọi" ở một màn hình riêng ----
+    // Thanh nút cố định ở cuối màn hình mở màn hình đó; khách chọn món, chỉnh ghi chú mà không phải kéo xuống cuối trang.
+    // Máy tính giữ nguyên bố cục 2 cột (CSS ẩn thanh nút và đầu màn hình riêng).
+    var panel = document.querySelector('[data-side-panel]');
+    var mobileBar = document.querySelector('[data-mobile-bar]');
+    var mobileQuery = global.matchMedia ? global.matchMedia('(max-width: 991.98px)') : null;
+    var root = document.documentElement;
+    var panelOpen = false;
+
+    function isMobile() { return !!(mobileQuery && mobileQuery.matches); }
+
+    function showPanelTab(name) {
+        if (!panel) return;
+        panel.setAttribute('data-active', name === 'da-dat' ? 'da-dat' : 'gio-mon');
+        panel.querySelectorAll('[data-panel-tab]').forEach(function (tab) {
+            tab.setAttribute('aria-selected', tab.getAttribute('data-panel-tab') === panel.getAttribute('data-active') ? 'true' : 'false');
+        });
+    }
+
+    function openPanel(name, fromHistory) {
+        if (!panel || !isMobile()) return false;
+        showPanelTab(name);
+        if (!panelOpen) {
+            panelOpen = true;
+            root.classList.add('table-order-panel-open');
+            panel.classList.add('is-open');
+            panel.scrollTop = 0;
+            // Nút "Quay lại" của điện thoại đóng màn hình này thay vì rời trang gọi món.
+            if (!fromHistory && global.history && global.history.pushState) {
+                try { global.history.pushState({ tableOrderPanel: true }, ''); } catch (e) { /* bỏ qua */ }
+            }
+        }
+        var back = panel.querySelector('[data-close-panel]');
+        if (back && typeof back.focus === 'function') back.focus();
+        return true;
+    }
+
+    function closePanel(fromHistory) {
+        if (!panelOpen) return;
+        panelOpen = false;
+        root.classList.remove('table-order-panel-open');
+        panel.classList.remove('is-open');
+        if (!fromHistory && global.history && global.history.state && global.history.state.tableOrderPanel) {
+            try { global.history.back(); } catch (e) { /* bỏ qua */ }
+        }
+    }
+
+    function bumpMobileBar() {
+        if (!mobileBar || !isMobile()) return;
+        mobileBar.classList.remove('is-bumped');
+        void mobileBar.offsetWidth; // chạy lại hiệu ứng
+        mobileBar.classList.add('is-bumped');
+    }
+
+    if (panel) {
+        showPanelTab('gio-mon');
+        document.querySelectorAll('[data-open-panel]').forEach(function (button) {
+            button.addEventListener('click', function () { openPanel(button.getAttribute('data-open-panel')); });
+        });
+        panel.querySelectorAll('[data-panel-tab]').forEach(function (tab) {
+            tab.addEventListener('click', function () { showPanelTab(tab.getAttribute('data-panel-tab')); });
+        });
+        var closeButton = panel.querySelector('[data-close-panel]');
+        if (closeButton) closeButton.addEventListener('click', function () { closePanel(false); });
+        // Liên kết "#gio-mon" / "#da-dat" trên trang: điện thoại mở màn hình riêng thay vì cuộn xuống.
+        document.querySelectorAll('a[href="#gio-mon"], a[href="#da-dat"]').forEach(function (link) {
+            link.addEventListener('click', function (event) {
+                if (openPanel(link.getAttribute('href').slice(1))) event.preventDefault();
+            });
+        });
+        global.addEventListener('popstate', function () { if (panelOpen) closePanel(true); });
+        document.addEventListener('keydown', function (event) { if (event.key === 'Escape' && panelOpen) closePanel(false); });
+        if (mobileQuery && typeof mobileQuery.addEventListener === 'function') {
+            mobileQuery.addEventListener('change', function () { if (!isMobile() && panelOpen) closePanel(false); });
+        }
+    }
+
     cart = load();
     render();
+
+    // Sau khi gửi món, máy chủ chuyển về "#da-dat" (thành công) hoặc "#gio-mon" (có lỗi): điện thoại mở đúng danh sách.
+    if (global.location && (global.location.hash === '#da-dat' || global.location.hash === '#gio-mon')) {
+        openPanel(global.location.hash.slice(1));
+    }
 })(typeof window !== 'undefined' ? window : globalThis);

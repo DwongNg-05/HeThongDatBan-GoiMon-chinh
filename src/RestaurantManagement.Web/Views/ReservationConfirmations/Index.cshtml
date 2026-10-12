@@ -1,17 +1,46 @@
 @model List<RestaurantManagement.Web.Models.Reservations.PendingReservation>
 @{ ViewData["Title"] = "Lượt đặt chờ xác nhận"; }
+@* Đơn chờ xử lý: mỗi lượt đặt là một thẻ (mã, khách, giờ hẹn, số khách, khu vực) với nút "Xử lý đơn" mở màn hình chọn bàn. *@
 <partial name="_ReservationManagementTabs" />
-<h1>Lượt đặt chờ xác nhận</h1>
-@if(TempData["Success"] is string success) { <div class="alert alert-success" role="status">@success</div> }
-<p>Giờ hẹn theo giờ Việt Nam. Mỗi đơn chờ đã giữ một bàn phù hợp; mở chi tiết để xác nhận hoặc từ chối.</p>
-@if (User.IsInRole("Manager")) { <a asp-controller="TableReservationSchedule" asp-action="Index" class="btn btn-outline-primary mb-3">Lịch bàn theo ngày</a> }
-@if (Model.Count == 0) { <div class="alert alert-info">Không có lượt đặt đang chờ xử lý.</div> }
+<header class="staff-page-head">
+    <div>
+        <h1>Lượt đặt chờ xác nhận</h1>
+        <p>Giờ hẹn theo giờ Việt Nam. Mở từng lượt để chọn bàn rồi xác nhận hoặc từ chối.</p>
+    </div>
+    @if (User.IsInRole("Manager"))
+    {
+        <div class="staff-page-actions">
+            <a asp-controller="TableReservationSchedule" asp-action="Index" class="btn btn-outline-primary"><i class="fa-regular fa-calendar" aria-hidden="true"></i> Lịch bàn theo ngày</a>
+        </div>
+    }
+</header>
+@if (TempData["Success"] is string success) { <div class="alert alert-success" role="status">@success</div> }
+@if (Model.Count == 0)
+{
+    <div class="staff-empty-state" role="status">
+        <span class="staff-empty-icon"><i class="fa-regular fa-circle-check" aria-hidden="true"></i></span>
+        <h2>Không có lượt đặt đang chờ xử lý.</h2>
+        <p>Lượt đặt mới của khách sẽ hiện ở đây.</p>
+    </div>
+}
 else
 {
-<div class="table-responsive"><table class="table"><thead><tr><th>Mã đặt</th><th>Khách hàng</th><th>Số khách</th><th>Khung giờ</th><th>Khu vực mong muốn</th><th></th></tr></thead><tbody>
-@foreach (var row in Model)
-{
-<tr><td>@row.Code</td><td>@row.CustomerName</td><td>@row.GuestCount</td><td>@row.StartsAt.ToString("dd/MM/yyyy HH:mm") – @row.EndsAt.ToString("HH:mm")</td><td>@(row.AreaName ?? "Không yêu cầu")</td><td><a asp-action="Details" asp-route-id="@row.Id">Xử lý đơn</a></td></tr>
-}
-</tbody></table></div>
+    <p class="staff-count"><strong>@Model.Count</strong> lượt đang chờ xác nhận</p>
+    <ul class="pending-list">
+        @foreach (var row in Model)
+        {
+            <li class="pending-card">
+                <div class="pending-main">
+                    <span class="pending-code">@row.Code</span>
+                    <strong class="pending-name">@row.CustomerName</strong>
+                </div>
+                <dl class="pending-facts">
+                    <div><dt><i class="fa-regular fa-clock" aria-hidden="true"></i> Giờ hẹn</dt><dd>@row.StartsAt.ToString("HH:mm") – @row.EndsAt.ToString("HH:mm")<span class="pending-date">@row.StartsAt.ToString("dd/MM/yyyy")</span></dd></div>
+                    <div><dt><i class="fa-solid fa-user-group" aria-hidden="true"></i> Số khách</dt><dd>@row.GuestCount người</dd></div>
+                    <div><dt><i class="fa-solid fa-location-dot" aria-hidden="true"></i> Khu vực mong muốn</dt><dd>@(row.AreaName ?? "Không yêu cầu")</dd></div>
+                </dl>
+                <a asp-action="Details" asp-route-id="@row.Id" class="btn btn-primary pending-open" aria-label="Xử lý đơn @row.Code của @row.CustomerName">Xử lý đơn <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
+            </li>
+        }
+    </ul>
 }

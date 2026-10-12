@@ -192,9 +192,16 @@ namespace RestaurantManagement.Web.Services
                 cancellationToken);
         }
 
+        /// <summary>Email xác nhận đặt bàn (nhân viên xác nhận) dùng chung mẫu với BookingEmailDispatcher.</summary>
+        private static bool UsesBookingTemplate(QueuedEmail email) =>
+            email.MessageType is BookingConfirmationEmail.Confirmed or BookingConfirmationEmail.Received;
+
         private static string BuildSubject(
             QueuedEmail email)
         {
+            if (UsesBookingTemplate(email))
+                return BookingConfirmationEmail.Subject(BookingConfirmationEmail.ParsePayload(email.PayloadJson), email.MessageType);
+
             if (email.MessageType ==
                 "BookingCancelled")
             {
@@ -207,6 +214,9 @@ namespace RestaurantManagement.Web.Services
         private static string BuildEmailBody(
             QueuedEmail email)
         {
+            if (UsesBookingTemplate(email))
+                return BookingConfirmationEmail.Create(email.Recipient, BookingConfirmationEmail.ParsePayload(email.PayloadJson), email.MessageType).HtmlBody;
+
             using var document =
                 JsonDocument.Parse(email.PayloadJson);
 

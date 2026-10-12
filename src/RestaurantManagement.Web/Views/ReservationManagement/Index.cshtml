@@ -6,20 +6,23 @@
 <section id="daily-reservations"
          data-url="@Url.Action("Daily")"
          data-date="@Model.ToString("yyyy-MM-dd")"
-         data-follow-today="true">
+         data-follow-today="true"
+         data-reservation-alerts-api="@Url.Content("~/api/reservation-alerts")">
+    @* S3-09 Task 1: mã chống giả mạo cho thao tác "Đánh dấu khách không tới" (reservation-no-show.js). *@
+    @Html.AntiForgeryToken()
     <partial name="_ReservationManagementTabs" />
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+    <header class="staff-page-head">
         <div>
-            <h1 class="h3">Danh sách đặt bàn</h1>
-            <p class="text-muted mb-0">Xem lịch hẹn để chuẩn bị bàn đầu ca.</p>
+            <h1>Danh sách đặt bàn</h1>
+            <p>Xem lịch hẹn để chuẩn bị bàn đầu ca.</p>
         </div>
-        <div class="d-flex gap-2">
-            <a asp-controller="ReservationConfirmations" asp-action="Index" class="btn btn-outline-primary">Xử lý đơn chờ</a>
-            @if (User.IsInRole("Manager")) { <a asp-controller="TableReservationSchedule" asp-action="Create" class="btn btn-primary">+ Tạo lượt thủ công</a> }
+        <div class="staff-page-actions">
+            <a asp-controller="ReservationConfirmations" asp-action="Index" class="btn btn-outline-primary"><i class="fa-regular fa-clock" aria-hidden="true"></i> Xử lý đơn chờ</a>
+            @if (User.IsInRole("Manager")) { <a asp-controller="TableReservationSchedule" asp-action="Create" class="btn btn-primary"><i class="fa-solid fa-plus" aria-hidden="true"></i> Tạo lượt thủ công</a> }
         </div>
-    </div>
+    </header>
 
-    <form id="reservation-date-form" class="d-flex flex-wrap align-items-end gap-2 mb-3">
+    <form id="reservation-date-form" class="staff-toolbar">
         <div>
             <label for="reservation-date" class="form-label">Ngày đang xem</label>
             <input id="reservation-date" name="date" type="date" class="form-control"
@@ -35,21 +38,25 @@
                 <option value="NoShow">Khách không tới</option>
             </select>
         </div>
-        <button class="btn btn-primary" type="submit">Xem danh sách</button>
-        <button id="reservation-clear-filter" class="btn btn-outline-secondary" type="button">Bỏ lọc</button>
-        <button id="reservation-today" class="btn btn-outline-secondary" type="button">Hôm nay</button>
+        <div class="staff-toolbar-buttons">
+            <button class="btn btn-primary" type="submit"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Xem danh sách</button>
+            <button id="reservation-clear-filter" class="btn btn-outline-secondary" type="button">Bỏ lọc</button>
+            <button id="reservation-today" class="btn btn-outline-secondary" type="button">Hôm nay</button>
+        </div>
     </form>
 
-    <p>Ngày <strong id="viewing-date">@Model.ToString("dd/MM/yyyy")</strong> · Giờ Việt Nam (UTC+7) · Sắp đến trước, giờ hẹn tăng dần trong từng nhóm.</p>
-    <p class="text-muted">Chờ xác nhận và đã xác nhận trong 30 phút tới được ưu tiên. Tự cập nhật mỗi 30 giây. <span id="reservation-updated" role="status"></span></p>
-    <div id="reservation-loading" role="status">Đang tải danh sách đặt bàn…</div>
+    <div class="staff-list-meta">
+        <p class="staff-list-date"><i class="fa-regular fa-calendar" aria-hidden="true"></i> Ngày <strong id="viewing-date">@Model.ToString("dd/MM/yyyy")</strong> · Giờ Việt Nam (UTC+7)</p>
+        <p class="staff-list-note">Lượt trễ quá 15 phút hiện đầu danh sách (màu đỏ), tiếp theo là lượt sắp đến trong 30 phút. Tự cập nhật mỗi 30 giây. <span id="reservation-updated" role="status"></span></p>
+    </div>
+    <div id="reservation-loading" class="staff-loading" role="status">Đang tải danh sách đặt bàn…</div>
     <div id="reservation-error" class="alert alert-danger" role="alert" hidden>
         <span>Không thể tải danh sách đặt bàn. Vui lòng thử lại.</span>
         <button id="reservation-retry" type="button" class="btn btn-outline-danger ms-2">Thử lại</button>
     </div>
-    <p id="reservation-empty" class="alert alert-light" role="status" hidden>Chưa có lượt đặt bàn trong ngày này.</p>
-    <div id="reservation-results" class="table-responsive" hidden>
-        <table class="table table-bordered table-hover">
+    <p id="reservation-empty" class="staff-empty" role="status" hidden>Chưa có lượt đặt bàn trong ngày này.</p>
+    <div id="reservation-results" class="table-responsive staff-table-card" hidden>
+        <table class="table table-hover staff-table">
             <caption>Danh sách lượt đặt theo giờ hẹn của ngày đang xem</caption>
             <thead>
                 <tr>
@@ -69,5 +76,6 @@
 </section>
 
 @section Scripts {
+    <script src="~/js/reservation-no-show.js" asp-append-version="true"></script>
     <script src="~/js/daily-reservations.js" asp-append-version="true"></script>
 }

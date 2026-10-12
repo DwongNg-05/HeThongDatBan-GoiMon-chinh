@@ -30,7 +30,15 @@ public class ReservationManagementController(IConfiguration configuration) : Con
 
         try
         {
-            return Json(await new DailyReservationStore(ConnectionString).Read(selected, cancellationToken, status, now));
+            var page = await new DailyReservationStore(ConnectionString).Read(selected, cancellationToken, status, now);
+            // S3-09 Task 1: lượt trễ quá mốc 15 phút được đánh dấu cảnh báo (cùng quy tắc với sơ đồ bàn).
+            // Thiếu migration 049 hoặc lỗi đọc cảnh báo thì danh sách vẫn hiển thị như cũ.
+            try
+            {
+                page = DailyReservationRules.WithLateAlerts(page, await new LateReservationStore(ConnectionString).ReadAsync(cancellationToken));
+            }
+            catch (SqlException) { }
+            return Json(page);
         }
         catch (SqlException)
         {

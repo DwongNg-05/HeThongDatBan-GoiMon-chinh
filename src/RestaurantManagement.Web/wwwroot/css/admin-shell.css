@@ -4,10 +4,6 @@ body { background: #f6f7f9; }
 .skip-navigation:focus { top: 12px; }
 .admin-sidebar { --bs-offcanvas-width: var(--sidebar-width); background: #fff !important; border-right: 1px solid #e8e9ed !important; display: flex; flex-direction: column; }
 .sidebar-brand-row { display: flex; align-items: center; justify-content: space-between; padding: 25px 22px; border-bottom: 1px solid #f0f0f2; }
-.sidebar-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; color: #30282a; }
-.sidebar-brand strong { display: block; font-size: 21px; letter-spacing: -.5px; }
-.sidebar-brand small { display: block; color: #89909b; font-size: 11px; margin-top: 1px; }
-.brand-mark { display: grid; place-items: center; width: 40px; height: 40px; flex-shrink: 0; border-radius: 12px; color: #fff; background: var(--brand); font-size: 23px; font-weight: 750; }
 .sidebar-navigation { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 12px; }
 .sidebar-links { display: flex; flex-direction: column; gap: 4px; list-style: none; padding: 0; margin: 0; }
 .sidebar-link { display: flex; align-items: center; gap: 12px; min-height: 43px; padding: 10px 14px; border-radius: 8px; color: #626773; font-size: 13px; font-weight: 600; text-decoration: none; transition: background-color .15s, color .15s; }
@@ -67,3 +63,19 @@ body { background: #f6f7f9; }
 .access-denied-links { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 0; list-style: none; }
 .access-denied-help { margin: 16px 0 0; color: #8a909b; font-size: 13px; }
 @media (max-width: 480px) { .access-denied { margin: 8px 0; padding: 20px 16px; } }
+
+/* Thu gọn / mở thanh điều hướng "BẾP NHÀ" trên máy tính (site.js lưu lựa chọn trong localStorage). Điện thoại vẫn dùng nút ☰ như cũ. */
+.sidebar-collapse { display: none; place-items: center; width: 36px; height: 36px; padding: 0; border: 1px solid #e4e6eb; border-radius: 8px; background: #fff; color: #626773; }
+.sidebar-collapse:hover, .sidebar-expand:hover { color: #111; border-color: #c9ccd3; }
+.sidebar-expand { display: none; }
+@media (min-width: 992px) {
+    .sidebar-collapse { display: inline-grid; }
+    .admin-shell .admin-sidebar { transition: transform .2s ease, visibility 0s linear 0s; }
+    .admin-shell .admin-workspace { transition: margin-left .2s ease; }
+    .admin-shell.sidebar-collapsed .admin-sidebar { transform: translateX(-100%); visibility: hidden; transition: transform .2s ease, visibility 0s linear .2s; }
+    .admin-shell.sidebar-collapsed .admin-workspace { margin-left: 0; }
+    .admin-shell.sidebar-collapsed .sidebar-expand { display: grid; }
+}
+@media (min-width: 992px) and (prefers-reduced-motion: reduce) {
+    .admin-shell .admin-sidebar, .admin-shell .admin-workspace { transition: none; }
+}

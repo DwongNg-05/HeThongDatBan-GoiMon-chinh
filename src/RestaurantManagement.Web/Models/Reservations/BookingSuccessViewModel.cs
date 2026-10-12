@@ -29,8 +29,11 @@ public sealed record BookingSuccessViewModel(
 
     public bool EmailSent => EmailOutcome == BookingEmailOutcome.Sent;
 
-    /// <summary>Mã đặt bàn hiển thị cho khách = mã bàn đã chọn (ví dụ A05). Lượt cũ chưa có bàn dùng mã nội bộ.</summary>
-    public string DisplayCode => TableCode ?? Code;
+    /// <summary>
+    /// Mã đặt bàn hiển thị cho khách: luôn là mã đặt bàn 6 ký tự (ví dụ ED095C) — đúng mã dùng ở "Tra cứu đặt bàn".
+    /// Bàn đã chọn (nếu có) hiển thị riêng.
+    /// </summary>
+    public string DisplayCode => Code;
 
     private const string CodeName = "mã đặt bàn";
     public bool EmailFailed => EmailOutcome == BookingEmailOutcome.Failed;
@@ -40,14 +43,16 @@ public sealed record BookingSuccessViewModel(
     {
         BookingEmailOutcome.Sent => $"Email xác nhận đã được gửi tới {MaskedEmail ?? "email của bạn"}.",
         BookingEmailOutcome.Failed => $"Email xác nhận chưa gửi được. Lượt đặt bàn của bạn vẫn được ghi nhận — vui lòng lưu lại {CodeName} ở trên.",
-        _ => $"Bạn không nhập email nên hệ thống không gửi email xác nhận. Vui lòng lưu lại {CodeName} ở trên."
+        // Migration 050: lúc đặt bàn chưa gửi email; email chỉ gửi khi nhà hàng xác nhận.
+        _ when MaskedEmail is not null => $"Khi nhà hàng xác nhận, email kèm {CodeName} và bàn đã giữ sẽ được gửi tới {MaskedEmail}.",
+        _ => $"Bạn không nhập email. Vui lòng lưu lại {CodeName} ở trên để tra cứu tình trạng đặt bàn."
     };
 
     /// <summary>Thông báo email đang hiển thị: trạng thái mới nhất (kể cả sau các lần gửi lại) nếu có.</summary>
     public string CurrentEmailMessage => EmailStatus?.Message ?? EmailMessage;
 
     public string EmailCssClass => EmailStatus?.CssClass
-        ?? (EmailSent ? "alert-info" : EmailFailed ? "alert-warning" : "alert-secondary");
+        ?? (EmailFailed ? "alert-warning" : "alert-info");
 
     /// <summary>Email đã có kết quả cuối cùng (hoặc không có email): trang không cần tự cập nhật.</summary>
     public bool EmailFinal => EmailStatus?.IsFinal ?? true;

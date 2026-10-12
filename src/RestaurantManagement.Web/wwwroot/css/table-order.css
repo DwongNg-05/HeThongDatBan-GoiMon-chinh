@@ -136,3 +136,71 @@
 .table-order-quick-option:focus-visible { outline: 2px solid var(--brand, #b3122e); outline-offset: 2px; }
 .table-order-item-quick { color: #9f1239; font-size: 12px; font-weight: 700; }
 
+/* Sửa lỗi mất nút "Đặt món" trên máy tính: khung danh sách món (data-cart-editor, từ S3-03 Task 1) và khung xác nhận
+   được co lại và cuộn bên trong, nên phần chân giỏ (Tạm tính + "Đặt món"/"Xác nhận gửi bếp") luôn nằm trong giỏ. */
+.table-order-cart > [data-cart-editor], .table-order-cart > .table-order-review {
+  flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
+}
+.table-order-cart > [data-cart-editor] > .table-order-cart-list,
+.table-order-cart > .table-order-review > .table-order-review-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.table-order-cart > [data-cart-editor] > .table-order-hint { flex: 0 0 auto; }
+@media (min-width: 992px) {
+  .table-order-cart { max-height: 62%; }
+  .table-order-cart > [data-cart-editor] > .table-order-cart-list { min-height: 120px; }
+}
+
+/* Điện thoại (< 992px): "Món đang chọn" + "Món bàn đã gọi" thành một màn hình riêng, mở bằng thanh nút ở cuối màn hình.
+   Khách chọn món và chỉnh ghi chú ngay, không phải kéo xuống cuối trang. Máy tính giữ bố cục 2 cột. */
+.table-order-mobilebar, .table-order-panel-head { display: none; }
+@media (max-width: 991.98px) {
+  .table-order { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
+  .table-order .table-order-links { display: none; }
+
+  .table-order .table-order-mobilebar {
+    display: flex; gap: 8px; position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 1030;
+  }
+  .table-order-mobilebar button {
+    flex: 1 1 0; min-width: 0; min-height: 58px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 1px;
+    padding: 8px 14px; border: 1px solid #e5e7eb; border-radius: 14px; background: #fff; color: #1f2937;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, .16); text-align: left;
+  }
+  .table-order-mobilebar .table-order-mobilebar-cart { flex-grow: 1.7; border-color: transparent; background: var(--brand, #b3122e); color: #fff; }
+  .table-order-mobilebar-label { font-size: 12px; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .table-order-mobilebar strong { font-size: 16px; line-height: 1.2; }
+  .table-order-mobilebar.is-bumped .table-order-mobilebar-cart { animation: table-order-bump .35s ease; }
+  @keyframes table-order-bump { 40% { transform: scale(1.05); } }
+
+  .table-order .table-order-side {
+    position: fixed; inset: 0; z-index: 1040; display: flex; flex-direction: column; gap: 12px;
+    max-height: none; overflow-y: auto; overscroll-behavior: contain;
+    padding: 0 12px calc(24px + env(safe-area-inset-bottom)); background: #f6f7f9;
+    transform: translateX(100%); visibility: hidden; transition: transform .25s ease, visibility 0s linear .25s;
+  }
+  .table-order .table-order-side.is-open { transform: none; visibility: visible; transition: transform .25s ease; }
+  .table-order-side[data-active="gio-mon"] .table-order-ordered,
+  .table-order-side[data-active="da-dat"] .table-order-cart { display: none; }
+  .table-order .table-order-side .table-order-cart,
+  .table-order .table-order-side .table-order-ordered { flex: 0 0 auto; max-height: none; }
+  .table-order .table-order-side .table-order-cart-list,
+  .table-order .table-order-side .table-order-review-list,
+  .table-order .table-order-side .table-order-ordered-body { max-height: none; overflow: visible; }
+  /* Nút "Đặt món" / "Xác nhận gửi bếp" luôn nằm ở đáy màn hình riêng. */
+  .table-order .table-order-side .table-order-cart-footer {
+    position: sticky; bottom: 0; margin: 8px -12px -12px; padding: 10px 12px calc(12px + env(safe-area-inset-bottom));
+    background: #fff; border-top: 1px solid #e5e7eb; border-radius: 0 0 10px 10px;
+  }
+
+  .table-order .table-order-panel-head {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px; position: sticky; top: 0; z-index: 2;
+    margin: 0 -12px; padding: 10px 12px; background: #fff; box-shadow: 0 2px 10px rgba(0, 0, 0, .06);
+  }
+  .table-order-panel-back { min-height: 40px; padding: 6px 12px; border: 1px solid #d1d5db; border-radius: 999px; background: #fff; color: #1f2937; font-size: 14px; font-weight: 600; }
+  .table-order-panel-tabs { flex: 1 1 auto; display: flex; gap: 4px; padding: 3px; border-radius: 999px; background: #f3f4f6; }
+  .table-order-panel-tabs button { flex: 1 1 0; min-height: 34px; padding: 4px 10px; border: 0; border-radius: 999px; background: transparent; color: #4b5563; font-size: 13px; font-weight: 600; white-space: nowrap; }
+  .table-order-panel-tabs button[aria-selected="true"] { background: var(--brand, #b3122e); color: #fff; }
+
+  html.table-order-panel-open, html.table-order-panel-open body { overflow: hidden; }
+}
+@media (max-width: 991.98px) and (prefers-reduced-motion: reduce) {
+  .table-order .table-order-side, .table-order .table-order-side.is-open { transition: none; }
+}

@@ -2,6 +2,10 @@
 
 @{
     ViewData["Title"] = "Tra cứu đặt bàn";
+    var codePrefilled = Model.Result is null && !string.IsNullOrWhiteSpace(Model.Code);
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/reservation-email.css" asp-append-version="true" />
 }
 
 <div class="row justify-content-center">
@@ -15,13 +19,13 @@
 
             <div class="mb-3">
                 <label asp-for="Code" class="form-label"></label>
-                <input asp-for="Code" class="form-control" maxlength="30" placeholder="Ví dụ: ABC123" />
+                <input asp-for="Code" class="form-control" maxlength="30" placeholder="Ví dụ: ABC123" autocapitalize="characters" spellcheck="false" />
                 <span asp-validation-for="Code" class="text-danger"></span>
             </div>
 
             <div class="mb-3">
                 <label asp-for="Phone" class="form-label"></label>
-                <input asp-for="Phone" type="tel" class="form-control" maxlength="50" autocomplete="tel" placeholder="Số điện thoại đã đặt bàn" />
+                <input asp-for="Phone" type="tel" class="form-control" maxlength="50" autocomplete="tel" placeholder="Số điện thoại đã đặt bàn" autofocus="@(codePrefilled ? "autofocus" : null)" />
                 <span asp-validation-for="Phone" class="text-danger"></span>
             </div>
 
@@ -41,7 +45,12 @@
 
                     <dl class="row">
                         <dt class="col-sm-4">Mã đặt bàn</dt>
-                        <dd class="col-sm-8">@result.Code</dd>
+                        <dd class="col-sm-8 lookup-code-row">
+                            <strong class="lookup-code">@result.Code</strong>
+                            <button type="button" class="lookup-copy" data-copy-code="@result.Code" aria-label="Sao chép mã đặt bàn @result.Code">
+                                <i class="fa-regular fa-copy" aria-hidden="true"></i><span data-copy-label>Sao chép</span>
+                            </button>
+                        </dd>
                         <dt class="col-sm-4">Trạng thái</dt>
                         <dd class="col-sm-8">@result.StatusLabel</dd>
                         <dt class="col-sm-4">Thời gian</dt>
@@ -53,6 +62,14 @@
                         <dt class="col-sm-4">Bàn</dt>
                         <dd class="col-sm-8">@result.TableLabel</dd>
                     </dl>
+
+                    @if (result.Status == "Pending")
+                    {
+                        @* Khách tra cứu trước khi nhà hàng xác nhận: hiển thị "Chờ xác nhận" và giải thích bước tiếp theo. *@
+                        <div class="alert alert-warning" role="status" data-lookup-pending>
+                            Lượt đặt đang <strong>chờ nhà hàng xác nhận</strong>. Khi được xác nhận, bàn sẽ hiện ở đây và bạn nhận email kèm mã đặt bàn (nếu đã nhập email).
+                        </div>
+                    }
 
                     @if (!string.IsNullOrWhiteSpace(result.CancellationMessage))
                     {
@@ -92,6 +109,7 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/copy-code.js" asp-append-version="true"></script>
 
     <script>
         const cancelDialog = document.getElementById("cancelDialog");

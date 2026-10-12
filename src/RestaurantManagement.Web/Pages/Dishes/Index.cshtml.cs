@@ -44,7 +44,8 @@ public class IndexModel : PageModel
 
     public async Task OnGetAsync()
     {
-        Dishes = _store.GetAllDishes();
+        // Món mới thêm (Id lớn nhất) hiển thị trên cùng, rồi lần lượt tới món cũ hơn.
+        Dishes = _store.GetAllDishes().OrderByDescending(d => d.Id).ToList();
         var categories = _store.GetAllCategories().ToList();
         CategoryNames = categories.ToDictionary(n => n.Id, n => n.Name);
         CategoryDefaultImages = categories.ToDictionary(n => n.Id,
