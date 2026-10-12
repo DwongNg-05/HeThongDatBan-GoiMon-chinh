@@ -1,72 +1,194 @@
+using System.Security.Claims;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
-using RestaurantManagement.Web.Security;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using RestaurantManagement.Web.Services;
+using Microsoft.Data.SqlClient;
 using RestaurantManagement.Data.Models;
-using System.Text.Json;
+using RestaurantManagement.Web.Security;
+using RestaurantManagement.Web.Services;
 
-namespace RestaurantManagement.Web.Pages.Ordering
+namespace RestaurantManagement.Web.Pages.Ordering;
+
+[Authorize(Roles = AppRoles.FrontOfHouse)]
+public class CheckoutModel : PageModel
 {
-    // S1-04 Task 4: kiểm tra quyền ở máy chủ theo vai trò (docs/S1-04-Task4.md).
-    [Authorize(Roles = AppRoles.FrontOfHouse)]
-    public class CheckoutModel : PageModel
-    {
-        private readonly IMenuStore _store;
-        private readonly DailyDishStore? _daily;
+private readonly IMenuStore _store;
+private readonly DailyDishStore? _daily;
+private readonly SessionOrderingService? _sessionOrdering;
 
-        // daily = null: dùng trong kiểm thử với store bộ nhớ (không có SQL Server).
-        public CheckoutModel(IMenuStore store, DailyDishStore? daily = null)
-        {
-            _store = store;
-            _daily = daily;
-        }
+public CheckoutModel(
+IMenuStore store,
+DailyDishStore? daily = null,
+SessionOrderingService? sessionOrdering = null)
+{
+_store = store;
+_daily = daily;
+_sessionOrdering = sessionOrdering;
+}
 
-        [BindProperty]
-        public string CartJson { get; set; } = string.Empty;
+[BindProperty]
+public string CartJson { get; set; } = string.Empty;
 
-        public IActionResult OnPost()
-        {
-            if (string.IsNullOrEmpty(CartJson)) return BadRequest("Giỏ hàng rỗng");
+[BindProperty]
+public int TableId { get; set; }
 
-            var items = JsonSerializer.Deserialize<List<CartItem>>(CartJson) ?? new List<CartItem>();
-            if (items.Count == 0) return BadRequest("Giỏ hàng rỗng");
+[BindProperty]
+public long SessionId { get; set; }
 
-            // Validate all items exist and are currently being sold
-            var dishesById = _store.GetAllDishes().ToDictionary(m => m.Id);
-            foreach (var it in items)
-            {
-                if (!dishesById.TryGetValue(it.dishId, out var dish) || dish.Status != DishStatus.OnSale || _store.GetCategory(dish.CategoryId)?.IsActive != true)
-                {
-                    return BadRequest("Giỏ hàng chứa món không tồn tại, đã ngưng bán hoặc thuộc nhóm ngừng sử dụng");
-                }
-            }
+[BindProperty]
+public Guid RequestId { get; set; }
 
-            // S2-08 Task 1: món đang tạm hết (hoặc hết trong ngày) không nhận order mới, kể cả khi đã nằm sẵn trong giỏ.
-            var availability = _daily?.AvailabilityNow();
-            var unavailable = items.Where(it => availability?.IsUnavailable(it.dishId) == true).Select(it => dishesById[it.dishId].Name).Distinct().ToArray();
-            if (unavailable.Length > 0)
-            {
-                return BadRequest($"Món đang tạm hết, không nhận order mới: {string.Join(", ", unavailable)}. Vui lòng bỏ khỏi giỏ và gọi lại.");
-            }
+// Giữ điểm gọi của kiểm thử hiện có.
+[NonHandler]
+public IActionResult OnPost()
+{
+return OnPostAsync().GetAwaiter().GetResult();
+}
 
-            var order = _store.CreateOrder();
-            foreach (var it in items)
-            {
-                var dish = dishesById[it.dishId];
-                var line = new OrderLine
-                {
-                    DishNameSnapshot = dish.Name,
-                    UnitPriceVnd = dish.PriceVnd,
-                    Unit = dish.Unit,
-                    Quantity = it.quantity
-                };
-                _store.AddOrderLine(order.Id, line);
-            }
+public async Task<IActionResult>
+OnPostAsync()
+{
+if (string.IsNullOrWhiteSpace(CartJson))
+{
+return BadRequest("Giỏ món rỗng.");
+}
 
-            return RedirectToPage("/Orders/Details", new { id = order.Id });
-        }
+List<CartItem>
+? items;
 
-        private class CartItem { public int dishId { get; set; } public int quantity { get; set; } public int price { get; set; } public string? name { get; set; } }
-    }
+try
+{
+items = JsonSerializer.Deserialize<List<CartItem>>(CartJson);
+}
+catch (JsonException)
+{
+return BadRequest("Dữ liệu giỏ món không hợp lệ.");
+}
+
+if (items is null || items.Count == 0)
+{
+return BadRequest("Giỏ món rỗng.");
+}
+
+if (items.Count > 100 || items.Any(item =>
+item is null
+|| item.dishId <= 0
+|| item.quantity < 1
+               || item.quantity > 99))
+{
+return BadRequest(
+"Giỏ món tối đa 100 dòng; số lượng mỗi dòng từ 1 đến 99.");
+}
+
+var dishesById = _store.GetAllDishes()
+.ToDictionary(dish => dish.Id);
+
+foreach (var item in items)
+{
+if (!dishesById.TryGetValue(item.dishId, out var dish)
+|| dish.Status != DishStatus.OnSale
+|| _store.GetCategory(dish.CategoryId)?.IsActive != true)
+{
+return BadRequest(
+"Giỏ món chứa món không tồn tại, đã ngừng bán "
++ "hoặc thuộc nhóm ngừng sử dụng.");
+}
+}
+
+if (TableId <= 0 || SessionId <= 0 || RequestId == Guid.Empty)
+{
+return BadRequest(
+"Thiếu thông tin bàn, phiên hoặc mã yêu cầu. "
++ "Vui lòng chọn bàn từ sơ đồ.");
+}
+
+if (_sessionOrdering is null)
+{
+return StatusCode(503, "Chưa cấu hình dịch vụ gọi món.");
+}
+
+if (!int.TryParse(
+User.FindFirstValue(ClaimTypes.NameIdentifier),
+out var actorUserId) || actorUserId <= 0)
+{
+return Forbid();
+}
+
+var cancellationToken = HttpContext.RequestAborted;
+
+try
+{
+var currentSession =
+await _sessionOrdering.GetByTableAsync(
+TableId, cancellationToken);
+
+if (currentSession is null)
+{
+return BadRequest(
+"Bàn không còn phiên đang mở. "
++ "Vui lòng quay lại sơ đồ bàn.");
+}
+
+// Không chuyển giỏ món cũ sang phiên mới của cùng bàn.
+if (currentSession.SessionId != SessionId)
+{
+return BadRequest(
+"Phiên của bàn đã thay đổi. "
++ "Vui lòng mở lại màn hình gọi món từ sơ đồ bàn.");
+}
+
+var availability = _daily?.AvailabilityNow();
+
+var unavailableNames = items
+.Where(item =>
+availability?.IsUnavailable(item.dishId) == true)
+.Select(item => dishesById[item.dishId].Name)
+.Distinct()
+.ToArray();
+
+if (unavailableNames.Length > 0)
+{
+return BadRequest(
+"Món đang tạm hết: "
++ string.Join(", ", unavailableNames)
++ ". Vui lòng bỏ khỏi giỏ và gọi lại.");
+}
+
+var submittedItems = items.Select(item =>
+new SessionOrderingService.SubmitOrderItem
+{
+MenuItemId = item.dishId,
+Quantity = item.quantity
+}).ToList();
+
+// Database kiểm tra lại trạng thái tại lúc ghi món.
+// Cùng RequestId trong cùng phiên không tạo thêm đợt trùng.
+await _sessionOrdering.SubmitAsync(
+SessionId,
+RequestId,
+submittedItems,
+actorUserId,
+cancellationToken);
+
+return RedirectToPage("/Ordering/Index", new
+{
+tableId = TableId,
+submitted = true
+});
+}
+catch (SqlException exception)
+when (exception.Number >= 51000
+&& exception.Number <= 51999)
+{
+return BadRequest(exception.Message);
+}
+}
+
+public sealed class CartItem
+{
+public int dishId { get; set; }
+
+public int quantity { get; set; }
+}
 }

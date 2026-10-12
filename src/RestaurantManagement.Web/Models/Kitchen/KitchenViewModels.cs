@@ -19,6 +19,11 @@ public sealed record KitchenOrderItem(long Id, string TableCode, string ItemName
     /// <summary>Dòng có yêu cầu riêng của khách (lựa chọn nhanh hoặc ghi chú) cần bếp đọc.</summary>
     public bool HasRequests => QuickNoteLabels.Count > 0 || FreeNote is not null;
 
+    public long SessionId { get; init; }
+    public long BatchId { get; init; }
+    public int BatchNumber { get; init; }
+    public DateTime BatchSubmittedAt { get; init; }
+
     public string StatusLabel => Status switch
     {
         "Pending" => "Chờ nấu",
@@ -45,4 +50,56 @@ public sealed record TemporaryOutHistoryViewModel(int? DishId, string? DishName,
     IReadOnlyList<RestaurantManagement.Web.Services.DailyDish> Dishes,
     IReadOnlyList<RestaurantManagement.Web.Services.TemporaryOutLogEntry> Entries);
 
-public sealed record KitchenScreenViewModel(IReadOnlyList<KitchenOrderItem> Items, bool CanChangeStatus);
+public sealed record KitchenOrderBatch(
+    long SessionId,
+    long BatchId,
+    int BatchNumber,
+    DateTime SubmittedAt,
+    IReadOnlyList<KitchenOrderItem> Items)
+{
+    public string Label => $"Đợt {BatchNumber}";
+
+    public string TableCodes =>
+        string.Join(", ", Items.Select(i => i.TableCode).Distinct());
+}
+
+public sealed record KitchenScreenViewModel(
+    IReadOnlyList<KitchenOrderItem> Items,
+    bool CanChangeStatus)
+{
+    public IReadOnlyList<KitchenOrderBatch> Batches => Items
+        .GroupBy(i => new
+        {
+            i.SessionId,
+            i.BatchId,
+            i.BatchNumber,
+            i.BatchSubmittedAt
+        })
+        .Select(g => new KitchenOrderBatch(
+            g.Key.SessionId,
+            g.Key.BatchId,
+            g.Key.BatchNumber,
+            g.Key.BatchSubmittedAt,
+            g.OrderBy(i => i.Id).ToArray()))
+        .OrderBy(b => b.SubmittedAt)
+        .ThenBy(b => b.SessionId)
+        .ThenBy(b => b.BatchNumber)
+        .ThenBy(b => b.BatchId)
+        .ToArray();
+}
+
+public sealed record DailyDishesViewModel(
+    IReadOnlyList<RestaurantManagement.Web.Services.DailyDish> Dishes)
+{
+    public int UnavailableCount => Dishes.Count(d => d.IsUnavailable);
+
+    public IEnumerable<IGrouping<string,
+        RestaurantManagement.Web.Services.DailyDish>> ByCategory =>
+        Dishes.GroupBy(d => d.CategoryName);
+}
+
+public sealed record TemporaryOutHistoryViewModel(
+    int? DishId,
+    string? DishName,
+    IReadOnlyList<RestaurantManagement.Web.Services.DailyDish> Dishes,
+    IReadOnlyList<RestaurantManagement.Web.Services.TemporaryOutLogEntry> Entries);
