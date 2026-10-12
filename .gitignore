@@ -19,3 +19,4 @@ TestResults/
 *.db
 build-output.txt
 **/App_Data/emails/
+**/App_Data/data-protection-keys/

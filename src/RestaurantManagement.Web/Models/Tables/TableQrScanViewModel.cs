@@ -5,6 +5,7 @@ namespace RestaurantManagement.Web.Models.Tables;
 /// </summary>
 public sealed class TableQrScanViewModel
 {
+    public required string QrToken { get; init; }
     public required string TableCode { get; init; }
     public required string AreaName { get; init; }
     public int MinCapacity { get; init; }
