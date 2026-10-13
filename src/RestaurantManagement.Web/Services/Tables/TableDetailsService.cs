@@ -37,14 +37,25 @@ public sealed class TableDetailsService(
 
         const string query = """
             SELECT TOP (1)
-                m.Code,m.AreaName,m.MaxCapacity,m.Status,m.GuestCount,m.OpenedAt,
+                m.Code,m.AreaName,m.MaxCapacity,
+                CASE WHEN m.Status='Available' AND reservationWindow.Id IS NOT NULL THEN 'Reserved' ELSE m.Status END AS DisplayStatus,
+                m.GuestCount,m.OpenedAt,
                 currentReservation.CustomerName,currentReservation.Phone,
-                upcoming.CustomerName,upcoming.Phone,upcoming.GuestCount,upcoming.StartsAt,
+                reservationWindow.CustomerName,reservationWindow.Phone,reservationWindow.GuestCount,reservationWindow.StartsAt,
                 CASE WHEN m.SessionId IS NULL THEN NULL ELSE COALESCE(balance.Subtotal,0) END AS CurrentSubtotal
             FROM dbo.vw_TableMap AS m
             LEFT JOIN dbo.DiningSessions AS session ON session.Id=m.SessionId
             LEFT JOIN dbo.Reservations AS currentReservation ON currentReservation.Id=session.ReservationId
-            LEFT JOIN dbo.Reservations AS upcoming ON upcoming.Id=m.UpcomingReservationId
+            OUTER APPLY
+            (
+                SELECT TOP(1) r.Id,r.CustomerName,r.Phone,r.GuestCount,r.StartsAt
+                FROM dbo.Reservations r
+                WHERE r.TableId=m.Id
+                  AND r.Status IN ('Pending','Confirmed')
+                  AND r.StartsAt<=DATEADD(minute,30,SYSUTCDATETIME())
+                  AND DATEADD(minute,15,r.EndsAt)>SYSUTCDATETIME()
+                ORDER BY r.StartsAt,r.Id
+            ) AS reservationWindow
             OUTER APPLY
             (
                 SELECT SUM(sessionTotals.Subtotal) AS Subtotal

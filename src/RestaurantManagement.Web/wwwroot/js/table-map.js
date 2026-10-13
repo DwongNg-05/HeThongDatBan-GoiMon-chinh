@@ -168,6 +168,21 @@
         tables.forEach(applyStatus);
     }
 
+    // Một lượt đặt chuyển sang "Đã đặt trước" đúng 30 phút trước giờ hẹn mà
+    // không nhất thiết có thao tác ghi trạng thái bàn. Tải lại ảnh chụp định
+    // kỳ để sơ đồ đang mở cũng đổi màu đúng lúc đó.
+    const snapshotTimer = window.setInterval(() => {
+        if (!document.hidden) refreshSnapshot().catch(() => {});
+    }, 30000);
+    window.addEventListener('pagehide', () => window.clearInterval(snapshotTimer));
+
+    // Đồng bộ ngay khi vừa mở trang. Điều này tránh việc thẻ HTML được tạo
+    // trước mốc 30 phút mà người dùng phải chờ kết nối EventSource hoặc chu kỳ
+    // 30 giây mới thấy bàn chuyển sang "Đã đặt trước".
+    refreshSnapshot().catch(() => {
+        connectionLabel.textContent = 'Chưa đồng bộ được sơ đồ; đang thử lại…';
+    });
+
     const events = new EventSource(`${apiUrl}/stream`);
     events.addEventListener('open', () => {
         connectionLabel.textContent = 'Đang đồng bộ trực tiếp';

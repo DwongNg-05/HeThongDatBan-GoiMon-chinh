@@ -14,9 +14,25 @@ public sealed class TableMapStore(IConfiguration configuration)
         ?? throw new InvalidOperationException("Chưa cấu hình ConnectionStrings:DefaultConnection.");
 
     private const string TablesSql = """
-        SELECT t.Code, a.Id, a.Name, t.MaxCapacity, t.Status, t.StatusChangedAt
+        -- Trạng thái trên sơ đồ là trạng thái vận hành.  Một bàn còn đang để
+        -- Available nhưng đã có lượt Pending/Confirmed trong 30 phút tới phải
+        -- hiện "Đã đặt trước" để nhân viên không xếp khách vãng lai vào bàn đó.
+        SELECT t.Code, a.Id, a.Name, t.MaxCapacity,
+               CASE WHEN t.Status='Available' AND reservation.Id IS NOT NULL THEN 'Reserved' ELSE t.Status END AS Status,
+               CASE WHEN t.Status='Available' AND reservation.Id IS NOT NULL
+                    THEN DATEADD(minute,-30,reservation.StartsAt) ELSE t.StatusChangedAt END AS StatusChangedAt
         FROM dbo.DiningTables t
         JOIN dbo.Areas a ON a.Id = t.AreaId
+        OUTER APPLY
+        (
+            SELECT TOP(1) r.Id,r.StartsAt
+            FROM dbo.Reservations r
+            WHERE r.TableId=t.Id
+              AND r.Status IN ('Pending','Confirmed')
+              AND r.StartsAt<=DATEADD(minute,30,SYSUTCDATETIME())
+              AND DATEADD(minute,15,r.EndsAt)>SYSUTCDATETIME()
+            ORDER BY r.StartsAt,r.Id
+        ) reservation
         WHERE t.IsActive = 1 AND a.IsActive = 1
         ORDER BY a.SortOrder, a.Name, a.Id, t.SortOrder, t.Code;
         """;

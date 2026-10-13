@@ -8,7 +8,8 @@
 (function (global) {
     'use strict';
 
-    var MAX_QTY = 99, MAX_NOTES = 200, MAX_LINES = 100;
+    // Đồng bộ với GuestTableSessionService và trigger tr_OrderItems_QuantityMaximum.
+    var MAX_QTY = 20, MAX_NOTES = 200, MAX_LINES = 100;
     // Danh sách mặc định; trang thật lấy từ data-quick-notes (GuestOrderNotes.QuickOptions ở máy chủ).
     var quickOptions = [
         { code: 'it-cay', label: 'Ít cay' },

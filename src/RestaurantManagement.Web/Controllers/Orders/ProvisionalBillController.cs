@@ -57,6 +57,58 @@ public sealed class ProvisionalBillController(IConfiguration configuration) : Co
         return View("Missing", new ProvisionalBillMissingViewModel($"Bàn {code} hiện không có khách, chưa có hoá đơn tạm tính."));
     }
 
+    /// <summary>
+    /// S3-05: Phục vụ có thể huỷ món còn chờ bếp; khi bếp đã bắt đầu, chỉ Quản lý
+    /// có thể huỷ và thủ tục SQL sẽ tự đánh dấu dòng đó vẫn tính tiền. Lý do cùng
+    /// người thao tác/thời điểm đều được dbo.usp_CancelOrderItem ghi vào lịch sử.
+    /// </summary>
+    [HttpPost("{sessionId:long}/CancelItem/{orderItemId:long}")]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = AppRoles.FrontOfHouse)]
+    public async Task<IActionResult> CancelItem(long sessionId, long orderItemId, string? reason, string? note,
+        CancellationToken cancellationToken)
+    {
+        if (orderItemId <= 0 || reason is not ("ChangedMind" or "Mistake" or "SoldOut" or "ManagerOverride"))
+        {
+            TempData["Error"] = "Hãy chọn lý do huỷ món hợp lệ.";
+            return RedirectToAction(nameof(Index), new { sessionId });
+        }
+
+        var actorUserId = User.ActorUserId();
+        if (actorUserId <= 0)
+            return Forbid();
+
+        try
+        {
+            await using var connection = new SqlConnection(ConnectionString);
+            await using var command = new SqlCommand("dbo.usp_CancelOrderItem", connection)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+            command.Parameters.Add("@OrderItemId", SqlDbType.BigInt).Value = orderItemId;
+            command.Parameters.Add("@Reason", SqlDbType.VarChar, 30).Value = reason;
+            command.Parameters.Add("@ActorUserId", SqlDbType.Int).Value = actorUserId;
+            command.Parameters.Add("@Note", SqlDbType.NVarChar, 500).Value = string.IsNullOrWhiteSpace(note)
+                ? DBNull.Value
+                : note.Trim()[..Math.Min(note.Trim().Length, 500)];
+            await connection.OpenAsync(cancellationToken);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+            TempData["Success"] = "Đã huỷ món. Lịch sử huỷ được lưu ngay bên dưới hoá đơn.";
+        }
+        catch (SqlException exception) when (exception.Number is >= 51000 and < 51500)
+        {
+            TempData["Error"] = exception.Number switch
+            {
+                51001 => "Tài khoản không có quyền huỷ món ở trạng thái này.",
+                51031 => "Món không còn được huỷ vì đã huỷ hoặc phiên đã thanh toán.",
+                51032 => "Lý do huỷ món không hợp lệ.",
+                _ => exception.Message
+            };
+        }
+
+        return RedirectToAction(nameof(Index), new { sessionId });
+    }
+
     private async Task<ProvisionalBillViewModel?> Load(long sessionId, CancellationToken cancellationToken)
     {
         await using var connection = new SqlConnection(ConnectionString);
@@ -68,11 +120,13 @@ public sealed class ProvisionalBillController(IConfiguration configuration) : Co
                              WHERE (x.Id=s.Id OR x.BillingSessionId=s.Id) AND (st.ReleasedAt IS NULL OR s.Status='Closed')),N'') AS Tables,
                    (SELECT SUM(x.GuestCount) FROM dbo.DiningSessions x WHERE x.Id=s.Id OR x.BillingSessionId=s.Id) AS Guests
             FROM dbo.DiningSessions s WHERE s.Id=@root;
-            SELECT i.Id,t.Code,i.ItemName,i.Unit,i.UnitPrice,i.Quantity,i.LineTotal,i.Status,i.ChargeWhenCancelled,i.SubmittedAt,i.Notes,i.QuickNotes
+            SELECT i.Id,t.Code,i.ItemName,i.Unit,i.UnitPrice,i.Quantity,i.LineTotal,i.Status,i.ChargeWhenCancelled,i.SubmittedAt,i.Notes,i.QuickNotes,
+                   i.CancelledAt,cancelledBy.FullName,i.CancelReason,i.CancellationNote
             FROM dbo.OrderItems i
             JOIN dbo.OrderBatches b ON b.Id=i.BatchId
             JOIN dbo.DiningSessions x ON x.Id=b.SessionId
             JOIN dbo.DiningTables t ON t.Id=i.OriginalTableId
+            LEFT JOIN dbo.Users cancelledBy ON cancelledBy.Id=i.CancelledBy
             WHERE x.Id=@root OR x.BillingSessionId=@root
             ORDER BY i.SubmittedAt, i.Id;
             """, connection);
@@ -88,7 +142,10 @@ public sealed class ProvisionalBillController(IConfiguration configuration) : Co
             lines.Add(new ProvisionalBillLine(reader.GetInt64(0), reader.GetString(1), reader.GetString(2), reader.GetString(3),
                 reader.GetDecimal(4), reader.GetInt32(5), reader.GetDecimal(6), reader.GetString(7), reader.GetBoolean(8),
                 VietnamTime.FromUtc(reader.GetDateTime(9)), reader.IsDBNull(10) ? null : reader.GetString(10),
-                reader.IsDBNull(11) ? null : reader.GetString(11)));
+                reader.IsDBNull(11) ? null : reader.GetString(11),
+                reader.IsDBNull(12) ? null : VietnamTime.FromUtc(reader.GetDateTime(12)),
+                reader.IsDBNull(13) ? null : reader.GetString(13), reader.IsDBNull(14) ? null : reader.GetString(14),
+                reader.IsDBNull(15) ? null : reader.GetString(15)));
         return new ProvisionalBillViewModel(id, tables, guests, status, openedAt, lines);
     }
 }

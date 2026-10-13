@@ -34,6 +34,9 @@ public sealed class SqlTableMapReader(
                     WHEN t.Status = 'Serving'
                         AND payment.IsAwaiting = 1
                     THEN 'AwaitingPayment'
+                    WHEN t.Status = 'Available'
+                        AND reservation.StartsAt IS NOT NULL
+                    THEN 'Reserved'
                     ELSE t.Status
                 END AS DisplayStatus,
                 CASE
@@ -42,6 +45,9 @@ public sealed class SqlTableMapReader(
                     THEN COALESCE(
                         payment.PaymentRequestedAt,
                         t.StatusChangedAt)
+                    WHEN t.Status = 'Available'
+                        AND reservation.StartsAt IS NOT NULL
+                    THEN DATEADD(minute, -30, reservation.StartsAt)
                     ELSE t.StatusChangedAt
                 END AS DisplayChangedAt
             FROM dbo.Areas a
@@ -68,6 +74,15 @@ public sealed class SqlTableMapReader(
                     AND root.Status <> 'Closed'
                 ORDER BY st.SessionId DESC
             ) payment
+            OUTER APPLY (
+                SELECT TOP (1) r.StartsAt
+                FROM dbo.Reservations r
+                WHERE r.TableId = t.Id
+                    AND r.Status IN ('Pending', 'Confirmed')
+                    AND r.StartsAt <= DATEADD(minute, 30, SYSUTCDATETIME())
+                    AND DATEADD(minute, 15, r.EndsAt) > SYSUTCDATETIME()
+                ORDER BY r.StartsAt, r.Id
+            ) reservation
             WHERE a.IsActive = 1
             ORDER BY a.SortOrder, a.Id, t.SortOrder, t.Code;
             """, connection);
@@ -155,6 +170,9 @@ public sealed class SqlTableMapReader(
                     WHEN t.Status = 'Serving'
                         AND payment.IsAwaiting = 1
                     THEN 'AwaitingPayment'
+                    WHEN t.Status = 'Available'
+                        AND reservation.StartsAt IS NOT NULL
+                    THEN 'Reserved'
                     ELSE t.Status
                 END AS DisplayStatus,
                 CASE
@@ -163,6 +181,9 @@ public sealed class SqlTableMapReader(
                     THEN COALESCE(
                         payment.PaymentRequestedAt,
                         t.StatusChangedAt)
+                    WHEN t.Status = 'Available'
+                        AND reservation.StartsAt IS NOT NULL
+                    THEN DATEADD(minute, -30, reservation.StartsAt)
                     ELSE t.StatusChangedAt
                 END AS DisplayChangedAt
             FROM dbo.DiningTables t
@@ -188,6 +209,15 @@ public sealed class SqlTableMapReader(
                     AND root.Status <> 'Closed'
                 ORDER BY st.SessionId DESC
             ) payment
+            OUTER APPLY (
+                SELECT TOP (1) r.StartsAt
+                FROM dbo.Reservations r
+                WHERE r.TableId = t.Id
+                    AND r.Status IN ('Pending', 'Confirmed')
+                    AND r.StartsAt <= DATEADD(minute, 30, SYSUTCDATETIME())
+                    AND DATEADD(minute, 15, r.EndsAt) > SYSUTCDATETIME()
+                ORDER BY r.StartsAt, r.Id
+            ) reservation
             WHERE t.IsActive = 1 AND a.IsActive = 1
             ORDER BY a.SortOrder, a.Id, t.SortOrder, t.Code;
             """, connection);

@@ -294,7 +294,7 @@ public sealed class GuestTableSessionService(IConfiguration configuration)
     }
 
     /// <summary>Số món tối đa / số lượng tối đa mỗi dòng / độ dài ghi chú — cùng giới hạn với dbo.usp_SubmitOrder.</summary>
-    public const int MaxCartLines = 100, MaxQuantity = 99, MaxNotesLength = GuestOrderNotes.MaxLength;
+    public const int MaxCartLines = 100, MaxQuantity = 20, MaxNotesLength = GuestOrderNotes.MaxLength;
 
     /// <summary>
     /// Gửi giỏ món của khách xuống bếp qua dbo.usp_SubmitOrder (đường khách: @GuestTokenHash, không có nhân viên).
@@ -338,7 +338,7 @@ public sealed class GuestTableSessionService(IConfiguration configuration)
         }
     }
 
-    private const string InvalidCartMessage = "Giỏ món không hợp lệ. Mỗi món từ 1 đến 99 phần, ghi chú tối đa 200 ký tự.";
+    private const string InvalidCartMessage = "Giỏ món không hợp lệ. Mỗi món từ 1 đến 20 phần, ghi chú tối đa 200 ký tự.";
 
     /// <summary>
     /// S3-03 Task 1: kiểm tra và chuẩn hoá giỏ trước khi gửi bếp (không chạm database).

@@ -26,6 +26,17 @@
 .provisional-bill-note-label { font-weight: 700; color: #92400e; }
 .provisional-bill-line-meta { display: block; margin-top: 4px; color: #6b7280; font-size: 13px; }
 .provisional-bill-total { font-size: 18px; font-weight: 800; }
+.provisional-bill-action-heading, .provisional-bill-action { min-width: 185px; }
+.provisional-cancel-form { display: grid; gap: 5px; }
+.provisional-cancel-form select, .provisional-cancel-form input { width: 100%; min-height: 31px; padding: 4px 7px; border: 1px solid #cbd5e1; border-radius: 5px; font-size: 12px; }
+.provisional-cancel-form .btn { justify-self: start; }
+.provisional-cancel-locked { display: block; max-width: 190px; color: #9a6700; font-size: 12px; line-height: 1.35; }
+.provisional-cancel-info { margin-top: 5px; color: #8b1d2c; font-size: 13px; line-height: 1.35; }
+.provisional-cancel-history { margin: 18px 0; padding: 14px 16px; border: 1px solid #fecaca; border-radius: 8px; background: #fff7f7; }
+.provisional-cancel-history h3 { margin: 0 0 8px; font-size: 16px; }
+.provisional-cancel-history ul { margin: 0; padding-left: 20px; }
+.provisional-cancel-history li { margin: 6px 0; overflow-wrap: anywhere; }
+.provisional-cancel-charge { display: inline-block; margin-left: 5px; color: #9a6700; font-weight: 600; }
 
 /* Món đã huỷ: vẫn giữ dòng và ghi chú để đối chiếu, nhưng mờ đi và gạch tên món. */
 .provisional-bill-cancelled .provisional-bill-name { text-decoration: line-through; color: #6b7280; }
@@ -45,6 +56,7 @@
     .provisional-bill-table td.provisional-bill-qty { grid-column: 2; text-align: left !important; }
     .provisional-bill-table td.provisional-bill-price { grid-column: 3; color: #6b7280; }
     .provisional-bill-table td.provisional-bill-amount { grid-column: 4; }
+    .provisional-bill-table td.provisional-bill-action { grid-column: 2 / 5; min-width: 0; margin-top: 4px; }
     .provisional-bill-table tfoot tr { display: flex; justify-content: space-between; align-items: baseline; padding-top: 10px; }
     .provisional-bill-table tfoot th, .provisional-bill-table tfoot td { border: 0; padding: 0; }
     .provisional-bill-note { font-size: 15px; }

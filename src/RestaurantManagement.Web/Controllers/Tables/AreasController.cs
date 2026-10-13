@@ -29,8 +29,25 @@ public class AreasController(IConfiguration configuration) : Controller
         // Khu vực & bàn: hiển thị bàn ngay trong từng khu vực (gộp màn hình Quản lý bàn cũ).
         var byId = model.Areas.ToDictionary(a => a.Id);
         const string tablesSql = """
-            SELECT t.Id, t.Code, t.AreaId, t.MinCapacity, t.MaxCapacity, t.TableType, t.Status, t.IsActive
+            -- Khu vực & bàn dùng cùng trạng thái hiển thị với sơ đồ bàn.
+            -- Khi còn tối đa 30 phút tới lượt Pending/Confirmed, bàn trống được
+            -- giữ chỗ và phải hiện "Đã đặt trước", không cho nhân viên hiểu nhầm
+            -- rằng có thể xếp khách vãng lai vào bàn này.
+            SELECT t.Id, t.Code, t.AreaId, t.MinCapacity, t.MaxCapacity, t.TableType,
+                   CASE WHEN t.Status='Available' AND reservation.Id IS NOT NULL
+                        THEN 'Reserved' ELSE t.Status END AS DisplayStatus,
+                   t.IsActive
             FROM dbo.DiningTables t
+            OUTER APPLY
+            (
+                SELECT TOP(1) r.Id
+                FROM dbo.Reservations r
+                WHERE r.TableId=t.Id
+                  AND r.Status IN ('Pending','Confirmed')
+                  AND r.StartsAt<=DATEADD(minute,30,SYSUTCDATETIME())
+                  AND DATEADD(minute,15,r.EndsAt)>SYSUTCDATETIME()
+                ORDER BY r.StartsAt,r.Id
+            ) reservation
             ORDER BY t.SortOrder, t.Code;
             """;
         await using var tables = new SqlCommand(tablesSql, connection);

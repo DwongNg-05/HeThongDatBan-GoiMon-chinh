@@ -5,7 +5,8 @@ namespace RestaurantManagement.Web.Models.Orders;
 /// Hai dòng cùng món nhưng khác yêu cầu KHÔNG được gộp; mỗi dòng mang nguyên lựa chọn nhanh + ghi chú đã gửi bếp.
 /// </summary>
 public sealed record ProvisionalBillLine(long Id, string TableCode, string ItemName, string Unit, decimal UnitPrice, int Quantity,
-    decimal LineTotal, string Status, bool ChargeWhenCancelled, DateTime SubmittedAt, string? Notes, string? QuickNotes)
+    decimal LineTotal, string Status, bool ChargeWhenCancelled, DateTime SubmittedAt, string? Notes, string? QuickNotes,
+    DateTime? CancelledAt = null, string? CancelledByName = null, string? CancelReason = null, string? CancellationNote = null)
 {
     /// <summary>Đọc giống hệt màn hình bếp (KitchenOrderItem.Requests).</summary>
     public OrderItemRequests Requests => OrderItemRequests.From(QuickNotes, Notes);
@@ -14,6 +15,15 @@ public sealed record ProvisionalBillLine(long Id, string TableCode, string ItemN
     public bool IsCharged => Status != "Cancelled" || ChargeWhenCancelled;
 
     public bool IsCancelled => Status == "Cancelled";
+
+    public string? CancelReasonLabel => CancelReason switch
+    {
+        "ChangedMind" => "Khách đổi ý",
+        "Mistake" => "Gọi nhầm món",
+        "SoldOut" => "Món đã hết nguyên liệu",
+        "ManagerOverride" => "Quản lý yêu cầu",
+        _ => CancelReason
+    };
 
     public string StatusLabel => Status switch
     {
@@ -37,6 +47,7 @@ public sealed record ProvisionalBillViewModel(long SessionId, string Tables, int
     public int ChargedLineCount => Lines.Count(l => l.IsCharged);
     public int RequestLineCount => Lines.Count(l => l.Requests.HasAny);
     public bool HasSeveralTables => Lines.Select(l => l.TableCode).Distinct().Count() > 1;
+    public IReadOnlyList<ProvisionalBillLine> CancelledLines => Lines.Where(l => l.IsCancelled).ToArray();
 
     public string StatusLabel => Status switch
     {

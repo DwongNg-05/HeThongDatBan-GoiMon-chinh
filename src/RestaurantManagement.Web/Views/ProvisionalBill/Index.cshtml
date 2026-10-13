@@ -5,6 +5,8 @@
 @{
     ViewData["Title"] = "Hoá đơn tạm tính · Bàn " + Model.Tables;
     var backToCashier = User.IsInRole(AppRoles.Cashier) && !User.IsInRole(AppRoles.Waiter) && !User.IsInRole(AppRoles.Manager);
+    var isManager = User.IsInRole(AppRoles.Manager);
+    var isWaiter = User.IsInRole(AppRoles.Waiter);
     var position = 0;
 }
 @section Styles {
@@ -13,6 +15,14 @@
 @* S3-04 Task 4: mỗi dòng đơn là một dòng hoá đơn; lựa chọn nhanh + ghi chú nằm ngay dưới tên món, đúng nội dung đã gửi bếp
    (cùng lớp OrderItemRequests với màn hình bếp). Hai dòng cùng món nhưng khác yêu cầu hiển thị riêng, không gộp. *@
 <div class="container mt-4 provisional-bill" data-screen="provisional-bill" data-session-id="@Model.SessionId">
+    @if (TempData["Success"] is string success)
+    {
+        <div class="alert alert-success" role="status">@success</div>
+    }
+    @if (TempData["Error"] is string error)
+    {
+        <div class="alert alert-danger" role="alert">@error</div>
+    }
     <div class="provisional-bill-actions">
         <a class="btn btn-outline-secondary btn-sm" href="@(backToCashier ? Url.Content("~/Cashier") : Url.Content("~/"))">← @(backToCashier ? "Thanh toán" : "Sơ đồ bàn")</a>
         <button type="button" class="btn btn-outline-primary btn-sm" data-bill-print>In tạm tính</button>
@@ -40,7 +50,7 @@
         <div class="table-responsive">
             <table class="table align-middle provisional-bill-table">
                 <thead>
-                    <tr><th scope="col">#</th><th scope="col">Món &amp; yêu cầu riêng</th><th scope="col" class="text-end">SL</th><th scope="col" class="text-end">Đơn giá</th><th scope="col" class="text-end">Thành tiền</th></tr>
+                    <tr><th scope="col">#</th><th scope="col">Món &amp; yêu cầu riêng</th><th scope="col" class="text-end">SL</th><th scope="col" class="text-end">Đơn giá</th><th scope="col" class="text-end">Thành tiền</th><th scope="col" class="provisional-bill-action-heading">Hủy món</th></tr>
                 </thead>
                 <tbody>
                     @foreach (var line in Model.Lines)
@@ -73,21 +83,76 @@
                                     @(Model.HasSeveralTables ? "Bàn " + line.TableCode + " · " : "")Gọi lúc @line.SubmittedAt.ToString("HH:mm") ·
                                     <span data-bill-line-status>@line.StatusLabel</span>
                                 </small>
+                                @if (line.IsCancelled)
+                                {
+                                    <div class="provisional-cancel-info">
+                                        <strong>Đã hủy: @line.CancelReasonLabel</strong>
+                                        @if (line.CancellationNote is not null) { <span> · @line.CancellationNote</span> }
+                                    </div>
+                                }
                             </td>
                             <td class="text-end text-nowrap provisional-bill-qty">@line.Quantity @line.Unit</td>
                             <td class="text-end text-nowrap provisional-bill-price">@Vnd.Format(line.UnitPrice)</td>
                             <td class="text-end text-nowrap fw-semibold provisional-bill-amount">@(line.IsCharged ? Vnd.Format(line.LineTotal) : "—")</td>
+                            <td class="provisional-bill-action">
+                                @if (line.IsCancelled)
+                                {
+                                    <span class="text-muted small">Đã hủy</span>
+                                }
+                                else if (isManager || (isWaiter && line.Status == "Pending"))
+                                {
+                                    <form method="post" asp-action="CancelItem" asp-route-sessionId="@Model.SessionId" asp-route-orderItemId="@line.Id" class="provisional-cancel-form">
+                                        @Html.AntiForgeryToken()
+                                        <label class="visually-hidden" for="reason-@line.Id">Lý do hủy @line.ItemName</label>
+                                        <select id="reason-@line.Id" name="reason" required aria-label="Lý do hủy @line.ItemName">
+                                            <option value="ChangedMind">Khách đổi ý</option>
+                                            <option value="Mistake">Gọi nhầm món</option>
+                                            <option value="SoldOut">Hết nguyên liệu</option>
+                                            @if (isManager) { <option value="ManagerOverride">Quản lý yêu cầu</option> }
+                                        </select>
+                                        <label class="visually-hidden" for="note-@line.Id">Ghi chú hủy @line.ItemName</label>
+                                        <input id="note-@line.Id" name="note" maxlength="500" placeholder="Ghi chú (không bắt buộc)" aria-label="Ghi chú hủy @line.ItemName" />
+                                        <button type="submit" class="btn btn-outline-danger btn-sm">Hủy món</button>
+                                    </form>
+                                }
+                                else if (isWaiter)
+                                {
+                                    <span class="provisional-cancel-locked">Bếp đã nhận món; chỉ quản lý được hủy và món vẫn tính tiền.</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted small">—</span>
+                                }
+                            </td>
                         </tr>
                     }
                 </tbody>
                 <tfoot>
                     <tr>
-                        <th scope="row" colspan="4" class="text-end">Tạm tính (@Model.ChargedLineCount dòng)</th>
+                        <th scope="row" colspan="5" class="text-end">Tạm tính (@Model.ChargedLineCount dòng)</th>
                         <td class="text-end text-nowrap provisional-bill-total" data-bill-subtotal="@Model.Subtotal.ToString("0")">@Vnd.Format(Model.Subtotal)</td>
                     </tr>
                 </tfoot>
             </table>
         </div>
+        @if (Model.CancelledLines.Count > 0)
+        {
+            <section class="provisional-cancel-history" aria-labelledby="cancel-history-title">
+                <h3 id="cancel-history-title">Nhật ký hủy món</h3>
+                <ul>
+                    @foreach (var line in Model.CancelledLines)
+                    {
+                        <li>
+                            <strong>@line.ItemName</strong> · @line.Quantity @line.Unit · @line.CancelReasonLabel
+                            · @(line.CancelledByName ?? "Không rõ người thực hiện")
+                            @if (line.CancelledAt is not null) { <text> · @line.CancelledAt.Value.ToString("HH:mm dd/MM/yyyy")</text> }
+                            @if (!string.IsNullOrWhiteSpace(line.CancellationNote)) { <span> · Ghi chú: @line.CancellationNote</span> }
+                            @if (line.IsCharged) { <span class="provisional-cancel-charge">Món này vẫn tính tiền vì bếp đã bắt đầu xử lý.</span> }
+                        </li>
+                    }
+                </ul>
+            </section>
+        }
         <p class="text-muted small">Chưa trừ giảm giá. Số tiền chính thức theo hoá đơn khi thanh toán. Giờ Việt Nam (UTC+7); xem lúc @VietnamTime.Now.ToString("HH:mm dd/MM/yyyy").</p>
     }
 </div>
