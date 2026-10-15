@@ -39,6 +39,7 @@
                             {
                                 <form asp-action="Checkout" method="post" class="row g-2 align-items-center">
                                     <input type="hidden" name="sessionId" value="@s.SessionId" />
+                                    <input type="hidden" name="sessionVersion" value="@s.SessionVersion" />
                                     <input type="hidden" name="requestId" value="@Guid.NewGuid()" />
                                     <div class="col-auto">
                                         <select name="method" class="form-select form-select-sm" aria-label="Hình thức thanh toán">

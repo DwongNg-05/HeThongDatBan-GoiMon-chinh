@@ -57,6 +57,16 @@ async function run() {
     assert.equal(cards[1].dataset.status, 'AwaitingPayment');
     console.log('PASS: awaiting-payment state retains the shared label');
 
+    payload = { cursor: '2', tables: ['A', 'B'].map(code => ({ code, capacity: 4, status: 'Serving', group: null })) };
+    poll(); await tick();
+    assert.equal(cards[0].badge.hidden, true);
+    assert.equal(cards[1].dataset.mainSessionId, '');
+    assert.equal(cards[0].dataset.status, 'Serving');
+    payload = { cursor: '3', tables: ['A', 'B'].map(code => ({ code, capacity: 4, status: 'Serving', group: { ...group1, label: 'N-G21' } })) };
+    poll(); await tick();
+    assert.equal(cards[1].badge.textContent, 'Nhóm N-G21');
+    console.log('PASS: unmerge clears the label while serving; regroup shows a new label without a status change');
+
     payload = { cursor: '2', tables: ['A', 'B'].map(code => ({ code, capacity: 4, status: 'Cleaning', group: null })) };
     poll(); await tick();
     for (const c of cards.slice(0, 2)) {

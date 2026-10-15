@@ -133,6 +133,7 @@ builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.GzipCompress
 builder.Services.AddHostedService<TemporaryOutResetWorker>();
 builder.Services.AddScoped<RestaurantManagement.Web.Services.SessionOrderingService>();
 builder.Services.AddScoped<RestaurantManagement.Web.Services.TableMergeService>();
+builder.Services.AddScoped<TableUnmergeService>();
 builder.Services.AddSingleton<DatabaseSchemaReadiness>();
 var app = builder.Build();
 

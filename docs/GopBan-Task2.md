@@ -8,7 +8,7 @@ Nhân viên nhận ra các bàn cùng nhóm ngay trên sơ đồ. Giữ luồng 
 
 | Yêu cầu | Thực hiện |
 |---|---|
-| Tạo và lưu nhãn duy nhất khi gộp | `DiningSessions.TableGroupLabel` lưu ở phiên chính, dạng `N-<mã phiên chính>`. Trigger `tr_SessionMerges_GroupLabel` tạo nhãn trong chính giao dịch gộp. Chỉ mục unique chặn nhãn trùng; không tạo nhãn cho giao dịch bị từ chối/rollback. |
+| Tạo và lưu nhãn duy nhất khi gộp | `DiningSessions.TableGroupLabel` lưu ở phiên chính. Task 2 ban đầu dùng `N-<mã phiên chính>`; từ Task 3, nhóm mới dùng `N-G<Id lần gộp>` để gộp lại có nhãn mới. Nhãn các nhóm đang phục vụ từ trước vẫn giữ nguyên. Trigger `tr_SessionMerges_GroupLabel` tạo nhãn trong chính giao dịch gộp. Chỉ mục unique chặn nhãn trùng; không tạo nhãn cho giao dịch bị từ chối/rollback. |
 | Trả nhãn và danh sách thành viên khi tải sơ đồ | Cả API trang chính `/api/table-status` và snapshot/polling `/api/table-map` trả trường `group`: `label`, `mainSessionId`, `mainTableCode`, `memberTableCodes`, `status`. Cùng đọc `vw_ActiveTableGroups`. |
 | Cùng nhãn trên hai bàn | Thẻ bàn hiển thị badge “Nhóm N-…”, cả HTML lúc tải trang lẫn cập nhật tự động. Các nhóm khác nhau có nhãn khác nhau. |
 | Chọn bàn thấy thành viên và bàn chính | Chọn một bàn đang phục vụ/chờ thanh toán mở màn hình gọi món với khối thông tin nhóm: nhãn, các mã bàn thành viên, bàn giữ phiên chính, mã phiên chính và trạng thái. API chi tiết và hộp chi tiết cũng có cùng dữ liệu. |

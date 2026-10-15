@@ -1,0 +1,29 @@
+@page
+@model RestaurantManagement.Web.Pages.Ordering.UnmergeModel
+@{ ViewData["Title"]="Xác nhận huỷ gộp bàn"; }
+<h1>Xác nhận huỷ gộp bàn</h1>
+@if(TempData["UnmergeError"] is string error) { <p class="alert alert-danger" role="alert">@error</p> }
+@if(Model.Preview is not { } preview)
+{
+    <p class="alert alert-warning">Nhóm không còn hợp lệ hoặc đã thanh toán, đã huỷ gộp. Vui lòng mở lại thông tin bàn mới nhất.</p>
+}
+else
+{
+    <p>Huỷ gộp <strong>@preview.Label</strong> sẽ khôi phục các phiên riêng sau đây:</p>
+    <table class="table table-bordered"><thead><tr><th>Bàn</th><th>Phiên phục vụ riêng</th><th>Tạm tính theo bàn gốc</th></tr></thead>
+        <tbody>@foreach(var member in preview.Members) { <tr><td>@member.Code</td><td>#@member.SessionId</td><td>@member.Subtotal.ToString("N0") đ</td></tr> }</tbody>
+    </table>
+    <p>Mỗi dòng món, kể cả món gọi thêm sau khi gộp, được trả về phiên của bàn gốc, giữ nguyên số lượng và giá.</p>
+    <p class="alert alert-info">Cả hai bàn trở lại <strong>Đang phục vụ</strong>. Yêu cầu thanh toán chung sẽ bị huỷ; hoá đơn tạm tính được tính lại riêng cho từng bàn. Hoá đơn đã thanh toán không được thay đổi.</p>
+    <p class="text-muted">Số tiền sẽ được kiểm tra và tính lại từ dữ liệu mới nhất khi xác nhận.</p>
+    <form method="post">
+        <input type="hidden" name="tableId" value="@Model.TableId" />
+        <input type="hidden" name="childSessionId" value="@preview.ChildSessionId" />
+        <input type="hidden" name="mergeId" value="@preview.MergeId" />
+        <input type="hidden" name="mainVersion" value="@preview.MainVersion" />
+        <input type="hidden" name="childVersion" value="@preview.ChildVersion" />
+        <label class="d-block mb-3"><input type="checkbox" name="confirmed" value="true" required /> Tôi xác nhận tách các bàn trên và huỷ yêu cầu thanh toán chung.</label>
+        <button type="submit" class="btn btn-danger">Xác nhận huỷ gộp</button>
+    </form>
+}
+<p class="mt-3"><a asp-page="/Ordering/Index" asp-route-tableId="@Model.TableId">Quay lại bàn</a> · <a asp-controller="Home" asp-action="Index">Về sơ đồ bàn</a></p>

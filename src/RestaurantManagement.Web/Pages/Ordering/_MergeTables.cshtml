@@ -7,6 +7,7 @@
             <strong>Nhóm @group.Label</strong>
             <p class="mb-1">Các bàn thành viên: @string.Join(", ",group.MemberTableCodes)</p>
             <p class="mb-0">Bàn giữ phiên chính: <strong>@group.MainTableCode</strong> · phiên #@group.MainSessionId · @(group.Status == "AwaitingPayment" ? "Chờ thanh toán" : "Đang phục vụ")</p>
+            <a asp-page="/Ordering/Unmerge" asp-route-tableId="@session.TableId" class="btn btn-outline-danger mt-2">Huỷ gộp nhóm bàn</a>
         </section>
     }
     <p><a asp-controller="ProvisionalBill" asp-action="Index" asp-route-sessionId="@session.BillingSessionId">Xem hoá đơn chung của phiên chính #@session.BillingSessionId</a></p>

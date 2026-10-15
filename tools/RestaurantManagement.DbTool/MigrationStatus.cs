@@ -33,7 +33,8 @@ internal static partial class DatabaseTool
             UNION ALL SELECT 'OrderBatches.OriginSessionId',CASE WHEN COL_LENGTH('dbo.OrderBatches','OriginSessionId') IS NULL THEN 0 ELSE 1 END
             UNION ALL SELECT 'TableAdjacencies',CASE WHEN OBJECT_ID('dbo.TableAdjacencies') IS NULL THEN 0 ELSE 1 END
             UNION ALL SELECT 'DiningSessions.TableGroupLabel',CASE WHEN COL_LENGTH('dbo.DiningSessions','TableGroupLabel') IS NULL THEN 0 ELSE 1 END
-            UNION ALL SELECT 'vw_ActiveTableGroups',CASE WHEN OBJECT_ID('dbo.vw_ActiveTableGroups','V') IS NULL THEN 0 ELSE 1 END;
+            UNION ALL SELECT 'vw_ActiveTableGroups',CASE WHEN OBJECT_ID('dbo.vw_ActiveTableGroups','V') IS NULL THEN 0 ELSE 1 END
+            UNION ALL SELECT 'OrderBatches.SplitFromBatchId',CASE WHEN COL_LENGTH('dbo.OrderBatches','SplitFromBatchId') IS NULL THEN 0 ELSE 1 END;
             """,cn))
         await using(var reader=await cmd.ExecuteReaderAsync())
             while(await reader.ReadAsync()) Console.WriteLine($"{reader.GetString(0)}: {(reader.GetInt32(1)==1 ? "present" : "MISSING")}");

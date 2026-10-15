@@ -5,7 +5,7 @@ namespace RestaurantManagement.Web.Services;
 public sealed class DatabaseSchemaMiddleware(RequestDelegate next)
 {
     private static readonly string[] DependentPaths =
-    ["/Kitchen","/Serving","/Ordering","/TableOrder","/TableQr","/TableAdjacency","/ProvisionalBill","/Cashier","/api/table-map","/api/table-status","/TableMap"];
+    ["/Kitchen","/Serving","/Ordering","/GuestOrdering","/TableOrder","/TableQr","/TableAdjacency","/ProvisionalBill","/Cashier","/api/table-map","/api/table-status","/TableMap"];
 
     public async Task InvokeAsync(HttpContext context, DatabaseSchemaReadiness schema, IWebHostEnvironment environment)
     {
@@ -26,7 +26,7 @@ public sealed class DatabaseSchemaMiddleware(RequestDelegate next)
         }
         context.Response.ContentType="text/html; charset=utf-8";
         var help=environment.IsDevelopment()
-            ? "<p>Cần áp dụng các migration còn thiếu, gồm 047_S303QuickNotes.sql, 059_MergeTablesTask1.sql và 060_TableGroupLabels.sql. Kiểm tra bằng lệnh migration-status của RestaurantManagement.DbTool.</p>"
+            ? "<p>Cần áp dụng các migration còn thiếu, gồm 047_S303QuickNotes.sql, 059_MergeTablesTask1.sql, 060_TableGroupLabels.sql và 061_UnmergeTables.sql. Kiểm tra bằng lệnh migration-status của RestaurantManagement.DbTool.</p>"
             : "";
         await context.Response.WriteAsync("<!doctype html><html lang=\"vi\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Cần cập nhật cơ sở dữ liệu</title><main style=\"max-width:48rem;margin:4rem auto;padding:1rem;font-family:system-ui\"><h1>Cần cập nhật cơ sở dữ liệu</h1><p>"+message+"</p>"+help+"<p><a href=\"\">Thử lại</a></p></main></html>",context.RequestAborted);
     }

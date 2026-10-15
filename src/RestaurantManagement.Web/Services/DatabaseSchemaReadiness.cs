@@ -20,7 +20,8 @@ public sealed class DatabaseSchemaReadiness(IConfiguration configuration)
                   AND COL_LENGTH('dbo.OrderBatches','OriginSessionId') IS NOT NULL
                   AND OBJECT_ID('dbo.TableAdjacencies','U') IS NOT NULL
                   AND COL_LENGTH('dbo.DiningSessions','TableGroupLabel') IS NOT NULL
-                  AND OBJECT_ID('dbo.vw_ActiveTableGroups','V') IS NOT NULL THEN 1 ELSE 0 END;
+                  AND OBJECT_ID('dbo.vw_ActiveTableGroups','V') IS NOT NULL
+                  AND COL_LENGTH('dbo.OrderBatches','SplitFromBatchId') IS NOT NULL THEN 1 ELSE 0 END;
                 """,cn);
             await cn.OpenAsync(ct);
             _ready=Convert.ToInt32(await cmd.ExecuteScalarAsync(ct))==1;

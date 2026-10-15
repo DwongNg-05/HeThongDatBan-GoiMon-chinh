@@ -115,7 +115,8 @@ public sealed class GuestOrderService(IConfiguration configuration, IMenuStore m
             JOIN dbo.DiningTables t ON t.Id=st.TableId
             WHERE b.Id=@BatchId AND b.OriginSessionId=@SessionId;
             SELECT i.ItemName,i.Unit,CAST(i.UnitPrice AS int),i.Quantity,CAST(i.LineTotal AS bigint)
-            FROM dbo.OrderItems i WHERE i.BatchId=@BatchId ORDER BY i.Id;
+            FROM dbo.OrderItems i JOIN dbo.OrderBatches part ON part.Id=i.BatchId
+            WHERE i.BatchId=@BatchId OR part.SplitFromBatchId=@BatchId ORDER BY i.Id;
             """, connection);
         command.Parameters.Add("@BatchId", SqlDbType.BigInt).Value = batchId;
         command.Parameters.Add("@SessionId", SqlDbType.BigInt).Value = sessionId;
