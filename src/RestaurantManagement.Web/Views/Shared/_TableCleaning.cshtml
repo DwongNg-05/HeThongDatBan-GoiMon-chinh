@@ -1,0 +1,5 @@
+<div data-cleaning-config data-url="@Url.Content("~/api/table-cleaning")">
+    @Html.AntiForgeryToken()
+    <p data-cleaning-message role="status" aria-live="polite"></p>
+</div>
+<script src="~/js/table-cleaning.js" asp-append-version="true" defer></script>

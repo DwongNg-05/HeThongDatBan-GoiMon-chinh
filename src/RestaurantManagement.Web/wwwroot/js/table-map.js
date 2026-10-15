@@ -257,24 +257,35 @@
         }
     }
 
+    let snapshotPending = false;
     async function refreshSnapshot() {
-        const response = await fetch(apiUrl, { cache: 'no-store' });
-        if (!response.ok) throw new Error('Không thể đồng bộ sơ đồ bàn.');
-        const tables = await response.json();
-        tables.forEach(applyStatus);
+        if (snapshotPending) return;
+        snapshotPending = true;
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 1800);
+        try {
+            const response = await fetch(apiUrl, { cache: 'no-store', signal: controller.signal });
+            if (!response.ok) throw new Error('Không thể đồng bộ sơ đồ bàn.');
+            const tables = await response.json();
+            tables.forEach(applyStatus);
+        } finally {
+            window.clearTimeout(timeout);
+            snapshotPending = false;
+        }
     }
 
     // Một lượt đặt chuyển sang "Đã đặt trước" đúng 30 phút trước giờ hẹn mà
     // không nhất thiết có thao tác ghi trạng thái bàn. Tải lại ảnh chụp định
     // kỳ để sơ đồ đang mở cũng đổi màu đúng lúc đó.
+    window.addEventListener('cleaning-completed', () => refreshSnapshot().catch(() => {}));
     const snapshotTimer = window.setInterval(() => {
         if (!document.hidden) refreshSnapshot().catch(() => {});
-    }, 30000);
+    }, 2000);
     window.addEventListener('pagehide', () => window.clearInterval(snapshotTimer));
 
     // Đồng bộ ngay khi vừa mở trang. Điều này tránh việc thẻ HTML được tạo
     // trước mốc 30 phút mà người dùng phải chờ kết nối EventSource hoặc chu kỳ
-    // 30 giây mới thấy bàn chuyển sang "Đã đặt trước".
+    // kiểm tra định kỳ mới thấy bàn chuyển sang "Đã đặt trước".
     refreshSnapshot().catch(() => {
         connectionLabel.textContent = 'Chưa đồng bộ được sơ đồ; đang thử lại…';
     });
