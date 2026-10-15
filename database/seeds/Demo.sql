@@ -7,6 +7,12 @@ IF EXISTS(SELECT 1 FROM dbo.Users)
  OR EXISTS(SELECT 1 FROM dbo.Reservations)
  THROW 51200,N'Dữ liệu mẫu chỉ được nạp vào database mới, chưa có dữ liệu nghiệp vụ.',1;
 
+-- Remove the single capacity-boundary fixture installed by migration 027 so the
+-- opt-in demo has exactly the requested three areas and 25 tables.
+DELETE dbo.DiningTables WHERE Code='DEMO-20';
+DELETE dbo.Areas WHERE NormalizedName=N'TRONG NHÀ'
+ AND NOT EXISTS(SELECT 1 FROM dbo.DiningTables WHERE AreaId=dbo.Areas.Id);
+
 INSERT dbo.Users(RoleId,FullName,UserName,Phone,IsActive) VALUES
  (1,N'Quản lý mẫu','manager','0900000001',0),(2,N'Phục vụ mẫu','waiter','0900000002',0),
  (3,N'Nhân viên bếp mẫu','kitchen','0900000003',0),(4,N'Thu ngân mẫu','cashier','0900000004',0);
@@ -18,18 +24,22 @@ IF NOT EXISTS(SELECT 1 FROM dbo.Areas WHERE NormalizedName=N'TẦNG HAI')
  INSERT dbo.Areas(Name,SortOrder) VALUES(N'Tầng hai',2);
 IF NOT EXISTS(SELECT 1 FROM dbo.Areas WHERE NormalizedName=N'SÂN VƯỜN')
  INSERT dbo.Areas(Name,SortOrder) VALUES(N'Sân vườn',3);
+UPDATE dbo.Areas SET IsActive=0
+WHERE NormalizedName NOT IN (N'TẦNG MỘT',N'TẦNG HAI',N'SÂN VƯỜN');
 
 DECLARE @floorOneAreaId int=(SELECT Id FROM dbo.Areas WHERE NormalizedName=N'TẦNG MỘT');
 DECLARE @floorTwoAreaId int=(SELECT Id FROM dbo.Areas WHERE NormalizedName=N'TẦNG HAI');
 DECLARE @gardenAreaId int=(SELECT Id FROM dbo.Areas WHERE NormalizedName=N'SÂN VƯỜN');
+-- Staging demo footprint: 25 tables split 9/8/8 across the three areas.
 DECLARE @n int=1;
-WHILE @n<=60
+WHILE @n<=25
 BEGIN
+ DECLARE @areaId int=CASE WHEN @n<=9 THEN @floorOneAreaId WHEN @n<=17 THEN @floorTwoAreaId ELSE @gardenAreaId END;
+ DECLARE @areaTableNo int=CASE WHEN @n<=9 THEN @n WHEN @n<=17 THEN @n-9 ELSE @n-17 END;
+ DECLARE @areaPrefix char(1)=CASE WHEN @n<=9 THEN 'A' WHEN @n<=17 THEN 'B' ELSE 'C' END;
  INSERT dbo.DiningTables(AreaId,Code,MinCapacity,MaxCapacity,SortOrder)
- VALUES(CASE WHEN @n<=20 THEN @floorOneAreaId WHEN @n<=40 THEN @floorTwoAreaId ELSE @gardenAreaId END,
-  CONCAT(CASE WHEN @n<=20 THEN 'A' WHEN @n<=40 THEN 'B' ELSE 'C' END,
-   RIGHT(CONCAT('0',CASE WHEN @n<=20 THEN @n WHEN @n<=40 THEN @n-20 ELSE @n-40 END),2)),
-  1,CASE WHEN @n%10=0 THEN 8 WHEN @n%3=0 THEN 6 ELSE 4 END,@n);
+ VALUES(@areaId,CONCAT(@areaPrefix,RIGHT(CONCAT('0',@areaTableNo),2)),
+  1,CASE WHEN @areaTableNo%8=0 THEN 8 WHEN @areaTableNo%3=0 THEN 6 ELSE 4 END,@areaTableNo);
  SET @n+=1;
 END;
 INSERT dbo.MenuCategories(Name,SortOrder,DefaultImagePath) VALUES
@@ -55,7 +65,8 @@ BEGIN
  INSERT dbo.Reservations(Code,CustomerName,Phone,Email,GuestCount,PreferredAreaId,StartsAt,EndsAt)
  VALUES(CONCAT('D',RIGHT(CONCAT('00000',@n),5)),CONCAT(N'Khách mẫu ',@n),CONCAT('091',RIGHT(CONCAT('0000000',@n),7)),
   CASE WHEN @n=3 THEN NULL ELSE CONCAT('khach',RIGHT(CONCAT('00',@n),2),'@example.com') END,
-  2,@floorOneAreaId,@start,DATEADD(minute,90,@start));
+  2,CASE WHEN @n%3=1 THEN @floorOneAreaId WHEN @n%3=2 THEN @floorTwoAreaId ELSE @gardenAreaId END,
+  @start,DATEADD(minute,90,@start));
  SET @n+=1;
 END;
 GO
