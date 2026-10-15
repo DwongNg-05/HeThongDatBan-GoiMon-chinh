@@ -1,0 +1,31 @@
+@model RestaurantManagement.Web.Models.Orders.TableBillPreviewRow
+@using RestaurantManagement.Web.Models.Orders
+@{
+    var line = Model.Line;
+    var requests = line.Requests;
+}
+@* S4-01 Task 1: một dòng trên màn hình Tạm tính (món đang phục vụ hoặc món "Đã huỷ – có tính tiền"). *@
+<tr data-preview-line="@line.Id" data-status="@line.Status" data-quantity="@line.Quantity" data-unit-price="@line.UnitPrice.ToString("0")"
+    data-amount="@line.Amount.ToString("0")">
+    <td class="bill-preview-index">@Model.Position</td>
+    <td class="bill-preview-dish">
+        <strong data-preview-name>@line.ItemName</strong>
+        @if (line.Status == "Cancelled")
+        {
+            <span class="bill-preview-charged-badge" data-preview-charged-label>@BillRules.ChargedCancellationLabel</span>
+        }
+    </td>
+    <td class="bill-preview-note">
+        @if (requests.HasAny)
+        {
+            <span data-preview-note>@requests.Summary</span>
+        }
+        else
+        {
+            <span class="text-muted">—</span>
+        }
+    </td>
+    <td class="text-end text-nowrap" data-preview-quantity>@line.Quantity @line.Unit</td>
+    <td class="text-end text-nowrap" data-preview-unit-price>@BillRules.Format(line.UnitPrice)</td>
+    <td class="text-end text-nowrap fw-semibold" data-preview-amount>@BillRules.Format(line.Amount)</td>
+</tr>

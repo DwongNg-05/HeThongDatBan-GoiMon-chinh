@@ -21,6 +21,8 @@ builder.Services.AddScoped<RestaurantManagement.Web.Services.Reservations.Reserv
 builder.Services.AddScoped<ReservationStore>();
 builder.Services.AddScoped<ReservationConfirmationService>();
 builder.Services.AddScoped<ITableMapReader, SqlTableMapReader>();
+// S4-01 Task 1: dữ liệu tạm tính của bàn đang phục vụ (chỉ đọc).
+builder.Services.AddScoped<TableBillPreviewStore>();
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
 builder.Services.AddSingleton<RestaurantManagement.Web.Services.CancellationSmtpEmailSender>();
 if (!string.IsNullOrWhiteSpace(builder.Configuration["Smtp:Username"] ) &&

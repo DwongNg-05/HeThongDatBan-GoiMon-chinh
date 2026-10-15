@@ -1,0 +1,90 @@
+@model RestaurantManagement.Web.Models.Orders.TableBillPreview
+@using RestaurantManagement.Web.Models.Orders
+@{
+    ViewData["Title"] = "Tạm tính · Bàn " + Model.Tables;
+    var position = 0;
+    // "Quay lại gọi món": về sơ đồ bàn và mở lại chi tiết của đúng bàn này (table-map.js đọc ?table=).
+    var backUrl = Url.Content("~/") + "?table=" + Uri.EscapeDataString(Model.TableCode);
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/bill-preview.css" asp-append-version="true" />
+}
+@* S4-01 Task 1: xem trước hoá đơn tạm tính của bàn đang phục vụ (chỉ đọc). Chưa có phần đầu hoá đơn (tên quán, mã bàn, thời điểm,
+   người in), chưa in, chưa xuất PDF. Tiền theo BillRules: dấu chấm hàng nghìn, ký hiệu "đ", làm tròn tới đồng. *@
+<div class="container mt-4 bill-preview" data-screen="bill-preview" data-table-code="@Model.TableCode" data-session-id="@Model.SessionId">
+    <div class="bill-preview-actions">
+        <a class="btn btn-outline-secondary btn-sm" href="@backUrl" data-preview-back>← Quay lại gọi món</a>
+    </div>
+
+    <header class="bill-preview-head">
+        <p class="bill-preview-kicker">Tạm tính</p>
+        <h2>Bàn <span data-preview-tables>@Model.Tables</span></h2>
+        <p class="bill-preview-meta"><strong data-preview-status="@Model.SessionStatus">@Model.SessionStatusLabel</strong> · Chưa trừ giảm giá</p>
+    </header>
+
+    @if (Model.IsEmpty)
+    {
+        <p class="bill-preview-empty" data-preview-empty>@BillRules.EmptyMessage</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table align-middle bill-preview-table">
+                <thead>
+                    <tr>
+                        <th scope="col" class="bill-preview-index">#</th>
+                        <th scope="col">Món</th>
+                        <th scope="col">Ghi chú</th>
+                        <th scope="col" class="text-end">SL</th>
+                        <th scope="col" class="text-end">Đơn giá</th>
+                        <th scope="col" class="text-end">Thành tiền</th>
+                    </tr>
+                </thead>
+                <tbody data-preview-group="items">
+                    @if (Model.Lines.Count == 0)
+                    {
+                        <tr><td colspan="6" class="text-muted">Không còn món nào đang phục vụ.</td></tr>
+                    }
+                    @foreach (var line in Model.Lines)
+                    {
+                        position++;
+                        <partial name="_PreviewLine" model="new TableBillPreviewRow(position, line)" />
+                    }
+                </tbody>
+                @if (Model.ChargedCancelledLines.Count > 0)
+                {
+                    <tbody class="bill-preview-charged" data-preview-group="charged-cancelled">
+                        <tr class="bill-preview-group-head">
+                            <th scope="rowgroup" colspan="6">
+                                <span class="bill-preview-charged-badge">@BillRules.ChargedCancellationLabel</span>
+                                <small>Món khách huỷ sau khi bếp đã chế biến@(BillRules.ChargedCancellationCountsInTotal ? " — vẫn tính vào tổng cộng." : " — không tính vào tổng cộng.")</small>
+                            </th>
+                        </tr>
+                        @foreach (var line in Model.ChargedCancelledLines)
+                        {
+                            position++;
+                            <partial name="_PreviewLine" model="new TableBillPreviewRow(position, line)" />
+                        }
+                    </tbody>
+                }
+                <tfoot>
+                    @if (Model.ChargedCancelledLines.Count > 0)
+                    {
+                        <tr class="bill-preview-subtotal">
+                            <th scope="row" colspan="5" class="text-end">Cộng món đã gọi</th>
+                            <td class="text-end text-nowrap" data-preview-items-subtotal="@Model.ItemsSubtotal.ToString("0")">@BillRules.Format(Model.ItemsSubtotal)</td>
+                        </tr>
+                        <tr class="bill-preview-subtotal">
+                            <th scope="row" colspan="5" class="text-end">Cộng món @BillRules.ChargedCancellationLabel.ToLowerInvariant()</th>
+                            <td class="text-end text-nowrap" data-preview-charged-subtotal="@Model.ChargedCancelledSubtotal.ToString("0")">@BillRules.Format(Model.ChargedCancelledSubtotal)</td>
+                        </tr>
+                    }
+                    <tr class="bill-preview-total-row">
+                        <th scope="row" colspan="5" class="text-end">Tổng cộng</th>
+                        <td class="text-end text-nowrap bill-preview-total" data-preview-total="@Model.Total.ToString("0")">@BillRules.Format(Model.Total)</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    }
+</div>

@@ -106,6 +106,14 @@
             billLink.href = hasBill ? `${billLink.dataset.billUrl}${encodeURIComponent(details.code)}` : '#';
         }
 
+        // S4-01 Task 1: nút "Tạm tính" chỉ hiện cho bàn đang phục vụ có phiên thật (dữ liệu mẫu không có tạm tính).
+        const previewLink = byId('details-preview-link');
+        if (previewLink) {
+            const hasPreview = serving && details.hasActiveSession && !details.isDemoData;
+            previewLink.hidden = !hasPreview;
+            previewLink.href = hasPreview ? `${previewLink.dataset.previewUrl}${encodeURIComponent(details.code)}` : '#';
+        }
+
         renderOrderedItems(details);
         renderAddItems(details);
     }
@@ -200,6 +208,7 @@
         byId('details-context').textContent = 'Đang tải thông tin…';
         byId('details-reservation').hidden = true;
         if (byId('details-bill-link')) byId('details-bill-link').hidden = true;
+        if (byId('details-preview-link')) byId('details-preview-link').hidden = true;
         if (byId('details-orders')) byId('details-orders').hidden = true;
         if (byId('details-add-items')) byId('details-add-items').hidden = true;
         detailsOverlay.hidden = false;
@@ -296,6 +305,16 @@
         button.addEventListener('click', () => openDetails(button.dataset.openDetails));
     });
     document.querySelector('[data-close-details]')?.addEventListener('click', closeDetails);
+
+    // S4-01 Task 1: "Quay lại gọi món" trên màn hình Tạm tính đưa về /?table={mã bàn} → mở lại chi tiết của đúng bàn đó.
+    const query = new URLSearchParams(window.location.search);
+    const tableFromUrl = query.get('table');
+    if (tableFromUrl) {
+        query.delete('table');   // tải lại trang sau khi đóng chi tiết thì không tự mở lại
+        const rest = query.toString();
+        history.replaceState(history.state, '', window.location.pathname + (rest ? `?${rest}` : '') + window.location.hash);
+        if (/^[A-Za-z0-9_-]{1,20}$/.test(tableFromUrl)) openDetails(tableFromUrl);
+    }
     detailsOverlay.addEventListener('click', event => {
         if (event.target === detailsOverlay) closeDetails();
     });

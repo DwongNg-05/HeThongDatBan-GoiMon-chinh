@@ -1,0 +1,35 @@
+/* S4-01 Task 1: màn hình Tạm tính của bàn đang phục vụ. Không cắt chữ (tên món, ghi chú dài xuống dòng). */
+.bill-preview { max-width: 960px; }
+.bill-preview-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.bill-preview-actions .btn { min-height: 38px; display: inline-flex; align-items: center; }
+.bill-preview-head { margin-bottom: 16px; }
+.bill-preview-kicker { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #92400e; }
+.bill-preview-head h2 { margin: 2px 0 4px; }
+.bill-preview-meta { margin: 0; color: #374151; }
+.bill-preview-empty { padding: 16px; border: 1px dashed #d1d5db; border-radius: 8px; background: #f9fafb; color: #4b5563; font-size: 16px; }
+
+.bill-preview-table td, .bill-preview-table th { vertical-align: top; }
+.bill-preview-table .text-end { font-variant-numeric: tabular-nums; }
+.bill-preview-index { width: 36px; color: #6b7280; }
+.bill-preview-dish { min-width: 180px; overflow-wrap: anywhere; }
+.bill-preview-dish strong { display: block; font-size: 16px; line-height: 1.35; }
+.bill-preview-note { min-width: 140px; max-width: 280px; white-space: pre-wrap; overflow-wrap: anywhere; color: #1f2937; }
+
+.bill-preview-charged { border-top: 2px solid #f59e0b; }
+.bill-preview-charged tr { background: #fffbeb; }
+.bill-preview-group-head th { padding-top: 12px; font-weight: 600; }
+.bill-preview-group-head small { display: block; margin-top: 4px; color: #92400e; font-weight: 400; }
+.bill-preview-charged-badge {
+    display: inline-block; margin-top: 4px; padding: 2px 10px; border-radius: 999px;
+    background: #92400e; color: #fff; font-size: 13px; font-weight: 700; line-height: 1.4;
+}
+.bill-preview-group-head .bill-preview-charged-badge { margin-top: 0; }
+
+.bill-preview-subtotal th, .bill-preview-subtotal td { font-weight: 500; color: #374151; }
+.bill-preview-total-row th, .bill-preview-total { font-size: 18px; font-weight: 800; }
+.bill-preview-total-row { border-top: 2px solid #111827; }
+
+@media (max-width: 575.98px) {
+    .bill-preview-actions .btn { flex: 1 1 auto; justify-content: center; }
+    .bill-preview-note { max-width: none; }
+}

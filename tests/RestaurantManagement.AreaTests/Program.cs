@@ -177,6 +177,8 @@ await PhoneNoShowWarningTests.Run(Check);
 OrderCancellationTests.Run(Check);
 ShiftCancellationReportTests.Run(Check);
 ChargedCancellationTests.Run(Check);
+// S4-01 Task 1: màn hình "Tạm tính" của bàn đang phục vụ (phép tính, nhóm món huỷ, định dạng VND, chỉ đọc, quyền, giao diện).
+BillPreviewTests.Run(Check);
 Console.WriteLine($"{count} tests passed.");
 if (args.Contains("--authentication-http")) await AuthenticationHttpTests.Run();
 if (args.Contains("--integration")) await AreaHttpTests.Run();

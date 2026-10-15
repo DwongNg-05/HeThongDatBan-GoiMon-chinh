@@ -16,7 +16,7 @@ internal static partial class DatabaseTool
             var connection = Environment.GetEnvironmentVariable("RM_CONNECTION_STRING");
             if (command == "help" || string.IsNullOrWhiteSpace(connection))
             {
-                Console.WriteLine("Commands: migrate | seed-demo | seed-login-demo | seed-menu-demo | seed-menu-extra | seed-khai-vi | seed-confirmation-demo | seed-menu-200 | hide-menu-200 | email-retry-now | verify | verify-booking-email | verify-api-permissions | verify-temporary-out | verify-qr-session | verify-late-reservations | verify-hold-extension | verify-phone-no-show | verify-cancel-item | verify-cancel-report | verify-charged-cancel | maintenance | check\nSet RM_CONNECTION_STRING first. seed-demo and seed-login-demo also require RM_DEMO_PASSWORD.\nseed-login-demo accepts RM_DEMO_USERNAME and RM_DEMO_PHONE; existing accounts are preserved.\nverify creates and removes its own uniquely named test database.");
+                Console.WriteLine("Commands: migrate | seed-demo | seed-login-demo | seed-menu-demo | seed-menu-extra | seed-khai-vi | seed-confirmation-demo | seed-menu-200 | hide-menu-200 | email-retry-now | verify | verify-booking-email | verify-api-permissions | verify-temporary-out | verify-qr-session | verify-late-reservations | verify-hold-extension | verify-phone-no-show | verify-cancel-item | verify-cancel-report | verify-charged-cancel | verify-bill-preview | maintenance | check\nSet RM_CONNECTION_STRING first. seed-demo and seed-login-demo also require RM_DEMO_PASSWORD.\nseed-login-demo accepts RM_DEMO_USERNAME and RM_DEMO_PHONE; existing accounts are preserved.\nverify creates and removes its own uniquely named test database.");
                 Environment.ExitCode = command == "help" ? 0 : 1;
                 return;
             }
@@ -52,6 +52,8 @@ internal static partial class DatabaseTool
                 case "verify-cancel-report": await Verification.RunCancelReport(connection); break;
                 // S3-05 Task 3: Quản lý huỷ món đã bắt đầu chế biến, món vẫn tính tiền (database tạm, cần build Debug trước).
                 case "verify-charged-cancel": await Verification.RunChargedCancel(connection); break;
+                // S4-01 Task 1: màn hình "Tạm tính" của bàn đang phục vụ, chỉ đọc (database tạm, cần build Debug trước).
+                case "verify-bill-preview": await Verification.RunBillPreview(connection); break;
                 case "maintenance": await Execute(connection, "EXEC dbo.usp_RunMaintenance;"); break;
                 // S2-09 Task 2 (demo): không chờ 5 phút, cho các email đặt bàn đang chờ gửi lại tới giờ gửi lại ngay.
                 case "email-retry-now": await EmailRetryNow(connection); break;

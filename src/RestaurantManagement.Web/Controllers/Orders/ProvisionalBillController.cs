@@ -5,6 +5,7 @@ using Microsoft.Data.SqlClient;
 using RestaurantManagement.Web.Models.Orders;
 using RestaurantManagement.Web.Models.Reservations;
 using RestaurantManagement.Web.Security;
+using RestaurantManagement.Web.Services;
 
 namespace RestaurantManagement.Web.Controllers;
 
@@ -55,6 +56,24 @@ public sealed class ProvisionalBillController(IConfiguration configuration) : Co
             return RedirectToAction(nameof(Index), new { sessionId });
         Response.StatusCode = StatusCodes.Status404NotFound;
         return View("Missing", new ProvisionalBillMissingViewModel($"Bàn {code} hiện không có khách, chưa có hoá đơn tạm tính."));
+    }
+
+    /// <summary>
+    /// S4-01 Task 1: màn hình "Tạm tính" mở từ nút "Tạm tính" trên chi tiết bàn đang phục vụ (docs/S4-01-Task1.md).
+    /// Bảng món (số lượng, đơn giá, thành tiền, ghi chú), nhóm riêng "Đã huỷ – có tính tiền", dòng tổng cộng; món huỷ trước khi
+    /// bếp chế biến không xuất hiện. Chỉ đọc (TableBillPreviewStore): bàn, phiên và đơn gọi món giữ nguyên sau khi xem.
+    /// Quyền: Quản lý, Phục vụ (người đang phục vụ bàn; nút "Quay lại gọi món" đưa về chi tiết bàn trên sơ đồ bàn).
+    /// </summary>
+    [HttpGet("Preview/{code}")]
+    [Authorize(Roles = AppRoles.FrontOfHouse)]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public async Task<IActionResult> Preview(string code, [FromServices] TableBillPreviewStore store, CancellationToken cancellationToken)
+    {
+        var result = await store.GetAsync(code, cancellationToken);
+        if (result.Preview is not null)
+            return View(result.Preview);
+        Response.StatusCode = StatusCodes.Status404NotFound;
+        return View("Missing", new ProvisionalBillMissingViewModel(result.Message));
     }
 
     /// <summary>

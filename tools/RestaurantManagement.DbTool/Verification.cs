@@ -86,6 +86,8 @@ internal static class Verification
             await ShiftCancellationVerification.Run(connection);
             // S3-05 Task 3: Quản lý huỷ món đã bắt đầu chế biến (vẫn tính tiền), bếp nhận thẻ dừng món, báo cáo cuối ca.
             await ChargedCancellationVerification.Run(connection);
+            // S4-01 Task 1: màn hình "Tạm tính" của bàn đang phục vụ (chỉ đọc), món huỷ trước/sau khi nấu, gọi thêm món rồi xem lại.
+            await BillPreviewVerification.Run(connection);
             await DatabaseTool.Execute(connection, "EXEC dbo.usp_RunMaintenance; EXEC dbo.usp_RunMaintenance;");
             Console.WriteLine("PASS: all SQL Server integration checks.");
         }
@@ -177,6 +179,35 @@ internal static class Verification
             await DatabaseTool.Seed(connection, "VerificationOnly9!" + Guid.NewGuid().ToString("N"));
             await ApiAuthorizationVerification.Run(connection);
             await ShiftCancellationVerification.Run(connection);
+        }
+        finally
+        {
+            SqlConnection.ClearAllPools();
+            builder.InitialCatalog = "master";
+            await using var cn = new SqlConnection(builder.ConnectionString);
+            await cn.OpenAsync();
+            await using var drop = new SqlCommand($"IF DB_ID(@name) IS NOT NULL BEGIN ALTER DATABASE [{name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{name}]; END", cn);
+            drop.Parameters.AddWithValue("@name", name);
+            await drop.ExecuteNonQueryAsync();
+        }
+    }
+
+    /// <summary>
+    /// S4-01 Task 1: chỉ chạy kiểm thử màn hình "Tạm tính" (lệnh "verify-bill-preview") trên database tạm riêng.
+    /// Cần build Debug trước (kiểm thử chạy web thật).
+    /// </summary>
+    internal static async Task RunBillPreview(string baseConnection)
+    {
+        var builder = new SqlConnectionStringBuilder(baseConnection);
+        var name = "RestaurantManagement_Test_" + Guid.NewGuid().ToString("N");
+        builder.InitialCatalog = name;
+        var connection = builder.ConnectionString;
+        try
+        {
+            await DatabaseTool.Migrate(connection);
+            await DatabaseTool.Seed(connection, "VerificationOnly9!" + Guid.NewGuid().ToString("N"));
+            await ApiAuthorizationVerification.Run(connection);
+            await BillPreviewVerification.Run(connection);
         }
         finally
         {
