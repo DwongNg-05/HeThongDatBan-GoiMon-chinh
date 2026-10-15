@@ -7,7 +7,7 @@ Tài liệu này gom 4 lát của S1-04 thành một quy tắc thống nhất. C
 | Task 1 | Phục vụ chỉ thấy 3 màn hình; API ngoài phạm vi trả lỗi JSON | [S1-04-Task1.md](S1-04-Task1.md) |
 | Task 2 | Bếp, Thu ngân chỉ thấy phần việc của mình | [S1-04-Task2.md](S1-04-Task2.md) |
 | Task 3 | Gõ thẳng đường dẫn ngoài quyền → 403 + trang báo | [S1-04-Task3.md](S1-04-Task3.md) |
-| Task 4 | Mọi API đều kiểm tra quyền ở máy chủ (101 API) | [S1-04-Task4.md](S1-04-Task4.md) |
+| Task 4 | Mọi API đều kiểm tra quyền ở máy chủ; hiển thị ma trận vai trò – module | [S1-04-Task4.md](S1-04-Task4.md) |
 
 ## Phạm vi của từng vai trò
 
@@ -15,8 +15,8 @@ Tài liệu này gom 4 lát của S1-04 thành một quy tắc thống nhất. C
 | --- | --- | --- | --- |
 | **Phục vụ** | Đặt bàn, Sơ đồ bàn, Gọi món (`/`) | Sơ đồ bàn và API trạng thái bàn; đặt bàn (xem, tạo); gọi món, chi tiết order | Thực đơn (quản lý món, nhóm món, báo tạm hết, món trong ngày); tài khoản nhân viên; báo cáo (nhật ký, hoá đơn, chốt ca); màn hình bếp; thông tin; khu vực, bàn, QR; giờ hoạt động, ngày nghỉ; huỷ/xoá đặt bàn |
 | **Bếp** | Màn hình bếp (`/Kitchen`) | Xem món cần nấu, chuyển trạng thái chế biến (chỉ Bếp) | Đặt bàn (kể cả chỉ xem); sơ đồ bàn; gọi món; báo tạm hết (Quản lý món); thanh toán, hoá đơn, chốt ca; mọi màn hình quản trị |
-| **Thu ngân** | Thanh toán, Hoá đơn, Chốt ca (`/Cashier`) | Thanh toán, hoá đơn trong ngày, mở/chốt ca | Đặt bàn (kể cả chỉ xem); sơ đồ bàn; gọi món; màn hình bếp; báo tạm hết; mọi màn hình quản trị |
-| **Quản lý** | Cả 15 mục (`/`) | Toàn bộ, kể cả báo món tạm hết / bán lại ở Quản lý món | Chuyển trạng thái chế biến (việc của Bếp) |
+| **Thu ngân** | Thanh toán, Hoá đơn, Chốt ca (`/Cashier`) | Thanh toán, hoá đơn trong ngày, mở/chốt ca, xem báo cáo doanh thu | Đặt bàn (kể cả chỉ xem); sơ đồ bàn; gọi món; màn hình bếp; báo tạm hết; mọi màn hình quản trị |
+| **Quản lý** | Toàn bộ mục (`/`) | Toàn bộ, kể cả sửa giá, báo món tạm hết / bán lại và ma trận phân quyền | Chuyển trạng thái chế biến (việc của Bếp) |
 | Vai trò không xác định | Không có mục nào | Chỉ đăng xuất | Mọi chức năng khác |
 
 **Mọi vai trò đều dùng được:**
@@ -30,7 +30,8 @@ Tài liệu này gom 4 lát của S1-04 thành một quy tắc thống nhất. C
 | --- | --- | --- |
 | Tên vai trò, nhóm vai trò | `src/RestaurantManagement.Web/Security/AppRoles.cs` | `ApiAuthorizationCoverageTests` |
 | Vai trò → màn hình (thanh điều hướng, trang đầu) | `Security/RoleNavigation.cs` | `RoleNavigationTests`, `verify-api-permissions` |
-| Vai trò → API (101 API) | `[Authorize(Roles = …)]` trong code; bảng đối chiếu `tools/RestaurantManagement.DbTool/ApiAccessMatrix.cs` | `ApiAuthorizationCoverageTests` (phản chiếu), `verify-api-permissions` (HTTP thật) |
+| Vai trò → API (158 endpoint) | `[Authorize(Roles = …)]` trong code; bảng đối chiếu `tools/RestaurantManagement.DbTool/ApiAccessMatrix.cs` | `ApiAuthorizationCoverageTests` (phản chiếu), `verify-api-permissions` (HTTP thật) |
+| Ma trận vai trò – module | `Security/RolePermissionMatrix.cs`, đọc từ `RoleNavigation.Items` | `PermissionMatrixTests`; chỉ Quản lý xem trang `/PermissionMatrix` và API `/api/permissions/matrix` |
 | Quyền trong database | `dbo.RolePermissions` (`005_ReferenceData.sql`, thu hẹp ở **`031_RolePermissionsByScope.sql`** và **`032_RemoveKitchenDishes.sql`**) | `verify-api-permissions`, `KitchenCashierVerification` |
 
 ## Khi bị chặn: máy chủ trả gì
@@ -84,7 +85,7 @@ dotnet run --no-build --project tools/RestaurantManagement.DbTool -- verify-api-
 Kết quả mong đợi gồm các dòng `PASS`:
 - `S1-04 — quyền trong database khớp…`;
 - `S1-04 Task 2 — <vai trò> mở "/" vào …` (Phục vụ 3 mục, Bếp 1, Thu ngân 3);
-- `S1-04 Task 4 — <vai trò>: 101 API…`;
+- `S1-04 Task 4 — <vai trò>: 158 endpoint…`;
 - `S1-04 Task 1 — Phục vụ: …`;
 - `S1-04 Task 3 — <vai trò>: … màn hình ngoài quyền trả 403…`;
 - luồng Bếp/Thu ngân `S1-04 Task 2 kitchen and cashier work flow checks`.

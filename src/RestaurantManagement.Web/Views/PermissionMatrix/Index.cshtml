@@ -1,0 +1,53 @@
+@using RestaurantManagement.Web.Security
+@{
+    ViewData["Title"] = "Ma trận phân quyền";
+    var matrix = RolePermissionMatrix.Get();
+}
+
+<div class="container-fluid">
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+        <div>
+            <p class="text-uppercase text-muted small fw-semibold mb-1">Quản trị hệ thống</p>
+            <h1 class="h2 mb-1">Ma trận phân quyền</h1>
+            <p class="text-muted mb-0">Đối chiếu quyền truy cập từng module theo vai trò.</p>
+        </div>
+        <a class="btn btn-outline-secondary" href="/api/permissions/matrix">Xem dữ liệu API</a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover table-bordered align-middle bg-white" id="permission-matrix">
+            <caption class="caption-top">Ma trận vai trò – module. Quyền API được máy chủ kiểm tra tại mỗi yêu cầu.</caption>
+            <thead class="table-light">
+                <tr>
+                    <th scope="col">Module</th>
+                    @foreach (var role in matrix.Roles)
+                    {
+                        <th scope="col">@role.Name</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var module in matrix.Modules)
+                {
+                    <tr data-module="@module.Key">
+                        <th scope="row"><a href="@module.Path">@module.Name</a></th>
+                        @foreach (var role in matrix.Roles)
+                        {
+                            var allowed = module.Permissions[role.Code];
+                            <td class="text-center" aria-label="@(allowed ? "Được phép" : "Không được phép")">
+                                @if (allowed)
+                                {
+                                    <span class="badge text-bg-success">Được phép</span>
+                                }
+                                else
+                                {
+                                    <span class="badge text-bg-secondary">Không được phép</span>
+                                }
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

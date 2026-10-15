@@ -44,7 +44,8 @@ public static class RoleNavigation
         new("employee-accounts", "Quản lý tài khoản", "/admin/employee-accounts", M),
         new("audit-logs", "Nhật ký hệ thống", "/AuditLogs", M),
         // S3-05 Task 2: báo cáo cuối ca — các lần huỷ món (chỉ Quản lý).
-        new("shift-cancellations", "Báo cáo huỷ món", "/Reports/Shift/Cancellations", M)
+        new("shift-cancellations", "Báo cáo huỷ món", "/Reports/Shift/Cancellations", M),
+        new("permission-matrix", "Ma trận phân quyền", "/PermissionMatrix", M)
     ];
 
     /// <summary>Các mục người dùng được thấy, theo vai trò trong phiên đăng nhập (claim Role do máy chủ cấp khi đăng nhập).</summary>
