@@ -179,6 +179,8 @@ ShiftCancellationReportTests.Run(Check);
 ChargedCancellationTests.Run(Check);
 // S4-01 Task 1: màn hình "Tạm tính" của bàn đang phục vụ (phép tính, nhóm món huỷ, định dạng VND, chỉ đọc, quyền, giao diện).
 BillPreviewTests.Run(Check);
+// S4-01 Task 2: phần đầu hoá đơn tạm tính (tên quán, mã bàn, bắt đầu phục vụ, thời điểm in, người in).
+BillHeaderTests.Run(Check);
 Console.WriteLine($"{count} tests passed.");
 if (args.Contains("--authentication-http")) await AuthenticationHttpTests.Run();
 if (args.Contains("--integration")) await AreaHttpTests.Run();

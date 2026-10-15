@@ -88,6 +88,8 @@ internal static class Verification
             await ChargedCancellationVerification.Run(connection);
             // S4-01 Task 1: màn hình "Tạm tính" của bàn đang phục vụ (chỉ đọc), món huỷ trước/sau khi nấu, gọi thêm món rồi xem lại.
             await BillPreviewVerification.Run(connection);
+            // S4-01 Task 2: phần đầu hoá đơn tạm tính — tên quán, mã bàn (kể cả chuyển / gộp bàn), bắt đầu phục vụ, giờ in, người in.
+            await BillHeaderVerification.Run(connection);
             await DatabaseTool.Execute(connection, "EXEC dbo.usp_RunMaintenance; EXEC dbo.usp_RunMaintenance;");
             Console.WriteLine("PASS: all SQL Server integration checks.");
         }
@@ -208,6 +210,7 @@ internal static class Verification
             await DatabaseTool.Seed(connection, "VerificationOnly9!" + Guid.NewGuid().ToString("N"));
             await ApiAuthorizationVerification.Run(connection);
             await BillPreviewVerification.Run(connection);
+            await BillHeaderVerification.Run(connection);
         }
         finally
         {

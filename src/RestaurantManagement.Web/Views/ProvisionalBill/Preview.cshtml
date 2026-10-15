@@ -5,20 +5,31 @@
     var position = 0;
     // "Quay lại gọi món": về sơ đồ bàn và mở lại chi tiết của đúng bàn này (table-map.js đọc ?table=).
     var backUrl = Url.Content("~/") + "?table=" + Uri.EscapeDataString(Model.TableCode);
+    // Controller luôn gắn phần đầu; dự phòng khi view được gọi từ nơi khác.
+    var header = Model.Header ?? TableBillHeader.Create(Model, DateTime.UtcNow, BillHeaderRules.PrinterName(User));
 }
 @section Styles {
     <link rel="stylesheet" href="~/css/bill-preview.css" asp-append-version="true" />
 }
-@* S4-01 Task 1: xem trước hoá đơn tạm tính của bàn đang phục vụ (chỉ đọc). Chưa có phần đầu hoá đơn (tên quán, mã bàn, thời điểm,
-   người in), chưa in, chưa xuất PDF. Tiền theo BillRules: dấu chấm hàng nghìn, ký hiệu "đ", làm tròn tới đồng. *@
+@* S4-01 Task 1: xem trước hoá đơn tạm tính của bàn đang phục vụ (chỉ đọc). Task 2: thêm phần đầu hoá đơn. Chưa in, chưa xuất PDF. Tiền theo BillRules: dấu chấm hàng nghìn, ký hiệu "đ", làm tròn tới đồng. *@
 <div class="container mt-4 bill-preview" data-screen="bill-preview" data-table-code="@Model.TableCode" data-session-id="@Model.SessionId">
     <div class="bill-preview-actions">
         <a class="btn btn-outline-secondary btn-sm" href="@backUrl" data-preview-back>← Quay lại gọi món</a>
     </div>
 
-    <header class="bill-preview-head">
-        <p class="bill-preview-kicker">Tạm tính</p>
-        <h2>Bàn <span data-preview-tables>@Model.Tables</span></h2>
+    @* S4-01 Task 2: phần đầu hoá đơn — tên quán, mã bàn hiện tại, bắt đầu phục vụ, thời điểm in, người in (lần mở này). *@
+    <header class="bill-preview-head bill-receipt-head" data-preview-header>
+        @if (header.Notice is not null)
+        {
+            <p class="bill-receipt-notice" data-preview-notice>@header.Notice</p>
+        }
+        <h2 class="bill-receipt-restaurant" data-preview-restaurant>@header.RestaurantName</h2>
+        <dl class="bill-receipt-meta">
+            <div><dt>Bàn</dt><dd data-preview-tables>@header.Tables</dd></div>
+            <div><dt>@header.ServiceStartLabel</dt><dd data-preview-service-start="@(header.ServiceStartedAtUtc?.ToString("o") ?? "")">@header.ServiceStartedAtText</dd></div>
+            <div><dt>Thời điểm in</dt><dd data-preview-printed-at="@header.PrintedAtUtc.ToString("o")">@header.PrintedAtText</dd></div>
+            <div><dt>Người in</dt><dd data-preview-printed-by>@header.PrintedBy</dd></div>
+        </dl>
         <p class="bill-preview-meta"><strong data-preview-status="@Model.SessionStatus">@Model.SessionStatusLabel</strong> · Chưa trừ giảm giá</p>
     </header>
 
