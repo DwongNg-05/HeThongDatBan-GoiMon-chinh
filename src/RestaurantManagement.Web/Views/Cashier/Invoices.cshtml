@@ -5,6 +5,8 @@
 }
 <div class="container mt-4" data-screen="cashier-invoices">
     <h2>Hoá đơn</h2>
+    @if (TempData["Success"] is string success) { <div class="alert alert-success" role="alert">@success</div> }
+    @if (TempData["Error"] is string error) { <div class="alert alert-danger" role="alert">@error</div> }
     <form method="get" class="row g-2 align-items-end mb-3">
         <div class="col-auto">
             <label for="date" class="form-label">Ngày</label>
@@ -19,8 +21,8 @@
     }
     else
     {
-        <table class="table table-bordered">
-            <thead><tr><th>Số hoá đơn</th><th>Bàn</th><th>Số khách</th><th>Giờ</th><th>Tạm tính</th><th>Giảm giá</th><th>Tổng</th><th>Hình thức</th><th>Trạng thái</th></tr></thead>
+        <div class="table-responsive"><table class="table table-bordered align-middle">
+            <thead><tr><th>Số hoá đơn</th><th>Bàn</th><th>Số khách</th><th>Giờ</th><th>Tạm tính</th><th>Giảm giá</th><th>Tổng</th><th>Hình thức</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
             <tbody>
                 @foreach (var i in Model.Invoices)
                 {
@@ -33,10 +35,27 @@
                         <td>@Vnd.Format(i.DiscountAmount)</td>
                         <td>@Vnd.Format(i.Total)</td>
                         <td>@i.MethodLabel</td>
-                        <td>@i.StatusLabel</td>
+                        <td>
+                            @if (i.Status == "Voided") { <span class="badge text-bg-danger">@i.StatusLabel</span><br /><small>@i.VoidedBy · @i.VoidedAt?.ToString("HH:mm")<br />@i.VoidReason</small> }
+                            else { <span class="badge text-bg-success">@i.StatusLabel</span> }
+                        </td>
+                        <td>
+                            @if (i.Status == "Paid" && User.IsInRole("Manager"))
+                            {
+                                <details><summary class="btn btn-outline-danger btn-sm">Huỷ hoá đơn</summary>
+                                    <form asp-action="VoidInvoice" asp-route-invoiceId="@i.Id" method="post" class="mt-2" style="min-width: 230px">
+                                        <input type="hidden" name="date" value="@Model.BusinessDate.ToString("yyyy-MM-dd")" />
+                                        <label class="form-label small" for="reason-@i.Id">Lý do</label>
+                                        <input id="reason-@i.Id" name="reason" required minlength="5" maxlength="500" class="form-control form-control-sm" placeholder="Ít nhất 5 ký tự" />
+                                        <button type="submit" class="btn btn-danger btn-sm mt-2">Xác nhận huỷ</button>
+                                    </form>
+                                </details>
+                            }
+                            else if (i.Status == "Paid") { <small class="text-muted">Chỉ Quản lý</small> }
+                        </td>
                     </tr>
                 }
             </tbody>
-        </table>
+        </table></div>
     }
 </div>

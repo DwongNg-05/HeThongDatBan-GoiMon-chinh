@@ -77,7 +77,7 @@ public sealed record CashierReceiptViewModel(
 
 /// <summary>Một hoá đơn trong ngày (dbo.Invoices + dbo.Payments).</summary>
 public sealed record InvoiceRow(long Id, string InvoiceNumber, string Tables, int GuestCount, DateTime IssuedAt, decimal Subtotal,
-    decimal DiscountAmount, decimal Total, string Method, string Status)
+    decimal DiscountAmount, decimal Total, string Method, string Status, string? VoidReason, string? VoidedBy, DateTime? VoidedAt)
 {
     public string MethodLabel => Method == "Cash" ? "Tiền mặt" : "Chuyển khoản";
     public string StatusLabel => Status == "Paid" ? "Đã thanh toán" : "Đã huỷ";
