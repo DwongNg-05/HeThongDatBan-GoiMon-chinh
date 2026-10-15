@@ -1,4 +1,4 @@
-﻿namespace RestaurantManagement.Web.Models;
+namespace RestaurantManagement.Web.Models;
 
 public sealed class SessionOrderingViewModel
 {
@@ -47,6 +47,7 @@ public sealed class SessionOrderingViewModel
 
 public sealed class SessionOrderItemViewModel
 {
+    public string OriginalTableCode { get; set; } = string.Empty;
     public long Id { get; set; }
     public int BatchNumber { get; set; }
     public DateTime SubmittedAt { get; set; }

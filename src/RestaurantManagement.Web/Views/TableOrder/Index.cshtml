@@ -153,6 +153,7 @@
                             <li class="table-order-ordered-item" data-ordered-status="@item.Status">
                                 <div>
                                     <strong>@item.Quantity × @item.Name</strong>
+                                    <span>Bàn gốc: @item.OriginalTableCode</span>
                                     @if (!string.IsNullOrEmpty(item.QuickNotes))
                                     {
                                         <span class="table-order-item-quick">@item.QuickNotes</span>

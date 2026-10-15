@@ -234,14 +234,13 @@ builder.Services.Configure<
     });
 
 builder.Services.AddHostedService<TemporaryOutResetWorker>();
-
 // Gọi thêm món vào phiên đang mở.
 builder.Services.AddScoped<SessionOrderingService>();
-
 // S4-04 Task 3: đọc bản chốt đã lưu và tạo PDF.
 builder.Services.AddScoped<ShiftClosingStore>();
 builder.Services.AddSingleton<ShiftClosingPdfBuilder>();
-
+builder.Services.AddScoped<RestaurantManagement.Web.Services.TableMergeService>();
+builder.Services.AddSingleton<DatabaseSchemaReadiness>();
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
@@ -299,6 +298,7 @@ app.UseMiddleware<EmailVerificationMiddleware>();
 app.UseMiddleware<RequiredPasswordChangeMiddleware>();
 
 app.UseAuthorization();
+app.UseMiddleware<DatabaseSchemaMiddleware>();
 
 app.UseWhen(
     context =>

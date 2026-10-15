@@ -2,6 +2,12 @@
   "version": 1,
   "dependencies": {
     "net10.0": {
+      "System.Security.Cryptography.Pkcs": {
+        "type": "Direct",
+        "requested": "[10.0.13, )",
+        "resolved": "10.0.13",
+        "contentHash": "a+EovgC1fBnwdlQ6cn3j4JFBfKqiFaFvoAhjisOoSvazLAcIznaBzPQP0oYnvccmeXfqUH1KebVZOxSeH6rMaw=="
+      },
       "BCrypt.Net-Next": {
         "type": "Transitive",
         "resolved": "4.0.3",
@@ -387,14 +393,16 @@
         "dependencies": {
           "Microsoft.Data.SqlClient": "[7.1.0, )",
           "Microsoft.EntityFrameworkCore": "[10.0.12, )",
-          "Microsoft.EntityFrameworkCore.SqlServer": "[10.0.12, )"
+          "Microsoft.EntityFrameworkCore.SqlServer": "[10.0.12, )",
+          "System.Security.Cryptography.Pkcs": "[10.0.13, )"
         }
       },
       "restaurantmanagement.dbtool": {
         "type": "Project",
         "dependencies": {
           "BCrypt.Net-Next": "[4.0.3, )",
-          "Microsoft.Data.SqlClient": "[7.1.0, )"
+          "Microsoft.Data.SqlClient": "[7.1.0, )",
+          "System.Security.Cryptography.Pkcs": "[10.0.13, )"
         }
       },
       "restaurantmanagement.web": {

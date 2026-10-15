@@ -458,7 +458,8 @@
         "dependencies": {
           "Microsoft.Data.SqlClient": "[7.1.0, )",
           "Microsoft.EntityFrameworkCore": "[10.0.12, )",
-          "Microsoft.EntityFrameworkCore.SqlServer": "[10.0.12, )"
+          "Microsoft.EntityFrameworkCore.SqlServer": "[10.0.12, )",
+          "System.Security.Cryptography.Pkcs": "[10.0.13, )"
         }
       }
     }

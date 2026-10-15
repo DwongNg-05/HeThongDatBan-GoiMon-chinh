@@ -1,0 +1,34 @@
+@model RestaurantManagement.Web.Services.AdjacencyViewModel
+@{ ViewData["Title"]="Bàn liền nhau"; }
+<h1>Cấu hình bàn liền nhau</h1>
+<p>Chỉ khai báo các bàn thực sự liền nhau trong cùng khu vực. Phục vụ sẽ chọn từ các cặp này khi gộp bàn.</p>
+@if(TempData["Success"] is string success) { <p class="alert alert-success" role="status">@success</p> }
+@if(TempData["Error"] is string error) { <p class="alert alert-danger" role="alert">@error</p> }
+<form asp-action="Save" method="post" class="card card-body mb-3">
+    <label for="adj-table">Bàn thứ nhất</label>
+    <select id="adj-table" name="tableId" class="form-select" required>
+        @foreach(var t in Model.Tables) { <option value="@t.Id">@t.Code · @t.Area</option> }
+    </select>
+    <label for="adj-other">Bàn liền kề</label>
+    <select id="adj-other" name="adjacentTableId" class="form-select" required>
+        @foreach(var t in Model.Tables) { <option value="@t.Id">@t.Code · @t.Area</option> }
+    </select>
+    <input type="hidden" name="enabled" value="true" />
+    <button class="btn btn-primary mt-2" type="submit">Lưu cặp bàn liền nhau</button>
+</form>
+<ul class="list-group mb-3">
+@foreach(var p in Model.Pairs)
+{
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+        <span>@p.Code ↔ @p.AdjacentCode</span>
+        <form asp-action="Save" method="post">
+            <input type="hidden" name="tableId" value="@p.TableId" />
+            <input type="hidden" name="adjacentTableId" value="@p.AdjacentTableId" />
+            <input type="hidden" name="enabled" value="false" />
+            <button class="btn btn-outline-danger" type="submit">Bỏ liền kề</button>
+        </form>
+    </li>
+}
+</ul>
+@if(Model.Pairs.Count==0) { <p>Chưa cấu hình cặp bàn liền nhau.</p> }
+<a asp-controller="Tables" asp-action="Index">Quay lại quản lý bàn</a>

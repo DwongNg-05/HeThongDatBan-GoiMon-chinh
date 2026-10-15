@@ -117,6 +117,7 @@ else
         </div>
     }
 
+    <partial name="_MergeTables" model="Model" />
     <h2 class="h4" id="da-goi">Món bàn @session.TableCode đã gọi</h2>
 
     @if (session.Items.Count == 0)
@@ -131,6 +132,7 @@ else
                     <tr>
                         <th>Đợt</th>
                         <th>Món</th>
+                        <th>Bàn gốc</th>
                         <th>Đơn giá</th>
                         <th>Số lượng</th>
                         <th>Thành tiền</th>
@@ -143,6 +145,7 @@ else
                         <tr>
                             <td>@item.BatchNumber</td>
                             <td>@item.ItemName</td>
+                            <td>@item.OriginalTableCode</td>
                             <td>
                                 @item.UnitPrice.ToString("N0", culture) đ
                             </td>
@@ -205,6 +208,7 @@ else if (string.IsNullOrEmpty(Model.SessionError))
 }
 
 @section Scripts {
+    <script src="~/js/merge-tables.js" asp-append-version="true"></script>
     <script>
         (() => {
             const form = document.getElementById('reopen-table-form');

@@ -9,6 +9,8 @@
 @if (TempData["Success"] is not null) { <div class="alert alert-success" role="status">@TempData["Success"]</div> }
 @if (TempData["Error"] is not null) { <div class="alert alert-danger" role="alert">@TempData["Error"]</div> }
 
+<p><a asp-controller="TableAdjacency" asp-action="Index" class="btn btn-outline-secondary">Cấu hình bàn liền nhau</a></p>
+
 <form asp-action="DownloadQrPdf" method="post" class="card card-body bg-light border-0 mb-3">
     @Html.AntiForgeryToken()
     <div class="row g-2 align-items-end">

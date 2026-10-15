@@ -1,4 +1,4 @@
-﻿using System.Data;
+using System.Data;
 using System.Text.Json;
 using Microsoft.Data.SqlClient;
 using RestaurantManagement.Web.Models;
@@ -134,16 +134,18 @@ public sealed class SessionOrderingService
                 i.Quantity,
                 i.LineTotal,
                 i.Status,
-                i.ChargeWhenCancelled
+                i.ChargeWhenCancelled,
+                t.Code
             FROM dbo.OrderBatches b
             JOIN dbo.OrderItems i
                 ON i.BatchId = b.Id
+            JOIN dbo.DiningTables t ON t.Id=i.OriginalTableId
             WHERE b.SessionId = @SessionId
             ORDER BY b.BatchNumber, i.Id;
             """, connection);
 
         itemsCommand.Parameters.Add("@SessionId", SqlDbType.BigInt)
-            .Value = model.SessionId;
+            .Value = model.BillingSessionId;
 
         await using var itemsReader =
             await itemsCommand.ExecuteReaderAsync(cancellationToken);
@@ -163,7 +165,8 @@ public sealed class SessionOrderingService
                 Quantity = itemsReader.GetInt32(6),
                 LineTotal = itemsReader.GetDecimal(7),
                 Status = itemsReader.GetString(8),
-                ChargeWhenCancelled = itemsReader.GetBoolean(9)
+                ChargeWhenCancelled = itemsReader.GetBoolean(9),
+                OriginalTableCode = itemsReader.GetString(10)
             };
 
             model.Items.Add(item);
@@ -355,6 +358,34 @@ public sealed class SessionOrderingService
             .Value = actorUserId;
 
         await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+
+    public async Task RequestPaymentAsync(int tableId,long sessionId,int actor,CancellationToken ct)
+    {
+        await using var cn=new SqlConnection(GetConnectionString());
+        await using var cmd=new SqlCommand("""
+            SET XACT_ABORT ON;
+            BEGIN TRY
+              BEGIN TRANSACTION;
+              EXEC dbo.usp_LockOperations;
+              DECLARE @root bigint;
+              SELECT @root=COALESCE(s.BillingSessionId,s.Id) FROM dbo.SessionTables st
+              JOIN dbo.DiningSessions s ON s.Id=st.SessionId
+              WHERE st.TableId=@table AND st.SessionId=@session AND st.ReleasedAt IS NULL AND s.Status='Open';
+              IF @root IS NULL THROW 51153,N'Phiên hoặc trạng thái bàn đã thay đổi. Vui lòng tải lại.',1;
+              EXEC dbo.usp_SetPaymentState @SessionId=@root,@Awaiting=1,@ActorUserId=@actor;
+              COMMIT;
+            END TRY
+            BEGIN CATCH
+              IF XACT_STATE()<>0 ROLLBACK;
+              THROW;
+            END CATCH;
+            """,cn);
+        cmd.Parameters.Add("@table",SqlDbType.Int).Value=tableId;
+        cmd.Parameters.Add("@session",SqlDbType.BigInt).Value=sessionId;
+        cmd.Parameters.Add("@actor",SqlDbType.Int).Value=actor;
+        await cn.OpenAsync(ct); await cmd.ExecuteNonQueryAsync(ct);
     }
 
     public sealed class SubmitOrderItem
