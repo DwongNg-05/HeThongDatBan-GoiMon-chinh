@@ -16,7 +16,8 @@
             <dl class="row small border-top border-bottom py-3 mb-3">
                 <dt class="col-5 text-muted">Bàn</dt><dd class="col-7 text-end">@Model.Tables</dd>
                 <dt class="col-5 text-muted">Số khách</dt><dd class="col-7 text-end">@Model.GuestCount</dd>
-                <dt class="col-5 text-muted">Hình thức</dt><dd class="col-7 text-end">Tiền mặt</dd>
+                <dt class="col-5 text-muted">Hình thức</dt><dd class="col-7 text-end">@(Model.Method == "Transfer" ? "Chuyển khoản" : "Tiền mặt")</dd>
+                @if (Model.TransferReference is not null) { <dt class="col-5 text-muted">Mã tham chiếu</dt><dd class="col-7 text-end">@Model.TransferReference</dd> }
             </dl>
             <div class="table-responsive">
                 <table class="table table-sm"><thead><tr><th>Món</th><th class="text-center">SL</th><th class="text-end">Thành tiền</th></tr></thead><tbody>
@@ -25,8 +26,7 @@
             </div>
             <dl class="cashier-payment__summary mt-3">
                 <div><dt>Tổng tiền</dt><dd>@Vnd.Format(Model.Total)</dd></div>
-                <div><dt>Khách đưa</dt><dd>@Vnd.Format(Model.CashReceived)</dd></div>
-                <div class="cashier-payment__total"><dt>Tiền thối</dt><dd>@Vnd.Format(Model.ChangeAmount)</dd></div>
+                @if (Model.Method == "Cash") { <div><dt>Khách đưa</dt><dd>@Vnd.Format(Model.CashReceived ?? 0)</dd></div><div class="cashier-payment__total"><dt>Tiền thối</dt><dd>@Vnd.Format(Model.ChangeAmount ?? 0)</dd></div> }
             </dl>
             <div class="d-flex flex-wrap gap-2 mt-4"><a asp-action="Index" class="btn btn-primary">Về thanh toán</a><a asp-action="Invoices" class="btn btn-outline-secondary">Danh sách hoá đơn</a></div>
         </div>
