@@ -176,6 +176,7 @@ HoldExtensionTests.Run(Check);
 await PhoneNoShowWarningTests.Run(Check);
 OrderCancellationTests.Run(Check);
 ShiftCancellationReportTests.Run(Check);
+PermissionMatrixTests.Run(Check);
 ChargedCancellationTests.Run(Check);
 Console.WriteLine($"{count} tests passed.");
 if (args.Contains("--authentication-http")) await AuthenticationHttpTests.Run();

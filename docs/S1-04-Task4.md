@@ -18,9 +18,9 @@ Ngoài ra, khu vực, bàn, mã QR, giờ hoạt động và ngày nghỉ ghi th
 | Thứ tự kiểm tra | Bước xác minh email và bắt đổi mật khẩu chạy **trước** bước phân quyền, nên tài khoản chưa hoàn tất luôn được đưa tới đúng màn hình đó. |
 | Giao diện | Menu bên trái và nút “+ Đặt bàn mới” chỉ hiện với vai trò được dùng. Máy chủ vẫn chặn khi gõ thẳng đường dẫn. |
 
-## Bảng phân quyền (101 API)
+## Bảng phân quyền
 
-Nguồn đối chiếu duy nhất là `tools/RestaurantManagement.DbTool/ApiAccessMatrix.cs`. Bảng dưới được sinh từ tệp đó và đã cập nhật theo S1-04 Task 2 (phần việc của Bếp và Thu ngân) và S1-04 Task 1 (phạm vi của Phục vụ).
+Nguồn đối chiếu duy nhất cho kiểm thử toàn hệ thống là `tools/RestaurantManagement.DbTool/ApiAccessMatrix.cs` (158 endpoint hiện tại). Bảng bên dưới ghi lại phạm vi ban đầu của S1-04; các API giá món, doanh thu và ma trận được bổ sung sau đó xem tại [PermissionMatrix.md](PermissionMatrix.md).
 
 | API | Gọi thử | Được phép |
 | --- | --- | --- |
@@ -140,7 +140,7 @@ Vai trò khớp quyền trong database (`dbo.RolePermissions`, đã thu hẹp �
 | Bộ kiểm thử | Lệnh | Kiểm tra |
 | --- | --- | --- |
 | `ApiAuthorizationCoverageTests` (không cần database) | `dotnet run --project tests/RestaurantManagement.AreaTests --no-build` | Tìm **mọi** action MVC và Razor Page đã biên dịch bằng phản chiếu, rồi so với bảng phân quyền. Không API nào thiếu trong bảng, không mục thừa. Mọi API không công khai đều gắn `[Authorize]`; `[AllowAnonymous]` chỉ có ở API công khai. Chạy đúng chính sách phân quyền của web cho 7 trường hợp: chưa đăng nhập, 4 vai trò, vai trò không xác định, không có vai trò. Kết quả phải khớp bảng. |
-| `ApiAuthorizationVerification` (web thật + SQL Server thật) | `dotnet run --no-build --project tools/RestaurantManagement.DbTool -- verify-api-permissions` (cũng chạy trong `verify`) | Gọi HTTP **toàn bộ 101 API** cho 6 trường hợp: chưa đăng nhập, Quản lý, Phục vụ, Bếp, Thu ngân, và một tài khoản vai trò không xác định tạo riêng cho bài kiểm tra. API ngoài quyền phải bị chặn (401/403, hoặc chuyển tới đăng nhập/từ chối truy cập); API trong quyền phải qua được bước kiểm tra quyền. Lời gọi ghi cố tình thiếu mã chống giả mạo nên dừng ở 400, không đổi dữ liệu. Sau khi gọi hết, phiên đăng nhập vẫn còn hiệu lực. Kiểm tra thêm: API trả 401 khi chưa đăng nhập; Bếp đổi trạng thái bàn qua API nhận 403; database không còn quyền rộng hơn web. Cùng lệnh này chạy luôn phần kiểm tra của Task 1 (Phục vụ) và Task 3 (gõ thẳng đường dẫn). |
+| `ApiAuthorizationVerification` (web thật + SQL Server thật) | `dotnet run --no-build --project tools/RestaurantManagement.DbTool -- verify-api-permissions` (cũng chạy trong `verify`) | Gọi HTTP **toàn bộ 158 endpoint hiện tại** cho 6 trường hợp: chưa đăng nhập, Quản lý, Phục vụ, Bếp, Thu ngân, và một tài khoản vai trò không xác định tạo riêng cho bài kiểm tra. API ngoài quyền phải bị chặn (401/403, hoặc chuyển tới đăng nhập/từ chối truy cập); API trong quyền phải qua được bước kiểm tra quyền. Lời gọi ghi cố tình thiếu mã chống giả mạo nên dừng ở 400, không đổi dữ liệu. Sau khi gọi hết, phiên đăng nhập vẫn còn hiệu lực. Kiểm tra thêm: API trả 401 khi chưa đăng nhập; giá món/doanh thu trả đúng 401, 403 hoặc dữ liệu hợp lệ; database không còn quyền rộng hơn web. Cùng lệnh này chạy luôn phần kiểm tra của Task 1 (Phục vụ) và Task 3 (gõ thẳng đường dẫn). |
 
 Khi thêm một API mới mà quên ghi vào bảng hoặc quên gắn quyền, `ApiAuthorizationCoverageTests` báo lỗi ngay, kèm tên API.
 
@@ -153,7 +153,7 @@ dotnet run --no-build --project tools/RestaurantManagement.DbTool -- verify-api-
 ```
 
 Kết quả mong đợi:
-- Một dòng `PASS` cho mỗi trường hợp, ví dụ `PASS: S1-04 Task 4 — Bếp: 101 API, được phép …, bị chặn …`.
-- Một dòng tổng kết: `PASS: S1-04 Task 4 — 606 lời gọi (101 API × 6 trường hợp) đều đúng quyền.`
+- Một dòng `PASS` cho mỗi trường hợp, ví dụ `PASS: S1-04 Task 4 — Bếp: 158 API, được phép …, bị chặn …`.
+- Một dòng tổng kết: `PASS: S1-04 Task 4 — 948 lời gọi (158 API × 6 trường hợp) đều đúng quyền.`
 
 Nếu có API sai quyền, lệnh in từng dòng lỗi gồm vai trò, đường dẫn, mong đợi và thực tế.

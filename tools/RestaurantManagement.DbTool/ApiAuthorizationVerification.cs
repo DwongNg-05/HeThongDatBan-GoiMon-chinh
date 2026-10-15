@@ -31,7 +31,7 @@ internal static class ApiAuthorizationVerification
         ["ordering"] = "/Ordering", ["serving-queue"] = "/Serving", ["kitchen-orders"] = "/Kitchen", ["daily-dishes"] = "/Kitchen/Dishes",
         ["cashier-payments"] = "/Cashier", ["cashier-invoices"] = "/Cashier/Invoices", ["cashier-shift"] = "/Cashier/Shift",
         ["employee-accounts"] = "/admin/employee-accounts", ["audit-logs"] = "/AuditLogs",
-        ["shift-cancellations"] = "/Reports/Shift/Cancellations"
+        ["shift-cancellations"] = "/Reports/Shift/Cancellations", ["permission-matrix"] = "/PermissionMatrix"
     };
 
     /// <summary>Màn hình công khai cho khách (thực đơn): ai cũng mở được, không tính là ngoài quyền.</summary>
@@ -46,13 +46,13 @@ internal static class ApiAuthorizationVerification
     };
 
     /// <summary>
-    /// S1-04 Task 1: thanh điều hướng mong đợi theo vai trò (khoá data-nav-item) và trang đầu tiên khi mở "/".
-    /// Phục vụ: 4 mục; Bếp: 2 mục; Thu ngân: 3 mục.
+    /// S1-04 Task 1/2: thanh điều hướng mong đợi theo vai trò (khoá data-nav-item) và trang đầu tiên khi mở "/".
+    /// Phục vụ: 4 mục; Bếp: 2 mục; Thu ngân: 3 mục; ma trận phân quyền chỉ hiển thị cho Quản lý.
     /// </summary>
     internal static readonly Dictionary<string, (string Landing, string[] Nav)> ExpectedNavigation = new()
     {
         ["Manager"] = ("/", new[] { "reservations", "areas", "table-map", "opening-hours", "privacy", "dish-categories", "dishes", "menu", "ordering", "serving-queue",
-            "kitchen-orders", "daily-dishes", "cashier-payments", "cashier-invoices", "cashier-shift", "employee-accounts", "audit-logs", "shift-cancellations" }),
+            "kitchen-orders", "daily-dishes", "cashier-payments", "cashier-invoices", "cashier-shift", "employee-accounts", "audit-logs", "shift-cancellations", "permission-matrix" }),
         ["Waiter"] = ("/", new[] { "reservations", "table-map", "ordering", "serving-queue" }),
         ["Kitchen"] = ("/Kitchen", new[] { "kitchen-orders", "daily-dishes" }),
         ["Cashier"] = ("/Cashier", new[] { "cashier-payments", "cashier-invoices", "cashier-shift" })
@@ -275,8 +275,9 @@ internal static class ApiAuthorizationVerification
                 problems.Add($"Quản lý cập nhật giá qua API phải thành công (200), thực tế {(int)saved.StatusCode}: {await saved.Content.ReadAsStringAsync()}");
 
             using var report = await manager.GetAsync("/api/reports/revenue");
-            if (report.StatusCode != HttpStatusCode.OK)
-                problems.Add($"Quản lý phải xem được API doanh thu (200), thực tế {(int)report.StatusCode}.");
+            using var matrix = await manager.GetAsync("/api/permissions/matrix");
+            if (report.StatusCode != HttpStatusCode.OK || matrix.StatusCode != HttpStatusCode.OK)
+                problems.Add($"Quản lý phải xem được API doanh thu và ma trận (200), thực tế {(int)report.StatusCode}/{(int)matrix.StatusCode}.");
         }
 
         using (var cashier = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, CookieContainer = new CookieContainer() }) { BaseAddress = baseAddress })
@@ -288,7 +289,7 @@ internal static class ApiAuthorizationVerification
         }
 
         if (problems.Count == 0)
-            Console.WriteLine("PASS: Sensitive APIs — giá món 401/403/200 theo vai trò; doanh thu 401/403/200.");
+            Console.WriteLine("PASS: Sensitive APIs — giá món 401/403/200 theo vai trò; doanh thu 401/403/200; ma trận chỉ Quản lý.");
         return problems;
     }
 

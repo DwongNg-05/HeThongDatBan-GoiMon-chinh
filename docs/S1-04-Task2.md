@@ -4,7 +4,7 @@
 
 Trang báo 403 khi gõ thẳng đường dẫn giao diện ngoài quyền: xem docs/S1-04-Task3.md. Quy tắc chung của cả 4 lát: docs/S1-04-TongHop.md.
 
-> **Cập nhật:** màn hình “Món trong ngày” của Bếp (`/Kitchen/Dishes`, `/Kitchen/SoldOut`) đã bỏ vì trùng với **Quản lý món**. Báo món tạm hết / bán lại chỉ làm ở Quản lý món (`/Dishes`, Quản lý). Migration `032_RemoveKitchenDishes.sql` bỏ quyền `Menu.Availability` của Bếp trong database.
+> **Cập nhật:** màn hình “Món trong ngày” hiện có tại `/Kitchen/Dishes`; Quản lý và Bếp được bật/tắt trạng thái “Tạm hết”. Màn hình “Hết trong ngày” cũ (`/Kitchen/SoldOut`) đã bỏ; báo hết/bán lại trong ngày chỉ làm ở Quản lý món (`/Dishes`, Quản lý).
 
 ## Bảng ánh xạ vai trò → màn hình
 
@@ -12,10 +12,10 @@ Nguồn duy nhất là `Security/RoleNavigation.cs`. Thanh điều hướng (`_L
 
 | Vai trò | Thanh điều hướng | Mở “/” sau khi đăng nhập |
 | --- | --- | --- |
-| **Bếp** | **Màn hình bếp** (đúng 1 mục) | `/Kitchen` |
+| **Bếp** | **Màn hình bếp**, **Món trong ngày** (đúng 2 mục) | `/Kitchen` |
 | **Thu ngân** | **Thanh toán**, **Hoá đơn**, **Chốt ca** (đúng 3 mục) | `/Cashier` |
-| Phục vụ | Đặt bàn, Sơ đồ bàn, Gọi món (đúng 3 mục, S1-04 Task 1) | `/` (sơ đồ bàn) |
-| Quản lý | Tất cả 15 mục, kể cả các màn hình của Bếp và Thu ngân | `/` |
+| Phục vụ | Đặt bàn, Sơ đồ bàn, Gọi món, Món chờ mang ra (đúng 4 mục) | `/` (sơ đồ bàn) |
+| Quản lý | Tất cả 19 mục, kể cả các màn hình của Bếp, Thu ngân và ma trận phân quyền | `/` |
 
 **Vai trò được gắn khi đăng nhập:** máy chủ đọc `dbo.Roles.Code` của tài khoản (`kitchen` → `Kitchen`, `cashier` → `Cashier`) và ghi vào claim `Role` của phiên. Trình duyệt không tự chọn vai trò được.
 
@@ -27,7 +27,7 @@ Nguồn duy nhất là `Security/RoleNavigation.cs`. Thanh điều hướng (`_L
 | | `POST /Kitchen/Advance/{id}` | Chờ nấu → Đang nấu → Xong (`usp_TransitionOrderItem`) | **Chỉ Bếp** (`Kitchen.Manage`) |
 | Thanh toán | `GET /Cashier`, `POST /Cashier/Checkout` | Bàn chờ thanh toán; thu tiền mặt hoặc chuyển khoản (`usp_Checkout`, mỗi form một mã yêu cầu nên bấm 2 lần vẫn chỉ ra 1 hoá đơn) | Quản lý, Thu ngân (`Payments.Manage`) |
 | Hoá đơn | `GET /Cashier/Invoices?date=` | Hoá đơn trong ngày và tổng đã thu | Quản lý, Thu ngân |
-| Chốt ca | `GET /Cashier/Shift`, `POST /Cashier/OpenShift`, `POST /Cashier/CloseShift` | Mở ca; xem tiền mặt phải có; chốt ca (`usp_OpenShift`, `usp_CloseShift`, lệch quá 50.000 ₫ phải giải trình) | Quản lý, Thu ngân |
+| Chốt ca & doanh thu | `GET /Cashier/Shift`, `GET /api/reports/revenue`, `POST /Cashier/OpenShift`, `POST /Cashier/CloseShift` | Mở ca; báo cáo hoá đơn đã thanh toán theo ngày; chốt ca | Quản lý, Thu ngân |
 
 Mọi thao tác ghi dùng tài khoản đang đăng nhập làm `ActorUserId`. Thủ tục SQL kiểm tra quyền thêm một lần nữa. Quyền trong database được thu hẹp cho khớp web ở `031_RolePermissionsByScope.sql` (Bếp, Thu ngân không còn `Reservations.Read`).
 
@@ -48,9 +48,9 @@ Bảng đầy đủ: `docs/S1-04-Task4.md`.
 
 | Bộ kiểm thử | Kiểm tra |
 | --- | --- |
-| `RoleNavigationTests` (không cần database) | Bếp thấy đúng 1 mục, Thu ngân đúng 3 mục, Phục vụ và Quản lý đúng danh sách. Mỗi mục vai trò thấy đều được máy chủ cho phép với vai trò đó. Ngoài màn hình của mình và tài khoản, Bếp và Thu ngân không gọi được API nào. Chỉ Bếp chuyển được trạng thái chế biến (kể cả Quản lý cũng không). |
-| `ApiAuthorizationCoverageTests` | Hai controller mới phải có trong bảng phân quyền với đúng vai trò. |
-| `ApiAuthorizationVerification` (`verify-api-permissions`, web thật) | Đăng nhập lần lượt Phục vụ, Bếp, Thu ngân, Quản lý. Mở “/” phải vào đúng trang đầu; thanh điều hướng phải đúng các mục (Phục vụ 3, Bếp 1, Thu ngân 3). Sau đó gọi toàn bộ API: mọi API ngoài phạm vi đều bị chặn. |
+| `RoleNavigationTests` (không cần database) | Bếp thấy đúng 2 mục, Thu ngân đúng 3 mục, Phục vụ và Quản lý đúng danh sách. Mỗi mục vai trò thấy đều được máy chủ cho phép với vai trò đó. Ngoài màn hình của mình và tài khoản, Bếp và Thu ngân không gọi được API nào ngoài quyền. Chỉ Bếp chuyển được trạng thái chế biến. |
+| `ApiAuthorizationCoverageTests` | Mọi controller/page, gồm API giá món, doanh thu và ma trận, khớp bảng phân quyền cho từng vai trò. |
+| `ApiAuthorizationVerification` (`verify-api-permissions`, web thật) | Đăng nhập lần lượt Phục vụ, Bếp, Thu ngân, Quản lý. Mở “/” phải vào đúng trang đầu; thanh điều hướng phải đúng các mục (Phục vụ 4, Bếp 2, Thu ngân 3). Sau đó gọi toàn bộ API: mọi API ngoài phạm vi đều bị chặn. Giá món và doanh thu kiểm tra thêm 401/403/200 cùng JSON trả về. |
 | `KitchenCashierVerification` (`verify-api-permissions`, web thật) | Chạy một luồng thật: Thu ngân mở ca, Phục vụ gọi món, Bếp nấu xong, Thu ngân thanh toán và xem hoá đơn, Quản lý báo tạm hết rồi bán lại ở Quản lý món, Thu ngân chốt ca không lệch tiền. Ở mỗi bước còn kiểm tra vai trò khác bị chặn: Phục vụ/Thu ngân không đổi được trạng thái nấu, Bếp không thanh toán được, Bếp, Thu ngân, Phục vụ không báo tạm hết được (Bếp, Phục vụ bị database từ chối cả khi gọi thẳng thủ tục); `/Kitchen/Dishes` trả 404, Phục vụ không chốt ca được. |
 
 ## Demo
@@ -62,6 +62,6 @@ dotnet run --no-build --project tools/RestaurantManagement.DbTool -- verify-api-
 ```
 
 Bằng tay, chạy web rồi đăng nhập lần lượt:
-- **waiter:** thấy đúng 3 mục *Đặt bàn*, *Sơ đồ bàn*, *Gọi món* (chi tiết: docs/S1-04-Task1.md).
-- **kitchen:** vào thẳng *Màn hình bếp*, thấy đúng *Màn hình bếp*. Gõ `/Areas` hoặc `/Cashier`: bị chặn (403).
+- **waiter:** thấy đúng 4 mục *Đặt bàn*, *Sơ đồ bàn*, *Gọi món*, *Món chờ mang ra* (chi tiết: docs/S1-04-Task1.md).
+- **kitchen:** vào thẳng *Màn hình bếp*, thấy *Màn hình bếp* và *Món trong ngày*. Gõ `/Areas` hoặc `/Cashier`: bị chặn (403).
 - **cashier:** vào thẳng *Thanh toán*, thấy đúng *Thanh toán*, *Hoá đơn*, *Chốt ca*. Gõ `/Kitchen` hoặc `/Dishes`: bị chặn (403).
