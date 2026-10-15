@@ -56,8 +56,7 @@ public sealed record BookingSuccessViewModel(
     public static BookingSuccessViewModel? FromTempData(Func<string, object?> read)
     {
         if (read(CodeKey) is not string code || string.IsNullOrWhiteSpace(code)) return null;
-        DateTime? startsAt = DateTime.TryParseExact(read(StartsAtKey) as string, "yyyy-MM-ddTHH:mm",
-            CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed) ? parsed : null;
+        DateTime? startsAt = VietnamTime.TryParseBooking(read(StartsAtKey) as string, out var parsed) ? parsed : null;
         int? guests = read(GuestCountKey) switch
         {
             int i => i,

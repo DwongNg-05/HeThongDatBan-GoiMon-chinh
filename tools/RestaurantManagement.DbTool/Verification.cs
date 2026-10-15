@@ -21,7 +21,8 @@ internal static class Verification
             await DatabaseTool.Migrate(connection);
             var password = "VerificationOnly9!" + Guid.NewGuid().ToString("N");
             await DatabaseTool.Seed(connection, password);
-            await Check(connection, "Seed", "SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.MenuItems)=60 AND (SELECT COUNT(*) FROM dbo.DiningTables)=60 AND (SELECT COUNT(*) FROM dbo.Reservations)=20 THEN 1 ELSE 0 END");
+            await Check(connection, "Seed", "SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.Areas WHERE IsActive=1)=3 AND (SELECT COUNT(*) FROM dbo.MenuCategories WHERE IsActive=1)=5 AND (SELECT COUNT(*) FROM dbo.MenuItems)=60 AND (SELECT COUNT(*) FROM dbo.DiningTables WHERE IsActive=1)=25 AND (SELECT COUNT(*) FROM dbo.Reservations)=20 THEN 1 ELSE 0 END");
+            await VerifyDemoReset(connection);
             await LoginVerification.Run(connection, password);
             await EmailVerificationVerification.Run(connection, password);
             await VerifyAreas(connection);
@@ -80,6 +81,81 @@ internal static class Verification
             await using var cn = new SqlConnection(builder.ConnectionString);
             await cn.OpenAsync();
             await using var drop = new SqlCommand($"IF DB_ID(@name) IS NOT NULL BEGIN ALTER DATABASE [{name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{name}]; END", cn);
+            drop.Parameters.AddWithValue("@name", name);
+            await drop.ExecuteNonQueryAsync();
+        }
+    }
+
+    private static async Task VerifyDemoReset(string connection)
+    {
+        await DatabaseTool.Execute(connection, """
+            UPDATE dbo.DiningTables SET Status='Cleaning' WHERE Code='A01';
+            UPDATE dbo.MenuCategories SET SortOrder=99,DefaultImagePath=NULL WHERE NormalizedName=N'KHAI VỊ';
+            UPDATE dbo.MenuItems SET Price=1,IsActive=0,IsSoldOut=1 WHERE Name=N'Gỏi khai vị 1';
+            UPDATE dbo.Users SET UserName=N'waiter-edited',Phone='0900000099',FullName=N'Tài khoản đã sửa',IsActive=0 WHERE Id=2;
+            UPDATE dbo.Reservations SET Status='Cancelled',CancelledAt=SYSUTCDATETIME() WHERE Code='D00001';
+            INSERT dbo.Reservations(Code,CustomerName,Phone,GuestCount,StartsAt,EndsAt)
+                VALUES('EXTRA1',N'Lượt đặt thừa','0919999999',2,DATEADD(day,2,SYSUTCDATETIME()),DATEADD(minute,90,DATEADD(day,2,SYSUTCDATETIME())));
+            INSERT dbo.DiningTables(AreaId,Code,MinCapacity,MaxCapacity,SortOrder)
+                SELECT Id,'TST-RESET',1,4,999 FROM dbo.Areas WHERE NormalizedName=N'TẦNG MỘT';
+            """);
+
+        var timer = Stopwatch.StartNew();
+        await DemoDataReset.Run(connection);
+        timer.Stop();
+        await Check(connection, "S4-10 Task 2: restore after table/status/menu/account/booking changes completes within 2 minutes", timer.Elapsed < TimeSpan.FromMinutes(2) ? "SELECT 1" : "SELECT 0");
+        await Check(connection, "S4-10 Task 2: restores exact active counts and baseline statuses; deactivates added table", """
+            SELECT CASE WHEN
+             (SELECT COUNT(*) FROM dbo.Areas WHERE IsActive=1)=3 AND
+             (SELECT COUNT(*) FROM dbo.DiningTables WHERE IsActive=1)=25 AND
+             (SELECT Status FROM dbo.DiningTables WHERE Code='A01')='Available' AND
+             (SELECT IsActive FROM dbo.DiningTables WHERE Code='TST-RESET')=0 AND
+             (SELECT COUNT(*) FROM dbo.MenuCategories WHERE IsActive=1)=5 AND
+             (SELECT COUNT(*) FROM dbo.MenuItems WHERE IsActive=1)=60 AND
+             (SELECT Price FROM dbo.MenuItems WHERE Name=N'Gỏi khai vị 1')=25000 AND
+             (SELECT COUNT(*) FROM dbo.Users WHERE IsActive=1 AND UserName IN (N'manager',N'waiter',N'kitchen',N'cashier'))=4 AND
+             (SELECT FullName FROM dbo.Users WHERE UserName=N'waiter')=N'Phục vụ mẫu' AND
+             (SELECT COUNT(*) FROM dbo.Reservations)=20 AND
+             (SELECT COUNT(*) FROM dbo.Reservations WHERE Status='Pending')=20 AND
+             (SELECT COUNT(*) FROM dbo.Reservations WHERE Code='EXTRA1')=0
+             THEN 1 ELSE 0 END;
+            """);
+
+        timer.Restart();
+        await DemoDataReset.Run(connection);
+        timer.Stop();
+        await Check(connection, "S4-10 Task 2: repeated restore is idempotent and completes within 2 minutes", timer.Elapsed < TimeSpan.FromMinutes(2) ? "SELECT 1" : "SELECT 0");
+        await Check(connection, "S4-10 Task 2: repeated restore does not duplicate sample rows", "SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.DiningTables WHERE IsActive=1)=25 AND (SELECT COUNT(*) FROM dbo.MenuItems WHERE IsActive=1)=60 AND (SELECT COUNT(*) FROM dbo.Reservations)=20 THEN 1 ELSE 0 END");
+    }
+
+    /// <summary>
+    /// S4-10 Task 3: focused one-command rehearsal on a disposable SQL database.
+    /// </summary>
+    internal static async Task RunS410Task3(string baseConnection)
+    {
+        var builder = new SqlConnectionStringBuilder(baseConnection);
+        var name = "RestaurantManagement_Test_S410_" + Guid.NewGuid().ToString("N");
+        builder.InitialCatalog = name;
+        var connection = builder.ConnectionString;
+        try
+        {
+            await DatabaseTool.Migrate(connection);
+            await DatabaseTool.Migrate(connection);
+            var password = "S410Rehearsal9!" + Guid.NewGuid().ToString("N");
+            await DatabaseTool.Seed(connection, password);
+            await Check(connection, "S4-10 Task 3: baseline sample data is ready", "SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.Areas WHERE IsActive=1)=3 AND (SELECT COUNT(*) FROM dbo.DiningTables WHERE IsActive=1)=25 AND (SELECT COUNT(*) FROM dbo.MenuCategories WHERE IsActive=1)=5 AND (SELECT COUNT(*) FROM dbo.MenuItems WHERE IsActive=1)=60 AND (SELECT COUNT(*) FROM dbo.Reservations)=20 THEN 1 ELSE 0 END");
+            await DemoDataReset.Run(connection);
+            await Check(connection, "S4-10 Task 3: table starts available after reset", "SELECT CASE WHEN Status='Available' AND IsActive=1 THEN 1 ELSE 0 END FROM dbo.DiningTables WHERE Code='A01'");
+            await BookingConfirmationVerification.Run(connection, password);
+            Console.WriteLine("PASS: S4-10 Task 3 complete rehearsal; disposable test database will be removed.");
+        }
+        finally
+        {
+            SqlConnection.ClearAllPools();
+            builder.InitialCatalog = "master";
+            await using var master = new SqlConnection(builder.ConnectionString);
+            await master.OpenAsync();
+            await using var drop = new SqlCommand($"IF DB_ID(@name) IS NOT NULL BEGIN ALTER DATABASE [{name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{name}]; END", master);
             drop.Parameters.AddWithValue("@name", name);
             await drop.ExecuteNonQueryAsync();
         }

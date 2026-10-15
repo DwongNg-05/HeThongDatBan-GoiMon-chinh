@@ -6,7 +6,7 @@ Database SQL Server và bộ khung ASP.NET Core MVC .NET 10 cho nhóm phát tri�
 
 - Đã có 12 migration SQL, gồm sự kiện outbox ghi lại mọi lần trạng thái bàn thay đổi.
 - Đã kiểm thử bằng SQL Server: 50 yêu cầu đặt cùng bàn đồng thời, 10 lần gửi thanh toán đồng thời, giá món tại thời điểm gọi, quyền chuyển trạng thái bếp, giảm giá, chốt ca, gộp bàn và thu hồi phiên QR.
-- Database trên máy người tạo: `RestaurantManagement_Dev`, server `.\MSSQLSERVER07`.
+- Database trên máy người tạo: `RestaurantManagement_Dev`, server `.\SQLEXPRESS`.
 - Đã có màn hình quản lý khu vực (thêm, sửa, ngừng sử dụng, xóa có kiểm tra liên kết), tạo/danh sách/chi tiết đặt bàn. Luồng này dùng stored procedure/SqlClient; đã gộp chức năng tài khoản từ EP-01.
 - Trigger SQL ghi trạng thái cũ/mới sau mỗi cập nhật đã commit; worker web đọc outbox mỗi 500 ms và phát SSE tới các sơ đồ đang mở.
 
@@ -29,7 +29,7 @@ cd HeThongDatBan-Ordering-chinh
 dotnet restore RestaurantManagement.sln --locked-mode
 
 # Đổi tên server phù hợp với máy của bạn, ví dụ .\SQLEXPRESS.
-$env:RM_CONNECTION_STRING = 'Server=.\MSSQLSERVER07;Database=RestaurantManagement_Dev;Trusted_Connection=True;Encrypt=True;TrustServerCertificate=True'
+$env:RM_CONNECTION_STRING = 'Server=.\SQLEXPRESS;Database=RestaurantManagement_Dev;Trusted_Connection=True;Encrypt=True;TrustServerCertificate=True'
 dotnet run --project tools/RestaurantManagement.DbTool -- migrate
 dotnet run --project tools/RestaurantManagement.DbTool -- check
 ```
@@ -40,10 +40,10 @@ Lệnh `migrate` tạo database nếu chưa có và áp dụng từng migration 
 
 ### Kết nối ứng dụng web
 
-Ứng dụng web và worker thông báo trạng thái bàn cùng đọc chuỗi kết nối `RM_CONNECTION_STRING`. Nếu biến này không có, ứng dụng dùng `ConnectionStrings:DefaultConnection` trong `appsettings.json` (mặc định là `RestaurantManagement_Dev` trên `.\MSSQLSERVER07`). Có thể ghi đè trong PowerShell trước khi chạy web:
+Ứng dụng web và worker thông báo trạng thái bàn cùng đọc chuỗi kết nối `RM_CONNECTION_STRING`. Nếu biến này không có, ứng dụng dùng `ConnectionStrings:DefaultConnection` trong `appsettings.json` (mặc định là `RestaurantManagement_Dev` trên `.\SQLEXPRESS`). Có thể ghi đè trong PowerShell trước khi chạy web:
 
 ```powershell
-$env:RM_CONNECTION_STRING = 'Server=.\MSSQLSERVER07;Database=RestaurantManagement_Dev;Trusted_Connection=True;Encrypt=True;TrustServerCertificate=True'
+$env:RM_CONNECTION_STRING = 'Server=.\SQLEXPRESS;Database=RestaurantManagement_Dev;Trusted_Connection=True;Encrypt=True;TrustServerCertificate=True'
 dotnet run --project src/RestaurantManagement.Web
 ```
 
@@ -76,7 +76,18 @@ dotnet run --project tools/RestaurantManagement.DbTool -- reset-demo
 ```
 
 Lệnh chỉ chạy trên database có hậu tố `_Dev`, `_Demo`, `_Staging` hoặc `_Test_` và có marker `DEMO_DATA`. Mọi thay đổi được thực hiện trong một giao dịch; lệnh kiểm tra kết quả phải đúng 3 khu vực, 25 bàn hoạt động, 5 nhóm món, 60 món hoạt động, 4 tài khoản mẫu và 20 lượt đặt đang chờ. Chạy lặp lại không tạo bản ghi mẫu trùng. Bàn/khu vực/nhóm món/món/tài khoản mới được thêm ngoài mẫu sẽ ngừng hoạt động; đặt bàn ngoài bộ mẫu và hàng đợi email demo bị xoá. Lịch sử audit, giá, trạng thái bàn và hash mật khẩu được giữ lại; tài khoản mẫu được kích hoạt và yêu cầu đổi mật khẩu ở lần đăng nhập tiếp theo. Nếu database đã có phiên phục vụ hoặc hoá đơn, lệnh dừng và không đổi dữ liệu.
+
 Trạng thái bàn dùng các giá trị `Available`, `Reserved`, `Serving`, `Cleaning`; sơ đồ luôn kèm nhãn chữ tương ứng. Mỗi thay đổi thực phát một sự kiện gồm trạng thái cũ/mới, mã bàn, thời điểm UTC và lý do chuyển trạng thái: xác nhận đặt (`Available → Reserved`), bắt đầu phục vụ (`Available/Reserved → Serving`), đóng phiên (`Serving → Cleaning`), hoàn tất dọn (`Cleaning → Available/Reserved`) hoặc huỷ/hết hạn đặt (`Reserved → Available`). Gửi lại cùng trạng thái không phát sự kiện. Sơ đồ demo phát sự kiện Server-Sent Events tới các trình duyệt mở cùng máy chủ; khi kết nối lại, trình duyệt tải snapshot mới nhất. Bộ dữ liệu demo nằm trong bộ nhớ của một tiến trình, chưa phát trạng thái từ các thủ tục SQL hoặc chia sẻ giữa nhiều tiến trình web.
+
+### Kịch bản nghiệm thu S4-10
+
+Mở [kịch bản một trang](docs/S4-10-Task3-acceptance.md) để diễn tập quyền theo vai trò, đặt bàn, khách xác nhận email, sử dụng và giải phóng bàn. Chạy bài rehearsal tự động trên database kiểm thử tạm bằng:
+
+```powershell
+dotnet run --project tools/RestaurantManagement.DbTool -- verify-s410-task3
+```
+
+Lệnh tạo database kiểm thử riêng, seed mẫu, chạy luồng HTTP/SQL và tự xoá database kiểm thử sau khi hoàn tất.
 
 ## Kiểm thử
 
@@ -155,7 +166,7 @@ Kiểm thử thủ công: chọn một bàn → **Mở thử QR** phải hiển 
 Lệnh `seed-login-demo` bổ sung một quản lý demo và 3 món ăn, không yêu cầu database trống. Chạy lại không đổi mật khẩu, giá hoặc trạng thái món đã có. Không dùng trên database sản xuất.
 
 ```powershell
-$env:RM_CONNECTION_STRING = 'Server=.\MSSQLSERVER07;Database=RestaurantManagement_Dev;Trusted_Connection=True;Encrypt=True;TrustServerCertificate=True'
+$env:RM_CONNECTION_STRING = 'Server=.\SQLEXPRESS;Database=RestaurantManagement_Dev;Trusted_Connection=True;Encrypt=True;TrustServerCertificate=True'
 $env:RM_DEMO_USERNAME = 'demo-manager'
 $env:RM_DEMO_PHONE = '0000000099' # Số giả lập chỉ dùng demo
 $demoPassword = Read-Host 'Mật khẩu tài khoản demo' -AsSecureString

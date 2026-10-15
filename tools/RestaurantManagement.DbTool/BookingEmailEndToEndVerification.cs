@@ -53,9 +53,12 @@ internal static class BookingEmailEndToEndVerification
         // Mọi lượt: trang xác nhận hiển thị đầy đủ mã và thông tin, kể cả khi email lỗi; lượt đặt bàn lưu đúng dữ liệu đã nhập.
         foreach (var b in all)
         {
-            Assert(b.ShownCode == b.TableCode && b.Page.Contains($"data-booking-code=\"{b.TableCode}\">{b.TableCode}</p>")
-                && b.Page.Contains(BookingWhen(b.Local)) && b.Page.Contains($"{b.Guests} người") && b.Page.Contains($"lưu lại mã đặt bàn {b.TableCode}"),
-                $"{b.Name}: confirmation page shows the full booking code {b.TableCode}, date/time and guest count");
+            var hasFullCode = b.ShownCode == b.TableCode && b.Page.Contains($"data-booking-code=\"{b.TableCode}\">{b.TableCode}</p>");
+            var hasDateTime = b.Page.Contains(BookingWhen(b.Local));
+            var hasGuests = b.Page.Contains($"{b.Guests} người");
+            var hasKeepCode = b.Page.Contains($"lưu lại mã đặt bàn {b.TableCode}");
+            Assert(hasFullCode && hasDateTime && hasGuests && hasKeepCode,
+                $"{b.Name}: confirmation page shows full booking code/date/time/guest count (code={hasFullCode}, time={hasDateTime}, guests={hasGuests}, reminder={hasKeepCode}; expected '{BookingWhen(b.Local)}', {b.Guests} người; dates='{string.Join(" | ", Regex.Matches(b.Page, @"<dd>(.*?)</dd>", RegexOptions.Singleline).Select(m => m.Groups[1].Value))}')");
             await Check(connection, $"""
                 SELECT CASE WHEN r.CustomerName=N'{b.Name}' AND r.Phone='{b.Phone}' AND r.Email=N'{b.Email}' AND r.GuestCount={b.Guests}
                  AND r.TableId={b.TableId} AND r.StartsAt='{b.Local.AddHours(-7).ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture)}' AND r.Status='Pending' THEN 1 ELSE 0 END
