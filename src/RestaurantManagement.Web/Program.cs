@@ -9,6 +9,8 @@ using RestaurantManagement.Web.Services;
 using RestaurantManagement.Web.Services.EmailVerification;
 
 var builder = WebApplication.CreateBuilder(args);
+if (builder.Environment.IsDevelopment())
+    builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 var sqlConnectionString = Environment.GetEnvironmentVariable("RM_CONNECTION_STRING");
 if (string.IsNullOrWhiteSpace(sqlConnectionString))
     sqlConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -130,6 +132,8 @@ builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.GzipCompress
 
 builder.Services.AddHostedService<TemporaryOutResetWorker>();
 builder.Services.AddScoped<RestaurantManagement.Web.Services.SessionOrderingService>();
+builder.Services.AddScoped<RestaurantManagement.Web.Services.TableMergeService>();
+builder.Services.AddSingleton<DatabaseSchemaReadiness>();
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
@@ -172,6 +176,7 @@ app.Use((context, next) => RestaurantManagement.Web.Services.GuestMenuEntry.Invo
 app.UseMiddleware<EmailVerificationMiddleware>();
 app.UseMiddleware<RequiredPasswordChangeMiddleware>();
 app.UseAuthorization();
+app.UseMiddleware<DatabaseSchemaMiddleware>();
 
 app.UseWhen(
     context => context.User.Identity?.IsAuthenticated != true

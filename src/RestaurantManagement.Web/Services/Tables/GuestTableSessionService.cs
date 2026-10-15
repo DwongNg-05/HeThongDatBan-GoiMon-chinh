@@ -162,6 +162,7 @@ public sealed record GuestOrderedItem(
     OrderSource Source = OrderSource.OtherGuest,
     string? QuickNotes = null)
 {
+    public string OriginalTableCode { get; init; } = string.Empty;
     public string SourceLabel => Source switch
     {
         OrderSource.ThisPhone => "Bạn gọi",
@@ -400,10 +401,11 @@ public sealed class GuestTableSessionService(IConfiguration configuration)
             SELECT b.BatchNumber, i.SubmittedAt, i.ItemName, i.Unit, i.UnitPrice, i.Quantity, i.Notes, i.Status,
                    CONVERT(bit, CASE WHEN i.Status <> 'Cancelled' OR i.ChargeWhenCancelled = 1 THEN 1 ELSE 0 END),
                    CASE WHEN b.CreatedBy IS NOT NULL THEN 2 WHEN b.GuestSessionId = @GuestSessionId THEN 0 ELSE 1 END,
-                   i.QuickNotes
+                   i.QuickNotes, t.Code
             FROM dbo.OrderBatches b
             JOIN dbo.OrderItems i ON i.BatchId = b.Id
-            WHERE b.SessionId = @SessionId
+            JOIN dbo.DiningTables t ON t.Id=i.OriginalTableId
+            WHERE b.SessionId=(SELECT COALESCE(BillingSessionId,Id) FROM dbo.DiningSessions WHERE Id=@SessionId)
             ORDER BY b.BatchNumber, i.Id;
             """;
         var items = new List<GuestOrderedItem>();
@@ -418,7 +420,7 @@ public sealed class GuestTableSessionService(IConfiguration configuration)
                 reader.GetInt32(0), DateTime.SpecifyKind(reader.GetDateTime(1), DateTimeKind.Utc),
                 reader.GetString(2), reader.GetString(3), reader.GetDecimal(4), reader.GetInt32(5),
                 reader.IsDBNull(6) ? null : reader.GetString(6), reader.GetString(7), reader.GetBoolean(8),
-                (OrderSource)reader.GetInt32(9), reader.IsDBNull(10) ? null : reader.GetString(10)));
+                (OrderSource)reader.GetInt32(9), reader.IsDBNull(10) ? null : reader.GetString(10)) { OriginalTableCode = reader.GetString(11) });
         return items;
     }
 

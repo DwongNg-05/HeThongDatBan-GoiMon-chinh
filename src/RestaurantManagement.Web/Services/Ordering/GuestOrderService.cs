@@ -92,9 +92,9 @@ public sealed class GuestOrderService(IConfiguration configuration, IMenuStore m
         await using var command = new SqlCommand("""
             SELECT b.Id
             FROM dbo.OrderBatches b
-            JOIN dbo.GuestSessions g ON g.SessionId=b.SessionId AND g.Id=b.GuestSessionId
+            JOIN dbo.GuestSessions g ON g.SessionId=b.OriginSessionId AND g.Id=b.GuestSessionId
             JOIN dbo.TableQrCodes q ON q.Id=g.TableQrCodeId
-            WHERE b.SessionId=@SessionId AND b.RequestId=@RequestId
+            WHERE b.OriginSessionId=@SessionId AND b.RequestId=@RequestId
               AND g.TokenHash=@GuestTokenHash AND g.RevokedAt IS NULL
               AND g.ExpiresAt>SYSUTCDATETIME() AND q.RevokedAt IS NULL;
             """, connection);
@@ -111,9 +111,9 @@ public sealed class GuestOrderService(IConfiguration configuration, IMenuStore m
         await using var command = new SqlCommand("""
             SELECT b.Id,b.BatchNumber,t.Code
             FROM dbo.OrderBatches b
-            JOIN dbo.SessionTables st ON st.SessionId=b.SessionId AND st.ReleasedAt IS NULL
+            JOIN dbo.SessionTables st ON st.SessionId=b.OriginSessionId AND st.ReleasedAt IS NULL
             JOIN dbo.DiningTables t ON t.Id=st.TableId
-            WHERE b.Id=@BatchId AND b.SessionId=@SessionId;
+            WHERE b.Id=@BatchId AND b.OriginSessionId=@SessionId;
             SELECT i.ItemName,i.Unit,CAST(i.UnitPrice AS int),i.Quantity,CAST(i.LineTotal AS bigint)
             FROM dbo.OrderItems i WHERE i.BatchId=@BatchId ORDER BY i.Id;
             """, connection);

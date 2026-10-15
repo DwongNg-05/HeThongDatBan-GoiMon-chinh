@@ -306,3 +306,13 @@ Không cần migration mới. Phục vụ (và Quản lý) mở **Món chờ man
 ## Đồng bộ tên bảng sang tiếng Anh
 
 Chạy `migrate` để áp dụng `052_EnglishOrderingCartTableNames.sql`. Hai bảng giỏ món của màn hình Gọi món đổi tên: `dbo.DonHangs` → `dbo.Orders`, `dbo.DongHangs` → `dbo.OrderLines`; khoá chính, khoá ngoại, ràng buộc và chỉ mục cũng đổi theo (`PK_Orders`, `FK_OrderLines_Orders`, `CK_OrderLines_Quantity`, `IX_OrderLines_OrderId`). Dữ liệu, cột và quyền giữ nguyên. EF (`RestaurantDbContext`) ánh xạ `Order` → `Orders`, `OrderLine` → `OrderLines`. Sau bước này database không còn bảng nào mang tên tiếng Việt. Dừng website trước khi `migrate`, rồi khởi động lại.
+
+## Gộp hai bàn — Task 1
+
+Phục vụ gộp hai bàn liền nhau đang phục vụ vào phiên chính, giữ bàn gốc từng món và thanh toán chung một hoá đơn. Quản lý khai báo cặp bàn tại Quản lý bàn → Cấu hình bàn liền nhau. Cần migration `059_MergeTablesTask1.sql`; quy tắc nghiệp vụ đã được người dùng xác nhận ngày 15/10/2026. [Hướng dẫn, đối chiếu yêu cầu và kiểm thử](docs/GopBan-Task1.md).
+
+### Sửa kết nối SQL Server trên máy cá nhân
+
+Trong môi trường Development, ứng dụng đọc thêm `src/RestaurantManagement.Web/appsettings.Local.json` (được Git bỏ qua), sau cấu hình mặc định và User Secrets. Đặt chuỗi kết nối SQL Server thực tế của máy tại `ConnectionStrings:DefaultConnection`; ví dụ máy này dùng `Server=lpc:.\SQLEXPRESS;Database=RestaurantManagement_Dev;Trusted_Connection=True;Encrypt=True;TrustServerCertificate=True`. Biến `RM_CONNECTION_STRING` vẫn được ưu tiên cao nhất. Dừng phiên debug cũ và chạy lại sau khi đổi kết nối. Không dùng cấu hình SQL Server của máy người khác nếu instance đó không tồn tại.
+
+Toàn solution tham chiếu `System.Security.Cryptography.Pkcs` 10.0.13 trong `Directory.Build.props` để dùng bản vá bảo mật thống nhất. Giữ kiểm tra bảo mật NuGet và `TreatWarningsAsErrors` bật. Khi cập nhật package, cập nhật cả `packages.lock.json`.

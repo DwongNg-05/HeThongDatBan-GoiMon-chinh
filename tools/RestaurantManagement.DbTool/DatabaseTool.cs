@@ -16,12 +16,15 @@ internal static partial class DatabaseTool
             var connection = Environment.GetEnvironmentVariable("RM_CONNECTION_STRING");
             if (command == "help" || string.IsNullOrWhiteSpace(connection))
             {
-                Console.WriteLine("Commands: migrate | seed-demo | seed-login-demo | seed-menu-demo | seed-menu-extra | seed-khai-vi | seed-confirmation-demo | seed-menu-200 | hide-menu-200 | email-retry-now | verify | verify-booking-email | verify-api-permissions | verify-temporary-out | verify-qr-session | verify-late-reservations | verify-hold-extension | verify-phone-no-show | verify-cancel-item | verify-cancel-report | verify-charged-cancel | maintenance | check\nSet RM_CONNECTION_STRING first. seed-demo and seed-login-demo also require RM_DEMO_PASSWORD.\nseed-login-demo accepts RM_DEMO_USERNAME and RM_DEMO_PHONE; existing accounts are preserved.\nverify creates and removes its own uniquely named test database.");
+                Console.WriteLine("Commands: migration-status | verify-merge-upgrade | verify-merge-tables | migrate | seed-demo | seed-login-demo | seed-menu-demo | seed-menu-extra | seed-khai-vi | seed-confirmation-demo | seed-menu-200 | hide-menu-200 | email-retry-now | verify | verify-booking-email | verify-api-permissions | verify-temporary-out | verify-qr-session | verify-late-reservations | verify-hold-extension | verify-phone-no-show | verify-cancel-item | verify-cancel-report | verify-charged-cancel | maintenance | check\nSet RM_CONNECTION_STRING first. seed-demo and seed-login-demo also require RM_DEMO_PASSWORD.\nseed-login-demo accepts RM_DEMO_USERNAME and RM_DEMO_PHONE; existing accounts are preserved.\nverify creates and removes its own uniquely named test database.");
                 Environment.ExitCode = command == "help" ? 0 : 1;
                 return;
             }
             switch (command)
             {
+                case "migration-status": await MigrationStatus(connection); break;
+                case "verify-merge-upgrade": await TableMergeUpgradeVerification.Run(connection); break;
+                case "verify-merge-tables": await TableMergeVerification.Run(connection); break;
                 case "migrate": await Migrate(connection); break;
                 case "seed-demo": await Seed(connection); break;
                 case "seed-login-demo": await SeedLoginDemo(connection); break;
@@ -76,7 +79,7 @@ internal static partial class DatabaseTool
         Console.WriteLine($"{count} email đặt bàn sẽ được gửi lại ở lượt kiểm tra kế tiếp của web (tối đa 30 giây).");
     }
 
-    internal static async Task Migrate(string connection)
+    internal static async Task Migrate(string connection, string? throughMigration = null)
     {
         var builder = new SqlConnectionStringBuilder(connection);
         var database = builder.InitialCatalog;
@@ -101,6 +104,8 @@ internal static partial class DatabaseTool
             foreach (var path in Directory.GetFiles(Path.Combine(Root, "database", "migrations"), "*.sql").Order(StringComparer.Ordinal))
             {
                 var name = Path.GetFileName(path);
+                if (throughMigration is not null && StringComparer.Ordinal.Compare(name, throughMigration)>0)
+                    continue;
                 var sql = (await File.ReadAllTextAsync(path)).Replace("\r\n", "\n");
                 var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(sql)));
                 await using var lookup = new SqlCommand("SELECT Sha256 FROM dbo.SchemaVersions WHERE Name=@name;", cn);

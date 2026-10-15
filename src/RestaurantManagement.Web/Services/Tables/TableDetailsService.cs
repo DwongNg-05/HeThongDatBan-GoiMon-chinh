@@ -121,10 +121,11 @@ public sealed class TableDetailsService(
         SqlConnection connection, long sessionId, CancellationToken cancellationToken)
     {
         const string query = """
-            SELECT b.BatchNumber, i.SubmittedAt, i.ItemName, i.Unit, i.Quantity, i.LineTotal, i.Status, i.ChargeWhenCancelled
+            SELECT b.BatchNumber, i.SubmittedAt, i.ItemName, i.Unit, i.Quantity, i.LineTotal, i.Status, i.ChargeWhenCancelled, t.Code
             FROM dbo.OrderBatches AS b
             JOIN dbo.OrderItems AS i ON i.BatchId=b.Id
-            WHERE b.SessionId=@SessionId
+            JOIN dbo.DiningTables t ON t.Id=i.OriginalTableId
+            WHERE b.SessionId=(SELECT COALESCE(BillingSessionId,Id) FROM dbo.DiningSessions WHERE Id=@SessionId)
             ORDER BY b.BatchNumber, i.Id;
             """;
         await using var command = new SqlCommand(query, connection);
@@ -143,7 +144,7 @@ public sealed class TableDetailsService(
                 reader.GetInt32(4),
                 reader.GetDecimal(5),
                 itemStatus,
-                itemStatus != "Cancelled" || chargeWhenCancelled));
+                itemStatus != "Cancelled" || chargeWhenCancelled) { OriginalTableCode = reader.GetString(8) });
         }
         return items;
     }

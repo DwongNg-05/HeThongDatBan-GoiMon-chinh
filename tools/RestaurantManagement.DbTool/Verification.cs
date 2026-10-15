@@ -546,7 +546,7 @@ internal static class Verification
 
     private static async Task MergeAndQr(string connection)
     {
-        await DatabaseTool.Execute(connection, "EXEC dbo.usp_OpenSession @TableId=2,@GuestCount=2,@ActorUserId=2; EXEC dbo.usp_OpenSession @TableId=3,@GuestCount=2,@ActorUserId=2; EXEC dbo.usp_MergeSessions @MainSessionId=2,@ChildSessionId=3,@ActorUserId=2; EXEC dbo.usp_UnmergeSession @ChildSessionId=3,@ActorUserId=2;");
+        await DatabaseTool.Execute(connection, "EXEC dbo.usp_OpenSession @TableId=2,@GuestCount=2,@ActorUserId=2; EXEC dbo.usp_OpenSession @TableId=3,@GuestCount=2,@ActorUserId=2; EXEC dbo.usp_SetTableAdjacency @TableId=2,@AdjacentTableId=3,@IsAdjacent=1,@ActorUserId=1; EXEC dbo.usp_MergeSessions @MainSessionId=2,@ChildSessionId=3,@ActorUserId=2; EXEC dbo.usp_UnmergeSession @ChildSessionId=3,@ActorUserId=2;");
         await Check(connection, "Merge/unmerge preserves sessions", "SELECT CASE WHEN (SELECT BillingSessionId FROM dbo.DiningSessions WHERE Id=3) IS NULL AND EXISTS(SELECT 1 FROM dbo.SessionMerges WHERE UndoneAt IS NOT NULL) THEN 1 ELSE 0 END");
         var qr = RandomNumberGenerator.GetBytes(32);
         var guest = RandomNumberGenerator.GetBytes(32);

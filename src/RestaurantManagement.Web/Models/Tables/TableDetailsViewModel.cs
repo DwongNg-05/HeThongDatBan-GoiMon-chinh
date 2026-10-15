@@ -61,6 +61,7 @@ public sealed record TableDetailsOrderItem(
     string Status,
     bool Charged)
 {
+    public string OriginalTableCode { get; init; } = string.Empty;
     public string StatusLabel => Status switch
     {
         "Pending" => "Chờ chế biến",

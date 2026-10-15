@@ -1,0 +1,48 @@
+@model RestaurantManagement.Web.Pages.Ordering.IndexModel
+@if(Model.CurrentSession is { } session)
+{
+    <p><a asp-controller="ProvisionalBill" asp-action="Index" asp-route-sessionId="@session.BillingSessionId">Xem hoá đơn chung của phiên chính #@session.BillingSessionId</a></p>
+    @if(session.CanAddItems)
+    {
+        <form method="post" asp-page-handler="RequestPayment" class="mb-3">
+            <input type="hidden" name="tableId" value="@session.TableId" />
+            <input type="hidden" name="sessionId" value="@session.SessionId" />
+            <button type="submit" class="btn btn-outline-primary">Yêu cầu thanh toán cả nhóm bàn</button>
+        </form>
+    }
+}
+@if(Model.MergeSelection is { } selection)
+{
+    <details class="card card-body mb-3" id="merge-tables">
+        <summary>Gộp bàn @selection.Current.Code với bàn liền nhau</summary>
+        @if(selection.Candidates.Count==0)
+        {
+            <p class="mt-2">Chưa có bàn liền nhau đang phục vụ và đủ điều kiện gộp. Quản lý có thể cấu hình cặp bàn liền nhau trong Quản lý bàn.</p>
+        }
+        else
+        {
+            <form method="post" asp-page-handler="Merge" id="merge-tables-form">
+                <input type="hidden" name="tableId" value="@selection.Current.TableId" />
+                <input type="hidden" name="currentSessionId" value="@selection.Current.SessionId" />
+                <input type="hidden" name="currentVersion" value="@selection.Current.Version" />
+                <input type="hidden" name="otherVersion" id="merge-other-version" value="@selection.Candidates[0].Version" />
+                <label for="merge-other" class="mt-2">Bàn ghép (liền nhau, cùng khu vực, đang phục vụ)</label>
+                <select name="otherSessionId" id="merge-other" class="form-select" required>
+                @foreach(var c in selection.Candidates)
+                {
+                    <option value="@c.SessionId" data-version="@c.Version" data-code="@c.Code">Bàn @c.Code · phiên #@c.SessionId</option>
+                }
+                </select>
+                <fieldset class="mt-2">
+                    <legend class="fs-6">Chọn bàn giữ phiên chính</legend>
+                    <label class="d-block"><input type="radio" name="keepCurrent" value="true" checked /> Bàn @selection.Current.Code · phiên #@selection.Current.SessionId</label>
+                    <label class="d-block"><input type="radio" name="keepCurrent" value="false" /> Bàn ghép đang chọn</label>
+                </fieldset>
+                <p class="mt-2" id="merge-summary" role="status"></p>
+                <p>Món mới giữ bàn gốc là bàn đang mở để gọi món. Mở từ bất kỳ bàn nào cũng xem được toàn bộ món và dùng một hoá đơn.</p>
+                <label class="d-block mb-2"><input type="checkbox" name="confirmed" value="true" required /> Tôi xác nhận gộp hai bàn và phiên chính đã chọn.</label>
+                <button type="submit" class="btn btn-primary">Xác nhận gộp bàn</button>
+            </form>
+        }
+    </details>
+}

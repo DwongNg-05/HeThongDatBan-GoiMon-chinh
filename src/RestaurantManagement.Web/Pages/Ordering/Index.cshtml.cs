@@ -13,7 +13,8 @@ namespace RestaurantManagement.Web.Pages.Ordering;
 public class IndexModel(
     IMenuStore store,
     DailyDishStore? daily = null,
-    SessionOrderingService? sessionOrdering = null) : PageModel
+    SessionOrderingService? sessionOrdering = null,
+    TableMergeService? tableMerge = null) : PageModel
 {
     public IReadOnlyList<CategoryWithDishes> Categories
     { get; private set; } = [];
@@ -25,6 +26,7 @@ public class IndexModel(
     { get; private set; }
 
     public string? SessionError { get; private set; }
+    public MergeSelection? MergeSelection { get; private set; }
 
     public bool CanReopen =>
         CurrentSession?.IsAwaitingPayment == true
@@ -111,6 +113,9 @@ public class IndexModel(
             return;
         }
 
+        if (tableMerge is not null && CurrentSession.CanAddItems)
+            MergeSelection = await tableMerge.GetSelectionAsync(tableId.Value, HttpContext.RequestAborted);
+
         if (!CurrentSession.CanAddItems)
         {
             SessionError =
@@ -157,4 +162,39 @@ public class IndexModel(
 
         return RedirectToPage(new { tableId });
     }
+    public async Task<IActionResult> OnPostMergeAsync(int tableId, long currentSessionId, long otherSessionId,
+        string currentVersion, string otherVersion, bool keepCurrent, bool confirmed)
+    {
+        if (tableMerge is null) return StatusCode(503);
+        if (!confirmed || currentSessionId<=0 || otherSessionId<=0)
+        {
+            TempData["OrderingError"]="Hãy chọn hai bàn và xác nhận phiên chính trước khi gộp.";
+            return RedirectToPage(new { tableId });
+        }
+        try
+        {
+            await tableMerge.MergeAsync(keepCurrent ? currentSessionId : otherSessionId,
+                keepCurrent ? otherSessionId : currentSessionId,
+                keepCurrent ? currentVersion : otherVersion, keepCurrent ? otherVersion : currentVersion,
+                User.ActorUserId(),HttpContext.RequestAborted);
+            TempData["OrderingSuccess"]="Đã gộp hai bàn vào phiên chính. Các món giữ nguyên bàn gốc và thanh toán chung một hoá đơn.";
+        }
+        catch (SqlException ex) when(ex.Number is >=51000 and <51500)
+        { TempData["OrderingError"]=ex.Number==51000 ? "Hệ thống đang bận. Thông tin bàn đã được tải lại; vui lòng xác nhận lại." : ex.Message; }
+        catch (ArgumentException ex) { TempData["OrderingError"]=ex.Message; }
+        return RedirectToPage(new { tableId });
+    }
+
+    public async Task<IActionResult> OnPostRequestPaymentAsync(int tableId, long sessionId)
+    {
+        if (sessionOrdering is null) return StatusCode(503);
+        try
+        {
+            await sessionOrdering.RequestPaymentAsync(tableId,sessionId,User.ActorUserId(),HttpContext.RequestAborted);
+            TempData["OrderingSuccess"]="Đã chuyển cả nhóm bàn sang chờ thanh toán. Thu ngân sẽ thanh toán một hoá đơn từ phiên chính.";
+        }
+        catch(SqlException ex) when(ex.Number is >=51000 and <51500) { TempData["OrderingError"]=ex.Message; }
+        return RedirectToPage(new { tableId });
+    }
+
 }
