@@ -65,6 +65,8 @@ public sealed class CashierController(IConfiguration configuration) : Controller
         var payment = details.Value;
         var discount = await ReadDiscountAsync(sessionId, cancellationToken);
         var history = await ReadDiscountHistoryAsync(sessionId, cancellationToken);
+        var effectiveRequestId = requestId is { } id && id != Guid.Empty ? id : Guid.NewGuid();
+        var transferQr = BuildTransferQr(payment.Session.Subtotal - (discount?.Amount ?? 0), effectiveRequestId);
         var paymentMethod = method is "Transfer" ? "Transfer" : "Cash";
         var received = cashReceived ?? (payment.Session.Subtotal - (discount?.Amount ?? 0));
         return View(new CashierPaymentViewModel(
@@ -72,10 +74,11 @@ public sealed class CashierController(IConfiguration configuration) : Controller
             payment.Lines,
             paymentMethod,
             Math.Max(0, received),
-            transferReference,
-            requestId is { } id && id != Guid.Empty ? id : Guid.NewGuid(),
+            transferQr?.Reference ?? transferReference,
+            effectiveRequestId,
             discount,
             history,
+            transferQr,
             error));
     }
 
@@ -133,11 +136,13 @@ public sealed class CashierController(IConfiguration configuration) : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Checkout(long sessionId, Guid requestId, string? method, decimal? cashReceived, string? transferReference)
     {
+        var configuredReference = method == "Transfer" ? BuildTransferQr(0, requestId)?.Reference : null;
+        var effectiveTransferReference = configuredReference ?? transferReference;
         if (requestId == Guid.Empty || method is not ("Cash" or "Transfer") ||
             (method == "Cash" && (cashReceived is null || cashReceived < 0)) ||
-            (method == "Transfer" && !IsValidTransferReference(transferReference)))
+            (method == "Transfer" && !IsValidTransferReference(effectiveTransferReference)))
         {
-            return RedirectToAction(nameof(Payment), new { sessionId, method, cashReceived, transferReference, requestId,
+            return RedirectToAction(nameof(Payment), new { sessionId, method, cashReceived, transferReference = effectiveTransferReference, requestId,
                 error = method == "Transfer" ? "Mã chuyển khoản gồm 6–50 ký tự chữ, số hoặc dấu gạch ngang." : "Vui lòng nhập số tiền khách đưa hợp lệ." });
         }
         try
@@ -153,7 +158,7 @@ public sealed class CashierController(IConfiguration configuration) : Controller
             command.Parameters.Add("@DiscountValue", SqlDbType.Decimal).Value = discount?.Value ?? 0;
             command.Parameters.Add("@DiscountReason", SqlDbType.NVarChar, 500).Value = discount?.Reason ?? (object)DBNull.Value;
             command.Parameters.Add("@CashReceived", SqlDbType.Decimal).Value = method == "Cash" ? cashReceived!.Value : DBNull.Value;
-            command.Parameters.Add("@TransferReference", SqlDbType.NVarChar, 100).Value = method == "Transfer" ? transferReference!.Trim().ToUpperInvariant() : DBNull.Value;
+            command.Parameters.Add("@TransferReference", SqlDbType.NVarChar, 100).Value = method == "Transfer" ? effectiveTransferReference!.Trim().ToUpperInvariant() : DBNull.Value;
             await connection.OpenAsync();
             await using var reader = await command.ExecuteReaderAsync();
             if (await reader.ReadAsync())
@@ -161,10 +166,10 @@ public sealed class CashierController(IConfiguration configuration) : Controller
         }
         catch (SqlException ex) when (ex.Number is >= 51000 and < 51500)
         {
-            return RedirectToAction(nameof(Payment), new { sessionId, method, cashReceived, transferReference, requestId,
+            return RedirectToAction(nameof(Payment), new { sessionId, method, cashReceived, transferReference = effectiveTransferReference, requestId,
                 error = ex.Number == 51001 ? "Tài khoản không có quyền thanh toán." : ex.Message });
         }
-        return RedirectToAction(nameof(Payment), new { sessionId, method, cashReceived, transferReference, requestId,
+        return RedirectToAction(nameof(Payment), new { sessionId, method, cashReceived, transferReference = effectiveTransferReference, requestId,
             error = "Không thể chốt thanh toán. Vui lòng thử lại." });
     }
 
@@ -426,4 +431,23 @@ public sealed class CashierController(IConfiguration configuration) : Controller
 
     private static bool IsValidTransferReference(string? value) => value is { Length: >= 6 and <= 50 }
         && value.All(c => char.IsAsciiLetterOrDigit(c) || c == '-');
+
+    /// <summary>
+    /// QR chỉ tạo yêu cầu thanh toán với số tiền và nội dung đã điền sẵn. Việc xác nhận
+    /// giao dịch vẫn do thu ngân thực hiện cho tới khi tích hợp webhook ngân hàng.
+    /// </summary>
+    private BankTransferQr? BuildTransferQr(decimal total, Guid requestId)
+    {
+        var bankCode = configuration["BankTransfer:BankCode"]?.Trim();
+        var account = configuration["BankTransfer:AccountNumber"]?.Trim();
+        var accountName = configuration["BankTransfer:AccountName"]?.Trim();
+        if (string.IsNullOrWhiteSpace(bankCode) || string.IsNullOrWhiteSpace(account) || string.IsNullOrWhiteSpace(accountName))
+            return null;
+
+        var reference = "TT-" + requestId.ToString("N")[..12].ToUpperInvariant();
+        var amount = Math.Max(0, decimal.Truncate(total)).ToString("0", System.Globalization.CultureInfo.InvariantCulture);
+        var imageUrl = $"https://img.vietqr.io/image/{Uri.EscapeDataString(bankCode)}-{Uri.EscapeDataString(account)}-compact2.png" +
+                       $"?amount={amount}&addInfo={Uri.EscapeDataString(reference)}&accountName={Uri.EscapeDataString(accountName)}";
+        return new BankTransferQr(bankCode, account, accountName, reference, imageUrl);
+    }
 }

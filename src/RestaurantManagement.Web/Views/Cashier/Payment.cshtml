@@ -101,14 +101,29 @@
                         <div class="form-text">Hệ thống chặn số tiền nhỏ hơn tổng phải thu.</div>
                     </div>
                     <div data-transfer-fields>
-                        <label class="form-label fw-semibold" for="transferReference">Mã tham chiếu chuyển khoản</label>
-                        <input id="transferReference" name="transferReference" class="form-control form-control-lg" maxlength="50" value="@Model.TransferReference" placeholder="VD: MB-20261015-001" data-transfer-reference />
-                        <div class="form-text">6–50 ký tự: chữ, số hoặc dấu gạch ngang.</div>
+                        @if (Model.TransferQr is { } qr)
+                        {
+                            <div class="text-center border rounded-3 p-3 bg-light">
+                                <strong>Quét QR để chuyển khoản</strong>
+                                <p class="small text-muted mb-2">Số tiền và nội dung đã được điền sẵn.</p>
+                                <img src="@qr.ImageUrl" width="280" height="280" class="img-fluid rounded bg-white" alt="QR chuyển khoản @qr.BankCode" referrerpolicy="no-referrer" />
+                                <div class="small mt-2"><strong>@qr.BankCode</strong> · @qr.AccountNumber<br />@qr.AccountName</div>
+                            </div>
+                            <label class="form-label fw-semibold mt-3" for="transferReference">Nội dung chuyển khoản</label>
+                            <input id="transferReference" name="transferReference" readonly class="form-control form-control-lg" maxlength="50" value="@qr.Reference" data-transfer-reference />
+                            <div class="form-text">Nội dung này được ghi nhận cùng hóa đơn khi thu ngân xác nhận.</div>
+                        }
+                        else
+                        {
+                            <label class="form-label fw-semibold" for="transferReference">Mã tham chiếu chuyển khoản</label>
+                            <input id="transferReference" name="transferReference" class="form-control form-control-lg" maxlength="50" value="@Model.TransferReference" placeholder="VD: MB-20261015-001" data-transfer-reference />
+                            <div class="form-text">6–50 ký tự: chữ, số hoặc dấu gạch ngang.</div>
+                        }
                     </div>
                     <div class="cashier-payment__change mt-3" aria-live="polite" data-change-box>
                         <span>Tiền thối lại</span><strong data-change>@Vnd.Format(Model.Change)</strong>
                     </div>
-                    <button type="submit" class="btn btn-primary w-100 mt-4" @(Model.Lines.Count == 0 || Model.Session.UnservedCount > 0 ? "disabled" : null)>Chốt tiền mặt</button>
+                    <button type="submit" class="btn btn-primary w-100 mt-4" data-checkout-button @(Model.Lines.Count == 0 || Model.Session.UnservedCount > 0 ? "disabled" : null)>Chốt tiền mặt</button>
                 </div>
             </form>
         </aside>
@@ -120,12 +135,12 @@
   const root = document.querySelector('[data-screen="cashier-cash-payment"]');
   const input = root?.querySelector('[data-cash-received]');
   const change = root?.querySelector('[data-change]');
-  const methods = root?.querySelectorAll('[data-payment-method]'); const cash = root?.querySelector('[data-cash-fields]'); const transfer = root?.querySelector('[data-transfer-fields]');
+  const methods = root?.querySelectorAll('[data-payment-method]'); const cash = root?.querySelector('[data-cash-fields]'); const transfer = root?.querySelector('[data-transfer-fields]'); const checkout = root?.querySelector('[data-checkout-button]');
   if (!root || !input || !change || !methods || !cash || !transfer) return;
   const total = Number(root.dataset.total || 0);
   const format = value => new Intl.NumberFormat('vi-VN').format(Math.max(0, value)) + ' ₫';
   const refresh = () => change.textContent = format(Number(input.value || 0) - total);
-  const toggle = () => { const isCash = root.querySelector('[data-payment-method]:checked')?.value === 'Cash'; cash.hidden = !isCash; transfer.hidden = isCash; root.querySelector('[data-change-box]').hidden = !isCash; input.required = isCash; transfer.querySelector('input').required = !isCash; };
+  const toggle = () => { const isCash = root.querySelector('[data-payment-method]:checked')?.value === 'Cash'; cash.hidden = !isCash; transfer.hidden = isCash; root.querySelector('[data-change-box]').hidden = !isCash; input.required = isCash; transfer.querySelector('input').required = !isCash; if (checkout) checkout.textContent = isCash ? 'Chốt tiền mặt' : 'Xác nhận chuyển khoản'; };
   input.addEventListener('input', refresh); methods.forEach(x => x.addEventListener('change', toggle)); toggle(); refresh();
 })();
 </script>

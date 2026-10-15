@@ -43,6 +43,9 @@ public sealed record DiscountHistoryEntry(string Action, string? Reason, DateTim
     };
 }
 
+/// <summary>Thông tin QR chuyển khoản được sinh theo đúng tổng tiền của hóa đơn đang chốt.</summary>
+public sealed record BankTransferQr(string BankCode, string AccountNumber, string AccountName, string Reference, string ImageUrl);
+
 public sealed record CashierPaymentViewModel(
     PayableSession Session,
     IReadOnlyList<CashierPaymentLine> Lines,
@@ -52,6 +55,7 @@ public sealed record CashierPaymentViewModel(
     Guid RequestId,
     SessionDiscount? Discount,
     IReadOnlyList<DiscountHistoryEntry> DiscountHistory,
+    BankTransferQr? TransferQr,
     string? Error = null)
 {
     public decimal Total => Session.Subtotal - (Discount?.Amount ?? 0);
