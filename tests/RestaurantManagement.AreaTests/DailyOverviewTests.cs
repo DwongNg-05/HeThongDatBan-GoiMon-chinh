@@ -49,6 +49,12 @@ internal static class DailyOverviewTests
         check(populated.Contains("revenue-bar") && populated.Contains("height:100%") && !populated.Contains("Chưa có dữ liệu"), "Rendered populated page has revenue columns and no empty message");
         var error = await Render(empty with { LoadError = "Không tải được số liệu." });
         check(error.Contains("Không tải được số liệu.") && !error.Contains("Chưa có dữ liệu") && !error.Contains("overview-metrics\""), "Rendered load failure never masquerades as zero revenue");
+        check(html.Contains("name=\"from\"") && html.Contains("name=\"to\"") && html.Contains("value=\"2026-10-15\""), "Range form defaults both inputs to reported today");
+        var range = DailyOverviewRules.CalculateRange([hours, hours with { Date = date.AddDays(1) }], hours.Start, [new(hours.Start, 250_000, 3)], 1);
+        var rangeHtml = await Render(range);
+        check(rangeHtml.Contains("Doanh thu theo ngày") && rangeHtml.Contains("16/10/2026") && rangeHtml.Contains("height:100%"), "Multi-day Razor shows daily columns and selected period");
+        var invalidHtml = await Render(empty with { ValidationError = "Chỉ được chọn tối đa 92 ngày.", FromInput = "2026-01-01", ToInput = "2026-04-03" });
+        check(invalidHtml.Contains("Chỉ được chọn tối đa 92 ngày.") && invalidHtml.Contains("value=\"2026-04-03\"") && !invalidHtml.Contains("overview-metrics\""), "Invalid range keeps inputs and shows limit instead of misleading metrics");
     }
     internal static async Task RunDatabaseAsync(Action<bool, string> check)
     {
@@ -81,6 +87,18 @@ internal static class DailyOverviewTests
         await reader.ReadAsync();
         check(reader.GetInt32(0) == result.ServingTables, "SQL-backed serving tables agrees with physical table count");
         Console.WriteLine($"Business date {result.Date:yyyy-MM-dd}; {result.InvoiceCount} invoices; {result.Hours.Count} hourly buckets.");
+        var single = await store.RangeAsync(result.Date, result.Date, CancellationToken.None);
+        check(single.Date == result.Date && single.EndDate == result.Date && single.Revenue == result.Revenue && single.InvoiceCount == result.InvoiceCount,
+            "SQL range: explicit one day agrees with default today");
+        var wide = await store.RangeAsync(result.Date.AddDays(-91), result.Date, CancellationToken.None);
+        check(wide.Days?.Count == 92 && wide.Date == result.Date.AddDays(-91) && wide.EndDate == result.Date,
+            "SQL range: 92-day schedule query includes both endpoints");
+        check(wide.Days!.Sum(d => d.Revenue) == wide.Revenue && wide.Days!.Sum(d => d.InvoiceCount) == wide.InvoiceCount,
+            "SQL range: daily columns reconcile with range totals");
+        var rejected = false;
+        try { await store.RangeAsync(result.Date.AddDays(-92), result.Date, CancellationToken.None); }
+        catch (ArgumentException ex) { rejected = ex.Message.Contains("92"); }
+        check(rejected, "SQL range: store rejects 93-day requests before querying");
     }
     internal static void Run(Action<bool, string> check)
     {

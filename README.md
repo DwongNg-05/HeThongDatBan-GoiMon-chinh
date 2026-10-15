@@ -2,7 +2,9 @@
 
 ## S4-05 Task 1 — tổng quan hôm nay
 
-Quản lý mở **Tổng quan hôm nay** (`/Reports/Today`) để xem năm chỉ số và biểu đồ doanh thu theo giờ. Quy tắc đã chốt, cách demo, kiểm thử và giới hạn lịch qua nửa đêm: [S4-05 Task 1](docs/S4-05-Task1.md).
+Quản lý mở **Thống kê doanh thu** (`/Reports/Today`) để xem năm chỉ số, mặc định hôm nay. Quy tắc nền tảng và giới hạn lịch qua nửa đêm: [S4-05 Task 1](docs/S4-05-Task1.md).
+
+Task 2 bổ sung chọn khoảng ngày tối đa 92 ngày (tính cả hai đầu), biểu đồ theo giờ cho một ngày và theo ngày cho nhiều ngày. Cách demo và kiểm thử: [S4-05 Task 2](docs/S4-05-Task2.md).
 
 Database SQL Server và bộ khung ASP.NET Core MVC .NET 10 cho nhóm phát triển.
 

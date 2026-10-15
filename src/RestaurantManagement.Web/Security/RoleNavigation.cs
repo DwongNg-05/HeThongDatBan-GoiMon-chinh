@@ -25,7 +25,7 @@ public static class RoleNavigation
 
     public static readonly IReadOnlyList<NavItem> Items =
     [
-        new("daily-overview", "Tổng quan hôm nay", "/Reports/Today", M),
+        new("daily-overview", "Thống kê doanh thu", "/Reports/Today", M),
         new("reservations", "Danh sách đặt bàn", "/ReservationManagement", M, W),
         new("areas", "Khu vực & bàn", "/Areas", M),
         new("table-map", "Sơ đồ bàn", "/", M, W),
