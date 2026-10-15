@@ -19,6 +19,8 @@ void Check(bool condition, string label)
 if (args.Contains("--daily-overview-only"))
 {
     DailyOverviewTests.Run(Check);
+    ReportRangeTests.Run(Check);
+    await ReportRangeTests.ControllerAsync(Check);
     await DailyOverviewTests.RenderAsync(Check);
     Console.WriteLine($"{count} daily overview tests passed.");
     return;
@@ -42,6 +44,8 @@ if (args.Contains("--category-image-only"))
     return;
 }
 DailyOverviewTests.Run(Check);
+ReportRangeTests.Run(Check);
+await ReportRangeTests.ControllerAsync(Check);
 bool Valid(string name, int? order)
 {
     var model = new AreaFormViewModel { Name = name, SortOrder = order };
