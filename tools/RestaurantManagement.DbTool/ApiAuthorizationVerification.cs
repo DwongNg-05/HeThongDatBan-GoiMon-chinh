@@ -46,8 +46,8 @@ internal static class ApiAuthorizationVerification
     };
 
     /// <summary>
-    /// S1-04 Task 1/2: thanh điều hướng mong đợi theo vai trò (khoá data-nav-item) và trang đầu tiên khi mở "/".
-    /// Phục vụ: đúng 4 mục (thêm Món chờ mang ra); Bếp: đúng 2 mục (màn hình bếp, món trong ngày — S2-08 Task 1); Thu ngân: đúng 3 mục.
+    /// S1-04 Task 1: thanh điều hướng mong đợi theo vai trò (khoá data-nav-item) và trang đầu tiên khi mở "/".
+    /// Phục vụ: 4 mục; Bếp: 2 mục; Thu ngân: 3 mục.
     /// </summary>
     internal static readonly Dictionary<string, (string Landing, string[] Nav)> ExpectedNavigation = new()
     {
@@ -144,6 +144,8 @@ internal static class ApiAuthorizationVerification
             if (update.StatusCode != HttpStatusCode.Forbidden) failures.Add($"Bếp đổi trạng thái bàn qua API phải nhận 403, thực tế {(int)update.StatusCode}");
         }
 
+        failures.AddRange(await CheckSensitiveApis(web.Client.BaseAddress!, connection, password));
+
         failures.AddRange(await CheckWaiter(web.Client.BaseAddress!, password));
         failures.AddRange(await CheckTypedScreens(web.Client.BaseAddress!, password));
 
@@ -193,7 +195,8 @@ internal static class ApiAuthorizationVerification
             ("thực đơn", "POST", "/Management/Availability"),
             ("tài khoản", "GET", "/admin/employee-accounts"), ("tài khoản", "GET", "/admin/employee-accounts/check-username?userName=s104"),
             ("tài khoản", "POST", "/admin/employee-accounts/create"),
-            ("báo cáo", "GET", "/AuditLogs"), ("báo cáo", "GET", "/Cashier/Invoices"), ("báo cáo", "GET", "/Cashier/Shift")
+            ("báo cáo", "GET", "/AuditLogs"), ("báo cáo", "GET", "/Cashier/Invoices"), ("báo cáo", "GET", "/Cashier/Shift"),
+            ("giá món", "PUT", "/api/menu/1/price"), ("doanh thu", "GET", "/api/reports/revenue")
         };
         foreach (var (group, method, url) in blocked)
         {
@@ -221,6 +224,79 @@ internal static class ApiAuthorizationVerification
         if (problems.Count == 0)
             Console.WriteLine($"PASS: S1-04 Task 1 — Phục vụ: đăng nhập nhận vai trò Waiter, {blocked.Length} API thực đơn/tài khoản/báo cáo bị từ chối (403 JSON), sơ đồ bàn/đặt bàn/gọi món/món chờ mang ra mở được.");
         return problems;
+    }
+
+    private static async Task<List<string>> CheckSensitiveApis(Uri baseAddress, string connection, string password)
+    {
+        var problems = new List<string>();
+        using (var anonymous = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { BaseAddress = baseAddress })
+        {
+            using var price = new HttpRequestMessage(HttpMethod.Put, "/api/menu/1/price")
+                { Content = new StringContent("{\"priceVnd\":1000}", Encoding.UTF8, "application/json") };
+            using var deniedPrice = await anonymous.SendAsync(price);
+            using var deniedRevenue = await anonymous.GetAsync("/api/reports/revenue");
+            if (!await IsApiError(deniedPrice, 401, "unauthorized") || !await IsApiError(deniedRevenue, 401, "unauthorized"))
+                problems.Add("API giá món và doanh thu khi chưa đăng nhập phải trả 401 JSON.");
+        }
+
+        using (var waiter = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, CookieContainer = new CookieContainer() }) { BaseAddress = baseAddress })
+        {
+            await Login(waiter, "waiter", password);
+            using var price = new HttpRequestMessage(HttpMethod.Put, "/api/menu/1/price")
+                { Content = new StringContent("{\"priceVnd\":1000}", Encoding.UTF8, "application/json") };
+            using var deniedPrice = await waiter.SendAsync(price);
+            using var deniedRevenue = await waiter.GetAsync("/api/reports/revenue");
+            if (!await IsApiError(deniedPrice, 403, "forbidden") || !await IsApiError(deniedRevenue, 403, "forbidden"))
+                problems.Add("Phục vụ gọi API giá món và doanh thu phải nhận 403 JSON, không được trả dữ liệu.");
+        }
+
+        using (var manager = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, CookieContainer = new CookieContainer() }) { BaseAddress = baseAddress })
+        {
+            await Login(manager, "manager", password);
+            int dishId;
+            int price;
+            await using (var cn = new SqlConnection(connection))
+            {
+                await cn.OpenAsync();
+                await using var cmd = new SqlCommand("SELECT TOP(1) Id,CONVERT(int,Price) FROM dbo.MenuItems ORDER BY Id", cn);
+                await using var reader = await cmd.ExecuteReaderAsync();
+                if (!await reader.ReadAsync()) return ["Kiểm thử API giá món cần có món seed."];
+                dishId = reader.GetInt32(0);
+                price = reader.GetInt32(1);
+            }
+            var editHtml = await manager.GetStringAsync($"/Dishes/Edit/{dishId}");
+            using var update = new HttpRequestMessage(HttpMethod.Put, $"/api/menu/{dishId}/price")
+            {
+                Content = new StringContent(JsonSerializer.Serialize(new { priceVnd = price }), Encoding.UTF8, "application/json")
+            };
+            update.Headers.Add("RequestVerificationToken", Token(editHtml));
+            using var saved = await manager.SendAsync(update);
+            if (saved.StatusCode != HttpStatusCode.OK)
+                problems.Add($"Quản lý cập nhật giá qua API phải thành công (200), thực tế {(int)saved.StatusCode}: {await saved.Content.ReadAsStringAsync()}");
+
+            using var report = await manager.GetAsync("/api/reports/revenue");
+            if (report.StatusCode != HttpStatusCode.OK)
+                problems.Add($"Quản lý phải xem được API doanh thu (200), thực tế {(int)report.StatusCode}.");
+        }
+
+        using (var cashier = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, CookieContainer = new CookieContainer() }) { BaseAddress = baseAddress })
+        {
+            await Login(cashier, "cashier", password);
+            using var report = await cashier.GetAsync("/api/reports/revenue");
+            if (report.StatusCode != HttpStatusCode.OK)
+                problems.Add($"Thu ngân được phép xem API doanh thu, thực tế {(int)report.StatusCode}.");
+        }
+
+        if (problems.Count == 0)
+            Console.WriteLine("PASS: Sensitive APIs — giá món 401/403/200 theo vai trò; doanh thu 401/403/200.");
+        return problems;
+    }
+
+    private static async Task<bool> IsApiError(HttpResponseMessage response, int status, string error)
+    {
+        var body = await response.Content.ReadAsStringAsync();
+        return (int)response.StatusCode == status && response.Content.Headers.ContentType?.MediaType == "application/json"
+            && TryJson(body, out var json) && Text(json, "error") == error;
     }
 
     /// <summary>

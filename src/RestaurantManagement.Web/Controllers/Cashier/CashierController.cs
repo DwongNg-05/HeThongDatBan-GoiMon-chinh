@@ -106,6 +106,38 @@ public sealed class CashierController(IConfiguration configuration) : Controller
         return View(new InvoicesViewModel(day, invoices));
     }
 
+    [HttpGet("/api/reports/revenue")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public async Task<IActionResult> RevenueReport(DateOnly? date, CancellationToken cancellationToken)
+    {
+        var day = date ?? DateOnly.FromDateTime(VietnamTime.FromUtc(DateTime.UtcNow));
+        var invoices = new List<InvoiceRow>();
+        await using var connection = new SqlConnection(ConnectionString);
+        await using var command = new SqlCommand("""
+            SELECT i.Id,i.InvoiceNumber,i.TableLabels,i.GuestCount,i.IssuedAt,i.Subtotal,i.DiscountAmount,i.Total,p.Method,i.Status
+            FROM dbo.Invoices i JOIN dbo.Payments p ON p.InvoiceId=i.Id
+            WHERE i.BusinessDate=@day ORDER BY i.IssuedAt DESC,i.Id DESC;
+            """, connection);
+        command.Parameters.Add("@day", SqlDbType.Date).Value = day.ToDateTime(TimeOnly.MinValue);
+        await connection.OpenAsync(cancellationToken);
+        await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
+            while (await reader.ReadAsync(cancellationToken))
+                invoices.Add(new InvoiceRow(reader.GetInt64(0), reader.GetString(1), reader.GetString(2), reader.GetInt32(3),
+                    VietnamTime.FromUtc(reader.GetDateTime(4)), reader.GetDecimal(5), reader.GetDecimal(6), reader.GetDecimal(7),
+                    reader.GetString(8), reader.GetString(9)));
+
+        var paid = invoices.Where(invoice => invoice.Status == "Paid").ToArray();
+        return Ok(new
+        {
+            businessDate = day,
+            invoiceCount = paid.Length,
+            totalRevenue = paid.Sum(invoice => invoice.Total),
+            cashRevenue = paid.Where(invoice => invoice.Method == "Cash").Sum(invoice => invoice.Total),
+            transferRevenue = paid.Where(invoice => invoice.Method == "Transfer").Sum(invoice => invoice.Total),
+            invoices
+        });
+    }
+
     // ---------------- Chốt ca ----------------
 
     [HttpGet("Shift")]
