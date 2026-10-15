@@ -9,6 +9,13 @@ using RestaurantManagement.Web.Services;
 using RestaurantManagement.Web.Services.EmailVerification;
 
 var builder = WebApplication.CreateBuilder(args);
+if (builder.Environment.IsDevelopment())
+{
+    // Machine-specific settings stay outside Git; explicit environment/CLI values still win.
+    builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: false)
+        .AddEnvironmentVariables()
+        .AddCommandLine(args);
+}
 var sqlConnectionString = Environment.GetEnvironmentVariable("RM_CONNECTION_STRING");
 if (string.IsNullOrWhiteSpace(sqlConnectionString))
     sqlConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -17,6 +24,8 @@ if (string.IsNullOrWhiteSpace(sqlConnectionString))
 builder.Configuration["ConnectionStrings:DefaultConnection"] = sqlConnectionString;
 
 builder.Services.AddScoped<AuditLogService>();
+builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
+builder.Services.AddScoped<DailyOverviewStore>();
 builder.Services.AddScoped<RestaurantManagement.Web.Services.Reservations.ReservationSlotService>();
 builder.Services.AddScoped<ReservationStore>();
 builder.Services.AddScoped<ReservationConfirmationService>();

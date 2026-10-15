@@ -1,5 +1,9 @@
 # Hệ thống đặt bàn và gọi món nhà hàng
 
+## S4-05 Task 1 — tổng quan hôm nay
+
+Quản lý mở **Tổng quan hôm nay** (`/Reports/Today`) để xem năm chỉ số và biểu đồ doanh thu theo giờ. Quy tắc đã chốt, cách demo, kiểm thử và giới hạn lịch qua nửa đêm: [S4-05 Task 1](docs/S4-05-Task1.md).
+
 Database SQL Server và bộ khung ASP.NET Core MVC .NET 10 cho nhóm phát triển.
 
 ## Trạng thái hiện tại
@@ -39,6 +43,18 @@ Lệnh `migrate` tạo database nếu chưa có và áp dụng từng migration 
 `TrustServerCertificate=True` dành cho môi trường phát triển cục bộ. Khi triển khai thật, cấu hình chứng chỉ hợp lệ và tài khoản ứng dụng có quyền tối thiểu; không dùng tài khoản quản trị để chạy website.
 
 ### Kết nối ứng dụng web
+
+Khi chạy Development (F5), có thể tạo `src/RestaurantManagement.Web/appsettings.Local.json` để đặt kết nối riêng cho máy. Tệp này được bỏ qua bởi Git:
+
+```json
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=.\\SQLEXPRESS;Database=RestaurantManagement_Dev;Trusted_Connection=True;Encrypt=True;TrustServerCertificate=True"
+  }
+}
+```
+
+Thay `SQLEXPRESS` bằng instance đã cài trên máy. Biến môi trường và tham số dòng lệnh vẫn được ưu tiên; `RM_CONNECTION_STRING` có ưu tiên cao nhất. DbTool vẫn cần đặt `RM_CONNECTION_STRING` như hướng dẫn bên trên.
 
 Ứng dụng web và worker thông báo trạng thái bàn cùng đọc chuỗi kết nối `RM_CONNECTION_STRING`. Nếu biến này không có, ứng dụng dùng `ConnectionStrings:DefaultConnection` trong `appsettings.json` (mặc định là `RestaurantManagement_Dev` trên `.\MSSQLSERVER07`). Có thể ghi đè trong PowerShell trước khi chạy web:
 

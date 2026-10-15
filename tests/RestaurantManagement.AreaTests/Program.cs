@@ -16,6 +16,19 @@ void Check(bool condition, string label)
     if (!condition) throw new Exception("FAIL: " + label);
     Console.WriteLine("PASS: " + label); count++;
 }
+if (args.Contains("--daily-overview-only"))
+{
+    DailyOverviewTests.Run(Check);
+    await DailyOverviewTests.RenderAsync(Check);
+    Console.WriteLine($"{count} daily overview tests passed.");
+    return;
+}
+if (args.Contains("--daily-overview-db"))
+{
+    await DailyOverviewTests.RunDatabaseAsync(Check);
+    Console.WriteLine($"{count} daily overview database tests passed.");
+    return;
+}
 if (args.Contains("--image-only"))
 {
     await MenuImageTests.Run(Check);
@@ -28,6 +41,7 @@ if (args.Contains("--category-image-only"))
     Console.WriteLine($"{count} category image tests passed.");
     return;
 }
+DailyOverviewTests.Run(Check);
 bool Valid(string name, int? order)
 {
     var model = new AreaFormViewModel { Name = name, SortOrder = order };
