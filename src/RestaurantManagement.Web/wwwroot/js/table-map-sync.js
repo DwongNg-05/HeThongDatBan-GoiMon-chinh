@@ -99,6 +99,7 @@
         );
     }
 
+    window.addEventListener('cleaning-completed', () => sync());
     async function sync() {
         if (stopped || document.hidden || pending) {
             return;
