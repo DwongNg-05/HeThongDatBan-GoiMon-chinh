@@ -11,12 +11,14 @@
     <div class="d-flex flex-wrap justify-content-between gap-3 align-items-start mb-3">
         <div>
             <a asp-action="Index" class="link-secondary small">← Danh sách thanh toán</a>
-            <h2 class="mt-2 mb-1">Thanh toán tiền mặt · Bàn @Model.Session.Tables</h2>
+            <h2 class="mt-2 mb-1">Thanh toán · Bàn @Model.Session.Tables</h2>
             <p class="text-muted mb-0">@Model.Session.GuestCount khách · mở lúc @Model.Session.OpenedAt.ToString("dd/MM/yyyy HH:mm")</p>
         </div>
         <span class="badge text-bg-light border">Chỉ đọc giá món</span>
     </div>
 
+    @if (TempData["Success"] is string success) { <div class="alert alert-success" role="alert">@success</div> }
+    @if (TempData["Error"] is string tempError) { <div class="alert alert-danger" role="alert">@tempError</div> }
     @if (Model.Error is not null) { <div class="alert alert-danger" role="alert">@Model.Error</div> }
     @if (Model.Lines.Count == 0) { <div class="alert alert-warning">Phiên chưa có món hợp lệ để thanh toán.</div> }
     @if (Model.Session.UnservedCount > 0) { <div class="alert alert-warning">Còn @Model.Session.UnservedCount món chưa phục vụ. Hãy xử lý xong trước khi thanh toán.</div> }
@@ -45,13 +47,48 @@
             </div>
         </section>
         <aside class="col-lg-5">
+            <section class="card shadow-sm mb-3" aria-labelledby="discount-title">
+                <div class="card-body">
+                    <h3 id="discount-title" class="h5">Giảm giá</h3>
+                    @if (Model.Discount is { } discount)
+                    {
+                        <div class="alert alert-info py-2 mb-3">
+                            <strong>@discount.TypeLabel: @Vnd.Format(discount.Amount)</strong><br />
+                            <small>Lý do: @discount.Reason · cập nhật @discount.UpdatedAt.ToString("HH:mm dd/MM")</small>
+                        </div>
+                        <form asp-action="RemoveDiscount" method="post" class="mb-3">
+                            <input type="hidden" name="sessionId" value="@Model.Session.SessionId" />
+                            <input type="hidden" name="requestId" value="@Model.RequestId" />
+                            <button type="submit" class="btn btn-outline-danger btn-sm">Gỡ giảm giá</button>
+                        </form>
+                    }
+                    <form asp-action="Discount" method="post" class="row g-2">
+                        <input type="hidden" name="sessionId" value="@Model.Session.SessionId" />
+                        <input type="hidden" name="requestId" value="@Model.RequestId" />
+                        <div class="col-5"><label class="form-label" for="discountType">Loại</label>
+                            <select id="discountType" name="discountType" class="form-select"><option value="Percent" selected="@(Model.Discount?.Type == "Percent" ? "selected" : null)">%</option><option value="Amount" selected="@(Model.Discount?.Type == "Amount" ? "selected" : null)">Số tiền</option></select></div>
+                        <div class="col-7"><label class="form-label" for="discountValue">Giá trị</label><input id="discountValue" name="discountValue" type="number" min="1" step="1" required class="form-control" value="@(Model.Discount is { } selectedDiscount ? selectedDiscount.Value.ToString("0", number) : "")" /></div>
+                        <div class="col-12"><label class="form-label" for="discountReason">Lý do giảm giá</label><input id="discountReason" name="discountReason" maxlength="500" minlength="5" required class="form-control" value="@Model.Discount?.Reason" placeholder="Ít nhất 5 ký tự" /></div>
+                        <div class="col-12"><small class="text-muted">Tối đa 50% tổng tiền. Mọi thay đổi đều được lưu nhật ký.</small></div>
+                        <div class="col-12"><button type="submit" class="btn btn-outline-primary btn-sm">@(Model.Discount is null ? "Áp dụng giảm giá" : "Cập nhật giảm giá")</button></div>
+                    </form>
+                    @if (Model.DiscountHistory.Count > 0)
+                    {
+                        <details class="mt-3"><summary class="small fw-semibold">Nhật ký giảm giá (@Model.DiscountHistory.Count)</summary><ul class="small mb-0 mt-2 ps-3">
+                            @foreach (var item in Model.DiscountHistory) { <li>@item.ActionLabel · @item.OccurredAt.ToString("HH:mm dd/MM")@(item.Reason is null ? "" : ": " + item.Reason)</li> }
+                        </ul></details>
+                    }
+                </div>
+            </section>
             <form asp-action="Checkout" method="post" class="card shadow-sm cashier-payment__form">
                 <div class="card-body">
                     <h3 class="h5">Chốt hoá đơn</h3>
                     <input type="hidden" name="sessionId" value="@Model.Session.SessionId" />
                     <input type="hidden" name="requestId" value="@Model.RequestId" />
                     <dl class="cashier-payment__summary">
-                        <div><dt>Tổng tiền món</dt><dd>@Vnd.Format(Model.Total)</dd></div>
+                        <div><dt>Tổng tiền món</dt><dd>@Vnd.Format(Model.Session.Subtotal)</dd></div>
+                        @if (Model.Discount is { } appliedDiscount) { <div><dt>Giảm giá</dt><dd>-@Vnd.Format(appliedDiscount.Amount)</dd></div> }
+                        <div class="cashier-payment__total"><dt>Phải thu</dt><dd>@Vnd.Format(Model.Total)</dd></div>
                         <div><dt>Hình thức</dt><dd>Chọn bên dưới</dd></div>
                     </dl>
                     <fieldset class="mb-3"><legend class="form-label fw-semibold">Hình thức thanh toán</legend>
