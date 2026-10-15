@@ -240,6 +240,7 @@ builder.Services.AddScoped<SessionOrderingService>();
 builder.Services.AddScoped<ShiftClosingStore>();
 builder.Services.AddSingleton<ShiftClosingPdfBuilder>();
 builder.Services.AddScoped<RestaurantManagement.Web.Services.TableMergeService>();
+builder.Services.AddScoped<TableUnmergeService>();
 builder.Services.AddSingleton<DatabaseSchemaReadiness>();
 var app = builder.Build();
 

@@ -20,6 +20,7 @@ const cards = ['A', 'B'].map(code => {
 const buttons = cards.map(card => ({ ...element(), dataset: { openDetails: card.dataset.tableCode } }));
 const page = element(); page.dataset = { statusApi: '/api/table-status', detailsApi: '/api/table-map' };
 byId('details-group-main-link').dataset.orderingUrl = '/Ordering';
+byId('details-group-unmerge-link').dataset.unmergeUrl = '/Ordering/Unmerge';
 byId('details-bill-link').dataset.billUrl = '/ProvisionalBill/Table/';
 let poll;
 const group = { label: 'N-11', mainSessionId: 11, mainTableCode: 'A', memberTableCodes: ['A', 'B'], status: 'Open' };
@@ -54,6 +55,9 @@ async function run() {
     const link = new URL(byId('details-group-main-link').href);
     assert.equal(link.searchParams.get('sessionId'), '11');
     assert.equal(link.searchParams.get('tableCode'), 'B', 'Opening the root must retain selected member B as the origin');
+    const unmergeLink = new URL(byId('details-group-unmerge-link').href);
+    assert.equal(unmergeLink.pathname, '/Ordering/Unmerge');
+    assert.equal(unmergeLink.searchParams.get('tableCode'), 'B');
     console.log('PASS: homepage badges and member dialog resolve the shared main session while retaining order origin');
 
     rows = rows.map(r => ({ ...r, status: 'AwaitingPayment', changedAtUtc: '2026-10-15T02:00:00Z', group: { ...group, status: 'AwaitingPayment' } }));
@@ -63,6 +67,18 @@ async function run() {
     poll(); await tick();
     assert.equal(cards[1].dataset.status, 'Serving', 'Authoritative polling must accept reopening even when the derived timestamp decreases');
     console.log('PASS: homepage retains labels during payment and accepts reopened session state');
+
+    rows = rows.map(r => ({ ...r, status: 'Serving', group: null }));
+    poll(); await tick();
+    assert.equal(cards[0].badge.hidden, true);
+    assert.equal(cards[1].badge.hidden, true);
+    assert.equal(cards[0].dataset.status, 'Serving');
+    assert.equal(byId('details-group').hidden, true);
+    rows = rows.map(r => ({ ...r, group: { ...group, label: 'N-G21' } }));
+    poll(); await tick();
+    assert.equal(cards[1].badge.textContent, 'Nhóm N-G21');
+    assert.equal(byId('details-group-label').textContent, 'Nhóm N-G21');
+    console.log('PASS: homepage removes labels on unmerge and refreshes a regrouped label while both tables stay Serving');
 
     rows = rows.map(r => ({ ...r, status: 'Cleaning', changedAtUtc: '2026-10-15T03:00:00Z', group: null }));
     poll(); await tick();

@@ -128,6 +128,11 @@
             destination.searchParams.set('tableCode', details.code);
             destination.searchParams.set('sessionId', String(group.mainSessionId));
             link.href = destination.href;
+            const unmergeLink = byId('details-group-unmerge-link');
+            const unmergeDestination = new URL(unmergeLink.dataset.unmergeUrl, window.location.origin);
+            unmergeDestination.searchParams.set('tableCode', details.code);
+            unmergeLink.href = unmergeDestination.href;
+
         }
         renderOrderedItems(details);
         renderAddItems(details);

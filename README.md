@@ -356,3 +356,7 @@ Toàn solution tham chiếu `System.Security.Cryptography.Pkcs` 10.0.13 trong `D
 ## Gộp bàn — Task 2: nhãn nhóm trên sơ đồ
 
 Migration `060_TableGroupLabels.sql` thêm nhãn nhóm lưu bền vững, danh sách thành viên và bàn giữ phiên chính. Cả sơ đồ trang chính và `/TableMap` tự cập nhật nhãn sau gộp và gỡ nhãn phục vụ sau thanh toán; giữ nguyên AC 1, AC 2 và bổ sung AC 3. [Đối chiếu yêu cầu, demo và kiểm thử](docs/GopBan-Task2.md).
+
+## Gộp bàn — Task 3: huỷ gộp trước thanh toán
+
+Migration `061_UnmergeTables.sql` khôi phục phiên riêng và trả từng dòng món về bàn gốc, kể cả món gọi thêm. Cho phép huỷ cả nhóm đang chờ thanh toán theo quy tắc đã được người dùng xác nhận; cả hai bàn trở lại Đang phục vụ. Form thu ngân có kiểm tra phiên bản để ngăn thanh toán nhóm cũ sau khi huỷ. [Đối chiếu yêu cầu, demo và kiểm thử](docs/GopBan-Task3.md).

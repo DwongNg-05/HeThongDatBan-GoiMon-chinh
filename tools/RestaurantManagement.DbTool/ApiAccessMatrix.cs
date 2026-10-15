@@ -143,6 +143,7 @@ internal static class ApiAccessMatrix
         new("Page /DishCategories/Status", Manager, "GET", $"/DishCategories/Status/{Missing}"),
 
         // ---- Gọi món ----
+        new("Page /Ordering/Unmerge", FrontOfHouse, "GET", "/Ordering/Unmerge?tableId=999999"),
         new("Page /Ordering/Index", FrontOfHouse, "GET", "/Ordering"),
         new("Page /Ordering/Checkout", FrontOfHouse, "POST", "/Ordering/Checkout"),
         new("Page /Orders/Details", FrontOfHouse, "GET", $"/Orders/Details/{Missing}"),

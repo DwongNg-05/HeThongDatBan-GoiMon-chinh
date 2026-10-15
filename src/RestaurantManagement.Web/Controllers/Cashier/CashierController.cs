@@ -39,7 +39,7 @@ public sealed class CashierController(IConfiguration configuration) : Controller
                    (SELECT COUNT(*) FROM dbo.OrderItems i JOIN dbo.OrderBatches b ON b.Id=i.BatchId JOIN dbo.DiningSessions x ON x.Id=b.SessionId
                      WHERE (x.Id=s.Id OR x.BillingSessionId=s.Id) AND i.Status NOT IN ('Served','Cancelled')) AS Unserved,
                    (SELECT COALESCE(SUM(i.LineTotal),0) FROM dbo.OrderItems i JOIN dbo.OrderBatches b ON b.Id=i.BatchId JOIN dbo.DiningSessions x ON x.Id=b.SessionId
-                     WHERE (x.Id=s.Id OR x.BillingSessionId=s.Id) AND (i.Status<>'Cancelled' OR i.ChargeWhenCancelled=1)) AS Subtotal
+                     WHERE (x.Id=s.Id OR x.BillingSessionId=s.Id) AND (i.Status<>'Cancelled' OR i.ChargeWhenCancelled=1)) AS Subtotal,s.RowVersion
             FROM dbo.DiningSessions s
             WHERE s.Status IN ('Open','AwaitingPayment') AND s.BillingSessionId IS NULL
             ORDER BY CASE s.Status WHEN 'AwaitingPayment' THEN 0 ELSE 1 END, s.OpenedAt;
@@ -47,7 +47,7 @@ public sealed class CashierController(IConfiguration configuration) : Controller
         await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
             while (await reader.ReadAsync(cancellationToken))
                 sessions.Add(new PayableSession(reader.GetInt64(0), reader.GetString(1), reader.GetInt32(2), reader.GetString(3),
-                    VietnamTime.FromUtc(reader.GetDateTime(4)), reader.GetInt32(5), reader.GetInt32(6), reader.GetDecimal(7)));
+                    VietnamTime.FromUtc(reader.GetDateTime(4)), reader.GetInt32(5), reader.GetInt32(6), reader.GetDecimal(7)) { SessionVersion=Convert.ToHexString((byte[])reader[8]) });
         return View(new PaymentsViewModel(shift, sessions));
     }
 
@@ -134,7 +134,7 @@ public sealed class CashierController(IConfiguration configuration) : Controller
     /// </summary>
     [HttpPost("Checkout")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Checkout(long sessionId, Guid requestId, string? method, decimal? cashReceived, string? transferReference)
+    public async Task<IActionResult> Checkout(long sessionId, Guid requestId, string? method, decimal? cashReceived, string? transferReference, string? sessionVersion = null)
     {
         var configuredReference = method == "Transfer" ? BuildTransferQr(0, requestId)?.Reference : null;
         var effectiveTransferReference = configuredReference ?? transferReference;
@@ -145,12 +145,18 @@ public sealed class CashierController(IConfiguration configuration) : Controller
             return RedirectToAction(nameof(Payment), new { sessionId, method, cashReceived, transferReference = effectiveTransferReference, requestId,
                 error = method == "Transfer" ? "Mã chuyển khoản gồm 6–50 ký tự chữ, số hoặc dấu gạch ngang." : "Vui lòng nhập số tiền khách đưa hợp lệ." });
         }
+        if (!string.IsNullOrEmpty(sessionVersion) && (sessionVersion.Length!=16 || !sessionVersion.All(Uri.IsHexDigit)))
+        {
+            TempData["Error"]="Thông tin thanh toán đã cũ. Vui lòng tải lại và xác nhận số tiền.";
+            return RedirectToAction(nameof(Index));
+        }
         try
         {
             var discount = await ReadDiscountAsync(sessionId, HttpContext.RequestAborted);
             await using var connection = new SqlConnection(ConnectionString);
             await using var command = new SqlCommand("dbo.usp_Checkout", connection) { CommandType = CommandType.StoredProcedure };
             command.Parameters.Add("@SessionId", SqlDbType.BigInt).Value = sessionId;
+            command.Parameters.Add("@ExpectedSessionVersion",SqlDbType.Binary,8).Value=string.IsNullOrEmpty(sessionVersion) ? DBNull.Value : Convert.FromHexString(sessionVersion);
             command.Parameters.Add("@RequestId", SqlDbType.UniqueIdentifier).Value = requestId;
             command.Parameters.Add("@Method", SqlDbType.VarChar, 10).Value = method;
             command.Parameters.Add("@ActorUserId", SqlDbType.Int).Value = User.ActorUserId();

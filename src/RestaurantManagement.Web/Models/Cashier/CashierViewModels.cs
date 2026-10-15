@@ -15,6 +15,7 @@ public sealed record ShiftSummary(long Id, string Name, DateTime BusinessDate, D
 public sealed record PayableSession(long SessionId, string Tables, int GuestCount, string Status, DateTime OpenedAt,
     int ItemCount, int UnservedCount, decimal Subtotal)
 {
+    public string SessionVersion { get; init; } = string.Empty;
     public bool CanCheckout => UnservedCount == 0 && ItemCount > 0;
     public string StatusLabel => Status == "AwaitingPayment" ? "Đã yêu cầu thanh toán" : "Đang phục vụ";
 }
