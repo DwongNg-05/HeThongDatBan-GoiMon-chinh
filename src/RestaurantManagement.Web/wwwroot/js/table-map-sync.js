@@ -40,7 +40,24 @@
         const card = cards.get(table.code);
         const display = statuses[table.status];
 
-        if (!card || !display || card.dataset.status === table.status) {
+        if (!card || !display) return;
+
+        // A merge changes the group while both cards remain Serving.
+        const groupKey = JSON.stringify(table.group ?? null);
+        const groupChanged = card.dataset.groupKey !== groupKey;
+        card.dataset.groupKey = groupKey;
+        card.dataset.mainSessionId = table.group ? String(table.group.mainSessionId) : '';
+        const badge = card.querySelector('.table-group-label');
+        if (badge) {
+            badge.hidden = !table.group;
+            badge.textContent = table.group ? `Nhóm ${table.group.label}` : '';
+            badge.title = table.group
+                ? `Các bàn: ${table.group.memberTableCodes.join(', ')} · Bàn chính: ${table.group.mainTableCode}` : '';
+        }
+        if (card.dataset.status === table.status) {
+            if (groupChanged) root.dispatchEvent(new CustomEvent('tablemap:changed', {
+                detail: { code: table.code, previousStatus: table.status, status: table.status }
+            }));
             return;
         }
 

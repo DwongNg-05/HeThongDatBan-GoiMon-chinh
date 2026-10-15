@@ -2,6 +2,7 @@ namespace RestaurantManagement.Web.Models;
 
 public sealed class SessionOrderingViewModel
 {
+    public TableGroupInfo? Group { get; set; }
     public int TableId { get; set; }
     public string TableCode { get; set; } = string.Empty;
 

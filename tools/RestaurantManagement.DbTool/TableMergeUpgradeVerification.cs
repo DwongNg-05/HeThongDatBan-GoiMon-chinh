@@ -45,6 +45,9 @@ internal static class TableMergeUpgradeVerification
             }
             await DatabaseTool.Migrate(connection);
             await DatabaseTool.Migrate(connection);
+            await Check(connection,"SELECT CASE WHEN COUNT(*)=2 AND COUNT(DISTINCT GroupLabel)=1 THEN 1 ELSE 0 END FROM dbo.vw_ActiveTableGroups",
+                "Task 2 upgrade: an existing merged group receives one persistent label for both tables");
+
             await Check(connection,$"SELECT CASE WHEN COUNT(*)=2 AND SUM(Id)={idSum} AND SUM(LineTotal)={total} AND SUM(Quantity)=5 AND COUNT(DISTINCT OriginalTableId)=2 AND COUNT(QuickNotes)=0 THEN 1 ELSE 0 END FROM dbo.OrderItems","Upgrade retains existing line IDs, prices, totals, quantities and origins; new notes are nullable");
             await Check(connection,"SELECT CASE WHEN COUNT(DISTINCT SessionId)=1 AND COUNT(DISTINCT OriginSessionId)=2 AND COUNT(DISTINCT BatchNumber)=2 THEN 1 ELSE 0 END FROM dbo.OrderBatches","Existing merged batches move to one root without losing the source or colliding numbers");
             await DatabaseTool.Execute(connection,"""

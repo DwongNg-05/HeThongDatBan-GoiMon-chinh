@@ -316,3 +316,7 @@ Phục vụ gộp hai bàn liền nhau đang phục vụ vào phiên chính, gi�
 Trong môi trường Development, ứng dụng đọc thêm `src/RestaurantManagement.Web/appsettings.Local.json` (được Git bỏ qua), sau cấu hình mặc định và User Secrets. Đặt chuỗi kết nối SQL Server thực tế của máy tại `ConnectionStrings:DefaultConnection`; ví dụ máy này dùng `Server=lpc:.\SQLEXPRESS;Database=RestaurantManagement_Dev;Trusted_Connection=True;Encrypt=True;TrustServerCertificate=True`. Biến `RM_CONNECTION_STRING` vẫn được ưu tiên cao nhất. Dừng phiên debug cũ và chạy lại sau khi đổi kết nối. Không dùng cấu hình SQL Server của máy người khác nếu instance đó không tồn tại.
 
 Toàn solution tham chiếu `System.Security.Cryptography.Pkcs` 10.0.13 trong `Directory.Build.props` để dùng bản vá bảo mật thống nhất. Giữ kiểm tra bảo mật NuGet và `TreatWarningsAsErrors` bật. Khi cập nhật package, cập nhật cả `packages.lock.json`.
+
+## Gộp bàn — Task 2: nhãn nhóm trên sơ đồ
+
+Migration `060_TableGroupLabels.sql` thêm nhãn nhóm lưu bền vững, danh sách thành viên và bàn giữ phiên chính. Cả sơ đồ trang chính và `/TableMap` tự cập nhật nhãn sau gộp và gỡ nhãn phục vụ sau thanh toán; giữ nguyên AC 1, AC 2 và bổ sung AC 3. [Đối chiếu yêu cầu, demo và kiểm thử](docs/GopBan-Task2.md).
