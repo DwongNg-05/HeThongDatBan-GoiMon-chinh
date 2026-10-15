@@ -6,6 +6,7 @@ using RestaurantManagement.Web.Models.Orders;
 using RestaurantManagement.Web.Models.Reservations;
 using RestaurantManagement.Web.Security;
 using RestaurantManagement.Web.Services;
+using RestaurantManagement.Web.Services.Pdf;
 
 namespace RestaurantManagement.Web.Controllers;
 
@@ -78,6 +79,51 @@ public sealed class ProvisionalBillController(IConfiguration configuration) : Co
             });
         Response.StatusCode = StatusCodes.Status404NotFound;
         return View("Missing", new ProvisionalBillMissingViewModel(result.Message));
+    }
+
+    /// <summary>
+    /// S4-01 Task 4: tải hoá đơn tạm tính về dạng tệp PDF khổ 80mm (cùng bố cục với bản in), tên tệp theo BillPdfFileName
+    /// (TamTinh_{mã bàn}_{yyyyMMdd-HHmm}.pdf). Chỉ đọc như màn hình tạm tính: không đổi bàn / đơn gọi món.
+    /// Lỗi (bàn không còn khách, không đọc được dữ liệu, không tạo được tệp): nút "Xuất PDF" (gửi X-Requested-With: fetch)
+    /// nhận JSON { message } để hiện ngay trên màn hình; mở thẳng đường dẫn thì quay về màn hình tạm tính kèm thông báo lỗi.
+    /// </summary>
+    [HttpGet("Preview/{code}/Pdf")]
+    [Authorize(Roles = AppRoles.FrontOfHouse)]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public async Task<IActionResult> Pdf(string code, [FromServices] TableBillPreviewStore store, [FromServices] BillPdfService pdf,
+        [FromServices] ILogger<ProvisionalBillController> logger, CancellationToken cancellationToken)
+    {
+        var fromButton = string.Equals(Request.Headers["X-Requested-With"], "fetch", StringComparison.OrdinalIgnoreCase);
+        IActionResult Fail(int status, string message)
+        {
+            if (fromButton) return StatusCode(status, new { message });
+            TempData["Error"] = message;
+            return RedirectToAction(nameof(Preview), new { code });
+        }
+
+        TableBillPreviewResult result;
+        try
+        {
+            result = await store.GetAsync(code, cancellationToken);
+        }
+        catch (Exception exception) when (exception is SqlException or InvalidOperationException)
+        {
+            logger.LogError(exception, "Không đọc được dữ liệu tạm tính của bàn {TableCode} để xuất PDF.", code);
+            return Fail(StatusCodes.Status500InternalServerError, BillPdfService.FailureMessage);
+        }
+        if (result.Preview is null)
+            return Fail(StatusCodes.Status404NotFound, result.Message);
+        try
+        {
+            var header = TableBillHeader.Create(result.Preview, DateTime.UtcNow, BillHeaderRules.PrinterName(User));
+            var file = pdf.Build(result.Preview, header);
+            return File(file.Content, "application/pdf", file.FileName);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogError(exception, "Không tạo được tệp PDF tạm tính của bàn {TableCode} (font: {FontDirectory}).", code, pdf.FontDirectory);
+            return Fail(StatusCodes.Status500InternalServerError, BillPdfService.FailureMessage);
+        }
     }
 
     /// <summary>

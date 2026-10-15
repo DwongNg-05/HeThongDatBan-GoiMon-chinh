@@ -183,6 +183,8 @@ BillPreviewTests.Run(Check);
 BillHeaderTests.Run(Check);
 // S4-01 Task 3: in hoá đơn tạm tính khổ 80mm qua hộp thoại in của trình duyệt.
 BillPrintTests.Run(Check);
+// S4-01 Task 4: xuất hoá đơn tạm tính thành tệp PDF khổ 80mm (tạo PDF thật rồi đọc lại chữ trong tệp).
+BillPdfTests.Run(Check);
 Console.WriteLine($"{count} tests passed.");
 if (args.Contains("--authentication-http")) await AuthenticationHttpTests.Run();
 if (args.Contains("--integration")) await AreaHttpTests.Run();

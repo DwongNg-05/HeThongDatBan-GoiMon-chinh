@@ -23,6 +23,9 @@ builder.Services.AddScoped<ReservationConfirmationService>();
 builder.Services.AddScoped<ITableMapReader, SqlTableMapReader>();
 // S4-01 Task 1: dữ liệu tạm tính của bàn đang phục vụ (chỉ đọc).
 builder.Services.AddScoped<TableBillPreviewStore>();
+// S4-01 Task 4: xuất PDF hoá đơn tạm tính khổ 80mm (font trong thư mục Fonts, nạp khi cần lần đầu).
+builder.Services.AddSingleton(new RestaurantManagement.Web.Services.Pdf.BillPdfService(
+    RestaurantManagement.Web.Services.Pdf.BillPdfService.FindFontDirectory(builder.Environment.ContentRootPath)));
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
 builder.Services.AddSingleton<RestaurantManagement.Web.Services.CancellationSmtpEmailSender>();
 if (!string.IsNullOrWhiteSpace(builder.Configuration["Smtp:Username"] ) &&

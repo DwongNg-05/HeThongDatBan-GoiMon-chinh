@@ -9,18 +9,24 @@
     var header = Model.Header ?? TableBillHeader.Create(Model, DateTime.UtcNow, BillHeaderRules.PrinterName(User));
     // S4-01 Task 3: bản in dùng đúng phần đầu (cùng thời điểm in, người in) với màn hình.
     var printModel = Model with { Header = header };
+    // S4-01 Task 4: xuất PDF; lỗi khi mở thẳng đường dẫn PDF được chuyển về đây qua TempData.
+    var pdfUrl = Url.Action("Pdf", new { code = Model.TableCode });
+    var pdfError = TempData["Error"] as string;
 }
 @section Styles {
     <link rel="stylesheet" href="~/css/bill-preview.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/bill-print.css" asp-append-version="true" />
 }
-@* S4-01 Task 1: xem trước hoá đơn tạm tính của bàn đang phục vụ (chỉ đọc). Task 2: thêm phần đầu hoá đơn. Task 3: nút "In" + bản in khổ 80mm. Chưa xuất PDF. Tiền theo BillRules: dấu chấm hàng nghìn, ký hiệu "đ", làm tròn tới đồng. *@
+@* S4-01 Task 1: xem trước hoá đơn tạm tính của bàn đang phục vụ (chỉ đọc). Task 2: thêm phần đầu hoá đơn. Task 3: nút "In" + bản in khổ 80mm. Task 4: nút "Xuất PDF". Tiền theo BillRules: dấu chấm hàng nghìn, ký hiệu "đ", làm tròn tới đồng. *@
 <div class="container mt-4 bill-preview" data-screen="bill-preview" data-table-code="@Model.TableCode" data-session-id="@Model.SessionId">
     <div class="bill-preview-actions">
         <a class="btn btn-outline-secondary btn-sm" href="@backUrl" data-preview-back>← Quay lại gọi món</a>
         @* S4-01 Task 3: mở hộp thoại in của trình duyệt với bản in khổ 80mm (không gửi gì lên máy chủ). *@
         <button type="button" class="btn btn-primary btn-sm" data-preview-print>In</button>
+        @* S4-01 Task 4: tải tệp PDF khổ 80mm (cùng bố cục bản in); bill-pdf.js tải qua fetch để báo lỗi ngay trên màn hình. *@
+        <a class="btn btn-outline-primary btn-sm" href="@pdfUrl" data-preview-pdf>Xuất PDF</a>
     </div>
+    <p class="alert alert-danger bill-preview-error" role="alert" data-preview-error hidden="@(pdfError is null ? "hidden" : null)">@pdfError</p>
 
     @* S4-01 Task 2: phần đầu hoá đơn — tên quán, mã bàn hiện tại, bắt đầu phục vụ, thời điểm in, người in (lần mở này). *@
     <header class="bill-preview-head bill-receipt-head" data-preview-header>
@@ -110,4 +116,5 @@
 
 @section Scripts {
     <script src="~/js/bill-print.js" asp-append-version="true"></script>
+    <script src="~/js/bill-pdf.js" asp-append-version="true"></script>
 }

@@ -28,4 +28,8 @@
 	<ItemGroup>
 		<Folder Include="Views\Dishes\" />
 	</ItemGroup>
+	<ItemGroup>
+		<!-- S4-01 Task 4: font DejaVu Sans Condensed nhúng vào PDF hoá đơn tạm tính (tiếng Việt có dấu); chép kèm bản build / publish. -->
+		<None Update="Fonts\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+	</ItemGroup>
 </Project>
