@@ -1,6 +1,14 @@
 @model RestaurantManagement.Web.Pages.Ordering.IndexModel
 @if(Model.CurrentSession is { } session)
 {
+    @if(session.Group is { } group)
+    {
+        <section class="alert alert-info" aria-label="Thông tin nhóm bàn" data-table-group="@group.Label" data-main-session="@group.MainSessionId">
+            <strong>Nhóm @group.Label</strong>
+            <p class="mb-1">Các bàn thành viên: @string.Join(", ",group.MemberTableCodes)</p>
+            <p class="mb-0">Bàn giữ phiên chính: <strong>@group.MainTableCode</strong> · phiên #@group.MainSessionId · @(group.Status == "AwaitingPayment" ? "Chờ thanh toán" : "Đang phục vụ")</p>
+        </section>
+    }
     <p><a asp-controller="ProvisionalBill" asp-action="Index" asp-route-sessionId="@session.BillingSessionId">Xem hoá đơn chung của phiên chính #@session.BillingSessionId</a></p>
     @if(session.CanAddItems)
     {

@@ -16,11 +16,20 @@ public sealed class TableMapStore(IConfiguration configuration)
     private const string TablesSql = """
         DECLARE @now datetime2(3)=SYSUTCDATETIME();
         SELECT t.Code, a.Id, a.Name, t.MaxCapacity,
-               CASE WHEN t.Status='Available' AND reservation.Id IS NOT NULL THEN 'Reserved' ELSE t.Status END AS Status,
-               t.StatusChangedAt,
-               reservation.CustomerName,reservation.StartsAt
+               CASE WHEN t.Status='Serving' AND payment.Status='AwaitingPayment' THEN 'AwaitingPayment'
+                    WHEN t.Status='Available' AND reservation.Id IS NOT NULL THEN 'Reserved' ELSE t.Status END AS Status,
+               CASE WHEN t.Status='Serving' AND payment.Status='AwaitingPayment' THEN COALESCE(payment.PaymentRequestedAt,t.StatusChangedAt)
+                    WHEN t.Status='Available' AND reservation.Id IS NOT NULL
+                    THEN DATEADD(minute,-30,reservation.StartsAt) ELSE t.StatusChangedAt END AS StatusChangedAt,
+               reservation.CustomerName,reservation.StartsAt,
+               g.GroupLabel,g.MainSessionId,g.MainTableCode,g.MemberCodesJson,g.GroupStatus
         FROM dbo.DiningTables t
         JOIN dbo.Areas a ON a.Id = t.AreaId
+        LEFT JOIN dbo.vw_ActiveTableGroups g ON g.TableId=t.Id
+        OUTER APPLY (SELECT TOP(1) root.Status,root.PaymentRequestedAt FROM dbo.SessionTables st
+          JOIN dbo.DiningSessions s ON s.Id=st.SessionId
+          JOIN dbo.DiningSessions root ON root.Id=COALESCE(s.BillingSessionId,s.Id)
+          WHERE st.TableId=t.Id AND st.ReleasedAt IS NULL AND root.Status<>'Closed' ORDER BY st.Id DESC) payment
         OUTER APPLY dbo.fn_NextTableReservation(t.Id,@now) reservation
         WHERE t.IsActive = 1 AND a.IsActive = 1
         ORDER BY a.SortOrder, a.Name, a.Id, t.SortOrder, t.Code;
@@ -87,7 +96,12 @@ public sealed class TableMapStore(IConfiguration configuration)
             FROM dbo.DiningTables t
             JOIN dbo.Areas a ON a.Id = t.AreaId
             WHERE t.Code = @Code AND t.IsActive = 1 AND a.IsActive = 1;
-            SELECT Code, AreaId, AreaName, MaxCapacity, Status, StatusChangedAt FROM @changed;
+            SELECT c.Code,c.AreaId,c.AreaName,c.MaxCapacity,c.Status,c.StatusChangedAt,
+                   CAST(NULL AS nvarchar(120)) AS CustomerName,
+                   CAST(NULL AS datetime2(3)) AS StartsAt,
+                   g.GroupLabel,g.MainSessionId,g.MainTableCode,g.MemberCodesJson,g.GroupStatus
+            FROM @changed c LEFT JOIN dbo.DiningTables t ON t.Code=c.Code
+            LEFT JOIN dbo.vw_ActiveTableGroups g ON g.TableId=t.Id;
             """;
         await using var connection = new SqlConnection(ConnectionString);
         await using var command = new SqlCommand(sql, connection);
@@ -116,7 +130,8 @@ public sealed class TableMapStore(IConfiguration configuration)
         var card = new DiningTableCard(reader.GetString(0), reader.GetString(2), reader.GetInt32(3),
             status, display.Label, display.CssClass, changedAt,
             reader.FieldCount > 6 && !reader.IsDBNull(6) ? reader.GetString(6) : null,
-            reader.FieldCount > 7 && !reader.IsDBNull(7) ? new DateTimeOffset(DateTime.SpecifyKind(reader.GetDateTime(7),DateTimeKind.Utc)) : null);
+            reader.FieldCount > 7 && !reader.IsDBNull(7) ? new DateTimeOffset(DateTime.SpecifyKind(reader.GetDateTime(7),DateTimeKind.Utc)) : null)
+        { Group=TableGroupReader.Read(reader,8) };
         return new TableRow(reader.GetInt32(1), card);
     }
 

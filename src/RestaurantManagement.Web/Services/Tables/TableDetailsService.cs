@@ -104,7 +104,8 @@ public sealed class TableDetailsService(
         if (details.SessionId is null)
             return details;
 
-        return details with { OrderedItems = await ReadOrderedItems(connection, details.SessionId.Value, cancellationToken) };
+        return details with { OrderedItems = await ReadOrderedItems(connection, details.SessionId.Value, cancellationToken),
+            Group = await TableGroupReader.GetAsync(connection, details.Code, cancellationToken) };
     }
 
     /// <summary>Các món của phiên (cùng nguồn với màn hình Gọi món: dbo.OrderBatches + dbo.OrderItems).</summary>

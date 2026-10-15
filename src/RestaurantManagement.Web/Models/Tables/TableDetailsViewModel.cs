@@ -24,6 +24,7 @@ public sealed record TableDetailsViewModel(
     bool IsDemoData)
 {
     public int UpcomingReservationCount { get; init; }
+    public TableGroupInfo? Group { get; init; }
     public DateTimeOffset SyncedAtUtc { get; init; } = DateTimeOffset.UtcNow;
     public string SubtotalExplanation => "Tổng món hiện tại, chưa trừ giảm giá hoặc phụ thu.";
 

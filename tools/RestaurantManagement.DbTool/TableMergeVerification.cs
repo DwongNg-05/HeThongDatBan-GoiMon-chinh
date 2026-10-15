@@ -1,6 +1,7 @@
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Data.SqlClient;
 using static RestaurantManagement.DbTool.BookingConfirmationVerification;
@@ -90,6 +91,42 @@ internal static class TableMergeVerification
             Assert(winners.Count(x=>x)==1,"Two simultaneous opposite merge requests have exactly one winner");
             var root=await Scalar(connection,$"SELECT COALESCE(BillingSessionId,Id) FROM dbo.DiningSessions WHERE Id={sa}");
             await Refuse(Merge(sa,sb),51153,"Duplicate merge refused");
+            async Task<JsonElement> Snapshot() => JsonDocument.Parse(await Html(waiter,"/api/table-map/snapshot")).RootElement.Clone();
+            static JsonElement Card(JsonElement map,string code) => map.GetProperty("areas").EnumerateArray()
+                .SelectMany(area=>area.GetProperty("tables").EnumerateArray()).Single(t=>t.GetProperty("code").GetString()==code);
+            var map=await Snapshot();
+            var ga=Card(map,"MERGE-A").GetProperty("group"); var gb=Card(map,"MERGE-B").GetProperty("group");
+            var label=ga.GetProperty("label").GetString()!;
+            Assert(label==gb.GetProperty("label").GetString() && ga.GetProperty("mainSessionId").GetInt64()==root,
+                "Task 2: both table cards expose the same persistent label and main session");
+            Assert(ga.GetProperty("memberTableCodes").EnumerateArray().Select(x=>x.GetString()).SequenceEqual(new[]{"MERGE-A","MERGE-B"}),
+                "Task 2: the snapshot includes the complete member list");
+            Assert((await Html(waiter,"/TableMap")).Split("Nhóm "+label).Length-1==2,
+                "Task 2: server-rendered map displays the shared label on exactly two tables");
+            Assert(Card(await Snapshot(),"MERGE-A").GetProperty("group").GetProperty("label").GetString()==label,
+                "Task 2: reloading the map preserves the stored label");
+            Assert((await Html(waiter,"/")).Split("Nhóm "+label).Length-1==2,
+                "Task 2: the actual homepage map displays a badge on both members");
+            var homeSnapshot=JsonDocument.Parse(await Html(waiter,"/api/table-status")).RootElement;
+            Assert(homeSnapshot.EnumerateArray().Where(t=>t.GetProperty("code").GetString() is "MERGE-A" or "MERGE-B")
+                .All(t=>t.GetProperty("group").GetProperty("label").GetString()==label),
+                "Task 2: the homepage polling API carries the same persistent group");
+
+            var changes=JsonDocument.Parse(await Html(waiter,"/api/table-map/changes?after=0")).RootElement.Clone();
+            Assert(changes.GetProperty("tables").EnumerateArray().Where(x=>x.GetProperty("code").GetString() is "MERGE-A" or "MERGE-B")
+                .All(x=>x.GetProperty("group").GetProperty("label").GetString()==label),
+                "Task 2: polling includes the group even while status remains Serving");
+            foreach(var code in new[]{"MERGE-A","MERGE-B"})
+            {
+                var details=JsonDocument.Parse(await Html(waiter,"/api/table-map/"+code)).RootElement;
+                Assert(details.GetProperty("group").GetProperty("mainSessionId").GetInt64()==root,
+                    "Task 2: details from either table resolve to the same main session");
+                var groupPage=await Html(waiter,$"/Ordering?tableCode={code}&sessionId={root}");
+                Assert(groupPage.Contains($"data-table-group=\"{label}\"") && groupPage.Contains($"data-main-session=\"{root}\"")
+                    && groupPage.Contains("Các bàn thành viên: MERGE-A, MERGE-B"),
+                    "Task 2: selecting either member shows members, main table and main session");
+            }
+
             await Check(connection,$"SELECT CASE WHEN COUNT(*)=2 AND SUM(Id)={ids} AND SUM(LineTotal)={total} AND SUM(Quantity)=5 AND COUNT(DISTINCT OriginalTableId)=2 THEN 1 ELSE 0 END FROM dbo.OrderItems","Merge preserves IDs, prices, quantities, origins and exact totals");
             await Check(connection,$"SELECT CASE WHEN COUNT(*)=2 AND MIN(SessionId)={root} AND MAX(SessionId)={root} AND COUNT(DISTINCT BatchNumber)=2 THEN 1 ELSE 0 END FROM dbo.OrderBatches","All batches move to the main session without number collisions");
             await Refuse($"UPDATE dbo.OrderItems SET OriginalTableId={c};",51151,"Order-line origin is immutable");
@@ -116,29 +153,6 @@ internal static class TableMergeVerification
                 Assert(html.Contains("MERGE-A</td>") && html.Contains("MERGE-B</td>") && html.Contains("Bàn gốc"),"Either table shows the common list with original tables");
             }
             await Check(connection,$"SELECT CASE WHEN COUNT(*)=4 AND SUM(Quantity)=7 AND SUM(CASE WHEN OriginalTableId={a} THEN Quantity ELSE 0 END)=3 AND SUM(CASE WHEN OriginalTableId={b} THEN Quantity ELSE 0 END)=4 THEN 1 ELSE 0 END FROM dbo.OrderItems","Extra items from either table retain their own origin");
-            using(var response=await waiter.PostAsync("/Ordering?handler=RequestPayment",Form(("tableId",b.ToString()),("sessionId",sb.ToString()),("__RequestVerificationToken",Token(await Html(waiter,$"/Ordering?tableId={b}"))))))
-                Assert(response.StatusCode==HttpStatusCode.Redirect,"Waiter requests payment from either table");
-            await Check(connection,$"SELECT CASE WHEN COUNT(*)=2 THEN 1 ELSE 0 END FROM dbo.DiningSessions WHERE Id IN({sa},{sb}) AND Status='AwaitingPayment'","Whole group enters awaiting-payment state");
-            await Refuse($$"""EXEC dbo.usp_SubmitOrder @SessionId={{sb}},@RequestId='{{Guid.NewGuid()}}',@ItemsJson=N'[{"MenuItemId":1,"Quantity":1}]',@ActorUserId=2;""",51025,"Cannot add items after group requests payment");
-            // Follow the real kitchen and serving transitions before checkout.
-            await DatabaseTool.Execute(connection,$"""
-                DECLARE @id bigint;
-                DECLARE lines CURSOR LOCAL STATIC READ_ONLY FOR SELECT Id FROM dbo.OrderItems;
-                OPEN lines; FETCH NEXT FROM lines INTO @id;
-                WHILE @@FETCH_STATUS=0 BEGIN
-                  EXEC dbo.usp_TransitionOrderItem @OrderItemId=@id,@ToStatus='Preparing',@ActorUserId=3;
-                  EXEC dbo.usp_TransitionOrderItem @OrderItemId=@id,@ToStatus='Ready',@ActorUserId=3;
-                  EXEC dbo.usp_TransitionOrderItem @OrderItemId=@id,@ToStatus='Served',@ActorUserId=2;
-                  FETCH NEXT FROM lines INTO @id;
-                END;
-                CLOSE lines; DEALLOCATE lines;
-                """);
-            var payment=Guid.NewGuid();
-            var checkout=$"EXEC dbo.usp_Checkout @SessionId={root},@RequestId='{payment}',@Method='Cash',@CashReceived=10000000,@ActorUserId=4;";
-            await Task.WhenAll(DatabaseTool.Execute(connection,checkout),DatabaseTool.Execute(connection,checkout));
-            await Check(connection,"SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.Invoices)=1 AND (SELECT COUNT(*) FROM dbo.Payments)=1 AND (SELECT COUNT(*) FROM dbo.InvoiceLines)=4 AND (SELECT Total FROM dbo.Invoices)=(SELECT SUM(LineTotal) FROM dbo.OrderItems) THEN 1 ELSE 0 END","One invoice, one payment, exact combined total even on simultaneous checkout retries");
-            await Check(connection,$"SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.DiningTables WHERE Id IN({a},{b}) AND Status='Cleaning')=2 AND (SELECT COUNT(*) FROM dbo.DiningSessions WHERE Id IN({sa},{sb}) AND Status='Closed')=2 AND NOT EXISTS(SELECT 1 FROM dbo.SessionTables WHERE TableId IN({a},{b}) AND ReleasedAt IS NULL) THEN 1 ELSE 0 END","Payment closes both sessions, releases both tables and marks both for cleaning");
-            await Check(connection,$"SELECT CASE WHEN COUNT(*)=1 THEN 1 ELSE 0 END FROM dbo.GuestSessions WHERE SessionId={sb} AND RevokedAt IS NOT NULL","Payment revokes the member table guest session");
             // Complete a successful form submission too, explicitly choosing the other table as main.
             await DatabaseTool.Execute(connection,$"""
                 INSERT dbo.DiningTables(AreaId,Code,MaxCapacity) VALUES(1,'MERGE-E',4);
@@ -159,7 +173,54 @@ internal static class TableMergeVerification
                 ("currentVersion",Value(formPage,"currentVersion")),("otherVersion",Value(formPage,"otherVersion")),("keepCurrent","false"),("confirmed","true"),("__RequestVerificationToken",Token(formPage)))))
                 Assert(response.StatusCode==HttpStatusCode.Redirect,"Waiter confirms a valid merge through the real form");
             Assert(await Scalar(connection,$"SELECT BillingSessionId FROM dbo.DiningSessions WHERE Id={sc}")==se,"The selected other table keeps the main session");
-            Console.WriteLine("PASS: all table-merge acceptance checks.");
+            var secondGroup=Card(await Snapshot(),"MERGE-C").GetProperty("group");
+            Assert(secondGroup.GetProperty("label").GetString()!=label && secondGroup.GetProperty("mainTableCode").GetString()=="MERGE-E",
+                "Task 2: another group has a different label and the explicitly selected main table");
+            Assert(Card(await Snapshot(),"MERGE-A").GetProperty("group").GetProperty("label").GetString()==label,
+                "Task 2: two active groups coexist with independent persistent labels");
+            using(var response=await waiter.PostAsync("/Ordering?handler=RequestPayment",Form(("tableId",b.ToString()),("sessionId",sb.ToString()),("__RequestVerificationToken",Token(await Html(waiter,$"/Ordering?tableId={b}"))))))
+                Assert(response.StatusCode==HttpStatusCode.Redirect,"Waiter requests payment from either table");
+            await Check(connection,$"SELECT CASE WHEN COUNT(*)=2 THEN 1 ELSE 0 END FROM dbo.DiningSessions WHERE Id IN({sa},{sb}) AND Status='AwaitingPayment'","Whole group enters awaiting-payment state");
+            var awaitingMap=await Snapshot();
+            Assert(Card(awaitingMap,"MERGE-A").GetProperty("group").GetProperty("label").GetString()==label
+                && Card(awaitingMap,"MERGE-B").GetProperty("status").GetString()=="AwaitingPayment"
+                && Card(awaitingMap,"MERGE-B").GetProperty("group").GetProperty("status").GetString()=="AwaitingPayment",
+                "Task 2: awaiting payment keeps the label and updates the group state");
+            await Refuse($$"""EXEC dbo.usp_SubmitOrder @SessionId={{sb}},@RequestId='{{Guid.NewGuid()}}',@ItemsJson=N'[{"MenuItemId":1,"Quantity":1}]',@ActorUserId=2;""",51025,"Cannot add items after group requests payment");
+            // Follow the real kitchen and serving transitions before checkout.
+            await DatabaseTool.Execute(connection,$"""
+                DECLARE @id bigint;
+                DECLARE lines CURSOR LOCAL STATIC READ_ONLY FOR SELECT Id FROM dbo.OrderItems;
+                OPEN lines; FETCH NEXT FROM lines INTO @id;
+                WHILE @@FETCH_STATUS=0 BEGIN
+                  EXEC dbo.usp_TransitionOrderItem @OrderItemId=@id,@ToStatus='Preparing',@ActorUserId=3;
+                  EXEC dbo.usp_TransitionOrderItem @OrderItemId=@id,@ToStatus='Ready',@ActorUserId=3;
+                  EXEC dbo.usp_TransitionOrderItem @OrderItemId=@id,@ToStatus='Served',@ActorUserId=2;
+                  FETCH NEXT FROM lines INTO @id;
+                END;
+                CLOSE lines; DEALLOCATE lines;
+                """);
+            var payment=Guid.NewGuid();
+            var checkout=$"EXEC dbo.usp_Checkout @SessionId={root},@RequestId='{payment}',@Method='Cash',@CashReceived=10000000,@ActorUserId=4;";
+            await Task.WhenAll(DatabaseTool.Execute(connection,checkout),DatabaseTool.Execute(connection,checkout));
+            await Check(connection,"SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.Invoices)=1 AND (SELECT COUNT(*) FROM dbo.Payments)=1 AND (SELECT COUNT(*) FROM dbo.InvoiceLines)=4 AND (SELECT Total FROM dbo.Invoices)=(SELECT SUM(LineTotal) FROM dbo.OrderItems) THEN 1 ELSE 0 END","One invoice, one payment, exact combined total even on simultaneous checkout retries");
+            await Check(connection,$"SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.DiningTables WHERE Id IN({a},{b}) AND Status='Cleaning')=2 AND (SELECT COUNT(*) FROM dbo.DiningSessions WHERE Id IN({sa},{sb}) AND Status='Closed')=2 AND NOT EXISTS(SELECT 1 FROM dbo.SessionTables WHERE TableId IN({a},{b}) AND ReleasedAt IS NULL) THEN 1 ELSE 0 END","Payment closes both sessions, releases both tables and marks both for cleaning");
+            await Check(connection,$"SELECT CASE WHEN COUNT(*)=1 THEN 1 ELSE 0 END FROM dbo.GuestSessions WHERE SessionId={sb} AND RevokedAt IS NOT NULL","Payment revokes the member table guest session");
+            var paidHome=JsonDocument.Parse(await Html(waiter,"/api/table-status")).RootElement;
+            Assert(paidHome.EnumerateArray().Where(t=>t.GetProperty("code").GetString() is "MERGE-A" or "MERGE-B")
+                .All(t=>t.GetProperty("group").ValueKind==JsonValueKind.Null),
+                "Task 2: the homepage API removes both serving-group labels after checkout");
+            var paidMap=await Snapshot();
+            Assert(Card(paidMap,"MERGE-A").GetProperty("group").ValueKind==JsonValueKind.Null
+                && Card(paidMap,"MERGE-B").GetProperty("group").ValueKind==JsonValueKind.Null,
+                "Task 2: neither paid table retains a serving group label");
+            var paidChanges=JsonDocument.Parse(await Html(waiter,"/api/table-map/changes?after=0")).RootElement;
+            Assert(paidChanges.GetProperty("tables").EnumerateArray().Where(x=>x.GetProperty("code").GetString() is "MERGE-A" or "MERGE-B")
+                .All(x=>x.GetProperty("group").ValueKind==JsonValueKind.Null),
+                "Task 2: polling removes both labels after checkout");
+            Assert(Card(await Snapshot(),"MERGE-C").GetProperty("group").GetProperty("label").GetString()==secondGroup.GetProperty("label").GetString(),
+                "Task 2: paying one group does not remove another serving group's label");
+            Console.WriteLine("PASS: all table-merge and group-label acceptance checks.");
         }
         finally
         {

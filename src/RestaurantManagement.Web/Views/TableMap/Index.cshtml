@@ -126,6 +126,8 @@
                                      data-upcoming-guest="@table.UpcomingGuestName"
                                      data-upcoming-starts-at="@table.UpcomingStartsAtUtc?.ToString("O")"
                                      data-changed-at="@table.ChangedAtUtc.ToString("O")"
+                                     data-group-key="@System.Text.Json.JsonSerializer.Serialize(table.Group, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))"
+                                     data-main-session-id="@table.Group?.MainSessionId"
                                      aria-label="Bàn @table.Code, @table.Capacity chỗ, @table.StatusLabel">
 
                                 <button class="table-detail-trigger"
@@ -144,6 +146,8 @@
                                     <strong class="table-code">
                                         @table.Code
                                     </strong>
+
+                                    <span class="table-group-label" hidden="@(table.Group is null)">@(table.Group is null ? "" : "Nhóm " + table.Group.Label)</span>
 
                                     <span class="table-capacity">
                                         Sức chứa: @table.Capacity người
@@ -204,6 +208,7 @@
                 );
 
                 destination.searchParams.set('tableCode', tableCode);
+                if (card.dataset.mainSessionId) destination.searchParams.set('sessionId', card.dataset.mainSessionId);
 
                 window.location.assign(destination.href);
             }, true);

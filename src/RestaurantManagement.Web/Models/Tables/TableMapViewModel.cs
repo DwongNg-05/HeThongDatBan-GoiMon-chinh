@@ -9,7 +9,10 @@ public sealed record DiningTableCard(
     string StatusClass,
     DateTimeOffset ChangedAtUtc,
     string? UpcomingGuestName = null,
-    DateTimeOffset? UpcomingStartsAtUtc = null);
+    DateTimeOffset? UpcomingStartsAtUtc = null)
+{
+    public TableGroupInfo? Group { get; init; }
+}
 
 public sealed record TableStatusTransition(
     string Code,

@@ -123,6 +123,8 @@ public sealed class SessionOrderingService
             };
         }
 
+        model.Group = await TableGroupReader.GetAsync(connection, model.TableCode, cancellationToken);
+
         await using var itemsCommand = new SqlCommand("""
             SELECT
                 i.Id,

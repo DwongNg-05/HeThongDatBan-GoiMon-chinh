@@ -48,10 +48,12 @@ public sealed class SqlTableMapReader(
                         t.StatusChangedAt)
                     ELSE t.StatusChangedAt
                 END AS DisplayChangedAt,
-                reservation.CustomerName,reservation.StartsAt
+                reservation.CustomerName,reservation.StartsAt,
+                g.GroupLabel,g.MainSessionId,g.MainTableCode,g.MemberCodesJson,g.GroupStatus
             FROM dbo.Areas a
             LEFT JOIN dbo.DiningTables t
                 ON t.AreaId = a.Id AND t.IsActive = 1
+            LEFT JOIN dbo.vw_ActiveTableGroups g ON g.TableId=t.Id
             OUTER APPLY (
                 SELECT TOP (1)
                     CASE
@@ -121,7 +123,8 @@ public sealed class SqlTableMapReader(
                     reader.GetDateTime(5),
                     DateTimeKind.Utc)),
                 reader.IsDBNull(6) ? null : reader.GetString(6),
-                reader.IsDBNull(7) ? null : new DateTimeOffset(DateTime.SpecifyKind(reader.GetDateTime(7),DateTimeKind.Utc))));
+                reader.IsDBNull(7) ? null : new DateTimeOffset(DateTime.SpecifyKind(reader.GetDateTime(7),DateTimeKind.Utc)))
+                { Group=TableGroupReader.Read(reader,8) });
         }
 
         return new TableMapSnapshot(areas)
@@ -177,9 +180,11 @@ public sealed class SqlTableMapReader(
                         t.StatusChangedAt)
                     ELSE t.StatusChangedAt
                 END AS DisplayChangedAt,
-                reservation.CustomerName,reservation.StartsAt
+                reservation.CustomerName,reservation.StartsAt,
+                g.GroupLabel,g.MainSessionId,g.MainTableCode,g.MemberCodesJson,g.GroupStatus
             FROM dbo.DiningTables t
             JOIN dbo.Areas a ON a.Id = t.AreaId
+            LEFT JOIN dbo.vw_ActiveTableGroups g ON g.TableId=t.Id
             OUTER APPLY (
                 SELECT TOP (1)
                     CASE
@@ -235,7 +240,8 @@ public sealed class SqlTableMapReader(
                     reader.GetDateTime(4),
                     DateTimeKind.Utc)),
                 reader.IsDBNull(5) ? null : reader.GetString(5),
-                reader.IsDBNull(6) ? null : new DateTimeOffset(DateTime.SpecifyKind(reader.GetDateTime(6),DateTimeKind.Utc))));
+                reader.IsDBNull(6) ? null : new DateTimeOffset(DateTime.SpecifyKind(reader.GetDateTime(6),DateTimeKind.Utc)))
+                { Group=TableGroupReader.Read(reader,7) });
         }
 
         return new TableMapChanges(

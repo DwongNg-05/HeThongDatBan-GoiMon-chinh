@@ -15,6 +15,7 @@
         Available: 'Trống',
         Reserved: 'Đã đặt trước',
         Serving: 'Đang phục vụ',
+        AwaitingPayment: 'Chờ thanh toán',
         Cleaning: 'Đang dọn',
         Unknown: 'Không xác định'
     };
@@ -53,7 +54,7 @@
         byId('details-status-label').textContent = details.statusLabel;
 
         const reservation = details.upcomingReservation;
-        const serving = details.status === 'Serving';
+        const serving = details.status === 'Serving' || details.status === 'AwaitingPayment';
         const reserved = details.status === 'Reserved';
         const cleaning = details.status === 'Cleaning';
         const personHeading = byId('details-person-heading');
@@ -114,6 +115,20 @@
             previewLink.href = hasPreview ? `${previewLink.dataset.previewUrl}${encodeURIComponent(details.code)}` : '#';
         }
 
+        const group = details.group;
+        const groupPanel = byId('details-group');
+        if (groupPanel) groupPanel.hidden = !group;
+        if (group) {
+            byId('details-group-label').textContent = 'Nhóm ' + group.label;
+            byId('details-group-members').textContent = 'Các bàn thành viên: ' + group.memberTableCodes.join(', ');
+            byId('details-group-main').textContent = 'Bàn giữ phiên chính: ' + group.mainTableCode + ' · phiên #' + group.mainSessionId;
+            // Keep the selected member as origin when adding items to the common billing root.
+            const link = byId('details-group-main-link');
+            const destination = new URL(link.dataset.orderingUrl, window.location.origin);
+            destination.searchParams.set('tableCode', details.code);
+            destination.searchParams.set('sessionId', String(group.mainSessionId));
+            link.href = destination.href;
+        }
         renderOrderedItems(details);
         renderAddItems(details);
     }
@@ -153,7 +168,7 @@
                 line.className = `details-order-line status-${String(item.status).toLowerCase()}`;
                 const name = document.createElement('span');
                 name.className = 'details-order-name';
-                name.textContent = `${item.quantity} × ${item.itemName}`;
+                name.textContent = `${item.quantity} × ${item.itemName}${item.originalTableCode ? " · Bàn gốc: " + item.originalTableCode : ""}`;
                 const state = document.createElement('small');
                 state.className = 'details-order-state';
                 state.textContent = item.statusLabel;
@@ -210,6 +225,7 @@
         if (byId('details-bill-link')) byId('details-bill-link').hidden = true;
         if (byId('details-preview-link')) byId('details-preview-link').hidden = true;
         if (byId('details-orders')) byId('details-orders').hidden = true;
+        byId('details-group').hidden = true;
         if (byId('details-add-items')) byId('details-add-items').hidden = true;
         detailsOverlay.hidden = false;
         byId('details-close-button').focus();
@@ -226,20 +242,30 @@
         detailOpener?.focus();
     }
 
-    function applyStatus(update) {
+    function applyStatus(update, authoritative = false) {
         const card = [...document.querySelectorAll('[data-table-code]')]
             .find(item => item.dataset.tableCode === update.code);
         if (!card) return;
 
         const incomingTime = Date.parse(update.changedAtUtc);
         const currentTime = Date.parse(card.dataset.changedAt || '1970-01-01T00:00:00Z');
-        if (Number.isFinite(incomingTime) && incomingTime < currentTime) return;
+        if (!authoritative && Number.isFinite(incomingTime) && incomingTime < currentTime) return;
 
         const status = statusLabels[update.status] ? update.status : 'Unknown';
-        const cssClass = status === 'Unknown' ? 'unknown' : status.toLowerCase();
+        const cssClass = status === 'Unknown' ? 'unknown' : status === 'AwaitingPayment' ? 'serving' : status.toLowerCase();
         card.classList.remove(...statusClasses.map(value => `status-${value}`));
         card.classList.add(`status-${cssClass}`);
         card.dataset.status = status;
+        const badge = card.querySelector('.table-group-label');
+        if (badge && (Object.prototype.hasOwnProperty.call(update, 'group') || !['Serving', 'AwaitingPayment'].includes(status))) {
+            const group = update.group;
+            card.dataset.groupKey = JSON.stringify(group ?? null);
+            card.dataset.mainSessionId = group ? String(group.mainSessionId) : '';
+            badge.hidden = !group;
+            badge.textContent = group ? 'Nhóm ' + group.label : '';
+            badge.title = group ? 'Các bàn: ' + group.memberTableCodes.join(', ') + ' · Bàn chính: ' + group.mainTableCode : '';
+        }
+
         card.dataset.changedAt = update.changedAtUtc;
         if (Object.prototype.hasOwnProperty.call(update, 'upcomingGuestName')) {
             card.dataset.upcomingGuest = update.upcomingGuestName || '';
@@ -271,7 +297,8 @@
             const response = await fetch(apiUrl, { cache: 'no-store', signal: controller.signal });
             if (!response.ok) throw new Error('Không thể đồng bộ sơ đồ bàn.');
             const tables = await response.json();
-            tables.forEach(applyStatus);
+            tables.forEach(table => applyStatus(table, true));
+            if (!detailsOverlay.hidden && selectedDetailCode) await refreshDetails(selectedDetailCode);
         } finally {
             window.clearTimeout(timeout);
             snapshotPending = false;
