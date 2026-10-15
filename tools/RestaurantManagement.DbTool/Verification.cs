@@ -90,6 +90,8 @@ internal static class Verification
             await BillPreviewVerification.Run(connection);
             // S4-01 Task 2: phần đầu hoá đơn tạm tính — tên quán, mã bàn (kể cả chuyển / gộp bàn), bắt đầu phục vụ, giờ in, người in.
             await BillHeaderVerification.Run(connection);
+            // S4-01 Task 3: in hoá đơn tạm tính khổ 80mm — bản in khớp màn hình, in không đổi trạng thái bàn, in xong vẫn gọi thêm món.
+            await BillPrintVerification.Run(connection);
             await DatabaseTool.Execute(connection, "EXEC dbo.usp_RunMaintenance; EXEC dbo.usp_RunMaintenance;");
             Console.WriteLine("PASS: all SQL Server integration checks.");
         }
@@ -211,6 +213,7 @@ internal static class Verification
             await ApiAuthorizationVerification.Run(connection);
             await BillPreviewVerification.Run(connection);
             await BillHeaderVerification.Run(connection);
+            await BillPrintVerification.Run(connection);
         }
         finally
         {

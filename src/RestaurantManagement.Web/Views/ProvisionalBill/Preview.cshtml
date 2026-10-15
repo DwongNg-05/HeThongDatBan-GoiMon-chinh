@@ -7,14 +7,19 @@
     var backUrl = Url.Content("~/") + "?table=" + Uri.EscapeDataString(Model.TableCode);
     // Controller luôn gắn phần đầu; dự phòng khi view được gọi từ nơi khác.
     var header = Model.Header ?? TableBillHeader.Create(Model, DateTime.UtcNow, BillHeaderRules.PrinterName(User));
+    // S4-01 Task 3: bản in dùng đúng phần đầu (cùng thời điểm in, người in) với màn hình.
+    var printModel = Model with { Header = header };
 }
 @section Styles {
     <link rel="stylesheet" href="~/css/bill-preview.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/bill-print.css" asp-append-version="true" />
 }
-@* S4-01 Task 1: xem trước hoá đơn tạm tính của bàn đang phục vụ (chỉ đọc). Task 2: thêm phần đầu hoá đơn. Chưa in, chưa xuất PDF. Tiền theo BillRules: dấu chấm hàng nghìn, ký hiệu "đ", làm tròn tới đồng. *@
+@* S4-01 Task 1: xem trước hoá đơn tạm tính của bàn đang phục vụ (chỉ đọc). Task 2: thêm phần đầu hoá đơn. Task 3: nút "In" + bản in khổ 80mm. Chưa xuất PDF. Tiền theo BillRules: dấu chấm hàng nghìn, ký hiệu "đ", làm tròn tới đồng. *@
 <div class="container mt-4 bill-preview" data-screen="bill-preview" data-table-code="@Model.TableCode" data-session-id="@Model.SessionId">
     <div class="bill-preview-actions">
         <a class="btn btn-outline-secondary btn-sm" href="@backUrl" data-preview-back>← Quay lại gọi món</a>
+        @* S4-01 Task 3: mở hộp thoại in của trình duyệt với bản in khổ 80mm (không gửi gì lên máy chủ). *@
+        <button type="button" class="btn btn-primary btn-sm" data-preview-print>In</button>
     </div>
 
     @* S4-01 Task 2: phần đầu hoá đơn — tên quán, mã bàn hiện tại, bắt đầu phục vụ, thời điểm in, người in (lần mở này). *@
@@ -99,3 +104,10 @@
         </div>
     }
 </div>
+
+@* S4-01 Task 3: bản in khổ 80mm — cùng dữ liệu với màn hình trên, chỉ hiện khi in. *@
+<partial name="_PrintReceipt" model="printModel" />
+
+@section Scripts {
+    <script src="~/js/bill-print.js" asp-append-version="true"></script>
+}

@@ -16,7 +16,7 @@ internal static partial class DatabaseTool
             var connection = Environment.GetEnvironmentVariable("RM_CONNECTION_STRING");
             if (command == "help" || string.IsNullOrWhiteSpace(connection))
             {
-                Console.WriteLine("Commands: migrate | seed-demo | seed-login-demo | seed-menu-demo | seed-menu-extra | seed-khai-vi | seed-confirmation-demo | seed-menu-200 | hide-menu-200 | email-retry-now | verify | verify-booking-email | verify-api-permissions | verify-temporary-out | verify-qr-session | verify-late-reservations | verify-hold-extension | verify-phone-no-show | verify-cancel-item | verify-cancel-report | verify-charged-cancel | verify-bill-preview | verify-bill-header | maintenance | check\nSet RM_CONNECTION_STRING first. seed-demo and seed-login-demo also require RM_DEMO_PASSWORD.\nseed-login-demo accepts RM_DEMO_USERNAME and RM_DEMO_PHONE; existing accounts are preserved.\nverify creates and removes its own uniquely named test database.");
+                Console.WriteLine("Commands: migrate | seed-demo | seed-login-demo | seed-menu-demo | seed-menu-extra | seed-khai-vi | seed-confirmation-demo | seed-menu-200 | hide-menu-200 | email-retry-now | verify | verify-booking-email | verify-api-permissions | verify-temporary-out | verify-qr-session | verify-late-reservations | verify-hold-extension | verify-phone-no-show | verify-cancel-item | verify-cancel-report | verify-charged-cancel | verify-bill-preview | verify-bill-header | verify-bill-print | maintenance | check\nSet RM_CONNECTION_STRING first. seed-demo and seed-login-demo also require RM_DEMO_PASSWORD.\nseed-login-demo accepts RM_DEMO_USERNAME and RM_DEMO_PHONE; existing accounts are preserved.\nverify creates and removes its own uniquely named test database.");
                 Environment.ExitCode = command == "help" ? 0 : 1;
                 return;
             }
@@ -56,6 +56,8 @@ internal static partial class DatabaseTool
                 case "verify-bill-preview": await Verification.RunBillPreview(connection); break;
                 // S4-01 Task 2: phần đầu hoá đơn tạm tính (chạy cùng bộ kiểm thử Task 1, database tạm, cần build Debug trước).
                 case "verify-bill-header": await Verification.RunBillPreview(connection); break;
+                // S4-01 Task 3: in hoá đơn tạm tính khổ 80mm (chạy cùng bộ kiểm thử S4-01, database tạm, cần build Debug trước).
+                case "verify-bill-print": await Verification.RunBillPreview(connection); break;
                 case "maintenance": await Execute(connection, "EXEC dbo.usp_RunMaintenance;"); break;
                 // S2-09 Task 2 (demo): không chờ 5 phút, cho các email đặt bàn đang chờ gửi lại tới giờ gửi lại ngay.
                 case "email-retry-now": await EmailRetryNow(connection); break;

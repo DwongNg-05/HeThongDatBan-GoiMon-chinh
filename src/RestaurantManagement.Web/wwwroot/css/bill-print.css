@@ -1,0 +1,66 @@
+/* S4-01 Task 3: bản in hoá đơn tạm tính cho máy in nhiệt khổ 80mm (docs/S4-01-Task3.md).
+   - Giấy rộng 80mm, vùng in 72mm (lề trái/phải 4mm), chiều dài theo nội dung: bill-print.js đo bản in và đặt @page { size: 80mm <dài>mm }.
+   - Chữ: sans-serif 12px (≈ 9pt); tên quán 16px đậm; tổng cộng 14px đậm; ghi chú 11px nghiêng, dòng riêng dưới tên món.
+   - Ba cột cố định: Món (phần còn lại, tự xuống dòng) | SL 8mm | Thành tiền 22mm. Tên món / ghi chú dài chỉ làm dòng cao thêm,
+     không đẩy lệch cột số lượng và thành tiền; số tiền không bao giờ xuống dòng.
+   - Không ngắt trang giữa chừng: cả hoá đơn là một trang dài đúng bằng nội dung; mỗi dòng món không bị chia đôi. */
+
+.bill-print { display: none; }
+
+.bill-print,
+.bill-print-measuring {
+    box-sizing: border-box;
+    width: 80mm;
+    padding: 3mm 4mm 6mm;
+    background: #fff;
+    color: #000;
+    font: 12px/1.35 Arial, "Helvetica Neue", Helvetica, "Liberation Sans", sans-serif;
+    text-align: left;
+}
+
+/* Đo chiều dài bản in trên màn hình (không hiện ra): bill-print.js bật lớp này trong chốc lát. */
+.bill-print.bill-print-measuring { display: block; position: absolute; left: -10000px; top: 0; visibility: hidden; }
+
+.bill-print * { box-sizing: border-box; margin: 0; padding: 0; color: #000; }
+.bp-notice { margin-bottom: 2mm; padding: 1mm 0; border: 1px solid #000; font-size: 11px; font-weight: 700; text-align: center; letter-spacing: .02em; }
+.bp-restaurant { margin-bottom: 2mm; font-size: 16px; font-weight: 700; line-height: 1.25; text-align: center; overflow-wrap: anywhere; }
+.bp-meta { margin-bottom: 2mm; padding-bottom: 2mm; border-bottom: 1px dashed #000; }
+.bp-meta div { display: flex; justify-content: space-between; gap: 2mm; }
+.bp-meta dt { flex: 0 0 auto; font-weight: 400; }
+.bp-meta dd { flex: 1 1 auto; min-width: 0; font-weight: 700; text-align: right; overflow-wrap: anywhere; }
+.bp-empty { padding: 3mm 0; text-align: center; }
+
+.bp-items { width: 100%; table-layout: fixed; border-collapse: collapse; }
+.bp-col-qty { width: 8mm; }
+.bp-col-amount { width: 22mm; }
+.bp-items th { padding: 0 0 1mm; border-bottom: 1px solid #000; font-size: 11px; font-weight: 700; }
+.bp-items td { padding: 1.2mm 0; vertical-align: top; border-bottom: 1px dotted #000; }
+.bp-name { padding-right: 1.5mm !important; overflow-wrap: anywhere; word-break: break-word; hyphens: auto; }
+.bp-qty { text-align: center; white-space: nowrap; }
+.bp-amount { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.bp-dish { display: block; font-weight: 700; }
+.bp-price { display: block; font-size: 11px; }
+.bp-note { display: block; font-size: 11px; font-style: italic; white-space: pre-wrap; }
+.bp-charged-label { display: block; font-size: 11px; font-weight: 700; }
+.bp-group-head th {
+    padding: 2mm 0 1mm; border-top: 1px dashed #000; border-bottom: 1px solid #000;
+    font-size: 12px; font-weight: 700; text-align: left; letter-spacing: .02em;
+}
+
+.bp-totals { width: 100%; margin-top: 2mm; border-collapse: collapse; }
+.bp-totals th { font-weight: 400; text-align: left; padding: .5mm 0; }
+.bp-totals td { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; padding: .5mm 0 .5mm 2mm; }
+.bp-total th, .bp-total td { padding-top: 1.5mm; border-top: 1px solid #000; font-size: 14px; font-weight: 700; }
+.bp-foot { margin-top: 3mm; font-size: 10px; text-align: center; }
+
+@media print {
+    @page { margin: 0; }
+    html, body {
+        width: 80mm !important; min-width: 0 !important; min-height: 0 !important; height: auto !important;
+        margin: 0 !important; padding: 0 !important; background: #fff !important; display: block !important; overflow: visible !important;
+    }
+    /* Chỉ còn bản in: ẩn thanh điều hướng, thanh trên, các nút và bảng xem trước trên màn hình. */
+    body > :not(.bill-print) { display: none !important; }
+    .bill-print { display: block !important; position: static !important; visibility: visible !important; }
+    .bp-line, .bp-group-head, .bp-totals tr, .bp-meta div, .bp-notice, .bp-restaurant { break-inside: avoid; page-break-inside: avoid; }
+}
