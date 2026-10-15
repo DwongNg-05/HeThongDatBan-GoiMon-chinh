@@ -63,8 +63,10 @@ public sealed class CashierController(IConfiguration configuration) : Controller
         if (details is null) return NotFound();
 
         var payment = details.Value;
+        var discount = await ReadDiscountAsync(sessionId, cancellationToken);
+        var history = await ReadDiscountHistoryAsync(sessionId, cancellationToken);
         var paymentMethod = method is "Transfer" ? "Transfer" : "Cash";
-        var received = cashReceived ?? payment.Session.Subtotal;
+        var received = cashReceived ?? (payment.Session.Subtotal - (discount?.Amount ?? 0));
         return View(new CashierPaymentViewModel(
             payment.Session,
             payment.Lines,
@@ -72,7 +74,55 @@ public sealed class CashierController(IConfiguration configuration) : Controller
             Math.Max(0, received),
             transferReference,
             requestId is { } id && id != Guid.Empty ? id : Guid.NewGuid(),
+            discount,
+            history,
             error));
+    }
+
+    /// <summary>S4-02 Task 3: giảm giá được lưu tại phiên và audit trước khi thanh toán.</summary>
+    [HttpPost("Discount")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Discount(long sessionId, Guid requestId, string? discountType, decimal? discountValue, string? discountReason)
+    {
+        try
+        {
+            await using var connection = new SqlConnection(ConnectionString);
+            await using var command = new SqlCommand("dbo.usp_SetSessionDiscount", connection) { CommandType = CommandType.StoredProcedure };
+            command.Parameters.Add("@SessionId", SqlDbType.BigInt).Value = sessionId;
+            command.Parameters.Add("@DiscountType", SqlDbType.VarChar, 10).Value = discountType ?? string.Empty;
+            command.Parameters.Add("@DiscountValue", SqlDbType.Decimal).Value = discountValue ?? -1;
+            command.Parameters.Add("@Reason", SqlDbType.NVarChar, 500).Value = discountReason?.Trim() ?? string.Empty;
+            command.Parameters.Add("@ActorUserId", SqlDbType.Int).Value = User.ActorUserId();
+            await connection.OpenAsync();
+            await command.ExecuteNonQueryAsync();
+            TempData["Success"] = "Đã áp dụng giảm giá. Tổng cần thu đã được tính lại.";
+        }
+        catch (SqlException ex) when (ex.Number is >= 51000 and < 51500)
+        {
+            TempData["Error"] = ex.Message;
+        }
+        return RedirectToAction(nameof(Payment), new { sessionId, requestId });
+    }
+
+    [HttpPost("Discount/Remove")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RemoveDiscount(long sessionId, Guid requestId)
+    {
+        try
+        {
+            await using var connection = new SqlConnection(ConnectionString);
+            await using var command = new SqlCommand("dbo.usp_RemoveSessionDiscount", connection) { CommandType = CommandType.StoredProcedure };
+            command.Parameters.Add("@SessionId", SqlDbType.BigInt).Value = sessionId;
+            command.Parameters.Add("@ActorUserId", SqlDbType.Int).Value = User.ActorUserId();
+            await connection.OpenAsync();
+            await command.ExecuteNonQueryAsync();
+            TempData["Success"] = "Đã gỡ giảm giá.";
+        }
+        catch (SqlException ex) when (ex.Number is >= 51000 and < 51500)
+        {
+            TempData["Error"] = ex.Message;
+        }
+        return RedirectToAction(nameof(Payment), new { sessionId, requestId });
     }
 
     /// <summary>
@@ -92,12 +142,16 @@ public sealed class CashierController(IConfiguration configuration) : Controller
         }
         try
         {
+            var discount = await ReadDiscountAsync(sessionId, HttpContext.RequestAborted);
             await using var connection = new SqlConnection(ConnectionString);
             await using var command = new SqlCommand("dbo.usp_Checkout", connection) { CommandType = CommandType.StoredProcedure };
             command.Parameters.Add("@SessionId", SqlDbType.BigInt).Value = sessionId;
             command.Parameters.Add("@RequestId", SqlDbType.UniqueIdentifier).Value = requestId;
             command.Parameters.Add("@Method", SqlDbType.VarChar, 10).Value = method;
             command.Parameters.Add("@ActorUserId", SqlDbType.Int).Value = User.ActorUserId();
+            command.Parameters.Add("@DiscountType", SqlDbType.VarChar, 10).Value = discount?.Type ?? "None";
+            command.Parameters.Add("@DiscountValue", SqlDbType.Decimal).Value = discount?.Value ?? 0;
+            command.Parameters.Add("@DiscountReason", SqlDbType.NVarChar, 500).Value = discount?.Reason ?? (object)DBNull.Value;
             command.Parameters.Add("@CashReceived", SqlDbType.Decimal).Value = method == "Cash" ? cashReceived!.Value : DBNull.Value;
             command.Parameters.Add("@TransferReference", SqlDbType.NVarChar, 100).Value = method == "Transfer" ? transferReference!.Trim().ToUpperInvariant() : DBNull.Value;
             await connection.OpenAsync();
@@ -306,6 +360,36 @@ public sealed class CashierController(IConfiguration configuration) : Controller
                     reader.GetDecimal(3), reader.GetDecimal(4), reader.IsDBNull(5) ? null : reader.GetString(5),
                     reader.GetString(6), reader.GetBoolean(7)));
         return (session, lines);
+    }
+
+    private async Task<SessionDiscount?> ReadDiscountAsync(long sessionId, CancellationToken cancellationToken)
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await using var command = new SqlCommand("SELECT DiscountType,DiscountValue,DiscountAmount,Reason,UpdatedAt FROM dbo.SessionDiscounts WHERE SessionId=@id;", connection);
+        command.Parameters.Add("@id", SqlDbType.BigInt).Value = sessionId;
+        await connection.OpenAsync(cancellationToken);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        return await reader.ReadAsync(cancellationToken)
+            ? new SessionDiscount(reader.GetString(0), reader.GetDecimal(1), reader.GetDecimal(2), reader.GetString(3), VietnamTime.FromUtc(reader.GetDateTime(4)))
+            : null;
+    }
+
+    private async Task<IReadOnlyList<DiscountHistoryEntry>> ReadDiscountHistoryAsync(long sessionId, CancellationToken cancellationToken)
+    {
+        var history = new List<DiscountHistoryEntry>();
+        await using var connection = new SqlConnection(ConnectionString);
+        await using var command = new SqlCommand("""
+            SELECT TOP(10) Action,Reason,OccurredAt FROM dbo.AuditLogs
+            WHERE EntityType='DiningSession' AND EntityId=CONVERT(varchar(60),@id)
+              AND Action IN ('SessionDiscountApplied','SessionDiscountChanged','SessionDiscountRemoved')
+            ORDER BY OccurredAt DESC,Id DESC;
+            """, connection);
+        command.Parameters.Add("@id", SqlDbType.BigInt).Value = sessionId;
+        await connection.OpenAsync(cancellationToken);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+            history.Add(new DiscountHistoryEntry(reader.GetString(0), reader.IsDBNull(1) ? null : reader.GetString(1), VietnamTime.FromUtc(reader.GetDateTime(2))));
+        return history;
     }
 
     private static bool IsValidTransferReference(string? value) => value is { Length: >= 6 and <= 50 }

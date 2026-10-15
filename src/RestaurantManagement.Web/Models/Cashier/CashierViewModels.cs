@@ -25,6 +25,24 @@ public sealed record PaymentsViewModel(ShiftSummary? OpenShift, IReadOnlyList<Pa
 public sealed record CashierPaymentLine(string ItemName, string Unit, int Quantity, decimal UnitPrice,
     decimal LineTotal, string? Notes, string OriginalTableCode, bool IsChargedCancellation);
 
+/// <summary>Giảm giá đang áp dụng cho một phiên, được máy chủ tính lại trước khi chốt.</summary>
+public sealed record SessionDiscount(string Type, decimal Value, decimal Amount, string Reason, DateTime UpdatedAt)
+{
+    public string TypeLabel => Type == "Percent" ? $"{Value:0.##}%" : "Theo số tiền";
+}
+
+/// <summary>Bản ghi lịch sử thay đổi giảm giá; chỉ dùng để minh bạch khi đối soát.</summary>
+public sealed record DiscountHistoryEntry(string Action, string? Reason, DateTime OccurredAt)
+{
+    public string ActionLabel => Action switch
+    {
+        "SessionDiscountApplied" => "Đã áp dụng giảm giá",
+        "SessionDiscountChanged" => "Đã thay đổi giảm giá",
+        "SessionDiscountRemoved" => "Đã gỡ giảm giá",
+        _ => Action
+    };
+}
+
 public sealed record CashierPaymentViewModel(
     PayableSession Session,
     IReadOnlyList<CashierPaymentLine> Lines,
@@ -32,9 +50,11 @@ public sealed record CashierPaymentViewModel(
     decimal CashReceived,
     string? TransferReference,
     Guid RequestId,
+    SessionDiscount? Discount,
+    IReadOnlyList<DiscountHistoryEntry> DiscountHistory,
     string? Error = null)
 {
-    public decimal Total => Session.Subtotal;
+    public decimal Total => Session.Subtotal - (Discount?.Amount ?? 0);
     public decimal Change => Math.Max(0, CashReceived - Total);
     public bool HasEnoughCash => CashReceived >= Total;
 }
