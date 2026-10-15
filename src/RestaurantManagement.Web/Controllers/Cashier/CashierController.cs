@@ -274,41 +274,89 @@ public sealed class CashierController(IConfiguration configuration) : Controller
     [HttpGet("Shift")]
     public async Task<IActionResult> Shift(CancellationToken cancellationToken)
     {
+        Response.Headers["Cache-Control"] = "no-store";
         await using var connection = new SqlConnection(ConnectionString);
         await connection.OpenAsync(cancellationToken);
         var open = await ReadShift(connection, "Status='Open'", cancellationToken);
         var closed = await ReadShift(connection, "Status='Closed'", cancellationToken);
-        var openSessions = 0;
+        var blockers = new List<ShiftBlocker>();
         if (open is not null)
         {
-            await using var count = new SqlCommand("SELECT COUNT(*) FROM dbo.DiningSessions WHERE ShiftId=@id AND Status<>'Closed';", connection);
-            count.Parameters.Add("@id", SqlDbType.BigInt).Value = open.Id;
-            openSessions = Convert.ToInt32(await count.ExecuteScalarAsync(cancellationToken));
+            await using var command = new SqlCommand("""
+                SELECT s.Id,
+                       COALESCE((SELECT STRING_AGG(CONVERT(nvarchar(max), t.Code), N', ')
+                                 FROM dbo.SessionTables st JOIN dbo.DiningTables t ON t.Id=st.TableId
+                                 WHERE st.SessionId=s.Id AND st.ReleasedAt IS NULL), N'Chưa xác định bàn') AS Tables,
+                       s.Status
+                FROM dbo.DiningSessions s
+                WHERE s.ShiftId=@ShiftId AND s.Status<>'Closed'
+                ORDER BY s.Id;
+                """, connection);
+            command.Parameters.Add("@ShiftId", SqlDbType.BigInt).Value = open.Id;
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                var status = reader.GetString(2);
+                blockers.Add(new ShiftBlocker(reader.GetInt64(0), reader.GetString(1), status, null,
+                    status == "AwaitingPayment" ? "Bàn đang chờ thanh toán." : "Phiên phục vụ chưa kết thúc."));
+            }
         }
-        return View(new ShiftViewModel(open, closed, openSessions));
+        return View(new ShiftViewModel(open, closed, blockers.Count) { Blockers = blockers });
     }
 
     [HttpPost("OpenShift")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> OpenShift(string? name, decimal openingCash)
+    public async Task<IActionResult> OpenShift(string? name, decimal? openingCash)
     {
+        if (openingCash is null || !IsValidMoney(openingCash.Value))
+        {
+            TempData["Error"] = "Tiền đầu ca phải là số nguyên không âm hợp lệ.";
+            return RedirectToAction(nameof(Shift));
+        }
+        if (name?.Trim().Length > 100)
+        {
+            TempData["Error"] = "Tên ca không được vượt quá 100 ký tự.";
+            return RedirectToAction(nameof(Shift));
+        }
         return await Run("dbo.usp_OpenShift", command =>
         {
             command.Parameters.Add("@Name", SqlDbType.NVarChar, 100).Value = string.IsNullOrWhiteSpace(name) ? "Ca " + VietnamTime.FromUtc(DateTime.UtcNow).ToString("dd/MM HH:mm") : name.Trim();
-            command.Parameters.Add("@OpeningCash", SqlDbType.Decimal).Value = openingCash;
+            AddMoney(command, "@OpeningCash", openingCash.Value);
         }, "Đã mở ca.");
     }
 
     [HttpPost("CloseShift")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> CloseShift(long shiftId, decimal countedCash, string? explanation)
+    public async Task<IActionResult> CloseShift(long shiftId, decimal? countedCash, string? explanation,
+        int? expectedInvoiceCount, decimal? expectedCashRevenue, decimal? expectedTransferRevenue,
+        decimal? expectedDiscountTotal, int? expectedServedTableCount, decimal? expectedOpeningCash)
     {
-        return await Run("dbo.usp_CloseShift", command =>
+        if (shiftId <= 0 || countedCash is null || !IsValidMoney(countedCash.Value) ||
+            expectedInvoiceCount is null || expectedInvoiceCount < 0 || expectedServedTableCount is null || expectedServedTableCount < 0 ||
+            expectedCashRevenue is null || !IsValidMoney(expectedCashRevenue.Value) || expectedTransferRevenue is null || !IsValidMoney(expectedTransferRevenue.Value) ||
+            expectedDiscountTotal is null || !IsValidMoney(expectedDiscountTotal.Value) || expectedOpeningCash is null || !IsValidMoney(expectedOpeningCash.Value))
+        {
+            TempData["Error"] = "Thiếu hoặc sai số liệu đối chiếu của ca. Vui lòng tải lại màn hình rồi thử lại.";
+            return RedirectToAction(nameof(Shift));
+        }
+        explanation = explanation?.Trim();
+        if (explanation?.Length > 500)
+        {
+            TempData["Error"] = "Giải trình không được vượt quá 500 ký tự.";
+            return RedirectToAction(nameof(Shift));
+        }
+        return await Run("dbo.usp_CloseShiftReviewed", command =>
         {
             command.Parameters.Add("@ShiftId", SqlDbType.BigInt).Value = shiftId;
-            command.Parameters.Add("@CountedCash", SqlDbType.Decimal).Value = countedCash;
-            command.Parameters.Add("@Explanation", SqlDbType.NVarChar, 500).Value = string.IsNullOrWhiteSpace(explanation) ? (object)DBNull.Value : explanation.Trim();
-        }, "Đã chốt ca.");
+            AddMoney(command, "@CountedCash", countedCash.Value);
+            command.Parameters.Add("@ExpectedInvoiceCount", SqlDbType.Int).Value = expectedInvoiceCount.Value;
+            AddMoney(command, "@ExpectedCashRevenue", expectedCashRevenue.Value);
+            AddMoney(command, "@ExpectedTransferRevenue", expectedTransferRevenue.Value);
+            AddMoney(command, "@ExpectedDiscountTotal", expectedDiscountTotal.Value);
+            command.Parameters.Add("@ExpectedServedTableCount", SqlDbType.Int).Value = expectedServedTableCount.Value;
+            AddMoney(command, "@ExpectedOpeningCash", expectedOpeningCash.Value);
+            command.Parameters.Add("@Explanation", SqlDbType.NVarChar, 500).Value = string.IsNullOrWhiteSpace(explanation) ? (object)DBNull.Value : explanation;
+        }, "Đã chốt ca thành công.");
     }
 
     private async Task<IActionResult> Run(string procedure, Action<SqlCommand> parameters, string success)
@@ -334,14 +382,33 @@ public sealed class CashierController(IConfiguration configuration) : Controller
         return RedirectToAction(nameof(Shift));
     }
 
+    private static bool IsValidMoney(decimal value) => value >= 0 && value <= 999999999999999999m && decimal.Truncate(value) == value;
+
+    private static void AddMoney(SqlCommand command, string name, decimal? value)
+    {
+        var parameter = command.Parameters.Add(name, SqlDbType.Decimal);
+        parameter.Precision = 18;
+        parameter.Scale = 0;
+        parameter.Value = value.HasValue ? (object)value.Value : DBNull.Value;
+    }
+
     private static async Task<ShiftSummary?> ReadShift(SqlConnection connection, string where, CancellationToken cancellationToken)
     {
         await using var command = new SqlCommand($"""
             SELECT TOP(1) s.Id,s.Name,s.BusinessDate,s.OpenedAt,s.OpeningCash,s.Status,
-                   COALESCE(s.InvoiceCount,(SELECT COUNT(*) FROM dbo.Invoices i WHERE i.ShiftId=s.Id AND i.Status='Paid')) AS InvoiceCount,
-                   COALESCE(s.CashRevenue,(SELECT COALESCE(SUM(p.Amount),0) FROM dbo.Invoices i JOIN dbo.Payments p ON p.InvoiceId=i.Id WHERE i.ShiftId=s.Id AND i.Status='Paid' AND p.Method='Cash')) AS CashRevenue,
-                   COALESCE(s.TransferRevenue,(SELECT COALESCE(SUM(p.Amount),0) FROM dbo.Invoices i JOIN dbo.Payments p ON p.InvoiceId=i.Id WHERE i.ShiftId=s.Id AND i.Status='Paid' AND p.Method='Transfer')) AS TransferRevenue,
-                   s.ClosedAt,s.CountedCash,s.ExpectedCash,s.CashDifference,s.Explanation
+                   CASE WHEN s.Status='Closed' THEN COALESCE(s.InvoiceCount,0) ELSE
+                       (SELECT COUNT(*) FROM dbo.Invoices i WHERE i.ShiftId=s.Id AND i.Status='Paid') END AS InvoiceCount,
+                   CASE WHEN s.Status='Closed' THEN COALESCE(s.CashRevenue,0) ELSE
+                       (SELECT COALESCE(SUM(p.Amount),0) FROM dbo.Invoices i JOIN dbo.Payments p ON p.InvoiceId=i.Id
+                        WHERE i.ShiftId=s.Id AND i.Status='Paid' AND p.Method='Cash') END AS CashRevenue,
+                   CASE WHEN s.Status='Closed' THEN COALESCE(s.TransferRevenue,0) ELSE
+                       (SELECT COALESCE(SUM(p.Amount),0) FROM dbo.Invoices i JOIN dbo.Payments p ON p.InvoiceId=i.Id
+                        WHERE i.ShiftId=s.Id AND i.Status='Paid' AND p.Method='Transfer') END AS TransferRevenue,
+                   s.ClosedAt,s.CountedCash,s.ExpectedCash,s.CashDifference,s.Explanation,
+                   CASE WHEN s.Status='Closed' THEN COALESCE(s.DiscountTotal,0) ELSE
+                       (SELECT COALESCE(SUM(i.DiscountAmount),0) FROM dbo.Invoices i WHERE i.ShiftId=s.Id AND i.Status='Paid') END AS DiscountTotal,
+                   CASE WHEN s.Status='Closed' THEN COALESCE(s.ServedTableCount,0) ELSE
+                       (SELECT COUNT(*) FROM dbo.SessionTables st JOIN dbo.DiningSessions ds ON ds.Id=st.SessionId WHERE ds.ShiftId=s.Id) END AS ServedTableCount
             FROM dbo.Shifts s WHERE s.{where} ORDER BY COALESCE(s.ClosedAt,s.OpenedAt) DESC,s.Id DESC;
             """, connection);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -350,7 +417,11 @@ public sealed class CashierController(IConfiguration configuration) : Controller
         return new ShiftSummary(reader.GetInt64(0), reader.GetString(1), reader.GetDateTime(2), VietnamTime.FromUtc(reader.GetDateTime(3)),
             reader.GetDecimal(4), reader.GetString(5), reader.GetInt32(6), reader.GetDecimal(7), reader.GetDecimal(8),
             reader.IsDBNull(9) ? null : VietnamTime.FromUtc(reader.GetDateTime(9)), Money(10), Money(11), Money(12),
-            reader.IsDBNull(13) ? null : reader.GetString(13));
+            reader.IsDBNull(13) ? null : reader.GetString(13))
+        {
+            DiscountTotal = reader.GetDecimal(14),
+            ServedTableCount = reader.GetInt32(15)
+        };
     }
 
     private async Task<(PayableSession Session, IReadOnlyList<CashierPaymentLine> Lines)?> ReadPaymentAsync(long sessionId,

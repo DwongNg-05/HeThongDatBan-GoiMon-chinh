@@ -1,78 +1,554 @@
 @model RestaurantManagement.Web.Models.Cashier.ShiftViewModel
 @using RestaurantManagement.Web.Models.Cashier
+@using System.Globalization
+
 @{
     ViewData["Title"] = "Chốt ca";
 }
+
 <div class="container mt-4" data-screen="cashier-shift">
-    <h2>Chốt ca</h2>
-    @* S3-05 Task 2: Quản lý xem các lần huỷ món của ca trong báo cáo cuối ca. *@
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Chốt ca</h2>
+        <a asp-action="Shift" class="btn btn-outline-secondary">
+            Cập nhật số liệu
+        </a>
+    </div>
+
+    <p class="text-muted">
+        Thời gian hiển thị theo giờ Việt Nam.
+        Chênh lệch = tiền thực đếm − tiền mặt phải có.
+    </p>
+
     @if (User.IsInRole("Manager"))
     {
-        <p><a href="/Reports/Shift/Cancellations@(Model.OpenShift is { } current ? "?shiftId=" + current.Id : "")" id="shift-cancellations-link">Xem báo cáo huỷ món của ca</a></p>
+        <p>
+            <a href="/Reports/Shift/Cancellations@(Model.OpenShift is { } current ? "?shiftId=" + current.Id : "")"
+               id="shift-cancellations-link">
+                Xem báo cáo huỷ món của ca
+            </a>
+        </p>
     }
-    @if (TempData["Success"] is string success) { <div class="alert alert-success" role="status">@success</div> }
-    @if (TempData["Error"] is string error) { <div class="alert alert-danger" role="alert">@error</div> }
+
+    @if (TempData["Success"] is string success)
+    {
+        <div class="alert alert-success" role="status">
+            @success
+        </div>
+    }
+
+    @if (TempData["Error"] is string error)
+    {
+        <div class="alert alert-danger" role="alert">
+            @error
+        </div>
+    }
 
     @if (Model.OpenShift is { } shift)
     {
-        <section class="mb-4" data-shift-id="@shift.Id" data-shift-status="Open">
-            <h3 class="h5">Ca đang mở: @shift.Name</h3>
-            <dl class="row">
-                <dt class="col-sm-4">Mở lúc</dt><dd class="col-sm-8">@shift.OpenedAt.ToString("dd/MM/yyyy HH:mm")</dd>
-                <dt class="col-sm-4">Tiền đầu ca</dt><dd class="col-sm-8">@Vnd.Format(shift.OpeningCash)</dd>
-                <dt class="col-sm-4">Số hoá đơn</dt><dd class="col-sm-8">@shift.InvoiceCount</dd>
-                <dt class="col-sm-4">Thu tiền mặt</dt><dd class="col-sm-8">@Vnd.Format(shift.CashRevenue)</dd>
-                <dt class="col-sm-4">Thu chuyển khoản</dt><dd class="col-sm-8">@Vnd.Format(shift.TransferRevenue)</dd>
-                <dt class="col-sm-4">Tiền mặt phải có trong két</dt><dd class="col-sm-8" data-expected-cash="@shift.ExpectedCashNow.ToString("0")">@Vnd.Format(shift.ExpectedCashNow)</dd>
-            </dl>
-            @if (Model.OpenSessionCount > 0)
+        <section class="card mb-4"
+                 data-shift-id="@shift.Id"
+                 data-shift-status="Open">
+            <div class="card-body">
+                <h3 class="h5">Ca đang mở: @shift.Name</h3>
+
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Mã ca</dt>
+                    <dd class="col-sm-7">#@shift.Id</dd>
+
+                    <dt class="col-sm-5">Ngày kinh doanh</dt>
+                    <dd class="col-sm-7">
+                        @shift.BusinessDate.ToString("dd/MM/yyyy")
+                    </dd>
+
+                    <dt class="col-sm-5">Mở lúc</dt>
+                    <dd class="col-sm-7">
+                        @shift.OpenedAt.ToString("dd/MM/yyyy HH:mm")
+                    </dd>
+
+                    <dt class="col-sm-5">Số hoá đơn đã thanh toán</dt>
+                    <dd class="col-sm-7">@shift.InvoiceCount</dd>
+
+                    <dt class="col-sm-5">Tổng doanh thu</dt>
+                    <dd class="col-sm-7 fw-bold">
+                        @Vnd.Format(shift.Revenue)
+                    </dd>
+
+                    <dt class="col-sm-5">Thu tiền mặt</dt>
+                    <dd class="col-sm-7">
+                        @Vnd.Format(shift.CashRevenue)
+                    </dd>
+
+                    <dt class="col-sm-5">Thu chuyển khoản</dt>
+                    <dd class="col-sm-7">
+                        @Vnd.Format(shift.TransferRevenue)
+                    </dd>
+
+                    <dt class="col-sm-5">Tổng giảm giá</dt>
+                    <dd class="col-sm-7">
+                        @Vnd.Format(shift.DiscountTotal)
+                    </dd>
+
+                    <dt class="col-sm-5">Số lượt bàn phục vụ trong ca</dt>
+                    <dd class="col-sm-7">@shift.ServedTableCount</dd>
+
+                    <dt class="col-sm-5">Tiền đầu ca</dt>
+                    <dd class="col-sm-7">
+                        @Vnd.Format(shift.OpeningCash)
+                    </dd>
+
+                    <dt class="col-sm-5">Tiền mặt phải có trong két</dt>
+                    <dd class="col-sm-7 fw-bold"
+                        data-expected-cash="@shift.ExpectedCashNow.ToString("0", CultureInfo.InvariantCulture)">
+                        @Vnd.Format(shift.ExpectedCashNow)
+                    </dd>
+                </dl>
+
+                <p class="text-muted mt-2 mb-0">
+                    Tiền mặt phải có = tiền đầu ca + thu tiền mặt.
+                    Số lượt bàn được tính theo các lần bàn gắn với phiên trong ca.
+                </p>
+            </div>
+        </section>
+
+        @if (Model.OpenSessionCount > 0 || Model.Blockers.Count > 0)
+        {
+            <div class="alert alert-warning" role="alert">
+                Chưa thể chốt ca. Cần hoàn tất các phiên dưới đây,
+                sau đó bấm “Cập nhật số liệu”.
+            </div>
+
+            @if (Model.Blockers.Count > 0)
             {
-                <p class="alert alert-warning">Còn @Model.OpenSessionCount bàn đang phục vụ hoặc chưa thanh toán, chưa thể chốt ca.</p>
+                <div class="table-responsive mb-4">
+                    <table class="table table-bordered align-middle">
+                        <thead>
+                            <tr>
+                                <th>Bàn</th>
+                                <th>Phiên</th>
+                                <th>Trạng thái</th>
+                                <th>Lý do chưa thể chốt</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var blocker in Model.Blockers)
+                            {
+                                <tr>
+                                    <td class="fw-bold">@blocker.Tables</td>
+                                    <td>#@blocker.SessionId</td>
+                                    <td>@blocker.StatusLabel</td>
+                                    <td>@blocker.Reason</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
             }
-            <form asp-action="CloseShift" method="post" class="row g-2 align-items-end">
-                <input type="hidden" name="shiftId" value="@shift.Id" />
-                <div class="col-sm-4">
-                    <label for="countedCash" class="form-label">Tiền mặt kiểm đếm (VND)</label>
-                    <input id="countedCash" name="countedCash" type="number" min="0" step="1000" class="form-control" required />
-                </div>
-                <div class="col-sm-5">
-                    <label for="explanation" class="form-label">Giải trình (bắt buộc khi lệch quá 50.000 ₫)</label>
-                    <input id="explanation" name="explanation" class="form-control" maxlength="500" />
-                </div>
-                <div class="col-sm-3"><button type="submit" class="btn btn-danger w-100">Chốt ca</button></div>
-            </form>
+        }
+
+        <section class="card mb-4">
+            <div class="card-body">
+                <h3 class="h5">Đối chiếu tiền mặt</h3>
+
+                <form id="closeShiftForm"
+                      asp-action="CloseShift"
+                      method="post"
+                      data-expected="@shift.ExpectedCashNow.ToString("0", CultureInfo.InvariantCulture)"
+                      data-can-close="@Model.CanClose.ToString().ToLowerInvariant()">
+
+                    <input type="hidden"
+                           name="shiftId"
+                           value="@shift.Id" />
+
+                    <input type="hidden"
+                           name="expectedInvoiceCount"
+                           value="@shift.InvoiceCount" />
+
+                    <input type="hidden"
+                           name="expectedCashRevenue"
+                           value="@shift.CashRevenue.ToString("0", CultureInfo.InvariantCulture)" />
+
+                    <input type="hidden"
+                           name="expectedTransferRevenue"
+                           value="@shift.TransferRevenue.ToString("0", CultureInfo.InvariantCulture)" />
+
+                    <input type="hidden"
+                           name="expectedDiscountTotal"
+                           value="@shift.DiscountTotal.ToString("0", CultureInfo.InvariantCulture)" />
+
+                    <input type="hidden"
+                           name="expectedServedTableCount"
+                           value="@shift.ServedTableCount" />
+
+                    <input type="hidden"
+                           name="expectedOpeningCash"
+                           value="@shift.OpeningCash.ToString("0", CultureInfo.InvariantCulture)" />
+
+                    <div class="mb-3">
+                        <label for="countedCash" class="form-label">
+                            Tiền mặt thực đếm trong két (VND)
+                        </label>
+
+                        <input id="countedCash"
+                               name="countedCash"
+                               type="number"
+                               min="0"
+                               max="999999999999999999"
+                               step="1"
+                               class="form-control"
+                               placeholder="Nhập số tiền thực đếm"
+                               required />
+
+                        <div class="form-text">
+                            Nhập số nguyên, ví dụ: 2000000.
+                        </div>
+                    </div>
+
+                    <div id="cashDifferenceNotice"
+                         class="alert alert-secondary"
+                         role="status"
+                         aria-live="polite">
+                        Nhập tiền thực đếm để tính chênh lệch.
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="explanation" class="form-label">
+                            Giải trình
+                            <span id="explanationRequired"
+                                  class="text-danger"
+                                  hidden>
+                                (bắt buộc)
+                            </span>
+                        </label>
+
+                        <textarea id="explanation"
+                                  name="explanation"
+                                  class="form-control"
+                                  rows="3"
+                                  maxlength="500"
+                                  placeholder="Nhập nguyên nhân thừa hoặc thiếu tiền"></textarea>
+
+                        <div class="form-text">
+                            Bắt buộc khi thừa hoặc thiếu quá 50.000 đồng.
+                            Đúng 50.000 đồng chưa bắt buộc.
+                            Tối đa 500 ký tự.
+                        </div>
+                    </div>
+
+                    <button id="closeShiftButton"
+                            type="submit"
+                            class="btn btn-danger"
+                            disabled="@(!Model.CanClose)">
+                        Chốt ca
+                    </button>
+
+                    <a asp-action="Index"
+                       class="btn btn-outline-primary ms-2">
+                        Đến màn hình thanh toán
+                    </a>
+                </form>
+            </div>
         </section>
     }
     else
     {
-        <section class="mb-4" data-shift-status="None">
-            <h3 class="h5">Chưa có ca đang mở</h3>
-            <form asp-action="OpenShift" method="post" class="row g-2 align-items-end">
-                <div class="col-sm-5">
-                    <label for="name" class="form-label">Tên ca</label>
-                    <input id="name" name="name" class="form-control" maxlength="100" placeholder="Ví dụ: Ca tối" />
-                </div>
-                <div class="col-sm-4">
-                    <label for="openingCash" class="form-label">Tiền đầu ca (VND)</label>
-                    <input id="openingCash" name="openingCash" type="number" min="0" step="1000" class="form-control" value="0" required />
-                </div>
-                <div class="col-sm-3"><button type="submit" class="btn btn-primary w-100">Mở ca</button></div>
-            </form>
+        <section class="card mb-4" data-shift-status="None">
+            <div class="card-body">
+                <h3 class="h5">Chưa có ca đang mở</h3>
+
+                <form asp-action="OpenShift"
+                      method="post"
+                      class="row g-3 align-items-end">
+                    <div class="col-md-5">
+                        <label for="name" class="form-label">
+                            Tên ca
+                        </label>
+
+                        <input id="name"
+                               name="name"
+                               class="form-control"
+                               maxlength="100"
+                               placeholder="Ví dụ: Ca tối" />
+                    </div>
+
+                    <div class="col-md-4">
+                        <label for="openingCash" class="form-label">
+                            Tiền đầu ca (VND)
+                        </label>
+
+                        <input id="openingCash"
+                               name="openingCash"
+                               type="number"
+                               min="0"
+                               max="999999999999999999"
+                               step="1"
+                               class="form-control"
+                               value="0"
+                               required />
+                    </div>
+
+                    <div class="col-md-3">
+                        <button type="submit"
+                                class="btn btn-primary w-100">
+                            Mở ca
+                        </button>
+                    </div>
+                </form>
+            </div>
         </section>
     }
 
     @if (Model.LastClosed is { } last)
     {
-        <section data-shift-id="@last.Id" data-shift-status="Closed">
-            <h3 class="h5">Ca đã chốt gần nhất: @last.Name</h3>
-            <dl class="row">
-                <dt class="col-sm-4">Chốt lúc</dt><dd class="col-sm-8">@last.ClosedAt?.ToString("dd/MM/yyyy HH:mm")</dd>
-                <dt class="col-sm-4">Số hoá đơn</dt><dd class="col-sm-8">@last.InvoiceCount</dd>
-                <dt class="col-sm-4">Doanh thu</dt><dd class="col-sm-8">@Vnd.Format(last.CashRevenue + last.TransferRevenue)</dd>
-                <dt class="col-sm-4">Tiền mặt kiểm đếm / phải có</dt><dd class="col-sm-8">@Vnd.Format(last.CountedCash ?? 0) / @Vnd.Format(last.ExpectedCash ?? 0)</dd>
-                <dt class="col-sm-4">Chênh lệch</dt><dd class="col-sm-8">@Vnd.Format(last.CashDifference ?? 0)</dd>
-                @if (!string.IsNullOrWhiteSpace(last.Explanation)) { <dt class="col-sm-4">Giải trình</dt><dd class="col-sm-8">@last.Explanation</dd> }
-            </dl>
+        <section class="card mb-4"
+                 data-shift-id="@last.Id"
+                 data-shift-status="Closed">
+            <div class="card-body">
+                <h3 class="h5">
+                    Ca đã chốt gần nhất: @last.Name
+                </h3>
+
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Mã ca</dt>
+                    <dd class="col-sm-7">#@last.Id</dd>
+
+                    <dt class="col-sm-5">Chốt lúc</dt>
+                    <dd class="col-sm-7">
+                        @last.ClosedAt?.ToString("dd/MM/yyyy HH:mm")
+                    </dd>
+
+                    <dt class="col-sm-5">Số hoá đơn</dt>
+                    <dd class="col-sm-7">@last.InvoiceCount</dd>
+
+                    <dt class="col-sm-5">Tổng doanh thu</dt>
+                    <dd class="col-sm-7">
+                        @Vnd.Format(last.Revenue)
+                    </dd>
+
+                    <dt class="col-sm-5">Thu tiền mặt</dt>
+                    <dd class="col-sm-7">
+                        @Vnd.Format(last.CashRevenue)
+                    </dd>
+
+                    <dt class="col-sm-5">Thu chuyển khoản</dt>
+                    <dd class="col-sm-7">
+                        @Vnd.Format(last.TransferRevenue)
+                    </dd>
+
+                    <dt class="col-sm-5">Tổng giảm giá</dt>
+                    <dd class="col-sm-7">
+                        @Vnd.Format(last.DiscountTotal)
+                    </dd>
+
+                    <dt class="col-sm-5">Số lượt bàn phục vụ</dt>
+                    <dd class="col-sm-7">@last.ServedTableCount</dd>
+
+                    <dt class="col-sm-5">Tiền đầu ca</dt>
+                    <dd class="col-sm-7">
+                        @Vnd.Format(last.OpeningCash)
+                    </dd>
+
+                    <dt class="col-sm-5">Tiền mặt thực đếm</dt>
+                    <dd class="col-sm-7">
+                        @Vnd.Format(last.CountedCash ?? 0)
+                    </dd>
+
+                    <dt class="col-sm-5">Tiền mặt phải có</dt>
+                    <dd class="col-sm-7">
+                        @Vnd.Format(last.ExpectedCash ?? 0)
+                    </dd>
+
+                    <dt class="col-sm-5">Chênh lệch</dt>
+                    <dd class="col-sm-7">
+                        @{
+                            var difference = last.CashDifference ?? 0;
+                        }
+
+                        @if (difference > 0)
+                        {
+                            <span class="text-warning fw-bold">
+                                Thừa @Vnd.Format(difference)
+                            </span>
+                        }
+                        else if (difference < 0)
+                        {
+                            <span class="text-danger fw-bold">
+                                Thiếu @Vnd.Format(Math.Abs(difference))
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="text-success fw-bold">
+                                Khớp tiền
+                            </span>
+                        }
+                    </dd>
+
+                    @if (!string.IsNullOrWhiteSpace(last.Explanation))
+                    {
+                        <dt class="col-sm-5">Giải trình</dt>
+                        <dd class="col-sm-7 text-break"
+                            style="white-space: pre-wrap">@last.Explanation</dd>
+                    }
+                </dl>
+            </div>
         </section>
     }
 </div>
+
+@section Scripts {
+    <script>
+        (() => {
+            'use strict';
+
+            const form = document.getElementById('closeShiftForm');
+            if (!form) return;
+
+            const counted = document.getElementById('countedCash');
+            const explanation = document.getElementById('explanation');
+            const requiredLabel =
+                document.getElementById('explanationRequired');
+            const notice =
+                document.getElementById('cashDifferenceNotice');
+            const button =
+                document.getElementById('closeShiftButton');
+
+            const expected = BigInt(form.dataset.expected);
+            const canClose = form.dataset.canClose === 'true';
+
+            let submitting = false;
+
+            const money = value =>
+                value.toLocaleString('vi-VN') + ' ₫';
+
+            function readCounted() {
+                const value = counted.value.trim();
+
+                if (!/^\d+$/.test(value)) return null;
+
+                const amount = BigInt(value);
+
+                if (amount > 999999999999999999n) return null;
+
+                return amount;
+            }
+
+            function updateDifference() {
+                explanation.setCustomValidity('');
+
+                const amount = readCounted();
+
+                if (amount === null) {
+                    explanation.required = false;
+                    requiredLabel.hidden = true;
+                    notice.className = 'alert alert-secondary';
+                    notice.textContent =
+                        'Nhập tiền thực đếm hợp lệ để tính chênh lệch.';
+                    return null;
+                }
+
+                const difference = amount - expected;
+                const absolute = difference < 0n
+                    ? -difference
+                    : difference;
+
+                const needsExplanation = absolute > 50000n;
+
+                explanation.required = needsExplanation;
+                requiredLabel.hidden = !needsExplanation;
+
+                if (difference === 0n) {
+                    notice.className = 'alert alert-success';
+                    notice.textContent =
+                        'Khớp tiền. Chênh lệch: 0 ₫.';
+                } else {
+                    notice.className = needsExplanation
+                        ? 'alert alert-danger'
+                        : 'alert alert-warning';
+
+                    notice.textContent =
+                        (difference > 0n ? 'Thừa ' : 'Thiếu ')
+                        + money(absolute)
+                        + (needsExplanation
+                            ? '. Bắt buộc nhập giải trình.'
+                            : '. Có thể nhập giải trình nếu cần.');
+                }
+
+                return {
+                    amount,
+                    difference,
+                    absolute,
+                    needsExplanation
+                };
+            }
+
+            counted.addEventListener('input', updateDifference);
+
+            explanation.addEventListener('input', () => {
+                explanation.setCustomValidity('');
+            });
+
+            form.addEventListener('submit', event => {
+                if (submitting || !canClose) {
+                    event.preventDefault();
+                    return;
+                }
+
+                const result = updateDifference();
+
+                if (!result) {
+                    event.preventDefault();
+                    counted.focus();
+                    return;
+                }
+
+                if (result.needsExplanation
+                    && explanation.value.trim().length === 0) {
+                    event.preventDefault();
+
+                    explanation.setCustomValidity(
+                        'Vui lòng nhập giải trình khi lệch quá 50.000 đồng.');
+
+                    explanation.reportValidity();
+                    explanation.focus();
+                    return;
+                }
+
+                if (!form.reportValidity()) {
+                    event.preventDefault();
+                    return;
+                }
+
+                const differenceText =
+                    result.difference === 0n
+                        ? 'Khớp tiền'
+                        : (result.difference > 0n ? 'Thừa ' : 'Thiếu ')
+                        + money(result.absolute);
+
+                const confirmed = window.confirm(
+                    'Xác nhận chốt ca?\n\n'
+                    + 'Tiền mặt phải có: ' + money(expected) + '\n'
+                    + 'Tiền thực đếm: ' + money(result.amount) + '\n'
+                    + 'Chênh lệch: ' + differenceText + '\n'
+                    + 'Giải trình: '
+                    + (explanation.value.trim() || 'Không có')
+                );
+
+                if (!confirmed) {
+                    event.preventDefault();
+                    return;
+                }
+
+                submitting = true;
+                button.disabled = true;
+                button.textContent = 'Đang chốt ca...';
+            });
+
+            window.addEventListener('pageshow', () => {
+                submitting = false;
+                button.disabled = !canClose;
+                button.textContent = 'Chốt ca';
+                updateDifference();
+            });
+        })();
+    </script>
+}

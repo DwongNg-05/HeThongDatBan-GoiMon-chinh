@@ -5,6 +5,9 @@ public sealed record ShiftSummary(long Id, string Name, DateTime BusinessDate, D
     int InvoiceCount, decimal CashRevenue, decimal TransferRevenue, DateTime? ClosedAt, decimal? CountedCash, decimal? ExpectedCash,
     decimal? CashDifference, string? Explanation)
 {
+    public decimal Revenue => CashRevenue + TransferRevenue;
+    public decimal DiscountTotal { get; init; }
+    public int ServedTableCount { get; init; }
     public decimal ExpectedCashNow => OpeningCash + CashRevenue;
 }
 
@@ -92,7 +95,23 @@ public sealed record InvoicesViewModel(DateOnly BusinessDate, IReadOnlyList<Invo
     public decimal PaidTotal => Invoices.Where(i => i.Status == "Paid").Sum(i => i.Total);
 }
 
-public sealed record ShiftViewModel(ShiftSummary? OpenShift, ShiftSummary? LastClosed, int OpenSessionCount);
+/// <summary>Phiên hoặc hoá đơn khiến ca chưa được phép chốt.</summary>
+public sealed record ShiftBlocker(long SessionId, string Tables, string Status, string? InvoiceNumber, string Reason)
+{
+    public string StatusLabel => Status switch
+    {
+        "Open" => "Đang phục vụ",
+        "AwaitingPayment" => "Chờ thanh toán",
+        "Closed" => "Đã kết thúc phiên",
+        _ => Status
+    };
+}
+
+public sealed record ShiftViewModel(ShiftSummary? OpenShift, ShiftSummary? LastClosed, int OpenSessionCount)
+{
+    public IReadOnlyList<ShiftBlocker> Blockers { get; init; } = Array.Empty<ShiftBlocker>();
+    public bool CanClose => OpenShift is not null && OpenSessionCount == 0 && Blockers.Count == 0;
+}
 
 public static class Vnd
 {
