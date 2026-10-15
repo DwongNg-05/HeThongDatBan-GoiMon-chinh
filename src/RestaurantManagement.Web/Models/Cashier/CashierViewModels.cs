@@ -28,7 +28,9 @@ public sealed record CashierPaymentLine(string ItemName, string Unit, int Quanti
 public sealed record CashierPaymentViewModel(
     PayableSession Session,
     IReadOnlyList<CashierPaymentLine> Lines,
+    string Method,
     decimal CashReceived,
+    string? TransferReference,
     Guid RequestId,
     string? Error = null)
 {
@@ -47,8 +49,10 @@ public sealed record CashierReceiptViewModel(
     string CashierName,
     decimal Subtotal,
     decimal Total,
-    decimal CashReceived,
-    decimal ChangeAmount,
+    string Method,
+    decimal? CashReceived,
+    decimal? ChangeAmount,
+    string? TransferReference,
     IReadOnlyList<CashierPaymentLine> Lines);
 
 /// <summary>Một hoá đơn trong ngày (dbo.Invoices + dbo.Payments).</summary>

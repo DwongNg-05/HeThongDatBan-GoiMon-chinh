@@ -56,18 +56,21 @@ public sealed class CashierController(IConfiguration configuration) : Controller
     /// được tính lại ở SQL Server khi chốt, không tin giá trị do trình duyệt gửi lên.
     /// </summary>
     [HttpGet("Payment/{sessionId:long}")]
-    public async Task<IActionResult> Payment(long sessionId, decimal? cashReceived, string? error, Guid? requestId,
+    public async Task<IActionResult> Payment(long sessionId, string? method, decimal? cashReceived, string? transferReference, string? error, Guid? requestId,
         CancellationToken cancellationToken)
     {
         var details = await ReadPaymentAsync(sessionId, cancellationToken);
         if (details is null) return NotFound();
 
         var payment = details.Value;
+        var paymentMethod = method is "Transfer" ? "Transfer" : "Cash";
         var received = cashReceived ?? payment.Session.Subtotal;
         return View(new CashierPaymentViewModel(
             payment.Session,
             payment.Lines,
+            paymentMethod,
             Math.Max(0, received),
+            transferReference,
             requestId is { } id && id != Guid.Empty ? id : Guid.NewGuid(),
             error));
     }
@@ -78,12 +81,14 @@ public sealed class CashierController(IConfiguration configuration) : Controller
     /// </summary>
     [HttpPost("Checkout")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Checkout(long sessionId, Guid requestId, decimal? cashReceived)
+    public async Task<IActionResult> Checkout(long sessionId, Guid requestId, string? method, decimal? cashReceived, string? transferReference)
     {
-        if (requestId == Guid.Empty || cashReceived is null || cashReceived < 0)
+        if (requestId == Guid.Empty || method is not ("Cash" or "Transfer") ||
+            (method == "Cash" && (cashReceived is null || cashReceived < 0)) ||
+            (method == "Transfer" && !IsValidTransferReference(transferReference)))
         {
-            return RedirectToAction(nameof(Payment), new { sessionId, cashReceived, requestId,
-                error = "Vui lòng nhập số tiền khách đưa hợp lệ." });
+            return RedirectToAction(nameof(Payment), new { sessionId, method, cashReceived, transferReference, requestId,
+                error = method == "Transfer" ? "Mã chuyển khoản gồm 6–50 ký tự chữ, số hoặc dấu gạch ngang." : "Vui lòng nhập số tiền khách đưa hợp lệ." });
         }
         try
         {
@@ -91,10 +96,10 @@ public sealed class CashierController(IConfiguration configuration) : Controller
             await using var command = new SqlCommand("dbo.usp_Checkout", connection) { CommandType = CommandType.StoredProcedure };
             command.Parameters.Add("@SessionId", SqlDbType.BigInt).Value = sessionId;
             command.Parameters.Add("@RequestId", SqlDbType.UniqueIdentifier).Value = requestId;
-            command.Parameters.Add("@Method", SqlDbType.VarChar, 10).Value = "Cash";
+            command.Parameters.Add("@Method", SqlDbType.VarChar, 10).Value = method;
             command.Parameters.Add("@ActorUserId", SqlDbType.Int).Value = User.ActorUserId();
-            command.Parameters.Add("@CashReceived", SqlDbType.Decimal).Value = cashReceived.Value;
-            command.Parameters.Add("@TransferReference", SqlDbType.NVarChar, 100).Value = DBNull.Value;
+            command.Parameters.Add("@CashReceived", SqlDbType.Decimal).Value = method == "Cash" ? cashReceived!.Value : DBNull.Value;
+            command.Parameters.Add("@TransferReference", SqlDbType.NVarChar, 100).Value = method == "Transfer" ? transferReference!.Trim().ToUpperInvariant() : DBNull.Value;
             await connection.OpenAsync();
             await using var reader = await command.ExecuteReaderAsync();
             if (await reader.ReadAsync())
@@ -102,10 +107,10 @@ public sealed class CashierController(IConfiguration configuration) : Controller
         }
         catch (SqlException ex) when (ex.Number is >= 51000 and < 51500)
         {
-            return RedirectToAction(nameof(Payment), new { sessionId, cashReceived, requestId,
+            return RedirectToAction(nameof(Payment), new { sessionId, method, cashReceived, transferReference, requestId,
                 error = ex.Number == 51001 ? "Tài khoản không có quyền thanh toán." : ex.Message });
         }
-        return RedirectToAction(nameof(Payment), new { sessionId, cashReceived, requestId,
+        return RedirectToAction(nameof(Payment), new { sessionId, method, cashReceived, transferReference, requestId,
             error = "Không thể chốt thanh toán. Vui lòng thử lại." });
     }
 
@@ -116,9 +121,9 @@ public sealed class CashierController(IConfiguration configuration) : Controller
         await connection.OpenAsync(cancellationToken);
         await using var command = new SqlCommand("""
             SELECT i.Id,i.InvoiceNumber,i.TableLabels,i.GuestCount,i.IssuedAt,
-                   u.FullName,i.Subtotal,i.Total,p.CashReceived,p.ChangeAmount
+                   u.FullName,i.Subtotal,i.Total,p.Method,p.CashReceived,p.ChangeAmount,p.TransferReference
             FROM dbo.Invoices i
-            JOIN dbo.Payments p ON p.InvoiceId=i.Id AND p.Method='Cash'
+            JOIN dbo.Payments p ON p.InvoiceId=i.Id
             JOIN dbo.Users u ON u.Id=i.IssuedBy
             WHERE i.Id=@id AND i.Status='Paid';
 
@@ -137,15 +142,17 @@ public sealed class CashierController(IConfiguration configuration) : Controller
         var cashier = reader.GetString(5);
         var subtotal = reader.GetDecimal(6);
         var total = reader.GetDecimal(7);
-        var received = reader.GetDecimal(8);
-        var change = reader.GetDecimal(9);
+        var method = reader.GetString(8);
+        decimal? received = reader.IsDBNull(9) ? null : reader.GetDecimal(9);
+        decimal? change = reader.IsDBNull(10) ? null : reader.GetDecimal(10);
+        var transferReference = reader.IsDBNull(11) ? null : reader.GetString(11);
         var lines = new List<CashierPaymentLine>();
         if (await reader.NextResultAsync(cancellationToken))
             while (await reader.ReadAsync(cancellationToken))
                 lines.Add(new CashierPaymentLine(reader.GetString(0), reader.GetString(1), reader.GetInt32(2),
                     reader.GetDecimal(3), reader.GetDecimal(4), reader.IsDBNull(5) ? null : reader.GetString(5),
                     reader.GetString(6), reader.GetBoolean(7)));
-        return View(new CashierReceiptViewModel(id, number, tables, guests, issued, cashier, subtotal, total, received, change, lines));
+        return View(new CashierReceiptViewModel(id, number, tables, guests, issued, cashier, subtotal, total, method, received, change, transferReference, lines));
     }
 
     // ---------------- Hoá đơn ----------------
@@ -300,4 +307,7 @@ public sealed class CashierController(IConfiguration configuration) : Controller
                     reader.GetString(6), reader.GetBoolean(7)));
         return (session, lines);
     }
+
+    private static bool IsValidTransferReference(string? value) => value is { Length: >= 6 and <= 50 }
+        && value.All(c => char.IsAsciiLetterOrDigit(c) || c == '-');
 }
