@@ -51,15 +51,39 @@ public sealed class CashierController(IConfiguration configuration) : Controller
         return View(new PaymentsViewModel(shift, sessions));
     }
 
-    /// <summary>Thanh toán một bàn. RequestId sinh khi hiển thị form, nên bấm 2 lần cũng chỉ ra 1 hoá đơn.</summary>
+    /// <summary>
+    /// S4-02 Task 1: màn hình chốt tiền mặt. Mọi giá trị món chỉ đọc và tổng tiền
+    /// được tính lại ở SQL Server khi chốt, không tin giá trị do trình duyệt gửi lên.
+    /// </summary>
+    [HttpGet("Payment/{sessionId:long}")]
+    public async Task<IActionResult> Payment(long sessionId, decimal? cashReceived, string? error, Guid? requestId,
+        CancellationToken cancellationToken)
+    {
+        var details = await ReadPaymentAsync(sessionId, cancellationToken);
+        if (details is null) return NotFound();
+
+        var payment = details.Value;
+        var received = cashReceived ?? payment.Session.Subtotal;
+        return View(new CashierPaymentViewModel(
+            payment.Session,
+            payment.Lines,
+            Math.Max(0, received),
+            requestId is { } id && id != Guid.Empty ? id : Guid.NewGuid(),
+            error));
+    }
+
+    /// <summary>
+    /// Chốt tiền mặt. RequestId sinh khi hiển thị form, vì vậy gửi lặp hoặc hai lần
+    /// bấm chỉ trả về hoá đơn cũ, không thể tạo hai hoá đơn cho cùng phiên.
+    /// </summary>
     [HttpPost("Checkout")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Checkout(long sessionId, Guid requestId, string? method, decimal? cashReceived, string? transferReference)
+    public async Task<IActionResult> Checkout(long sessionId, Guid requestId, decimal? cashReceived)
     {
-        if (requestId == Guid.Empty || method is not ("Cash" or "Transfer"))
+        if (requestId == Guid.Empty || cashReceived is null || cashReceived < 0)
         {
-            TempData["Error"] = "Vui lòng chọn hình thức thanh toán.";
-            return RedirectToAction(nameof(Index));
+            return RedirectToAction(nameof(Payment), new { sessionId, cashReceived, requestId,
+                error = "Vui lòng nhập số tiền khách đưa hợp lệ." });
         }
         try
         {
@@ -67,20 +91,61 @@ public sealed class CashierController(IConfiguration configuration) : Controller
             await using var command = new SqlCommand("dbo.usp_Checkout", connection) { CommandType = CommandType.StoredProcedure };
             command.Parameters.Add("@SessionId", SqlDbType.BigInt).Value = sessionId;
             command.Parameters.Add("@RequestId", SqlDbType.UniqueIdentifier).Value = requestId;
-            command.Parameters.Add("@Method", SqlDbType.VarChar, 10).Value = method;
+            command.Parameters.Add("@Method", SqlDbType.VarChar, 10).Value = "Cash";
             command.Parameters.Add("@ActorUserId", SqlDbType.Int).Value = User.ActorUserId();
-            command.Parameters.Add("@CashReceived", SqlDbType.Decimal).Value = method == "Cash" && cashReceived is not null ? cashReceived.Value : (object)DBNull.Value;
-            command.Parameters.Add("@TransferReference", SqlDbType.NVarChar, 100).Value = method == "Transfer" && !string.IsNullOrWhiteSpace(transferReference) ? transferReference.Trim() : (object)DBNull.Value;
+            command.Parameters.Add("@CashReceived", SqlDbType.Decimal).Value = cashReceived.Value;
+            command.Parameters.Add("@TransferReference", SqlDbType.NVarChar, 100).Value = DBNull.Value;
             await connection.OpenAsync();
             await using var reader = await command.ExecuteReaderAsync();
             if (await reader.ReadAsync())
-                TempData["Success"] = $"Đã thanh toán hoá đơn {reader.GetString(reader.GetOrdinal("InvoiceNumber"))}, tổng {Vnd.Format(reader.GetDecimal(reader.GetOrdinal("Total")))}.";
+                return RedirectToAction(nameof(Receipt), new { invoiceId = reader.GetInt64(reader.GetOrdinal("InvoiceId")) });
         }
         catch (SqlException ex) when (ex.Number is >= 51000 and < 51500)
         {
-            TempData["Error"] = ex.Number == 51001 ? "Tài khoản không có quyền thanh toán." : ex.Message;
+            return RedirectToAction(nameof(Payment), new { sessionId, cashReceived, requestId,
+                error = ex.Number == 51001 ? "Tài khoản không có quyền thanh toán." : ex.Message });
         }
-        return RedirectToAction(nameof(Index));
+        return RedirectToAction(nameof(Payment), new { sessionId, cashReceived, requestId,
+            error = "Không thể chốt thanh toán. Vui lòng thử lại." });
+    }
+
+    [HttpGet("Receipt/{invoiceId:long}")]
+    public async Task<IActionResult> Receipt(long invoiceId, CancellationToken cancellationToken)
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new SqlCommand("""
+            SELECT i.Id,i.InvoiceNumber,i.TableLabels,i.GuestCount,i.IssuedAt,
+                   u.FullName,i.Subtotal,i.Total,p.CashReceived,p.ChangeAmount
+            FROM dbo.Invoices i
+            JOIN dbo.Payments p ON p.InvoiceId=i.Id AND p.Method='Cash'
+            JOIN dbo.Users u ON u.Id=i.IssuedBy
+            WHERE i.Id=@id AND i.Status='Paid';
+
+            SELECT l.ItemName,l.Unit,l.Quantity,l.UnitPrice,l.LineTotal,l.Notes,l.OriginalTableCode,l.IsChargedCancellation
+            FROM dbo.InvoiceLines l WHERE l.InvoiceId=@id ORDER BY l.Id;
+            """, connection);
+        command.Parameters.Add("@id", SqlDbType.BigInt).Value = invoiceId;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken)) return NotFound();
+
+        var id = reader.GetInt64(0);
+        var number = reader.GetString(1);
+        var tables = reader.GetString(2);
+        var guests = reader.GetInt32(3);
+        var issued = VietnamTime.FromUtc(reader.GetDateTime(4));
+        var cashier = reader.GetString(5);
+        var subtotal = reader.GetDecimal(6);
+        var total = reader.GetDecimal(7);
+        var received = reader.GetDecimal(8);
+        var change = reader.GetDecimal(9);
+        var lines = new List<CashierPaymentLine>();
+        if (await reader.NextResultAsync(cancellationToken))
+            while (await reader.ReadAsync(cancellationToken))
+                lines.Add(new CashierPaymentLine(reader.GetString(0), reader.GetString(1), reader.GetInt32(2),
+                    reader.GetDecimal(3), reader.GetDecimal(4), reader.IsDBNull(5) ? null : reader.GetString(5),
+                    reader.GetString(6), reader.GetBoolean(7)));
+        return View(new CashierReceiptViewModel(id, number, tables, guests, issued, cashier, subtotal, total, received, change, lines));
     }
 
     // ---------------- Hoá đơn ----------------
@@ -188,5 +253,51 @@ public sealed class CashierController(IConfiguration configuration) : Controller
             reader.GetDecimal(4), reader.GetString(5), reader.GetInt32(6), reader.GetDecimal(7), reader.GetDecimal(8),
             reader.IsDBNull(9) ? null : VietnamTime.FromUtc(reader.GetDateTime(9)), Money(10), Money(11), Money(12),
             reader.IsDBNull(13) ? null : reader.GetString(13));
+    }
+
+    private async Task<(PayableSession Session, IReadOnlyList<CashierPaymentLine> Lines)?> ReadPaymentAsync(long sessionId,
+        CancellationToken cancellationToken)
+    {
+        if (sessionId <= 0) return null;
+        await using var connection = new SqlConnection(ConnectionString);
+        await using var command = new SqlCommand("""
+            SELECT s.Id,
+                   COALESCE((SELECT STRING_AGG(CONVERT(nvarchar(max),t.Code),N', ') FROM dbo.SessionTables st
+                       JOIN dbo.DiningTables t ON t.Id=st.TableId
+                       JOIN dbo.DiningSessions x ON x.Id=st.SessionId
+                       WHERE (x.Id=s.Id OR x.BillingSessionId=s.Id) AND st.ReleasedAt IS NULL),N'') AS Tables,
+                   (SELECT SUM(x.GuestCount) FROM dbo.DiningSessions x WHERE x.Id=s.Id OR x.BillingSessionId=s.Id) AS Guests,
+                   s.Status,s.OpenedAt,
+                   (SELECT COUNT(*) FROM dbo.OrderItems i JOIN dbo.OrderBatches b ON b.Id=i.BatchId JOIN dbo.DiningSessions x ON x.Id=b.SessionId
+                       WHERE (x.Id=s.Id OR x.BillingSessionId=s.Id) AND (i.Status<>'Cancelled' OR i.ChargeWhenCancelled=1)) AS Items,
+                   (SELECT COUNT(*) FROM dbo.OrderItems i JOIN dbo.OrderBatches b ON b.Id=i.BatchId JOIN dbo.DiningSessions x ON x.Id=b.SessionId
+                       WHERE (x.Id=s.Id OR x.BillingSessionId=s.Id) AND i.Status NOT IN ('Served','Cancelled')) AS Unserved,
+                   (SELECT COALESCE(SUM(i.LineTotal),0) FROM dbo.OrderItems i JOIN dbo.OrderBatches b ON b.Id=i.BatchId JOIN dbo.DiningSessions x ON x.Id=b.SessionId
+                       WHERE (x.Id=s.Id OR x.BillingSessionId=s.Id) AND (i.Status<>'Cancelled' OR i.ChargeWhenCancelled=1)) AS Subtotal
+            FROM dbo.DiningSessions s
+            WHERE s.Id=@sessionId AND s.BillingSessionId IS NULL AND s.Status IN ('Open','AwaitingPayment');
+
+            SELECT i.ItemName,i.Unit,i.Quantity,i.UnitPrice,i.LineTotal,i.Notes,t.Code,i.ChargeWhenCancelled
+            FROM dbo.OrderItems i
+            JOIN dbo.OrderBatches b ON b.Id=i.BatchId
+            JOIN dbo.DiningSessions s ON s.Id=b.SessionId
+            JOIN dbo.DiningTables t ON t.Id=i.OriginalTableId
+            WHERE (s.Id=@sessionId OR s.BillingSessionId=@sessionId)
+              AND (i.Status<>'Cancelled' OR i.ChargeWhenCancelled=1)
+            ORDER BY b.BatchNumber,i.Id;
+            """, connection);
+        command.Parameters.Add("@sessionId", SqlDbType.BigInt).Value = sessionId;
+        await connection.OpenAsync(cancellationToken);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken)) return null;
+        var session = new PayableSession(reader.GetInt64(0), reader.GetString(1), reader.GetInt32(2), reader.GetString(3),
+            VietnamTime.FromUtc(reader.GetDateTime(4)), reader.GetInt32(5), reader.GetInt32(6), reader.GetDecimal(7));
+        var lines = new List<CashierPaymentLine>();
+        if (await reader.NextResultAsync(cancellationToken))
+            while (await reader.ReadAsync(cancellationToken))
+                lines.Add(new CashierPaymentLine(reader.GetString(0), reader.GetString(1), reader.GetInt32(2),
+                    reader.GetDecimal(3), reader.GetDecimal(4), reader.IsDBNull(5) ? null : reader.GetString(5),
+                    reader.GetString(6), reader.GetBoolean(7)));
+        return (session, lines);
     }
 }

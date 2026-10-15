@@ -1,0 +1,11 @@
+.cashier-payment { max-width: 1120px; }
+.cashier-payment__summary { margin: 0; }
+.cashier-payment__summary > div { display: flex; justify-content: space-between; gap: 1rem; padding: .65rem 0; border-bottom: 1px solid #edf0ef; }
+.cashier-payment__summary dt, .cashier-payment__summary dd { margin: 0; }
+.cashier-payment__summary dd { font-weight: 700; text-align: right; }
+.cashier-payment__change { background: #eff9f1; border: 1px solid #c9ead1; border-radius: .65rem; padding: 1rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.cashier-payment__change strong { color: #116530; font-size: 1.3rem; }
+.cashier-payment__total { border-bottom: 0 !important; padding-top: 1rem !important; font-size: 1.1rem; }
+.cashier-payment__total dd { color: #bd092f; font-size: 1.25rem; }
+.cashier-receipt { max-width: 720px; }
+@media (max-width: 575.98px) { .cashier-payment { margin-top: 1rem !important; } .cashier-payment .card-body { padding: 1rem; } .cashier-payment table { min-width: 520px; } }

@@ -1,0 +1,34 @@
+@model RestaurantManagement.Web.Models.Cashier.CashierReceiptViewModel
+@using RestaurantManagement.Web.Models.Cashier
+@{
+    ViewData["Title"] = "Hoá đơn " + Model.InvoiceNumber;
+}
+@section Styles { <link rel="stylesheet" href="~/css/cashier-payment.css" asp-append-version="true" /> }
+
+<div class="container mt-4 cashier-payment" data-screen="cashier-receipt">
+    <div class="cashier-receipt card shadow-sm mx-auto">
+        <div class="card-body p-4 p-md-5">
+            <div class="text-center mb-4">
+                <span class="badge text-bg-success mb-2">Đã thanh toán</span>
+                <h2 class="h3 mb-1">Hoá đơn @Model.InvoiceNumber</h2>
+                <p class="text-muted mb-0">@Model.IssuedAt.ToString("dd/MM/yyyy HH:mm") · Thu ngân: @Model.CashierName</p>
+            </div>
+            <dl class="row small border-top border-bottom py-3 mb-3">
+                <dt class="col-5 text-muted">Bàn</dt><dd class="col-7 text-end">@Model.Tables</dd>
+                <dt class="col-5 text-muted">Số khách</dt><dd class="col-7 text-end">@Model.GuestCount</dd>
+                <dt class="col-5 text-muted">Hình thức</dt><dd class="col-7 text-end">Tiền mặt</dd>
+            </dl>
+            <div class="table-responsive">
+                <table class="table table-sm"><thead><tr><th>Món</th><th class="text-center">SL</th><th class="text-end">Thành tiền</th></tr></thead><tbody>
+                @foreach (var line in Model.Lines) { <tr><td>@line.ItemName <small class="text-muted">(@Vnd.Format(line.UnitPrice)/@line.Unit)</small></td><td class="text-center">@line.Quantity</td><td class="text-end">@Vnd.Format(line.LineTotal)</td></tr> }
+                </tbody></table>
+            </div>
+            <dl class="cashier-payment__summary mt-3">
+                <div><dt>Tổng tiền</dt><dd>@Vnd.Format(Model.Total)</dd></div>
+                <div><dt>Khách đưa</dt><dd>@Vnd.Format(Model.CashReceived)</dd></div>
+                <div class="cashier-payment__total"><dt>Tiền thối</dt><dd>@Vnd.Format(Model.ChangeAmount)</dd></div>
+            </dl>
+            <div class="d-flex flex-wrap gap-2 mt-4"><a asp-action="Index" class="btn btn-primary">Về thanh toán</a><a asp-action="Invoices" class="btn btn-outline-secondary">Danh sách hoá đơn</a></div>
+        </div>
+    </div>
+</div>
