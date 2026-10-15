@@ -87,6 +87,15 @@ try {
 
 Tạo 4 tài khoản `manager`, `waiter`, `kitchen`, `cashier`, mật khẩu được băm bcrypt; 3 khu vực (Tầng một, Tầng hai, Sân vườn) với 25 bàn (9/8/8), 5 nhóm món, 60 món và 20 lượt đặt bàn trải trên 7 ngày, phân bố qua cả 3 khu vực. Mã bàn theo khu vực A01–A09, B01–B08, C01–C08. Không ghi mật khẩu vào Git. Lệnh nạp lại không ghi đè dữ liệu mẫu đã có. Không chạy seed trên database sản xuất.
 
+### Khôi phục dữ liệu mẫu
+
+Đưa database demo đã seed về trạng thái ban đầu bằng một lệnh:
+
+```powershell
+dotnet run --project tools/RestaurantManagement.DbTool -- reset-demo
+```
+
+Lệnh chỉ chạy trên database có hậu tố `_Dev`, `_Demo`, `_Staging` hoặc `_Test_` và có marker `DEMO_DATA`. Mọi thay đổi được thực hiện trong một giao dịch; lệnh kiểm tra kết quả phải đúng 3 khu vực, 25 bàn hoạt động, 5 nhóm món, 60 món hoạt động, 4 tài khoản mẫu và 20 lượt đặt đang chờ. Chạy lặp lại không tạo bản ghi mẫu trùng. Bàn/khu vực/nhóm món/món/tài khoản mới được thêm ngoài mẫu sẽ ngừng hoạt động; đặt bàn ngoài bộ mẫu và hàng đợi email demo bị xoá. Lịch sử audit, giá, trạng thái bàn và hash mật khẩu được giữ lại; tài khoản mẫu được kích hoạt và yêu cầu đổi mật khẩu ở lần đăng nhập tiếp theo. Nếu database đã có phiên phục vụ hoặc hoá đơn, lệnh dừng và không đổi dữ liệu.
 Trạng thái bàn dùng các giá trị `Available`, `Reserved`, `Serving`, `Cleaning`; sơ đồ luôn kèm nhãn chữ tương ứng. Mỗi thay đổi thực phát một sự kiện gồm trạng thái cũ/mới, mã bàn, thời điểm UTC và lý do chuyển trạng thái: xác nhận đặt (`Available → Reserved`), bắt đầu phục vụ (`Available/Reserved → Serving`), đóng phiên (`Serving → Cleaning`), hoàn tất dọn (`Cleaning → Available/Reserved`) hoặc huỷ/hết hạn đặt (`Reserved → Available`). Gửi lại cùng trạng thái không phát sự kiện. Sơ đồ demo phát sự kiện Server-Sent Events tới các trình duyệt mở cùng máy chủ; khi kết nối lại, trình duyệt tải snapshot mới nhất. Bộ dữ liệu demo nằm trong bộ nhớ của một tiến trình, chưa phát trạng thái từ các thủ tục SQL hoặc chia sẻ giữa nhiều tiến trình web.
 
 ## Kiểm thử

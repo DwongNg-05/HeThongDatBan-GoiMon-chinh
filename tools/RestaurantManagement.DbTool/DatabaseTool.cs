@@ -16,7 +16,7 @@ internal static partial class DatabaseTool
             var connection = Environment.GetEnvironmentVariable("RM_CONNECTION_STRING");
             if (command == "help" || string.IsNullOrWhiteSpace(connection))
             {
-                Console.WriteLine("Commands: migration-status | verify-merge-upgrade | verify-merge-tables | verify-unmerge-tables | migrate | seed-demo | seed-login-demo | seed-menu-demo | seed-menu-extra | seed-khai-vi | seed-confirmation-demo | seed-menu-200 | hide-menu-200 | email-retry-now | verify | verify-booking-email | verify-api-permissions | verify-temporary-out | verify-qr-session | verify-late-reservations | verify-hold-extension | verify-phone-no-show | verify-cancel-item | verify-cancel-report | verify-charged-cancel | verify-bill-preview | verify-bill-header | verify-bill-print | verify-bill-pdf | maintenance | check\nSet RM_CONNECTION_STRING first. seed-demo and seed-login-demo also require RM_DEMO_PASSWORD.\nseed-login-demo accepts RM_DEMO_USERNAME and RM_DEMO_PHONE; existing accounts are preserved.\nverify creates and removes its own uniquely named test database.");
+                Console.WriteLine("Commands: migration-status | verify-merge-upgrade | verify-merge-tables | verify-unmerge-tables | migrate | seed-demo | reset-demo | seed-login-demo | seed-menu-demo | seed-menu-extra | seed-khai-vi | seed-confirmation-demo | seed-menu-200 | hide-menu-200 | email-retry-now | verify | verify-booking-email | verify-api-permissions | verify-temporary-out | verify-qr-session | verify-late-reservations | verify-hold-extension | verify-phone-no-show | verify-cancel-item | verify-cancel-report | verify-charged-cancel | verify-bill-preview | verify-bill-header | verify-bill-print | verify-bill-pdf | maintenance | check\nSet RM_CONNECTION_STRING first. seed-demo and seed-login-demo also require RM_DEMO_PASSWORD.\nreset-demo restores only a previously seeded _Dev, _Demo, _Staging or _Test_ database; it preserves password hashes and retained audit history.\nseed-login-demo accepts RM_DEMO_USERNAME and RM_DEMO_PHONE; existing accounts are preserved.\nverify creates and removes its own uniquely named test database.");
                 Environment.ExitCode = command == "help" ? 0 : 1;
                 return;
             }
@@ -28,6 +28,7 @@ internal static partial class DatabaseTool
                 case "verify-merge-tables": await TableMergeVerification.Run(connection); break;
                 case "migrate": await Migrate(connection); break;
                 case "seed-demo": await Seed(connection); break;
+                case "reset-demo": await DemoDataReset.Run(connection); break;
                 case "seed-login-demo": await SeedLoginDemo(connection); break;
                 case "seed-menu-demo": await SeedMenuDemo(connection); break;
                 case "seed-menu-extra": await SeedMenuExtra(connection); break;
@@ -175,7 +176,7 @@ internal static partial class DatabaseTool
             await using var marker = new SqlCommand("INSERT dbo.SchemaVersions(Name,Sha256) VALUES('DEMO_DATA',REPLICATE('0',64));", cn, tx);
             await marker.ExecuteNonQueryAsync();
             await tx.CommitAsync();
-            Console.WriteLine("Demo seeded: 4 accounts, 3 areas, 60 tables, 60 menu items, 20 bookings. Password not logged.");
+            Console.WriteLine("Demo seeded: 4 accounts, 3 areas, 25 tables, 60 menu items, 20 bookings. Password not logged.");
         }
         catch { await tx.RollbackAsync(); throw; }
     }
