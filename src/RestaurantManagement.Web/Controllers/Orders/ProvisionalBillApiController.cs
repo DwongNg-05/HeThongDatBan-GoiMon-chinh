@@ -13,6 +13,7 @@ namespace RestaurantManagement.Web.Controllers;
 /// Tiền trả về là số nguyên đồng kèm chuỗi đã định dạng VND ("1.250.000 đ").
 /// Chỉ đọc: không đổi bàn, phiên hay đơn gọi món (TableBillPreviewStore luôn rollback). Quyền: Quản lý, Phục vụ.
 /// 404: bàn không tồn tại, hoặc bàn không có phiên đang phục vụ.
+/// S4-01 Task 2: thêm "header" (tên quán, mã bàn, thời điểm bắt đầu phục vụ, thời điểm in, người in, dòng chữ tạm tính).
 /// </summary>
 [ApiController]
 [Route("api/tables/{code}/provisional-bill")]
@@ -25,8 +26,10 @@ public sealed class ProvisionalBillApiController(TableBillPreviewStore store) : 
     public async Task<IActionResult> Get(string code, CancellationToken cancellationToken)
     {
         var result = await store.GetAsync(code, cancellationToken);
-        return result.Preview is null
-            ? NotFound(new { message = result.Message, outcome = result.Outcome.ToString() })
-            : Ok(TableBillPreviewResponse.From(result.Preview));
+        if (result.Preview is null)
+            return NotFound(new { message = result.Message, outcome = result.Outcome.ToString() });
+        // S4-01 Task 2: kèm phần đầu hoá đơn — tên quán, mã bàn hiện tại, bắt đầu phục vụ, thời điểm in, người in (nhân viên đang gọi API).
+        var header = TableBillHeader.Create(result.Preview, DateTime.UtcNow, BillHeaderRules.PrinterName(User));
+        return Ok(TableBillPreviewResponse.From(result.Preview with { Header = header }));
     }
 }

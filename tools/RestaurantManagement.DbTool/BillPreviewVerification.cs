@@ -184,11 +184,12 @@ internal static class BillPreviewVerification
     /// <summary>Định dạng đã chốt: dấu chấm phân cách hàng nghìn + " đ" (độc lập với BillRules để đối chiếu).</summary>
     private static string Vnd(long amount) => amount.ToString("#,0", new NumberFormatInfo { NumberGroupSeparator = "." }) + " đ";
 
-    private static async Task<string> OpenTable(string connection, long managerId, long waiterId)
+    internal static async Task<string> OpenTable(string connection, long managerId, long waiterId, long? areaId = null)
     {
-        var tableId = await Scalar(connection, """
+        var areaFilter = areaId is null ? "" : "AND t.AreaId=" + areaId.Value;
+        var tableId = await Scalar(connection, $$"""
             SELECT TOP(1) t.Id FROM dbo.DiningTables t JOIN dbo.Areas a ON a.Id=t.AreaId
-            WHERE t.IsActive=1 AND a.IsActive=1 AND t.Status='Available' AND t.MaxCapacity>=2
+            WHERE t.IsActive=1 AND a.IsActive=1 AND t.Status='Available' AND t.MaxCapacity>=2 {{areaFilter}}
               AND NOT EXISTS(SELECT 1 FROM dbo.SessionTables st WHERE st.TableId=t.Id AND st.ReleasedAt IS NULL)
               AND NOT EXISTS(SELECT 1 FROM dbo.Reservations r WHERE r.TableId=t.Id AND r.Status IN ('Pending','Confirmed')
                              AND r.StartsAt<DATEADD(minute,(SELECT DefaultBookingMinutes FROM dbo.RestaurantSettings WHERE Id=1),SYSUTCDATETIME())
@@ -203,7 +204,7 @@ internal static class BillPreviewVerification
         return await Text(connection, $"SELECT Code FROM dbo.DiningTables WHERE Id={tableId}");
     }
 
-    private static Task Submit(string connection, long sessionId, long waiterId, string itemsJson)
+    internal static Task Submit(string connection, long sessionId, long waiterId, string itemsJson)
     {
         var escaped = itemsJson.Replace("'", "''");
         return DatabaseTool.Execute(connection, $"""
@@ -235,7 +236,7 @@ internal static class BillPreviewVerification
         FROM dbo.DiningTables t JOIN dbo.DiningSessions s ON s.Id={sessionId} WHERE t.Code='{code}'
         """);
 
-    private static async Task<JsonElement> Json(HttpClient client, string path)
+    internal static async Task<JsonElement> Json(HttpClient client, string path)
     {
         using var response = await client.GetAsync(path);
         var body = await response.Content.ReadAsStringAsync();
@@ -244,14 +245,14 @@ internal static class BillPreviewVerification
         return document.RootElement.Clone();
     }
 
-    private static bool Blocked(HttpResponseMessage response)
+    internal static bool Blocked(HttpResponseMessage response)
     {
         var location = Location(response);
         return response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized
             || (response.StatusCode == HttpStatusCode.Redirect && (location.Contains("/Account/AccessDenied") || location.Contains("/Account/Login")));
     }
 
-    private static async Task<string> Text(string connection, string sql)
+    internal static async Task<string> Text(string connection, string sql)
     {
         await using var cn = new SqlConnection(connection);
         await cn.OpenAsync();
@@ -259,13 +260,13 @@ internal static class BillPreviewVerification
         return Convert.ToString(await cmd.ExecuteScalarAsync()) ?? "";
     }
 
-    private static HttpClient NewClient(Web web)
+    internal static HttpClient NewClient(Web web)
     {
         var handler = new HttpClientHandler { AllowAutoRedirect = false, CookieContainer = new CookieContainer() };
         return new HttpClient(handler, disposeHandler: true) { BaseAddress = web.Client.BaseAddress, Timeout = TimeSpan.FromSeconds(30) };
     }
 
-    private static async Task<HttpClient> SignIn(Web web, string user, string password)
+    internal static async Task<HttpClient> SignIn(Web web, string user, string password)
     {
         var client = NewClient(web);
         await Login(client, user, password);

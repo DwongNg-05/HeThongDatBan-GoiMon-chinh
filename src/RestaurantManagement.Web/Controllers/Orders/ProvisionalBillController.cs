@@ -71,7 +71,11 @@ public sealed class ProvisionalBillController(IConfiguration configuration) : Co
     {
         var result = await store.GetAsync(code, cancellationToken);
         if (result.Preview is not null)
-            return View(result.Preview);
+            // S4-01 Task 2: phần đầu hoá đơn ghi nhận thời điểm in + người in của CHÍNH lần mở này (không lưu cache).
+            return View(result.Preview with
+            {
+                Header = TableBillHeader.Create(result.Preview, DateTime.UtcNow, BillHeaderRules.PrinterName(User))
+            });
         Response.StatusCode = StatusCodes.Status404NotFound;
         return View("Missing", new ProvisionalBillMissingViewModel(result.Message));
     }

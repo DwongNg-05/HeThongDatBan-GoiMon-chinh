@@ -77,6 +77,20 @@ public sealed record TableBillPreview(string TableCode, string Tables, long Sess
     /// <summary>Không có dòng nào để hiển thị (bàn chưa gọi món, hoặc mọi món đã huỷ trước khi bếp chế biến).</summary>
     public bool IsEmpty => Lines.Count == 0 && ChargedCancelledLines.Count == 0;
 
+    // ---- S4-01 Task 2: dữ liệu cho phần đầu hoá đơn (TableBillHeader) ----
+
+    /// <summary>Tên quán theo cấu hình chung (dbo.RestaurantSettings.Name).</summary>
+    public string? RestaurantName { get; init; }
+
+    /// <summary>Lúc mở bàn (UTC): phiên mở sớm nhất trong nhóm bàn cùng hoá đơn.</summary>
+    public DateTime? ServiceOpenedAtUtc { get; init; }
+
+    /// <summary>Lúc gọi món đầu tiên (UTC), kể cả món sau đó bị huỷ; null khi chưa gọi món.</summary>
+    public DateTime? FirstOrderAtUtc { get; init; }
+
+    /// <summary>Phần đầu hoá đơn của lần mở này (thời điểm in, người in) — do controller gắn theo yêu cầu hiện tại.</summary>
+    public TableBillHeader? Header { get; init; }
+
     public string SessionStatusLabel => SessionStatus switch
     {
         "Open" => "Đang phục vụ",
@@ -97,7 +111,10 @@ public static class TableBillPreviewCalculator
         // Huỷ sau khi bếp chế biến: nhóm riêng có nhãn "Đã huỷ – có tính tiền".
         var chargedCancelled = ordered.Where(i => i.Status == "Cancelled" && i.ChargeWhenCancelled).Select(ToLine).ToArray();
         return new TableBillPreview(tableCode, string.IsNullOrWhiteSpace(tables) ? tableCode : tables, sessionId, sessionStatus, tableStatus,
-            active, chargedCancelled);
+            active, chargedCancelled)
+        {
+            FirstOrderAtUtc = ordered.Length == 0 ? null : DateTime.SpecifyKind(ordered[0].SubmittedAt, DateTimeKind.Utc)
+        };
     }
 
     private static TableBillPreviewLine ToLine(BillSourceItem item) => new(item.Id, item.ItemName, item.Unit, item.Quantity,
@@ -120,7 +137,7 @@ public enum TableBillPreviewOutcome { Found, UnknownTable, NotServing }
 /// <summary>JSON trả về của GET /api/tables/{code}/provisional-bill (tiền là số nguyên đồng, kèm chuỗi đã định dạng).</summary>
 public sealed record TableBillPreviewResponse(string TableCode, string Tables, long SessionId, string SessionStatus, string TableStatus,
     IReadOnlyList<TableBillPreviewLineResponse> Lines, TableBillPreviewGroupResponse ChargedCancelled, decimal Total, string TotalText,
-    bool IsEmpty, string? EmptyMessage, bool ChargedCancellationCountsInTotal)
+    bool IsEmpty, string? EmptyMessage, bool ChargedCancellationCountsInTotal, TableBillHeaderResponse? Header = null)
 {
     public static TableBillPreviewResponse From(TableBillPreview preview) => new(
         preview.TableCode, preview.Tables, preview.SessionId, preview.SessionStatus, preview.TableStatus,
@@ -129,7 +146,7 @@ public sealed record TableBillPreviewResponse(string TableCode, string Tables, l
             preview.ChargedCancelledLines.Select(TableBillPreviewLineResponse.From).ToArray(),
             preview.ChargedCancelledSubtotal, BillRules.Format(preview.ChargedCancelledSubtotal)),
         preview.Total, BillRules.Format(preview.Total), preview.IsEmpty, preview.IsEmpty ? BillRules.EmptyMessage : null,
-        BillRules.ChargedCancellationCountsInTotal);
+        BillRules.ChargedCancellationCountsInTotal, preview.Header is null ? null : TableBillHeaderResponse.From(preview.Header));
 }
 
 public sealed record TableBillPreviewLineResponse(long Id, string ItemName, string Unit, int Quantity, decimal UnitPrice, string UnitPriceText,
