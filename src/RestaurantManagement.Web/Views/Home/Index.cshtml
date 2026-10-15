@@ -139,6 +139,8 @@
     </section>
 
     <div class="details-actions">
+        @* S4-01 Task 1: bàn đang phục vụ → nút "Tạm tính" mở màn hình xem trước hoá đơn tạm tính (chỉ đọc, không đổi trạng thái bàn). *@
+        <a class="btn btn-primary btn-sm details-preview-link" id="details-preview-link" hidden href="#" data-preview-url="@Url.Content("~/ProvisionalBill/Preview/")">Tạm tính</a>
         @* S3-04 Task 4: bàn đang có khách → mở hoá đơn tạm tính để đối chiếu ghi chú của từng món khi mang ra. *@
         <a class="btn btn-outline-primary btn-sm details-bill-link" id="details-bill-link" hidden href="#" data-bill-url="@Url.Content("~/ProvisionalBill/Table/")">Xem hoá đơn tạm tính</a>
     </div>

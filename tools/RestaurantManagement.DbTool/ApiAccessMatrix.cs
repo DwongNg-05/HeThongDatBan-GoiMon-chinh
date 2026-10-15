@@ -169,6 +169,9 @@ internal static class ApiAccessMatrix
         new("ProvisionalBill.Table GET", BillReaders, "GET", "/ProvisionalBill/Table/khong-ton-tai"),
         // S3-05 Task 1: huỷ dòng món trên hoá đơn tạm tính — Quản lý, Phục vụ (Thu ngân chỉ xem hoá đơn, Bếp không mở được).
         new("ProvisionalBill.CancelItem POST", FrontOfHouse, "POST", $"/ProvisionalBill/{Missing}/CancelItem/{Missing}"),
+        // S4-01 Task 1: màn hình "Tạm tính" và API dữ liệu tạm tính của bàn đang phục vụ (chỉ đọc) — Quản lý, Phục vụ.
+        new("ProvisionalBill.Preview GET", FrontOfHouse, "GET", "/ProvisionalBill/Preview/khong-ton-tai"),
+        new("ProvisionalBillApi.Get GET", FrontOfHouse, "GET", "/api/tables/khong-ton-tai/provisional-bill"),
 
         // ---- Đặt bàn ----
         new("Reservations.Index GET", FrontOfHouse, "GET", "/Reservations"),

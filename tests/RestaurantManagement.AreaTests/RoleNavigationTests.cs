@@ -78,7 +78,7 @@ internal static class RoleNavigationTests
             "Server scope: cooking status is Kitchen only; payments are not for Kitchen; sold-out-today only in dish management (Manager); \"Tạm hết\" toggle for Kitchen and Manager; table map and dish management are not for Kitchen/Cashier");
 
         // S1-04 Task 1: Phục vụ chỉ gọi được API sơ đồ bàn, đặt bàn, gọi món (và tài khoản của chính mình).
-        var waiterExtra = Allowed("Waiter").Where(k => !Own(k, "Account.", "Home.Index", "TableDetails.", "TableStatus.", "TableMap.", "Reservations.", "ReservationConfirmations.", "ReservationManagement.", "ReservationAlerts.", "Page /Ordering/", "Page /Orders/", "Serving.", "ProvisionalBill.")).ToArray();
+        var waiterExtra = Allowed("Waiter").Where(k => !Own(k, "Account.", "Home.Index", "TableDetails.", "TableStatus.", "TableMap.", "Reservations.", "ReservationConfirmations.", "ReservationManagement.", "ReservationAlerts.", "Page /Ordering/", "Page /Orders/", "Serving.", "ProvisionalBill.", "ProvisionalBillApi.")).ToArray();
         check(waiterExtra.Length == 0, "Server scope: waiter can only call table map, reservation, ordering, serving-queue and provisional-bill APIs and its own account" + (waiterExtra.Length > 0 ? ": " + string.Join(", ", waiterExtra) : ""));
         ApiEndpoint Api(string key) => ApiAccessMatrix.All.Single(e => e.Key == key);
         var waiterBlocked = new[]
@@ -101,7 +101,9 @@ internal static class RoleNavigationTests
             "Page /Ordering/Index", "Page /Ordering/Checkout", "Page /Orders/Details", "Account.Me GET",
             "Serving.Index GET", "Serving.Queue GET", "Serving.Serve POST",
             // S3-04 Task 4: phục vụ mở hoá đơn tạm tính để đối chiếu ghi chú khi mang món ra.
-            "ProvisionalBill.Index GET", "ProvisionalBill.Table GET"
+            "ProvisionalBill.Index GET", "ProvisionalBill.Table GET",
+            // S4-01 Task 1: màn hình "Tạm tính" và API dữ liệu tạm tính của bàn đang phục vụ.
+            "ProvisionalBill.Preview GET", "ProvisionalBillApi.Get GET"
         }.Where(k => !ApiAccessMatrix.IsAllowed(Api(k), "Waiter")).ToArray();
         check(waiterAllowed.Length == 0, "Server scope: table map, reservation, ordering and serving-queue APIs are open to the waiter" + (waiterAllowed.Length > 0 ? ": " + string.Join(", ", waiterAllowed) : ""));
 
