@@ -12,24 +12,61 @@ public sealed record HourlyRevenueSlot(DateTime StartsAtLocal, decimal Revenue)
     public string Label => StartsAtLocal.ToString("HH:mm");
 }
 
+public sealed record RevenueDateRange(DateOnly FromDate, DateOnly ToDate)
+{
+    public const int MaximumDays = 92;
+    public int Days => ToDate.DayNumber - FromDate.DayNumber + 1;
+
+    public static bool TryCreate(DateOnly? fromDate, DateOnly? toDate, DateOnly today,
+        out RevenueDateRange? range, out string? error)
+    {
+        var from = fromDate ?? today;
+        var to = toDate ?? today;
+        if (from > to)
+        {
+            range = null;
+            error = "Ngày bắt đầu không được sau ngày kết thúc.";
+            return false;
+        }
+        if (to.DayNumber - from.DayNumber + 1 > MaximumDays)
+        {
+            range = null;
+            error = "Khoảng ngày tối đa là 92 ngày. Vui lòng chọn khoảng ngắn hơn.";
+            return false;
+        }
+        range = new RevenueDateRange(from, to);
+        error = null;
+        return true;
+    }
+}
+
 /// <summary>
 /// S4-06 Task 1: doanh thu là tổng Total sau giảm giá của hoá đơn Paid; lượt khách là tổng GuestCount đã chốt trên các hoá đơn đó.
 /// Bản phát hành hiện chỉ có Paid/Voided, vì vậy hoá đơn huỷ/hoàn toàn phần phải ở trạng thái Voided để không tính.
 /// Bàn đã checkout mang trạng thái Cleaning và không được tính là đang phục vụ.
 /// </summary>
-public sealed record DailyRevenueSummary(DateOnly BusinessDate, long InvoiceCount, long GuestCount, decimal Revenue,
+public sealed record DailyRevenueSummary(DateOnly FromDate, DateOnly ToDate, long InvoiceCount, long GuestCount, decimal Revenue,
     decimal AverageInvoice, long ServingTableCount, IReadOnlyList<HourlyRevenueSlot> HourlyRevenue)
 {
     public bool HasTransactions => InvoiceCount > 0;
 
-    public static DailyRevenueSummary Calculate(DateOnly day, IEnumerable<DailyRevenueInvoice> invoices, long servingTableCount)
+    public static DailyRevenueSummary Calculate(DateOnly fromDate, DateOnly toDate, IEnumerable<DailyRevenueInvoice> invoices, long servingTableCount)
     {
         var paid = invoices.Where(invoice => invoice.Status == "Paid").ToArray();
         var revenue = paid.Sum(invoice => invoice.Total);
         var invoiceCount = (long)paid.Length;
         var guestCount = paid.Sum(invoice => (long)invoice.GuestCount);
-        return new DailyRevenueSummary(day, invoiceCount, guestCount, revenue,
+        return new DailyRevenueSummary(fromDate, toDate, invoiceCount, guestCount, revenue,
             invoiceCount == 0 ? 0 : revenue / invoiceCount, servingTableCount, []);
+    }
+
+    public static IReadOnlyList<HourlyRevenueSlot> BuildHourlyRevenueRange(DateOnly from, IEnumerable<DailyRevenueInvoiceTime> invoices)
+    {
+        var paid = invoices.Where(invoice => invoice.Status == "Paid")
+            .Select(invoice => (At: VietnamTime.FromUtc(DateTime.SpecifyKind(invoice.IssuedAtUtc, DateTimeKind.Utc)), invoice.Total))
+            .ToArray();
+        return Enumerable.Range(0, 24).Select(hour => new HourlyRevenueSlot(from.ToDateTime(new TimeOnly(hour, 0)),
+            paid.Where(invoice => invoice.At.Hour == hour).Sum(invoice => invoice.Total))).ToArray();
     }
 
     public static IReadOnlyList<HourlyRevenueSlot> BuildHourlyRevenue(DateOnly day, TimeOnly? opensAt, TimeOnly? closesAt,
@@ -55,3 +92,5 @@ public sealed record DailyRevenueSummary(DateOnly BusinessDate, long InvoiceCoun
         return slots;
     }
 }
+
+public sealed record DailyRevenuePageModel(DateOnly FromDate, DateOnly ToDate, DailyRevenueSummary? Summary, string? ValidationError);

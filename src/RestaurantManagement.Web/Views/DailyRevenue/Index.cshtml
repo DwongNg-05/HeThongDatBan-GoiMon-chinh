@@ -1,56 +1,40 @@
-@using RestaurantManagement.Web.Models.Cashier
-@model RestaurantManagement.Web.Models.Reports.DailyRevenueSummary
+@model RestaurantManagement.Web.Models.Reports.DailyRevenuePageModel
 @{
-    ViewData["Title"] = "Tổng quan doanh thu hôm nay";
+    ViewData["Title"] = "Tổng quan doanh thu";
+    var today = RestaurantManagement.Web.Models.Reservations.VietnamTime.Now.ToString("yyyy-MM-dd");
 }
-<div class="container mt-4" data-screen="daily-revenue" data-business-date="@Model.BusinessDate.ToString("yyyy-MM-dd")">
+<div class="container mt-4" data-screen="daily-revenue">
     <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
-        <div>
-            <h2 class="mb-1">Tổng quan hôm nay</h2>
-            <p class="text-muted mb-0">Ngày @Model.BusinessDate.ToString("dd/MM/yyyy") · Giờ Việt Nam (UTC+7)</p>
-        </div>
-    </div>
-    <p class="text-muted">Doanh thu tính theo tổng tiền hoá đơn đã thanh toán sau giảm giá. Hoá đơn đã huỷ/hoàn toàn phần không tính. Lượt khách lấy từ số khách trên các hoá đơn đã thanh toán; bàn đang phục vụ đếm tại thời điểm mở trang. Bàn đã thanh toán, đang chờ dọn không tính.</p>
-
-    @if (!Model.HasTransactions)
-    {
-        <div class="alert alert-info" role="status" id="daily-revenue-empty">
-            Hôm nay chưa có giao dịch. Doanh thu, số hoá đơn, lượt khách và giá trị trung bình hiện bằng 0.
-        </div>
-    }
-
-    <div class="row g-3" id="daily-revenue-metrics">
-        <section class="col-12 col-sm-6 col-xl-4"><article class="card h-100"><div class="card-body"><h3 class="h6 text-muted">Doanh thu hôm nay</h3><p class="display-6 mb-0" data-metric="revenue">@Vnd.Format(Model.Revenue)</p></div></article></section>
-        <section class="col-12 col-sm-6 col-xl-4"><article class="card h-100"><div class="card-body"><h3 class="h6 text-muted">Số hoá đơn</h3><p class="display-6 mb-0" data-metric="invoices">@Model.InvoiceCount</p></div></article></section>
-        <section class="col-12 col-sm-6 col-xl-4"><article class="card h-100"><div class="card-body"><h3 class="h6 text-muted">Lượt khách</h3><p class="display-6 mb-0" data-metric="guests">@Model.GuestCount</p></div></article></section>
-        <section class="col-12 col-sm-6 col-xl-4"><article class="card h-100"><div class="card-body"><h3 class="h6 text-muted">Trung bình mỗi hoá đơn</h3><p class="display-6 mb-0" data-metric="average-invoice">@Vnd.Format(Model.AverageInvoice)</p></div></article></section>
-        <section class="col-12 col-sm-6 col-xl-4"><article class="card h-100"><div class="card-body"><h3 class="h6 text-muted">Bàn đang phục vụ</h3><p class="display-6 mb-0" data-metric="serving-tables">@Model.ServingTableCount</p><small class="text-muted">Tính tại thời điểm mở trang</small></div></article></section>
+        <div><h2 class="mb-1">Tổng quan doanh thu</h2><p class="text-muted mb-0">Giờ Việt Nam (UTC+7)</p></div>
+        <button type="button" class="btn btn-outline-primary" id="daily-revenue-refresh">Cập nhật ngay</button>
     </div>
 
-    <section class="mt-4" aria-labelledby="hourly-revenue-heading" data-chart="hourly-revenue">
-        <h3 id="hourly-revenue-heading" class="h5">Doanh thu theo giờ</h3>
-        @if (Model.HourlyRevenue.Count == 0)
+    <form method="get" action="/Reports/Daily" class="row g-2 align-items-end mb-3" id="daily-revenue-filter">
+        <div class="col-sm-5 col-lg-3">
+            <label for="fromDate" class="form-label">Từ ngày</label>
+            <input type="date" class="form-control" id="fromDate" name="fromDate" value="@Model.FromDate.ToString("yyyy-MM-dd")" max="@today" required />
+        </div>
+        <div class="col-sm-5 col-lg-3">
+            <label for="toDate" class="form-label">Đến ngày</label>
+            <input type="date" class="form-control" id="toDate" name="toDate" value="@Model.ToDate.ToString("yyyy-MM-dd")" max="@today" required />
+        </div>
+        <div class="col-sm-2 col-lg-2"><button type="submit" class="btn btn-primary w-100">Xem thống kê</button></div>
+        <div class="col-12"><small class="text-muted">Chọn tối đa 92 ngày (tính cả ngày bắt đầu và ngày kết thúc).</small></div>
+    </form>
+
+    <div class="alert alert-danger" role="alert" id="daily-revenue-validation" @((Model.ValidationError is null) ? "hidden" : null)>@Model.ValidationError</div>
+    <div class="alert alert-warning d-flex flex-wrap align-items-center gap-2" role="alert" id="daily-revenue-refresh-error" hidden>
+        <span id="daily-revenue-refresh-error-text">Không tải được số liệu mới.</span>
+        <button type="button" class="btn btn-sm btn-outline-dark" id="daily-revenue-retry">Thử tải lại</button>
+    </div>
+    <div id="daily-revenue-dashboard">
+        @if (Model.Summary is not null)
         {
-            <p class="text-muted" role="status">Ngày này không có khung giờ mở cửa được cấu hình.</p>
+            @await Html.PartialAsync("_DailyRevenueDashboard", Model)
         }
-        else
-        {
-            @if (!Model.HasTransactions)
-            {
-                <p class="text-muted" role="status" id="hourly-revenue-empty">Chưa có dữ liệu doanh thu trong ngày; các khung giờ đang hiển thị bằng 0.</p>
-            }
-            var maxRevenue = Model.HourlyRevenue.Max(slot => slot.Revenue);
-            <div class="d-flex align-items-end gap-2 overflow-auto border rounded p-3" style="min-height: 280px" role="img" aria-label="Biểu đồ cột doanh thu từng giờ, đơn vị Việt Nam đồng">
-                @foreach (var slot in Model.HourlyRevenue)
-                {
-                    var height = maxRevenue == 0 ? 0 : Math.Max(6, (int)Math.Round((double)(slot.Revenue / maxRevenue) * 150));
-                    <div class="text-center flex-shrink-0" style="width: 92px" data-hour="@slot.Label" data-revenue="@slot.Revenue">
-                        <div class="small text-break">@Vnd.Format(slot.Revenue)</div>
-                        <div class="bg-primary rounded-top mx-auto mt-1" style="width: 42px; height: @(height)px" aria-hidden="true"></div>
-                        <div class="small fw-semibold mt-1">@slot.Label</div>
-                    </div>
-                }
-            </div>
-        }
-    </section>
+    </div>
 </div>
+
+@section Scripts {
+    <script src="~/js/daily-revenue.js" asp-append-version="true"></script>
+}

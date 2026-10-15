@@ -1,0 +1,54 @@
+@using RestaurantManagement.Web.Models.Cashier
+@model RestaurantManagement.Web.Models.Reports.DailyRevenuePageModel
+@{
+    var summary = Model.Summary!;
+    var maxRevenue = summary.HourlyRevenue.Count == 0 ? 0m : summary.HourlyRevenue.Max(slot => slot.Revenue);
+}
+<div data-dashboard-state data-from-date="@Model.FromDate.ToString("yyyy-MM-dd")" data-to-date="@Model.ToDate.ToString("yyyy-MM-dd")">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+        <h3 class="h5 mb-0">Số liệu từ @Model.FromDate.ToString("dd/MM/yyyy") đến @Model.ToDate.ToString("dd/MM/yyyy")</h3>
+        <small class="text-muted" id="daily-revenue-updated-at">Cập nhật gần nhất: @RestaurantManagement.Web.Models.Reservations.VietnamTime.Now.ToString("HH:mm:ss")</small>
+    </div>
+    <p class="text-muted">Doanh thu gồm hoá đơn đã thanh toán sau giảm giá; hoá đơn huỷ không tính. Lượt khách lấy từ số khách trên các hoá đơn đã thanh toán. Bàn đang phục vụ được đếm tại thời điểm cập nhật, không cộng dồn giữa các ngày; bàn đã thanh toán chờ dọn không tính.</p>
+
+    @if (!summary.HasTransactions)
+    {
+        <div class="alert alert-info" role="status" id="daily-revenue-empty">
+            Không có giao dịch trong khoảng ngày đã chọn. Doanh thu, số hoá đơn, lượt khách và giá trị trung bình hiện bằng 0.
+        </div>
+    }
+
+    <div class="row g-3" id="daily-revenue-metrics">
+        <section class="col-12 col-sm-6 col-xl-4"><article class="card h-100"><div class="card-body"><h3 class="h6 text-muted">Doanh thu</h3><p class="display-6 mb-0" data-metric="revenue">@Vnd.Format(summary.Revenue)</p></div></article></section>
+        <section class="col-12 col-sm-6 col-xl-4"><article class="card h-100"><div class="card-body"><h3 class="h6 text-muted">Số hoá đơn</h3><p class="display-6 mb-0" data-metric="invoices">@summary.InvoiceCount</p></div></article></section>
+        <section class="col-12 col-sm-6 col-xl-4"><article class="card h-100"><div class="card-body"><h3 class="h6 text-muted">Lượt khách</h3><p class="display-6 mb-0" data-metric="guests">@summary.GuestCount</p></div></article></section>
+        <section class="col-12 col-sm-6 col-xl-4"><article class="card h-100"><div class="card-body"><h3 class="h6 text-muted">Trung bình mỗi hoá đơn</h3><p class="display-6 mb-0" data-metric="average-invoice">@Vnd.Format(summary.AverageInvoice)</p></div></article></section>
+        <section class="col-12 col-sm-6 col-xl-4"><article class="card h-100"><div class="card-body"><h3 class="h6 text-muted">Bàn đang phục vụ</h3><p class="display-6 mb-0" data-metric="serving-tables">@summary.ServingTableCount</p><small class="text-muted">Tính tại thời điểm cập nhật</small></div></article></section>
+    </div>
+
+    <section class="mt-4" aria-labelledby="hourly-revenue-heading" data-chart="hourly-revenue">
+        <h3 id="hourly-revenue-heading" class="h5">Doanh thu theo giờ</h3>
+        @if (summary.HourlyRevenue.Count == 0)
+        {
+            <p class="text-muted" role="status">Khoảng ngày này không có khung giờ mở cửa được cấu hình.</p>
+        }
+        else
+        {
+            @if (!summary.HasTransactions)
+            {
+                <p class="text-muted" role="status" id="hourly-revenue-empty">Chưa có dữ liệu doanh thu trong khoảng ngày; các khung giờ đang hiển thị bằng 0.</p>
+            }
+            <div class="d-flex align-items-end gap-2 overflow-auto border rounded p-3" style="min-height: 280px" role="img" aria-label="Biểu đồ cột doanh thu từng giờ, đơn vị Việt Nam đồng">
+                @foreach (var slot in summary.HourlyRevenue)
+                {
+                    var height = maxRevenue == 0 ? 0 : Math.Max(6, (int)Math.Round((double)(slot.Revenue / maxRevenue) * 150));
+                    <div class="text-center flex-shrink-0" style="width: 92px" data-hour="@slot.Label" data-revenue="@slot.Revenue">
+                        <div class="small text-break">@Vnd.Format(slot.Revenue)</div>
+                        <div class="bg-primary rounded-top mx-auto mt-1" style="width: 42px; height: @(height)px" aria-hidden="true"></div>
+                        <div class="small fw-semibold mt-1">@slot.Label</div>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+</div>
