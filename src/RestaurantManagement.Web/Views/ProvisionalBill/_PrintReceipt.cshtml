@@ -1,0 +1,57 @@
+@model RestaurantManagement.Web.Models.Orders.TableBillPreview
+@using RestaurantManagement.Web.Models.Orders
+@{
+    var header = Model.Header ?? TableBillHeader.Create(Model, DateTime.UtcNow, BillHeaderRules.PrinterName(User));
+}
+@* S4-01 Task 3: bản in khổ 80mm (docs/S4-01-Task3.md). Ẩn trên màn hình; khi in chỉ còn phần này (bill-print.css + bill-print.js).
+   Dựng từ CÙNG dữ liệu với màn hình xem trước (TableBillPreview + phần đầu của lần mở này) nên nội dung bản in khớp màn hình. *@
+<section class="bill-print" data-print-receipt aria-hidden="true">
+    @if (header.Notice is not null)
+    {
+        <p class="bp-notice" data-print-notice>@header.Notice</p>
+    }
+    <h1 class="bp-restaurant" data-print-restaurant>@header.RestaurantName</h1>
+    <dl class="bp-meta">
+        <div><dt>Bàn</dt><dd data-print-tables>@header.Tables</dd></div>
+        <div><dt>@header.ServiceStartLabel</dt><dd data-print-service-start>@header.ServiceStartedAtText</dd></div>
+        <div><dt>Thời điểm in</dt><dd data-print-printed-at>@header.PrintedAtText</dd></div>
+        <div><dt>Người in</dt><dd data-print-printed-by>@header.PrintedBy</dd></div>
+    </dl>
+
+    @if (Model.IsEmpty)
+    {
+        <p class="bp-empty" data-print-empty>@BillRules.EmptyMessage</p>
+    }
+    else
+    {
+        <table class="bp-items">
+            <colgroup><col /><col class="bp-col-qty" /><col class="bp-col-amount" /></colgroup>
+            <thead><tr><th scope="col" class="bp-name">Món</th><th scope="col" class="bp-qty">SL</th><th scope="col" class="bp-amount">Thành tiền</th></tr></thead>
+            <tbody data-print-group="items">
+                @foreach (var line in Model.Lines)
+                {
+                    <partial name="_PrintLine" model="line" />
+                }
+            </tbody>
+            @if (Model.ChargedCancelledLines.Count > 0)
+            {
+                <tbody class="bp-charged" data-print-group="charged-cancelled">
+                    <tr class="bp-group-head"><th scope="rowgroup" colspan="3" data-print-group-label>@BillRules.ChargedCancellationLabel.ToUpperInvariant()</th></tr>
+                    @foreach (var line in Model.ChargedCancelledLines)
+                    {
+                        <partial name="_PrintLine" model="line" />
+                    }
+                </tbody>
+            }
+        </table>
+        <table class="bp-totals">
+            @if (Model.ChargedCancelledLines.Count > 0)
+            {
+                <tr><th scope="row">Cộng món đã gọi</th><td data-print-items-subtotal>@BillRules.Format(Model.ItemsSubtotal)</td></tr>
+                <tr><th scope="row">Cộng món đã huỷ – có tính tiền</th><td data-print-charged-subtotal>@BillRules.Format(Model.ChargedCancelledSubtotal)</td></tr>
+            }
+            <tr class="bp-total"><th scope="row">TỔNG CỘNG</th><td data-print-total="@Model.Total.ToString("0")">@BillRules.Format(Model.Total)</td></tr>
+        </table>
+    }
+    <p class="bp-foot">Chưa trừ giảm giá. Số tiền chính thức theo hoá đơn khi thanh toán.</p>
+</section>

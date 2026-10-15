@@ -1,0 +1,20 @@
+@model RestaurantManagement.Web.Models.Orders.TableBillPreviewLine
+@using RestaurantManagement.Web.Models.Orders
+@* S4-01 Task 3: một dòng món trên bản in 80mm. Tên món, đơn giá, nhãn huỷ và ghi chú xuống dòng trong cột "Món";
+   cột SL và Thành tiền có độ rộng cố định nên không bị lệch khi tên/ghi chú dài. *@
+<tr class="bp-line" data-print-line="@Model.Id" data-amount="@Model.Amount.ToString("0")">
+    <td class="bp-name">
+        <span class="bp-dish" data-print-name>@Model.ItemName</span>
+        <span class="bp-price" data-print-unit-price>@(BillRules.Format(Model.UnitPrice))/@(Model.Unit)</span>
+        @if (Model.Status == "Cancelled")
+        {
+            <span class="bp-charged-label" data-print-charged-label>[@(BillRules.ChargedCancellationLabel)]</span>
+        }
+        @if (Model.Requests.HasAny)
+        {
+            <span class="bp-note" data-print-note>@Model.Requests.Summary</span>
+        }
+    </td>
+    <td class="bp-qty" data-print-quantity>@Model.Quantity</td>
+    <td class="bp-amount" data-print-amount>@BillRules.Format(Model.Amount)</td>
+</tr>

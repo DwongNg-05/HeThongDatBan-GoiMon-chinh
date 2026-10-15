@@ -181,6 +181,8 @@ ChargedCancellationTests.Run(Check);
 BillPreviewTests.Run(Check);
 // S4-01 Task 2: phần đầu hoá đơn tạm tính (tên quán, mã bàn, bắt đầu phục vụ, thời điểm in, người in).
 BillHeaderTests.Run(Check);
+// S4-01 Task 3: in hoá đơn tạm tính khổ 80mm qua hộp thoại in của trình duyệt.
+BillPrintTests.Run(Check);
 Console.WriteLine($"{count} tests passed.");
 if (args.Contains("--authentication-http")) await AuthenticationHttpTests.Run();
 if (args.Contains("--integration")) await AreaHttpTests.Run();

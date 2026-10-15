@@ -225,7 +225,7 @@ internal static class BillPreviewVerification
     }
 
     /// <summary>Trạng thái + rowversion của bàn, phiên và mọi dòng món / nhật ký món của phiên: đổi bất cứ gì là khác chuỗi.</summary>
-    private static Task<string> Snapshot(string connection, string code, long sessionId) => Text(connection, $"""
+    internal static Task<string> Snapshot(string connection, string code, long sessionId) => Text(connection, $"""
         SELECT CONCAT(t.Status,'|',CONVERT(varchar(30),t.StatusChangedAt,126),'|',CONVERT(bigint,t.RowVersion),'|',
                s.Status,'|',CONVERT(bigint,s.RowVersion),'|',
                (SELECT COUNT(*) FROM dbo.OrderBatches b WHERE b.SessionId=s.Id),'|',
