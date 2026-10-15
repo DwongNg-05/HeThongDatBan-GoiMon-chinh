@@ -26,4 +26,31 @@
         <section class="col-12 col-sm-6 col-xl-4"><article class="card h-100"><div class="card-body"><h3 class="h6 text-muted">Trung bình mỗi hoá đơn</h3><p class="display-6 mb-0" data-metric="average-invoice">@Vnd.Format(Model.AverageInvoice)</p></div></article></section>
         <section class="col-12 col-sm-6 col-xl-4"><article class="card h-100"><div class="card-body"><h3 class="h6 text-muted">Bàn đang phục vụ</h3><p class="display-6 mb-0" data-metric="serving-tables">@Model.ServingTableCount</p><small class="text-muted">Tính tại thời điểm mở trang</small></div></article></section>
     </div>
+
+    <section class="mt-4" aria-labelledby="hourly-revenue-heading" data-chart="hourly-revenue">
+        <h3 id="hourly-revenue-heading" class="h5">Doanh thu theo giờ</h3>
+        @if (Model.HourlyRevenue.Count == 0)
+        {
+            <p class="text-muted" role="status">Ngày này không có khung giờ mở cửa được cấu hình.</p>
+        }
+        else
+        {
+            @if (!Model.HasTransactions)
+            {
+                <p class="text-muted" role="status" id="hourly-revenue-empty">Chưa có dữ liệu doanh thu trong ngày; các khung giờ đang hiển thị bằng 0.</p>
+            }
+            var maxRevenue = Model.HourlyRevenue.Max(slot => slot.Revenue);
+            <div class="d-flex align-items-end gap-2 overflow-auto border rounded p-3" style="min-height: 280px" role="img" aria-label="Biểu đồ cột doanh thu từng giờ, đơn vị Việt Nam đồng">
+                @foreach (var slot in Model.HourlyRevenue)
+                {
+                    var height = maxRevenue == 0 ? 0 : Math.Max(6, (int)Math.Round((double)(slot.Revenue / maxRevenue) * 150));
+                    <div class="text-center flex-shrink-0" style="width: 92px" data-hour="@slot.Label" data-revenue="@slot.Revenue">
+                        <div class="small text-break">@Vnd.Format(slot.Revenue)</div>
+                        <div class="bg-primary rounded-top mx-auto mt-1" style="width: 42px; height: @(height)px" aria-hidden="true"></div>
+                        <div class="small fw-semibold mt-1">@slot.Label</div>
+                    </div>
+                }
+            </div>
+        }
+    </section>
 </div>

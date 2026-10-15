@@ -11,3 +11,9 @@ Trang Quản lý tại `/Reports/Daily` hiển thị doanh thu, số hoá đơn,
 - Bàn đang phục vụ là bàn active trong khu vực active có trạng thái `Serving`. Bàn đã thanh toán ở trạng thái `Cleaning` không được tính.
 
 Các quy tắc trên bám theo schema và luồng checkout đang có; dự án không có ghi nhận quyết định PO riêng về cách xử lý hoàn tiền một phần.
+
+## Biểu đồ theo giờ (Task 2)
+
+Trang tổng quan dùng cùng ngày nghiệp vụ hôm nay cho cả năm chỉ số và biểu đồ. Hoá đơn được gán theo `IssuedAt` (thời điểm phát hành/thanh toán), đổi từ UTC sang giờ Việt Nam; mốc đúng đầu giờ thuộc khung giờ mới, khung giờ kết thúc không bao gồm mốc đóng cửa. Các giờ trong khoảng mở cửa đều xuất hiện, kể cả giờ doanh thu bằng 0. `SpecialDates` có ưu tiên cao hơn lịch tuần; ngày lễ đặc biệt đang bật được coi là đóng cửa. Lịch qua nửa đêm được vẽ tiếp với nhãn giờ sau 00:00.
+
+Lịch cấu hình hiện có ràng buộc `ClosesAt > OpensAt`, nên giao diện quản lý chưa thể lưu giờ qua nửa đêm. Bộ tổng hợp đã xử lý lịch qua đêm nếu dữ liệu được nới ràng buộc ở phiên bản sau. Dữ liệu hiện hành cũng dùng ngày lịch Việt Nam làm `BusinessDate`; biểu đồ chỉ lấy hoá đơn mang ngày đó.
