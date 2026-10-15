@@ -218,8 +218,10 @@ public sealed class CashierController(IConfiguration configuration) : Controller
         var invoices = new List<InvoiceRow>();
         await using var connection = new SqlConnection(ConnectionString);
         await using var command = new SqlCommand("""
-            SELECT i.Id,i.InvoiceNumber,i.TableLabels,i.GuestCount,i.IssuedAt,i.Subtotal,i.DiscountAmount,i.Total,p.Method,i.Status
+            SELECT i.Id,i.InvoiceNumber,i.TableLabels,i.GuestCount,i.IssuedAt,i.Subtotal,i.DiscountAmount,i.Total,p.Method,i.Status,
+                   i.VoidReason,voider.FullName,i.VoidedAt
             FROM dbo.Invoices i JOIN dbo.Payments p ON p.InvoiceId=i.Id
+            LEFT JOIN dbo.Users voider ON voider.Id=i.VoidedBy
             WHERE i.BusinessDate=@day ORDER BY i.IssuedAt DESC,i.Id DESC;
             """, connection);
         command.Parameters.Add("@day", SqlDbType.Date).Value = day.ToDateTime(TimeOnly.MinValue);
@@ -228,8 +230,38 @@ public sealed class CashierController(IConfiguration configuration) : Controller
         while (await reader.ReadAsync(cancellationToken))
             invoices.Add(new InvoiceRow(reader.GetInt64(0), reader.GetString(1), reader.GetString(2), reader.GetInt32(3),
                 VietnamTime.FromUtc(reader.GetDateTime(4)), reader.GetDecimal(5), reader.GetDecimal(6), reader.GetDecimal(7),
-                reader.GetString(8), reader.GetString(9)));
+                reader.GetString(8), reader.GetString(9), reader.IsDBNull(10) ? null : reader.GetString(10),
+                reader.IsDBNull(11) ? null : reader.GetString(11), reader.IsDBNull(12) ? null : VietnamTime.FromUtc(reader.GetDateTime(12))));
         return View(new InvoicesViewModel(day, invoices));
+    }
+
+    /// <summary>S4-02 Task 4: chỉ Quản lý có thể huỷ hoá đơn đã chốt trong ca đang mở.</summary>
+    [HttpPost("Invoices/{invoiceId:long}/Void")]
+    [Authorize(Roles = AppRoles.Manager)]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> VoidInvoice(long invoiceId, DateOnly? date, string? reason)
+    {
+        if (string.IsNullOrWhiteSpace(reason) || reason.Trim().Length < 5)
+        {
+            TempData["Error"] = "Lý do huỷ hoá đơn cần có ít nhất 5 ký tự.";
+            return RedirectToAction(nameof(Invoices), new { date });
+        }
+        try
+        {
+            await using var connection = new SqlConnection(ConnectionString);
+            await using var command = new SqlCommand("dbo.usp_VoidInvoice", connection) { CommandType = CommandType.StoredProcedure };
+            command.Parameters.Add("@InvoiceId", SqlDbType.BigInt).Value = invoiceId;
+            command.Parameters.Add("@Reason", SqlDbType.NVarChar, 500).Value = reason.Trim();
+            command.Parameters.Add("@ActorUserId", SqlDbType.Int).Value = User.ActorUserId();
+            await connection.OpenAsync();
+            await command.ExecuteNonQueryAsync();
+            TempData["Success"] = "Đã huỷ hoá đơn. Số liệu doanh thu đã loại trừ hoá đơn này.";
+        }
+        catch (SqlException ex) when (ex.Number is >= 51000 and < 51500)
+        {
+            TempData["Error"] = ex.Number == 51001 ? "Bạn không có quyền huỷ hoá đơn." : ex.Message;
+        }
+        return RedirectToAction(nameof(Invoices), new { date });
     }
 
     // ---------------- Chốt ca ----------------
