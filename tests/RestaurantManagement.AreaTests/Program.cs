@@ -177,6 +177,7 @@ await PhoneNoShowWarningTests.Run(Check);
 OrderCancellationTests.Run(Check);
 ShiftCancellationReportTests.Run(Check);
 ChargedCancellationTests.Run(Check);
+CashCheckoutTests.Run(Check);
 Console.WriteLine($"{count} tests passed.");
 if (args.Contains("--authentication-http")) await AuthenticationHttpTests.Run();
 if (args.Contains("--integration")) await AreaHttpTests.Run();

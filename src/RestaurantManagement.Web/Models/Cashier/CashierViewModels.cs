@@ -18,6 +18,39 @@ public sealed record PayableSession(long SessionId, string Tables, int GuestCoun
 
 public sealed record PaymentsViewModel(ShiftSummary? OpenShift, IReadOnlyList<PayableSession> Sessions);
 
+/// <summary>
+/// S4-02 Task 1: thông tin chỉ đọc trước khi thu ngân chốt tiền mặt. Thành tiền
+/// luôn lấy từ database; trình duyệt không có trường nào để sửa giá hoặc tổng tiền.
+/// </summary>
+public sealed record CashierPaymentLine(string ItemName, string Unit, int Quantity, decimal UnitPrice,
+    decimal LineTotal, string? Notes, string OriginalTableCode, bool IsChargedCancellation);
+
+public sealed record CashierPaymentViewModel(
+    PayableSession Session,
+    IReadOnlyList<CashierPaymentLine> Lines,
+    decimal CashReceived,
+    Guid RequestId,
+    string? Error = null)
+{
+    public decimal Total => Session.Subtotal;
+    public decimal Change => Math.Max(0, CashReceived - Total);
+    public bool HasEnoughCash => CashReceived >= Total;
+}
+
+/// <summary>Hoá đơn tiền mặt đã chốt. Giá và số lượng là bản chụp tại thời điểm chốt.</summary>
+public sealed record CashierReceiptViewModel(
+    long InvoiceId,
+    string InvoiceNumber,
+    string Tables,
+    int GuestCount,
+    DateTime IssuedAt,
+    string CashierName,
+    decimal Subtotal,
+    decimal Total,
+    decimal CashReceived,
+    decimal ChangeAmount,
+    IReadOnlyList<CashierPaymentLine> Lines);
+
 /// <summary>Một hoá đơn trong ngày (dbo.Invoices + dbo.Payments).</summary>
 public sealed record InvoiceRow(long Id, string InvoiceNumber, string Tables, int GuestCount, DateTime IssuedAt, decimal Subtotal,
     decimal DiscountAmount, decimal Total, string Method, string Status)

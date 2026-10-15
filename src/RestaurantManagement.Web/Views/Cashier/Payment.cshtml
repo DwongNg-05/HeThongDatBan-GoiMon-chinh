@@ -1,0 +1,83 @@
+@model RestaurantManagement.Web.Models.Cashier.CashierPaymentViewModel
+@using RestaurantManagement.Web.Models.Cashier
+@using System.Globalization
+@{
+    ViewData["Title"] = "Chốt tiền mặt";
+    var number = CultureInfo.InvariantCulture;
+}
+@section Styles { <link rel="stylesheet" href="~/css/cashier-payment.css" asp-append-version="true" /> }
+
+<div class="container mt-4 cashier-payment" data-screen="cashier-cash-payment" data-total="@Model.Total.ToString("0", number)">
+    <div class="d-flex flex-wrap justify-content-between gap-3 align-items-start mb-3">
+        <div>
+            <a asp-action="Index" class="link-secondary small">← Danh sách thanh toán</a>
+            <h2 class="mt-2 mb-1">Thanh toán tiền mặt · Bàn @Model.Session.Tables</h2>
+            <p class="text-muted mb-0">@Model.Session.GuestCount khách · mở lúc @Model.Session.OpenedAt.ToString("dd/MM/yyyy HH:mm")</p>
+        </div>
+        <span class="badge text-bg-light border">Chỉ đọc giá món</span>
+    </div>
+
+    @if (Model.Error is not null) { <div class="alert alert-danger" role="alert">@Model.Error</div> }
+    @if (Model.Lines.Count == 0) { <div class="alert alert-warning">Phiên chưa có món hợp lệ để thanh toán.</div> }
+    @if (Model.Session.UnservedCount > 0) { <div class="alert alert-warning">Còn @Model.Session.UnservedCount món chưa phục vụ. Hãy xử lý xong trước khi thanh toán.</div> }
+
+    <div class="row g-4">
+        <section class="col-lg-7">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white"><strong>Chi tiết món</strong></div>
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead><tr><th>Món</th><th class="text-end">Đơn giá</th><th class="text-center">SL</th><th class="text-end">Thành tiền</th></tr></thead>
+                        <tbody>
+                        @foreach (var line in Model.Lines)
+                        {
+                            <tr>
+                                <td><strong>@line.ItemName</strong><br /><small class="text-muted">@line.OriginalTableCode · @line.Unit @(line.Notes is null ? "" : "· " + line.Notes)</small>
+                                    @if (line.IsChargedCancellation) { <span class="badge text-bg-warning ms-1">Đã huỷ, vẫn tính</span> }</td>
+                                <td class="text-end">@Vnd.Format(line.UnitPrice)</td>
+                                <td class="text-center">@line.Quantity</td>
+                                <td class="text-end fw-semibold">@Vnd.Format(line.LineTotal)</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+        <aside class="col-lg-5">
+            <form asp-action="Checkout" method="post" class="card shadow-sm cashier-payment__form">
+                <div class="card-body">
+                    <h3 class="h5">Chốt hoá đơn</h3>
+                    <input type="hidden" name="sessionId" value="@Model.Session.SessionId" />
+                    <input type="hidden" name="requestId" value="@Model.RequestId" />
+                    <dl class="cashier-payment__summary">
+                        <div><dt>Tổng tiền món</dt><dd>@Vnd.Format(Model.Total)</dd></div>
+                        <div><dt>Hình thức</dt><dd>Tiền mặt</dd></div>
+                    </dl>
+                    <label class="form-label fw-semibold" for="cashReceived">Tiền khách đưa (VND)</label>
+                    <input id="cashReceived" name="cashReceived" type="number" min="0" step="1" inputmode="numeric" class="form-control form-control-lg"
+                           value="@Model.CashReceived.ToString("0", number)" required data-cash-received />
+                    <div class="form-text">Hệ thống chặn số tiền nhỏ hơn tổng phải thu.</div>
+                    <div class="cashier-payment__change mt-3" aria-live="polite">
+                        <span>Tiền thối lại</span><strong data-change>@Vnd.Format(Model.Change)</strong>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 mt-4" @(Model.Lines.Count == 0 || Model.Session.UnservedCount > 0 ? "disabled" : null)>Chốt tiền mặt</button>
+                </div>
+            </form>
+        </aside>
+    </div>
+</div>
+@section Scripts {
+<script>
+(() => {
+  const root = document.querySelector('[data-screen="cashier-cash-payment"]');
+  const input = root?.querySelector('[data-cash-received]');
+  const change = root?.querySelector('[data-change]');
+  if (!root || !input || !change) return;
+  const total = Number(root.dataset.total || 0);
+  const format = value => new Intl.NumberFormat('vi-VN').format(Math.max(0, value)) + ' ₫';
+  const refresh = () => change.textContent = format(Number(input.value || 0) - total);
+  input.addEventListener('input', refresh); refresh();
+})();
+</script>
+}
