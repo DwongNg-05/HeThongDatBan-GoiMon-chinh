@@ -432,7 +432,6 @@ public class ReservationsController : Controller
         // S3-09 Task 3: chuẩn hoá số điện thoại ("0901 234 567", "+84 901 234 567"… → "0901234567") trước khi kiểm tra,
         // để lịch sử không tới và mọi lượt đặt của cùng khách dùng chung một chuỗi.
         PhoneNoShowGuard.NormalizePhone(ModelState, model);
-
         // Luôn load lại danh sách khu vực
         await LoadActiveAreas(model);
 
@@ -712,6 +711,20 @@ public class ReservationsController : Controller
     public async Task<IActionResult> Success([FromServices] IReservationEmailStatusStore emails, CancellationToken cancellationToken)
     {
         var model = BookingSuccessViewModel.FromTempData(key => TempData.Peek(key));
+        if (model is { StartsAt: null, ReservationId: long reservationId })
+        {
+            await using var connection = new SqlConnection(ConnectionString);
+            await using var command = new SqlCommand("SELECT StartsAt, GuestCount FROM dbo.Reservations WHERE Id=@id;", connection);
+            command.Parameters.Add("@id", SqlDbType.BigInt).Value = reservationId;
+            await connection.OpenAsync(cancellationToken);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            if (await reader.ReadAsync(cancellationToken))
+                model = model with
+                {
+                    StartsAt = VietnamTime.FromUtc(reader.GetDateTime(0)),
+                    GuestCount = model.GuestCount ?? reader.GetInt32(1)
+                };
+        }
         // S2-09 Task 2: hiển thị trạng thái email mới nhất (đang gửi lại / kết quả cuối cùng), không chỉ kết quả lần gửi đầu.
         if (model is { ReservationId: long id, EmailOutcome: not BookingEmailOutcome.NotRequested })
             model = model with { EmailStatus = await LoadCustomerEmailStatus(id, model, emails, cancellationToken) };

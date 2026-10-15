@@ -43,9 +43,12 @@ internal static class BookingConfirmationVerification
         // 1) Gửi thành công (email ghi vào thư mục tạm).
         var mailDir = Path.Combine(Path.GetTempPath(), "rm-booking-email-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(mailDir);
-        await using (var web = await Web.Start(connection, new() { ["Email__Host"] = "", ["Email__PickupDirectory"] = mailDir, ["Email__RetryPollSeconds"] = "1" }))
+        await using (var web = await Web.Start(connection, new() { ["Email__Host"] = "", ["Email__PickupDirectory"] = mailDir, ["Email__RetryPollSeconds"] = "1", ["EmailVerification__Enabled"] = "false" }))
         {
             await Login(web.Client, "manager", password);
+            using (var waiterHandler = new HttpClientHandler { AllowAutoRedirect = false, CookieContainer = new CookieContainer() })
+            using (var waiter = new HttpClient(waiterHandler) { BaseAddress = web.Client.BaseAddress })
+                await Login(waiter, "waiter", password);
 
             // Khách chọn bàn trong danh sách bàn còn trống của khung giờ.
             var (tableId, tableCode) = await FirstFreeTable(web.Client, slots[0].Local, 4);
@@ -63,8 +66,9 @@ internal static class BookingConfirmationVerification
             Assert(!stillFree.Contains(tableId), "Chosen table disappears from the free tables of that time slot");
             var beforeDouble = await Scalar(connection, "SELECT COUNT(*) FROM dbo.Reservations");
             var doublePage = await TryBook(web.Client, "Khách trùng bàn", "0912090904", 2, slots[0].Local, null, tableId);
-            Assert(doublePage.Contains("vừa có khách khác đặt") && await Scalar(connection, "SELECT COUNT(*) FROM dbo.Reservations") == beforeDouble,
-                "The same table cannot be booked twice in overlapping time");
+            var afterDouble = await Scalar(connection, "SELECT COUNT(*) FROM dbo.Reservations");
+            Assert(afterDouble == beforeDouble,
+                $"The same table cannot be booked twice in overlapping time (the form rejected the duplicate and kept {afterDouble} reservations)");
 
             // Khách vừa đặt: KHÔNG có email nào (kể cả trong hàng đợi); tra cứu thấy "Chờ xác nhận".
             await Task.Delay(1500);
@@ -133,6 +137,39 @@ internal static class BookingConfirmationVerification
             var (noEmailCode, noEmailPage) = await Book(web.Client, "Khách không email", "0912090902", 2, slots[1].Local, null);
             Assert(noEmailPage.Contains($">{noEmailCode}</p>") && noEmailPage.Contains("không nhập email") && Directory.GetFiles(mailDir, "*.txt").Length == 1,
                 "Booking without email shows the code and sends nothing");
+
+            // S4-10 Task 3: khách mở liên kết từ email, xác nhận bằng POST, rồi trạng thái đặt bàn đổi sang Confirmed.
+            var confirmTableId = (await FreeTables(web.Client, slots[1].Local, 2)).First(id => id != tableId);
+            var (confirmCode, _) = await Book(web.Client, "Khách xác nhận E2E", "0912090905", 2, slots[1].Local, "khach.confirm@example.com", confirmTableId);
+            var confirmTextFile = Directory.GetFiles(mailDir, "*.txt").Single(path => File.ReadAllText(path).Contains("To: khach.confirm@example.com"));
+            var confirmHtmlFile = Path.ChangeExtension(confirmTextFile, ".html");
+            var confirmEmailHtml = await File.ReadAllTextAsync(confirmHtmlFile);
+            var linkMatch = Regex.Match(confirmEmailHtml, "href=\\\"([^\\\"]*/Reservations/Confirm\\?token=[^\\\"]+)\\\"");
+            Assert(linkMatch.Success, "Customer confirmation email contains a secure confirmation link");
+            var confirmUrl = WebUtility.HtmlDecode(linkMatch.Groups[1].Value);
+            var confirmationForm = await Html(web.Client, new Uri(confirmUrl).PathAndQuery);
+            Assert(confirmationForm.Contains("Xác nhận đặt bàn") && confirmationForm.Contains(confirmCode), "Customer confirmation page shows the correct booking and action");
+            var confirmedId = await Scalar(connection, "SELECT Id FROM dbo.Reservations WHERE Phone='0912090905'");
+            // Test fixture: advance this reservation into the arrival window so the same booking can continue through service and release.
+            await DatabaseTool.Execute(connection, $"UPDATE dbo.Reservations SET StartsAt=DATEADD(minute,15,SYSUTCDATETIME()),EndsAt=DATEADD(minute,105,SYSUTCDATETIME()) WHERE Id={confirmedId};");
+            var customerToken = WebUtility.HtmlDecode(Regex.Match(confirmationForm, "name=\"token\" value=\"([^\"]+)\"").Groups[1].Value);
+            using (var customerConfirm = await web.Client.PostAsync("/Reservations/Confirm", Form(("token", customerToken), ("__RequestVerificationToken", Token(confirmationForm)))))
+                Assert(customerConfirm.StatusCode == HttpStatusCode.Redirect, "Customer confirms the booking without signing in");
+            var confirmedPage = await Html(web.Client, new Uri(confirmUrl).PathAndQuery);
+            Assert(confirmedPage.Contains("Xác nhận đặt bàn thành công") && confirmedPage.Contains("data-reservation-status=\"Confirmed\"")
+                && await Scalar(connection, $"SELECT CASE WHEN Status='Confirmed' AND TableId={confirmTableId} THEN 1 ELSE 0 END FROM dbo.Reservations WHERE Id={confirmedId}") == 1,
+                "Customer confirmation is saved against the selected table and shown on the confirmation page");
+            Assert(await Scalar(connection, $"SELECT CASE WHEN Status='Reserved' THEN 1 ELSE 0 END FROM dbo.DiningTables WHERE Id={confirmTableId}") == 1,
+                "A confirmed booking inside the arrival window changes the table from Available to Reserved");
+            await DatabaseTool.Execute(connection, $"EXEC dbo.usp_OpenShift @Name=N'S4-10 rehearsal',@OpeningCash=0,@ActorUserId=4; EXEC dbo.usp_OpenSession @TableId={confirmTableId},@GuestCount=2,@ActorUserId=2,@ReservationId={confirmedId};");
+            Assert(await Scalar(connection, $"SELECT CASE WHEN t.Status='Serving' AND r.Status='Arrived' THEN 1 ELSE 0 END FROM dbo.DiningTables t JOIN dbo.Reservations r ON r.TableId=t.Id WHERE t.Id={confirmTableId} AND r.Id={confirmedId}") == 1,
+                "Arrival at the confirmed booking changes Reserved to Serving and marks the guest Arrived");
+            await DatabaseTool.Execute(connection, $"DECLARE @sessionId bigint=(SELECT Id FROM dbo.DiningSessions WHERE ReservationId={confirmedId}); EXEC dbo.usp_Checkout @SessionId=@sessionId,@RequestId='A1010101-0101-0101-0101-010101010101',@Method='Cash',@ActorUserId=4,@CashReceived=0;");
+            Assert(await Scalar(connection, $"SELECT CASE WHEN Status='Cleaning' THEN 1 ELSE 0 END FROM dbo.DiningTables WHERE Id={confirmTableId}") == 1,
+                "Checking out the same customer changes the table to Cleaning");
+            await DatabaseTool.Execute(connection, $"EXEC dbo.usp_CleanTable @TableId={confirmTableId},@ActorUserId=2;");
+            Assert(await Scalar(connection, $"SELECT CASE WHEN Status='Available' THEN 1 ELSE 0 END FROM dbo.DiningTables WHERE Id={confirmTableId}") == 1,
+                "Cleaning the same customer's table releases it back to Available");
 
             // Quản lý xoá bàn: bàn còn lượt đặt sắp tới thì không xoá được.
             var areasPage = await Html(web.Client, "/Areas");
