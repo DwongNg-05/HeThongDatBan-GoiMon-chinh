@@ -90,6 +90,7 @@ internal static class ApiAccessMatrix
         // ---- Quản trị ----
         new("AuditLogs.Index GET", Manager, "GET", "/AuditLogs"),
         // S3-05 Task 2: báo cáo cuối ca — nhật ký huỷ món (trang và dữ liệu JSON), chỉ Quản lý.
+        new("DailyOverview.Index GET", Manager, "GET", "/Reports/Today"),
         new("ShiftReports.Cancellations GET", Manager, "GET", "/Reports/Shift/Cancellations"),
         new("ShiftReports.CancellationsData GET", Manager, "GET", "/api/reports/shift-cancellations"),
         new("EmployeeAccounts.Index GET", Manager, "GET", "/admin/employee-accounts"),
