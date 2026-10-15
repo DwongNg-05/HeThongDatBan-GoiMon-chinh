@@ -31,7 +31,7 @@ internal static class ApiAuthorizationVerification
         ["ordering"] = "/Ordering", ["serving-queue"] = "/Serving", ["kitchen-orders"] = "/Kitchen", ["daily-dishes"] = "/Kitchen/Dishes",
         ["cashier-payments"] = "/Cashier", ["cashier-invoices"] = "/Cashier/Invoices", ["cashier-shift"] = "/Cashier/Shift",
         ["employee-accounts"] = "/admin/employee-accounts", ["audit-logs"] = "/AuditLogs",
-        ["shift-cancellations"] = "/Reports/Shift/Cancellations"
+        ["shift-cancellations"] = "/Reports/Shift/Cancellations", ["daily-revenue"] = "/Reports/Daily"
     };
 
     /// <summary>Màn hình công khai cho khách (thực đơn): ai cũng mở được, không tính là ngoài quyền.</summary>
@@ -52,7 +52,7 @@ internal static class ApiAuthorizationVerification
     internal static readonly Dictionary<string, (string Landing, string[] Nav)> ExpectedNavigation = new()
     {
         ["Manager"] = ("/", new[] { "reservations", "areas", "table-map", "opening-hours", "privacy", "dish-categories", "dishes", "menu", "ordering", "serving-queue",
-            "kitchen-orders", "daily-dishes", "cashier-payments", "cashier-invoices", "cashier-shift", "employee-accounts", "audit-logs", "shift-cancellations" }),
+            "kitchen-orders", "daily-dishes", "cashier-payments", "cashier-invoices", "cashier-shift", "employee-accounts", "audit-logs", "shift-cancellations", "daily-revenue" }),
         ["Waiter"] = ("/", new[] { "reservations", "table-map", "ordering", "serving-queue" }),
         ["Kitchen"] = ("/Kitchen", new[] { "kitchen-orders", "daily-dishes" }),
         ["Cashier"] = ("/Cashier", new[] { "cashier-payments", "cashier-invoices", "cashier-shift" })
