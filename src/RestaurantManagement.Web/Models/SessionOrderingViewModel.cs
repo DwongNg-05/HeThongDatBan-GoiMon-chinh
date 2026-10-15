@@ -5,6 +5,27 @@ public sealed class SessionOrderingViewModel
     public int TableId { get; set; }
     public string TableCode { get; set; } = string.Empty;
 
+    // Thông tin hiển thị ở đầu màn hình gọi món (giống màn hình gọi món tại bàn của khách).
+    public string AreaName { get; set; } = string.Empty;
+    public int MinCapacity { get; set; }
+    public int MaxCapacity { get; set; }
+    public string TableType { get; set; } = string.Empty;
+    public DateTime? OpenedAtUtc { get; set; }
+
+    public string CapacityLabel => MinCapacity <= 0 || MinCapacity == MaxCapacity
+        ? $"{MaxCapacity} chỗ"
+        : $"{MinCapacity} – {MaxCapacity} chỗ";
+
+    public string TableTypeLabel => TableType == "PrivateRoom" ? "Phòng riêng" : "Bàn thường";
+
+    /// <summary>Giờ mở phiên theo giờ Việt Nam (UTC+7), ví dụ "13:34".</summary>
+    public string? OpenedAtLabel => OpenedAtUtc is null
+        ? null
+        : new DateTimeOffset(DateTime.SpecifyKind(OpenedAtUtc.Value, DateTimeKind.Utc))
+            .ToOffset(TimeSpan.FromHours(7)).ToString("HH:mm");
+
+    public int BatchCount => Items.Select(item => item.BatchNumber).Distinct().Count();
+
     // Phiên chứa các đợt gọi món của bàn.
     public long SessionId { get; set; }
 

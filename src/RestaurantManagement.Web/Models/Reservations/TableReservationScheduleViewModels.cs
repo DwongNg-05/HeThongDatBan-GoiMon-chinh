@@ -28,7 +28,7 @@ public sealed class TableReservationScheduleItemViewModel
     public string Status { get; init; } = string.Empty;
 }
 
-public sealed class ManagedTableReservationCreateViewModel
+public sealed class ManagedTableReservationCreateViewModel : IPhoneNoShowForm
 {
     [Required(ErrorMessage = "Vui lòng chọn bàn.")]
     [Display(Name = "Bàn")]
@@ -51,6 +51,15 @@ public sealed class ManagedTableReservationCreateViewModel
     [RegularExpression(@"^0\d{9}$", ErrorMessage = "Số điện thoại phải gồm đúng 10 chữ số và bắt đầu bằng 0.")]
     [Display(Name = "Số điện thoại")]
     public string Phone { get; set; } = string.Empty;
+
+    // S3-09 Task 3: cảnh báo số điện thoại có ít nhất 3 lần khách không tới trong 90 ngày (chỉ khi nhân viên tạo đặt bàn).
+    [Display(Name = PhoneNoShowRules.ConfirmationLabel)]
+    public bool NoShowWarningConfirmed { get; set; }
+
+    public int NoShowCountAcknowledged { get; set; }
+
+    [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]
+    public PhoneNoShowSummary? PhoneWarning { get; set; }
 
     [Required]
     [RegularExpression("Pending|Confirmed", ErrorMessage = "Trạng thái ban đầu không hợp lệ.")]

@@ -89,7 +89,9 @@ internal static class RoleNavigationTests
             // Tài khoản nhân viên
             "EmployeeAccounts.Index GET", "EmployeeAccounts.Create POST", "EmployeeAccounts.CheckUserName GET", "EmployeeAccounts.Deactivate POST",
             // Báo cáo (nhật ký, hoá đơn, chốt ca)
-            "AuditLogs.Index GET", "Cashier.Invoices GET", "Cashier.Shift GET"
+            "AuditLogs.Index GET", "Cashier.Invoices GET", "Cashier.Shift GET",
+            // S3-05 Task 2: báo cáo huỷ món theo ca
+            "ShiftReports.Cancellations GET", "ShiftReports.CancellationsData GET"
         }.Where(k => ApiAccessMatrix.IsAllowed(Api(k), "Waiter")).ToArray();
         check(waiterBlocked.Length == 0, "Server scope: menu, account and report APIs are blocked for the waiter" + (waiterBlocked.Length > 0 ? ": " + string.Join(", ", waiterBlocked) : ""));
         var waiterAllowed = new[]

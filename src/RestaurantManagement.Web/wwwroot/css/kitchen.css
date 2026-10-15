@@ -22,3 +22,14 @@
     .kitchen-dish { min-width: 220px; }
     .kitchen-note { font-size: 16px; }
 }
+
+/* S3-05 Task 3: thẻ "DỪNG MÓN" — món bị Quản lý huỷ khi bếp đang nấu / đã xong. */
+.kitchen-stops { margin-bottom: 20px; padding: 14px 16px; border-radius: 10px; background: #b3122e; color: #fff; box-shadow: 0 6px 18px rgba(179, 18, 46, .25); }
+.kitchen-stops-title { margin: 0 0 10px; font-size: 20px; font-weight: 800; letter-spacing: .02em; }
+.kitchen-stops-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.kitchen-stop { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 8px; background: rgba(255, 255, 255, .12); }
+.kitchen-stop-text { display: grid; gap: 2px; min-width: 0; flex: 1 1 260px; }
+.kitchen-stop-instruction { font-size: 18px; }
+.kitchen-stop-summary { font-size: 17px; font-weight: 600; overflow-wrap: anywhere; }
+.kitchen-stop-meta { opacity: .9; }
+.kitchen-stop-ack .btn { min-height: 40px; font-weight: 700; }

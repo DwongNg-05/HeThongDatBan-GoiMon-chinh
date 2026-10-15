@@ -61,7 +61,7 @@ builder.Services.AddScoped<BookingEmailDispatcher>();
 builder.Services.AddSingleton<BookingConfirmationLinks>();
 // S2-09 Task 2: tự động gửi lại email đặt bàn thất bại (tối đa 3 lần, cách nhau 5 phút). Tắt bằng Email:RetryPollSeconds = 0.
 builder.Services.AddHostedService<BookingEmailRetryWorker>();
-builder.Services.AddControllersWithViews(options => { options.Filters.Add<SessionActivityFilter>(); options.Filters.Add<BookingAntiforgeryRecoveryFilter>(); });
+builder.Services.AddControllersWithViews(options => { options.Filters.Add<SessionActivityFilter>(); options.Filters.Add<SessionActivityPageFilter>(); options.Filters.Add<BookingAntiforgeryRecoveryFilter>(); });
 // Support Razor Pages
 builder.Services.AddRazorPages();
 

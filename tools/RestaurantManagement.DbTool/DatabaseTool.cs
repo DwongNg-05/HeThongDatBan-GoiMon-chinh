@@ -16,7 +16,7 @@ internal static partial class DatabaseTool
             var connection = Environment.GetEnvironmentVariable("RM_CONNECTION_STRING");
             if (command == "help" || string.IsNullOrWhiteSpace(connection))
             {
-                Console.WriteLine("Commands: migrate | seed-demo | seed-login-demo | seed-menu-demo | seed-menu-extra | seed-khai-vi | seed-confirmation-demo | seed-menu-200 | hide-menu-200 | email-retry-now | verify | verify-booking-email | verify-api-permissions | verify-temporary-out | verify-qr-session | verify-late-reservations | maintenance | check\nSet RM_CONNECTION_STRING first. seed-demo and seed-login-demo also require RM_DEMO_PASSWORD.\nseed-login-demo accepts RM_DEMO_USERNAME and RM_DEMO_PHONE; existing accounts are preserved.\nverify creates and removes its own uniquely named test database.");
+                Console.WriteLine("Commands: migrate | seed-demo | seed-login-demo | seed-menu-demo | seed-menu-extra | seed-khai-vi | seed-confirmation-demo | seed-menu-200 | hide-menu-200 | email-retry-now | verify | verify-booking-email | verify-api-permissions | verify-temporary-out | verify-qr-session | verify-late-reservations | verify-hold-extension | verify-phone-no-show | verify-cancel-item | verify-cancel-report | verify-charged-cancel | maintenance | check\nSet RM_CONNECTION_STRING first. seed-demo and seed-login-demo also require RM_DEMO_PASSWORD.\nseed-login-demo accepts RM_DEMO_USERNAME and RM_DEMO_PHONE; existing accounts are preserved.\nverify creates and removes its own uniquely named test database.");
                 Environment.ExitCode = command == "help" ? 0 : 1;
                 return;
             }
@@ -42,6 +42,16 @@ internal static partial class DatabaseTool
                 case "verify-qr-session": await Verification.RunQrSession(connection); break;
                 // S3-09 Task 1: cảnh báo đặt bàn trễ 15 phút + đánh dấu khách không tới (database tạm, cần build Debug trước).
                 case "verify-late-reservations": await Verification.RunLateReservations(connection); break;
+                // S3-09 Task 2: gia hạn giữ bàn 15 phút (cùng bộ kiểm thử với Task 1, database tạm, cần build Debug trước).
+                case "verify-hold-extension": await Verification.RunLateReservations(connection); break;
+                // S3-09 Task 3: cảnh báo số điện thoại có ít nhất 3 lần không tới trong 90 ngày (cùng bộ kiểm thử S3-09).
+                case "verify-phone-no-show": await Verification.RunLateReservations(connection); break;
+                // S3-05 Task 1: huỷ dòng món chờ bếp với lý do bắt buộc (database tạm, cần build Debug trước).
+                case "verify-cancel-item": await Verification.RunCancelItem(connection); break;
+                // S3-05 Task 2: báo cáo cuối ca — các lần huỷ món của ca, chỉ Quản lý (database tạm, cần build Debug trước).
+                case "verify-cancel-report": await Verification.RunCancelReport(connection); break;
+                // S3-05 Task 3: Quản lý huỷ món đã bắt đầu chế biến, món vẫn tính tiền (database tạm, cần build Debug trước).
+                case "verify-charged-cancel": await Verification.RunChargedCancel(connection); break;
                 case "maintenance": await Execute(connection, "EXEC dbo.usp_RunMaintenance;"); break;
                 // S2-09 Task 2 (demo): không chờ 5 phút, cho các email đặt bàn đang chờ gửi lại tới giờ gửi lại ngay.
                 case "email-retry-now": await EmailRetryNow(connection); break;

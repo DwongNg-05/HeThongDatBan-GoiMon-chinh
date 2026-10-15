@@ -17,6 +17,9 @@ public sealed class EmailVerificationService(EmailVerificationStore store, IEmai
 
     public EmailVerificationOptions Options => options.Value;
 
+    /// <summary>Thời gian chờ tối đa khi gửi email xác minh.</summary>
+    public static readonly TimeSpan SendTimeout = TimeSpan.FromSeconds(20);
+
     /// <summary>Mọi người dùng trừ Quản lý, chỉ khi tài khoản chưa xác minh email lần nào (lần đăng nhập đầu tiên).</summary>
     public bool IsRequired(ClaimsPrincipal user)
     {
@@ -47,10 +50,24 @@ public sealed class EmailVerificationService(EmailVerificationStore store, IEmai
             case IssueStatus.InvalidSession:
                 return new(false, "Phiên đăng nhập không còn hợp lệ. Vui lòng đăng nhập lại.", 0);
         }
+        // Giới hạn thời gian chờ máy chủ SMTP: nếu Host/Port/SSL sai, SmtpClient có thể treo mãi tới khi trình duyệt bỏ yêu cầu.
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(SendTimeout);
         try
         {
-            await sender.SendAsync(VerificationEmail.Create(email.Trim(), fullName, code, options.Value.ValidMinutes, DateTime.UtcNow), ct);
+            await sender.SendAsync(VerificationEmail.Create(email.Trim(), fullName, code, options.Value.ValidMinutes, DateTime.UtcNow), timeout.Token);
             return new(true, null, options.Value.ResendCooldownSeconds);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            logger.LogError("Hết thời gian chờ máy chủ email ({Seconds} giây) khi gửi mã xác minh cho tài khoản {UserId}. Kiểm tra Email:Host, Email:Port và Email:EnableSsl.",
+                SendTimeout.TotalSeconds, userId);
+            return new(false, "Máy chủ email không phản hồi. Vui lòng thử “Gửi lại mã” sau ít phút.", options.Value.ResendCooldownSeconds);
+        }
+        catch (OperationCanceledException)
+        {
+            logger.LogWarning("Người dùng đã rời trang trước khi gửi xong mã xác minh cho tài khoản {UserId}.", userId);
+            return new(false, null, options.Value.ResendCooldownSeconds);
         }
         catch (Exception ex) when (ex is SmtpException or InvalidOperationException or IOException or FormatException)
         {

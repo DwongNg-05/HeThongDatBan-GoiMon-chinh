@@ -58,54 +58,70 @@ public sealed class ProvisionalBillController(IConfiguration configuration) : Co
     }
 
     /// <summary>
-    /// S3-05: Phục vụ có thể huỷ món còn chờ bếp; khi bếp đã bắt đầu, chỉ Quản lý
-    /// có thể huỷ và thủ tục SQL sẽ tự đánh dấu dòng đó vẫn tính tiền. Lý do cùng
-    /// người thao tác/thời điểm đều được dbo.usp_CancelOrderItem ghi vào lịch sử.
+    /// S3-05 Task 1: huỷ một dòng món từ hộp xác nhận trên hoá đơn tạm tính (docs/S3-05-Task1.md).
+    /// - Lý do bắt buộc: khách đổi ý, gọi nhầm hoặc hết nguyên liệu; "Quản lý yêu cầu" chỉ dành cho Quản lý.
+    /// - expectedStatus: trạng thái dòng món lúc mở hộp xác nhận. Bếp đổi trạng thái trong lúc nhân viên chọn lý do → từ chối.
+    /// - Database (dbo.usp_CancelOrderItem, migration 056) kiểm tra lại quyền, dòng món thuộc đúng hoá đơn, lý do và trạng thái
+    ///   mới nhất trong một giao dịch có khoá; Phục vụ chỉ huỷ được món còn chờ bếp. Huỷ trước khi bếp làm thì không tính tiền.
+    /// - Gửi lặp / nhiều người cùng huỷ: chỉ lần đầu được ghi, các lần sau báo "đã được hủy trước đó" (không trừ tiền thêm).
+    /// - S3-05 Task 3: Quản lý huỷ món đang nấu / đã xong (chưa mang ra) với một trong ba lý do và ô xác nhận confirmCharged;
+    ///   món vẫn tính tiền, dòng giữ trên hoá đơn với nhãn "Đã huỷ có tính tiền", bếp nhận thẻ "Dừng món".
+    /// Mỗi lần huỷ thành công ghi nhật ký (dòng món, người thực hiện, thời điểm, lý do). Kết quả hiện ở đầu hoá đơn sau khi tải lại.
     /// </summary>
     [HttpPost("{sessionId:long}/CancelItem/{orderItemId:long}")]
     [ValidateAntiForgeryToken]
     [Authorize(Roles = AppRoles.FrontOfHouse)]
-    public async Task<IActionResult> CancelItem(long sessionId, long orderItemId, string? reason, string? note,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> CancelItem(long sessionId, long orderItemId, string? reason, string? note, string? expectedStatus,
+        CancellationToken cancellationToken, bool confirmCharged = false)
     {
-        if (orderItemId <= 0 || reason is not ("ChangedMind" or "Mistake" or "SoldOut" or "ManagerOverride"))
-        {
-            TempData["Error"] = "Hãy chọn lý do huỷ món hợp lệ.";
-            return RedirectToAction(nameof(Index), new { sessionId });
-        }
-
         var actorUserId = User.ActorUserId();
         if (actorUserId <= 0)
             return Forbid();
 
+        // S3-05 Task 2: mọi yêu cầu bị từ chối (web chặn trước hoặc database từ chối) được ghi vào nhật ký huỷ của ca.
+        var log = new ShiftCancellationStore(ConnectionString);
+        async Task<IActionResult> Refuse(int number, string message)
+        {
+            await log.LogRejectionAsync(orderItemId > 0 ? orderItemId : null, sessionId, actorUserId, reason, number, message);
+            return Back(sessionId, "Error", message);
+        }
+
+        var isManager = User.IsInRole(AppRoles.Manager);
+        if (string.IsNullOrWhiteSpace(reason))
+            return await Refuse(51032, OrderCancelRules.MissingReason);
+        if (!OrderCancelRules.IsAllowed(reason, isManager))
+            return reason == OrderCancelRules.ManagerOverride
+                ? await Refuse(51036, OrderCancelRules.ManagerOnlyReason)
+                : await Refuse(51032, OrderCancelRules.MissingReason);
+        if (orderItemId <= 0 || (expectedStatus is not null && !OrderCancelRules.IsKnownStatus(expectedStatus)))
+            return await Refuse(51037, OrderCancelRules.InvalidRequest);
+        // S3-05 Task 3: huỷ có tính tiền (Quản lý, món đang nấu / đã xong) cần một trong ba lý do và xác nhận rõ "có tính tiền".
+        // Database kiểm tra lại với trạng thái mới nhất (kể cả khi không gửi expectedStatus).
+        if (isManager && OrderCancelRules.IsChargedStatus(expectedStatus))
+        {
+            if (!OrderCancelRules.IsAllowedForCharged(reason))
+                return await Refuse(51142, OrderCancelRules.ChargedReasonRequired);
+            if (!confirmCharged)
+                return await Refuse(51144, OrderCancelRules.ChargedConfirmRequired);
+        }
+
         try
         {
-            await using var connection = new SqlConnection(ConnectionString);
-            await using var command = new SqlCommand("dbo.usp_CancelOrderItem", connection)
-            {
-                CommandType = CommandType.StoredProcedure
-            };
-            command.Parameters.Add("@OrderItemId", SqlDbType.BigInt).Value = orderItemId;
-            command.Parameters.Add("@Reason", SqlDbType.VarChar, 30).Value = reason;
-            command.Parameters.Add("@ActorUserId", SqlDbType.Int).Value = actorUserId;
-            command.Parameters.Add("@Note", SqlDbType.NVarChar, 500).Value = string.IsNullOrWhiteSpace(note)
-                ? DBNull.Value
-                : note.Trim()[..Math.Min(note.Trim().Length, 500)];
-            await connection.OpenAsync(cancellationToken);
-            await command.ExecuteNonQueryAsync(cancellationToken);
-            TempData["Success"] = "Đã huỷ món. Lịch sử huỷ được lưu ngay bên dưới hoá đơn.";
+            var result = await new OrderCancelStore(ConnectionString)
+                .CancelAsync(orderItemId, sessionId, reason, note, expectedStatus, actorUserId, cancellationToken, confirmCharged);
+            // Huỷ thành công đã có nhật ký trong dbo.OrderItemEvents; lần xác nhận lặp (AlreadyCancelled) không ghi thêm.
+            return Back(sessionId, result.AlreadyCancelled ? "Info" : "Success", result.Message);
         }
         catch (SqlException exception) when (exception.Number is >= 51000 and < 51500)
         {
-            TempData["Error"] = exception.Number switch
-            {
-                51001 => "Tài khoản không có quyền huỷ món ở trạng thái này.",
-                51031 => "Món không còn được huỷ vì đã huỷ hoặc phiên đã thanh toán.",
-                51032 => "Lý do huỷ món không hợp lệ.",
-                _ => exception.Message
-            };
+            return await Refuse(exception.Number, OrderCancelRules.RejectionMessage(exception.Number, exception.Message));
         }
+    }
 
+    /// <summary>Về lại hoá đơn (tải lại trạng thái mới nhất của từng dòng và tạm tính) kèm thông báo kết quả.</summary>
+    private RedirectToActionResult Back(long sessionId, string kind, string message)
+    {
+        TempData[kind] = message;
         return RedirectToAction(nameof(Index), new { sessionId });
     }
 

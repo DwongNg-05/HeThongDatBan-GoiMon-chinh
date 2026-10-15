@@ -41,6 +41,10 @@ internal static class ApiAccessMatrix
         // S3-09 Task 1: cảnh báo đặt bàn trễ 15 phút và đánh dấu khách không tới — Quản lý, Phục vụ.
         new("ReservationAlerts.Index GET", FrontOfHouse, "GET", "/api/reservation-alerts"),
         new("ReservationAlerts.MarkNoShow POST", FrontOfHouse, "POST", "/api/reservation-alerts/999999/no-show"),
+        // S3-09 Task 2: gia hạn giữ bàn 15 phút — Quản lý, Phục vụ.
+        new("ReservationAlerts.ExtendHold POST", FrontOfHouse, "POST", "/api/reservation-alerts/999999/extend"),
+        // S3-09 Task 3: tra cứu số lần không tới của số điện thoại trên form tạo đặt bàn — Quản lý, Phục vụ (khách không tra được).
+        new("ReservationAlerts.PhoneHistory POST", FrontOfHouse, "POST", "/api/reservation-alerts/phone-history"),
         new("ReservationConfirmations.Index GET", FrontOfHouse, "GET", "/ReservationConfirmations/Index?id=999999"),
         new("ReservationConfirmations.Details GET", FrontOfHouse, "GET", "/ReservationConfirmations/Details?id=999999"),
         new("ReservationConfirmations.Schedule GET", FrontOfHouse, "GET", "/ReservationConfirmations/Schedule?id=999999"),
@@ -85,6 +89,9 @@ internal static class ApiAccessMatrix
 
         // ---- Quản trị ----
         new("AuditLogs.Index GET", Manager, "GET", "/AuditLogs"),
+        // S3-05 Task 2: báo cáo cuối ca — nhật ký huỷ món (trang và dữ liệu JSON), chỉ Quản lý.
+        new("ShiftReports.Cancellations GET", Manager, "GET", "/Reports/Shift/Cancellations"),
+        new("ShiftReports.CancellationsData GET", Manager, "GET", "/api/reports/shift-cancellations"),
         new("EmployeeAccounts.Index GET", Manager, "GET", "/admin/employee-accounts"),
         new("EmployeeAccounts.Create GET", Manager, "GET", "/admin/employee-accounts/create"),
         new("EmployeeAccounts.Create POST", Manager, "POST", "/admin/employee-accounts/create"),
@@ -142,6 +149,8 @@ internal static class ApiAccessMatrix
         // ---- Bếp (S1-04 Task 2) ----
         new("Kitchen.Index GET", KitchenReaders, "GET", "/Kitchen"),
         new("Kitchen.Advance POST", KitchenWorkers, "POST", $"/Kitchen/Advance/{Missing}"),
+        // S3-05 Task 3: Bếp xác nhận đã dừng món bị huỷ khi đang làm (chỉ tài khoản Bếp).
+        new("Kitchen.StopAck POST", KitchenWorkers, "POST", $"/Kitchen/StopAck/{Missing}"),
         new("Kitchen.Dishes GET", KitchenReaders, "GET", "/Kitchen/Dishes"),
         // S2-08 Task 2: lịch sử bật/tắt "Tạm hết" — chỉ Quản lý.
         new("Kitchen.History GET", Manager, "GET", "/Kitchen/Dishes/History"),
@@ -158,6 +167,8 @@ internal static class ApiAccessMatrix
         // ---- Hoá đơn tạm tính (S3-04 Task 4) ----
         new("ProvisionalBill.Index GET", BillReaders, "GET", $"/ProvisionalBill/{Missing}"),
         new("ProvisionalBill.Table GET", BillReaders, "GET", "/ProvisionalBill/Table/khong-ton-tai"),
+        // S3-05 Task 1: huỷ dòng món trên hoá đơn tạm tính — Quản lý, Phục vụ (Thu ngân chỉ xem hoá đơn, Bếp không mở được).
+        new("ProvisionalBill.CancelItem POST", FrontOfHouse, "POST", $"/ProvisionalBill/{Missing}/CancelItem/{Missing}"),
 
         // ---- Đặt bàn ----
         new("Reservations.Index GET", FrontOfHouse, "GET", "/Reservations"),

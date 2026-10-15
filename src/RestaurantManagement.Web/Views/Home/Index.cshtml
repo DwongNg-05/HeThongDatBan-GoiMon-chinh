@@ -40,6 +40,11 @@
         <h2 class="late-alerts-title" id="late-alerts-title"><span aria-hidden="true">⚠</span> Đặt bàn trễ quá 15 phút, khách chưa tới <span class="late-alerts-count" id="late-alerts-count"></span></h2>
         <ul class="late-alert-list" id="late-alert-list"></ul>
     </section>
+    @* S3-09 Task 2: lượt đang gia hạn giữ bàn — cảnh báo tạm gỡ, hiển thị thời hạn mới; hết hạn thì trở lại khung đỏ phía trên. *@
+    <section class="hold-extensions" id="hold-extensions" aria-labelledby="hold-extensions-title" hidden>
+        <h2 class="hold-extensions-title" id="hold-extensions-title"><span aria-hidden="true">⏱</span> Đang gia hạn giữ bàn <span class="late-alerts-count" id="hold-extensions-count"></span></h2>
+        <ul class="hold-extension-list" id="hold-extension-list"></ul>
+    </section>
 
     @if (Model.LoadError is not null)
     {
@@ -112,8 +117,31 @@
         <span id="details-reservation-guests"></span>
         <time id="details-reservation-time"></time>
     </section>
-    @* S3-04 Task 4: bàn đang có khách → mở hoá đơn tạm tính để đối chiếu ghi chú của từng món khi mang ra. *@
-    <a class="btn btn-outline-primary btn-sm details-bill-link" id="details-bill-link" hidden href="#" data-bill-url="@Url.Content("~/ProvisionalBill/Table/")">Xem hoá đơn tạm tính</a>
+    @* Món đã gọi trong phiên hiện tại, theo đợt gọi. *@
+    <section class="details-orders" id="details-orders" hidden>
+        <div class="details-orders-head"><div class="details-section-title">Món đã gọi</div><span id="details-orders-summary"></span></div>
+        <p class="details-orders-empty" id="details-orders-empty">Phiên này chưa có món nào.</p>
+        <ol class="details-order-batches" id="details-order-batches"></ol>
+    </section>
+
+    @* Gọi thêm món giữa bữa: mở màn hình Gọi món cho ĐÚNG phiên đang mở → món mới là một đợt gọi mới trong cùng phiên,
+       cộng vào cùng hoá đơn (không mở hoá đơn thứ hai). Mã QR để nhân viên quét bằng điện thoại đã đăng nhập. *@
+    <section class="details-add-items" id="details-add-items" hidden>
+        <div class="details-add-items-text">
+            <div class="details-section-title">Gọi thêm món cho phiên đang mở</div>
+            <p id="details-add-items-note">Món gọi thêm được gửi bếp thành đợt mới và cộng vào cùng hoá đơn của bàn — không mở hoá đơn thứ hai.</p>
+            <a class="btn btn-primary btn-sm" id="details-add-items-link" href="#"><i class="fa-solid fa-plus" aria-hidden="true"></i> Gọi thêm món</a>
+        </div>
+        <figure class="details-add-items-qr" id="details-add-items-qr">
+            <img id="details-add-items-qr-img" alt="" width="132" height="132" />
+            <figcaption>Quét bằng điện thoại nhân viên để gọi thêm món</figcaption>
+        </figure>
+    </section>
+
+    <div class="details-actions">
+        @* S3-04 Task 4: bàn đang có khách → mở hoá đơn tạm tính để đối chiếu ghi chú của từng món khi mang ra. *@
+        <a class="btn btn-outline-primary btn-sm details-bill-link" id="details-bill-link" hidden href="#" data-bill-url="@Url.Content("~/ProvisionalBill/Table/")">Xem hoá đơn tạm tính</a>
+    </div>
     <p class="details-source" id="details-source" hidden>Dữ liệu mẫu phát triển</p>
 </section>
 </div>

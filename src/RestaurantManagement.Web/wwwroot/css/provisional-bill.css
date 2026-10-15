@@ -27,16 +27,40 @@
 .provisional-bill-line-meta { display: block; margin-top: 4px; color: #6b7280; font-size: 13px; }
 .provisional-bill-total { font-size: 18px; font-weight: 800; }
 .provisional-bill-action-heading, .provisional-bill-action { min-width: 185px; }
-.provisional-cancel-form { display: grid; gap: 5px; }
-.provisional-cancel-form select, .provisional-cancel-form input { width: 100%; min-height: 31px; padding: 4px 7px; border: 1px solid #cbd5e1; border-radius: 5px; font-size: 12px; }
-.provisional-cancel-form .btn { justify-self: start; }
-.provisional-cancel-locked { display: block; max-width: 190px; color: #9a6700; font-size: 12px; line-height: 1.35; }
+/* S3-05 Task 1: nút huỷ mở hộp xác nhận; nút của Phục vụ bị vô hiệu khi bếp đã bắt đầu, kèm lý do ngay dưới. */
+.provisional-cancel-disabled { cursor: not-allowed; }
+.provisional-cancel-locked { display: block; max-width: 210px; margin-top: 4px; color: #9a6700; font-size: 12px; line-height: 1.35; }
+.provisional-cancel-dialog { width: min(460px, calc(100% - 32px)); max-width: none; padding: 0; border: 0; border-radius: 12px; box-shadow: 0 18px 48px rgba(15, 23, 42, .28); }
+.provisional-cancel-dialog::backdrop { background: rgba(15, 23, 42, .45); }
+.provisional-cancel-dialog-form { display: grid; gap: 10px; padding: 18px 20px 16px; }
+.provisional-cancel-dialog h3 { margin: 0; font-size: 19px; }
+.provisional-cancel-dialog-item { margin: 0; font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
+.provisional-cancel-dialog-free, .provisional-cancel-dialog-charge { margin: 0; padding: 7px 10px; border-radius: 7px; font-size: 13px; line-height: 1.4; }
+.provisional-cancel-dialog-free { background: #ecfdf5; color: #065f46; }
+.provisional-cancel-dialog-charge { background: #fffbeb; color: #92400e; }
+.provisional-cancel-reasons { display: grid; gap: 6px; margin: 0; padding: 0; border: 0; }
+.provisional-cancel-reasons legend { margin-bottom: 4px; font-size: 14px; font-weight: 700; }
+.provisional-cancel-required { color: #b3122e; font-weight: 600; }
+.provisional-cancel-reason { display: flex; align-items: center; gap: 9px; min-height: 40px; padding: 7px 10px; border: 1px solid #d1d5db; border-radius: 8px; cursor: pointer; font-size: 15px; }
+.provisional-cancel-reason:has(input:checked) { border-color: #b3122e; background: #fff1f2; }
+.provisional-cancel-reason input { width: 18px; height: 18px; margin: 0; accent-color: #b3122e; }
+.provisional-cancel-note-label { margin: 2px 0 -4px; font-size: 13px; color: #4b5563; }
+.provisional-cancel-dialog-error { margin: 0; color: #b3122e; font-size: 13px; font-weight: 600; }
+.provisional-cancel-dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.provisional-cancel-dialog-actions .btn { min-height: 40px; }
+@media (max-width: 575.98px) { .provisional-cancel-dialog-actions .btn { flex: 1 1 0; } }
 .provisional-cancel-info { margin-top: 5px; color: #8b1d2c; font-size: 13px; line-height: 1.35; }
 .provisional-cancel-history { margin: 18px 0; padding: 14px 16px; border: 1px solid #fecaca; border-radius: 8px; background: #fff7f7; }
 .provisional-cancel-history h3 { margin: 0 0 8px; font-size: 16px; }
 .provisional-cancel-history ul { margin: 0; padding-left: 20px; }
 .provisional-cancel-history li { margin: 6px 0; overflow-wrap: anywhere; }
 .provisional-cancel-charge { display: inline-block; margin-left: 5px; color: #9a6700; font-weight: 600; }
+/* S3-05 Task 3: huỷ có tính tiền — lý do "Quản lý yêu cầu" ẩn, ô xác nhận bắt buộc, nhãn "Đã huỷ có tính tiền" trên dòng món. */
+.provisional-cancel-reason[hidden], .provisional-cancel-charged-confirm[hidden] { display: none; }
+.provisional-cancel-charged-confirm { display: flex; align-items: flex-start; gap: 9px; margin: 0; padding: 8px 10px; border: 1px solid #f59e0b; border-radius: 8px; background: #fffbeb; color: #92400e; font-size: 14px; line-height: 1.4; cursor: pointer; }
+.provisional-cancel-charged-confirm input { flex: none; width: 18px; height: 18px; margin: 1px 0 0; accent-color: #b45309; }
+.provisional-cancel-charged-badge { background: #fef3c7; color: #92400e; border: 1px solid #f59e0b; font-weight: 600; white-space: normal; }
+.provisional-cancel-info-charged { color: #92400e; }
 
 /* Món đã huỷ: vẫn giữ dòng và ghi chú để đối chiếu, nhưng mờ đi và gạch tên món. */
 .provisional-bill-cancelled .provisional-bill-name { text-decoration: line-through; color: #6b7280; }
@@ -63,7 +87,7 @@
 }
 
 @media print {
-    .provisional-bill-actions, .admin-sidebar, .workspace-header, .skip-navigation { display: none !important; }
+    .provisional-bill-actions, .admin-sidebar, .workspace-header, .skip-navigation, .provisional-cancel-dialog { display: none !important; }
     .admin-workspace { margin-left: 0 !important; }
     .provisional-bill { max-width: none; margin: 0 !important; }
     .provisional-bill-requests { background: none; border-left-color: #000; }

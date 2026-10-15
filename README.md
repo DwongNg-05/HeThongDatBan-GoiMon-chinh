@@ -271,9 +271,29 @@ Không cần migration mới (dùng cột `QuickNotes` của Task 2). Trên **M�
 
 Chạy `migrate` để áp dụng `048_S304KeepOrderNotes.sql`. Phục vụ mở **Sơ đồ bàn**, bấm bàn đang có khách rồi bấm **Xem hoá đơn tạm tính**; Thu ngân mở từ trang **Thanh toán**. Hoá đơn hiển thị mỗi dòng đơn là một dòng riêng, nên các dòng cùng món không bị gộp. Ngay dưới tên món là lựa chọn nhanh và ghi chú, đọc từ đúng hai cột mà màn hình bếp đọc. Trigger trong database chặn sửa ghi chú đã gửi bếp, nên khi đơn được cập nhật hay hoá đơn được mở lại, nội dung vẫn giữ nguyên. Chi tiết: [docs/S3-04-Task4.md](docs/S3-04-Task4.md).
 
+## S3-05 Task 1 — huỷ món đang chờ bếp
+
+Chạy `migrate` để áp dụng `056_S305CancelOrderItem.sql`. Trên **Hoá đơn tạm tính**, Phục vụ bấm **Hủy món** ở dòng còn chờ bếp. Hộp xác nhận bắt buộc chọn một lý do (khách đổi ý, gọi nhầm, hết nguyên liệu) và không chọn sẵn. Huỷ xong, dòng không còn tính tiền, tạm tính giảm đúng số tiền của dòng, và món rời màn hình bếp ở lần tải lại kế tiếp (mỗi 3 giây). Món bếp đã bắt đầu thì nút của Phục vụ bị vô hiệu kèm lý do. Nếu bếp bắt đầu nấu trong lúc nhân viên đang chọn lý do, máy chủ từ chối và hoá đơn hiện trạng thái mới. Mỗi lần huỷ được ghi nhật ký (dòng món, người huỷ, thời điểm, lý do); bấm lặp hay nhiều người cùng bấm chỉ huỷ và trừ tiền một lần. Quy tắc cần PO chốt, demo và kiểm thử (`verify-cancel-item`): [docs/S3-05-Task1.md](docs/S3-05-Task1.md).
+
+## S3-05 Task 2 — báo cáo huỷ món cuối ca
+
+Chạy `migrate` để áp dụng `057_S305ShiftCancellationReport.sql`. Quản lý mở **Báo cáo huỷ món** (`/Reports/Shift/Cancellations`, hoặc liên kết trên màn hình **Chốt ca**) và chọn ca. Báo cáo liệt kê mọi lần huỷ món của ca: huỷ thành công và yêu cầu bị từ chối. Mỗi mục có đơn (hoá đơn, bàn, đợt), dòng món, người thực hiện, thời điểm, lý do và cách tính tiền (không tính tiền, vẫn tính tiền, hoặc không đổi). Ca không có lần huỷ nào hiện "Ca này không có lần huỷ món nào."; lỗi database hiện thông báo không tải được báo cáo. Chỉ Quản lý xem được, cả trang lẫn API `/api/reports/shift-cancellations`. Quy tắc cần PO chốt, demo và kiểm thử (`verify-cancel-report`): [docs/S3-05-Task2.md](docs/S3-05-Task2.md).
+
+## S3-05 Task 3 — Quản lý huỷ món đã bắt đầu chế biến (vẫn tính tiền)
+
+Chạy `migrate` để áp dụng `058_S305ChargedCancellation.sql`. Trên **Hoá đơn tạm tính**, Quản lý bấm **Hủy có tính tiền** ở món đang nấu hoặc đã xong (món đã mang ra không huỷ được). Hộp xác nhận bắt buộc chọn một trong ba lý do và đánh dấu ô xác nhận huỷ có tính tiền. Dòng món giữ trên hoá đơn với nhãn “Đã huỷ có tính tiền”; tạm tính và hoá đơn không giảm. Màn hình bếp gỡ món và hiện thẻ “DỪNG MÓN” trong vòng 5 giây, cho tới khi Bếp bấm **Đã dừng món**. Lần huỷ vào nhật ký và báo cáo cuối ca. Quy tắc cần PO chốt, demo và kiểm thử (`verify-charged-cancel`): [docs/S3-05-Task3.md](docs/S3-05-Task3.md).
+
 ## S3-09 Task 1 — cảnh báo đặt bàn trễ 15 phút, đánh dấu khách không tới
 
 Chạy `migrate` để áp dụng `049_S309LateReservationNoShow.sql`. Từ đúng mốc giờ hẹn + 15 phút, lượt **Chờ xác nhận** hoặc **Đã xác nhận** mà khách chưa tới sẽ tự hiện cảnh báo đỏ trên **Sơ đồ bàn** và **Danh sách đặt bàn**, không cần tải lại trang. Phục vụ hoặc Quản lý bấm **Khách không tới**: một giao dịch đổi lượt sang "Khách không tới", giải phóng bàn (bàn hiện Trống ngay) và ghi thêm một lần vào lịch sử số điện thoại (`dbo.ReservationNoShowHistory`). Bấm lặp hoặc nhiều người cùng bấm chỉ được ghi một lần. Khách đã được đánh dấu tới thì không bị giải phóng bàn nhầm. Quy tắc cần PO chốt, demo và kiểm thử (`verify-late-reservations`): [docs/S3-09-Task1.md](docs/S3-09-Task1.md).
+
+## S3-09 Task 2 — gia hạn giữ bàn 15 phút (một lần)
+
+Chạy `migrate` để áp dụng `054_S309ExtendReservationHold.sql`. Lượt đang có cảnh báo trễ mà chưa gia hạn có thêm nút **Gia hạn 15 phút** (Sơ đồ bàn và Danh sách đặt bàn). Gia hạn xong, cảnh báo được gỡ và hai màn hình hiện "Gia hạn giữ bàn tới HH:mm" (bàn vẫn Đã đặt trước). Hết hạn mà khách chưa tới thì cảnh báo tự hiện lại, không gia hạn lần hai được (kể cả bấm lặp hay nhiều người cùng bấm) nhưng vẫn **Khách không tới** được. Khách tới trong thời gian gia hạn thì không bị cảnh báo. Quy tắc thời hạn (đề xuất: lúc bấm + 15 phút, cần PO chốt), demo và kiểm thử (`verify-hold-extension`): [docs/S3-09-Task2.md](docs/S3-09-Task2.md).
+
+## S3-09 Task 3 — cảnh báo số điện thoại nhiều lần không tới
+
+Chạy `migrate` để áp dụng `055_S309PhoneNoShowWarning.sql`. Khi Quản lý hoặc Phục vụ tạo đặt bàn (form **Đặt bàn** khi đã đăng nhập, hoặc **Tạo lượt thủ công**), nhập hay đổi số điện thoại là hệ thống tra số lần khách không tới trong 90 ngày (theo số đã chuẩn hoá). Có ít nhất 3 lần thì hiện cảnh báo kèm số lần, và phải đánh dấu ô xác nhận mới tạo được. Máy chủ đếm lại khi gửi form, nên lịch sử vừa tăng trong lúc điền form vẫn bị phát hiện. Khách tự đặt không thấy lịch sử của số điện thoại và không bị chặn. Quy tắc cửa sổ 90 ngày và mốc biên (cần PO chốt), demo và kiểm thử (`verify-phone-no-show`): [docs/S3-09-Task3.md](docs/S3-09-Task3.md).
 
 ## S3-08 Task 1 — món vừa xong hiện ở danh sách chờ, xác nhận đã mang ra
 
@@ -282,3 +302,7 @@ Không cần migration mới. Khi Bếp bấm “Đã xong”, món hiện trên
 ## S3-08 Task 2 — cảnh báo món chờ quá 5 phút
 
 Không cần migration mới. Phục vụ (và Quản lý) mở **Món chờ mang ra** (`/Serving`) để thấy các món Bếp đã nấu xong nhưng chưa mang ra, sắp theo thời điểm hoàn thành (món xong trước ở trên). Đồng hồ “Đã chờ” tính từ lúc Bếp bấm “Đã xong” và chạy mỗi giây. Món chờ quá 5 phút được tô đỏ kèm nhãn “Chờ quá 5 phút” ngay trên danh sách, không đổi thứ tự. Bấm **Đã mang ra** thì món rời danh sách và không còn bị cảnh báo. Trang tự cập nhật mỗi 3 giây. Quy tắc cần PO chốt, demo và kiểm thử (`node --test tools/tests/serving-queue.test.cjs`, `verify-api-permissions`): [docs/Mon-cho-mang-ra.md](docs/Mon-cho-mang-ra.md).
+
+## Đồng bộ tên bảng sang tiếng Anh
+
+Chạy `migrate` để áp dụng `052_EnglishOrderingCartTableNames.sql`. Hai bảng giỏ món của màn hình Gọi món đổi tên: `dbo.DonHangs` → `dbo.Orders`, `dbo.DongHangs` → `dbo.OrderLines`; khoá chính, khoá ngoại, ràng buộc và chỉ mục cũng đổi theo (`PK_Orders`, `FK_OrderLines_Orders`, `CK_OrderLines_Quantity`, `IX_OrderLines_OrderId`). Dữ liệu, cột và quyền giữ nguyên. EF (`RestaurantDbContext`) ánh xạ `Order` → `Orders`, `OrderLine` → `OrderLines`. Sau bước này database không còn bảng nào mang tên tiếng Việt. Dừng website trước khi `migrate`, rồi khởi động lại.

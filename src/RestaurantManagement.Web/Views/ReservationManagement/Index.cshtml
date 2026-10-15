@@ -8,7 +8,7 @@
          data-date="@Model.ToString("yyyy-MM-dd")"
          data-follow-today="true"
          data-reservation-alerts-api="@Url.Content("~/api/reservation-alerts")">
-    @* S3-09 Task 1: mã chống giả mạo cho thao tác "Đánh dấu khách không tới" (reservation-no-show.js). *@
+    @* S3-09 Task 1–2: mã chống giả mạo cho "Đánh dấu khách không tới" và "Gia hạn 15 phút" (reservation-no-show.js). *@
     @Html.AntiForgeryToken()
     <partial name="_ReservationManagementTabs" />
     <header class="staff-page-head">
@@ -47,7 +47,7 @@
 
     <div class="staff-list-meta">
         <p class="staff-list-date"><i class="fa-regular fa-calendar" aria-hidden="true"></i> Ngày <strong id="viewing-date">@Model.ToString("dd/MM/yyyy")</strong> · Giờ Việt Nam (UTC+7)</p>
-        <p class="staff-list-note">Lượt trễ quá 15 phút hiện đầu danh sách (màu đỏ), tiếp theo là lượt sắp đến trong 30 phút. Tự cập nhật mỗi 30 giây. <span id="reservation-updated" role="status"></span></p>
+        <p class="staff-list-note">Lượt trễ quá 15 phút hiện đầu danh sách (màu đỏ), tiếp theo là lượt đang gia hạn giữ bàn (kèm thời hạn mới) và lượt sắp đến trong 30 phút. Tự cập nhật mỗi 30 giây. <span id="reservation-updated" role="status"></span></p>
     </div>
     <div id="reservation-loading" class="staff-loading" role="status">Đang tải danh sách đặt bàn…</div>
     <div id="reservation-error" class="alert alert-danger" role="alert" hidden>

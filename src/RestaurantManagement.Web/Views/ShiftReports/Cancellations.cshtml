@@ -1,0 +1,99 @@
+@using RestaurantManagement.Web.Models.Orders
+@using RestaurantManagement.Web.Models.Cashier
+@model ShiftCancellationPage
+@{
+    ViewData["Title"] = "Báo cáo huỷ món theo ca";
+    var report = Model.Report;
+}
+@* S3-05 Task 2: báo cáo cuối ca — mọi lần huỷ món của một ca (huỷ thành công và yêu cầu bị từ chối). Chỉ Quản lý. *@
+<div class="container mt-4" data-screen="shift-cancellations">
+    <h2>Báo cáo huỷ món theo ca</h2>
+    <p class="text-muted">
+        Mọi lần huỷ món của ca: huỷ thành công và yêu cầu huỷ bị từ chối. Ca của một lần huỷ là ca của phiên phục vụ chứa món đó.
+        Giờ theo giờ Việt Nam (UTC+7). Nhật ký chỉ để xem, không sửa hoặc xoá được.
+    </p>
+
+    @if (Model.Shifts.Count > 0)
+    {
+        <form method="get" action="/Reports/Shift/Cancellations" class="row g-2 align-items-end mb-3" id="shift-cancellations-filter">
+            <div class="col-sm-8 col-lg-6">
+                <label for="shiftId" class="form-label">Ca</label>
+                <select id="shiftId" name="shiftId" class="form-select">
+                    @foreach (var shift in Model.Shifts)
+                    {
+                        <option value="@shift.Id" selected="@(shift.Id == Model.SelectedShiftId)">@shift.Label</option>
+                    }
+                </select>
+            </div>
+            <div class="col-sm-4 col-lg-2"><button type="submit" class="btn btn-primary w-100">Xem</button></div>
+        </form>
+    }
+
+    @if (Model.Error is { } error)
+    {
+        <div class="alert alert-danger" role="alert" id="shift-cancellations-error">
+            @error
+            <a class="alert-link ms-2" href="/Reports/Shift/Cancellations@(Model.SelectedShiftId is { } sid ? "?shiftId=" + sid : "")">Tải lại</a>
+        </div>
+    }
+    else if (Model.Shifts.Count == 0)
+    {
+        <div class="alert alert-info" role="status" id="shift-cancellations-no-shift">Chưa có ca nào. Mở ca ở màn hình Chốt ca để bắt đầu ghi nhận.</div>
+    }
+    else if (report is not null)
+    {
+        <section data-shift-id="@report.Shift.Id" data-shift-status="@report.Shift.Status">
+            <h3 class="h5">@report.Shift.Label</h3>
+            <dl class="row" id="shift-cancellations-summary" data-cancelled="@report.CancelledCount" data-rejected="@report.RejectedCount"
+                data-free="@report.FreeAmount.ToString("0")" data-charged="@report.ChargedAmount.ToString("0")">
+                <dt class="col-sm-5">Số lần huỷ thành công</dt><dd class="col-sm-7">@report.CancelledCount</dd>
+                <dt class="col-sm-5">Số yêu cầu huỷ bị từ chối</dt><dd class="col-sm-7">@report.RejectedCount</dd>
+                <dt class="col-sm-5">Huỷ không tính tiền (đã trừ khỏi hoá đơn)</dt><dd class="col-sm-7">@Vnd.Format(report.FreeAmount)</dd>
+                <dt class="col-sm-5">Huỷ nhưng vẫn tính tiền</dt><dd class="col-sm-7">@Vnd.Format(report.ChargedAmount)</dd>
+            </dl>
+
+            @if (report.Entries.Count == 0)
+            {
+                <div class="alert alert-secondary" role="status" id="shift-cancellations-empty">Ca này không có lần huỷ món nào.</div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table align-middle" id="shift-cancellations-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Thời điểm</th>
+                                <th scope="col">Kết quả</th>
+                                <th scope="col">Đơn</th>
+                                <th scope="col">Dòng món</th>
+                                <th scope="col">Người thực hiện</th>
+                                <th scope="col">Lý do</th>
+                                <th scope="col">Tính tiền</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var entry in report.Entries)
+                            {
+                                <tr data-kind="@entry.Kind" data-order-item-id="@entry.OrderItemId" data-charge="@entry.ChargeKind">
+                                    <td class="text-nowrap"><time datetime="@entry.OccurredAtUtc.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")">@entry.OccurredAtLabel</time></td>
+                                    <td>
+                                        <span class="badge @(entry.ChargeKind == "charged" ? "bg-danger" : entry.IsCancelled ? "bg-secondary" : "bg-warning text-dark")">@entry.KindLabel</span>
+                                        @if (entry.Message is { } message)
+                                        {
+                                            <div class="small text-muted mt-1">@message</div>
+                                        }
+                                    </td>
+                                    <td>@entry.OrderLabel</td>
+                                    <td>@entry.LineLabel</td>
+                                    <td>@entry.ActorLabel</td>
+                                    <td>@entry.ReasonLabel</td>
+                                    <td>@entry.ChargeLabel</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    }
+</div>

@@ -13,7 +13,7 @@ public sealed class TableMapController(ITableMapReader reader, ILogger<TableMapC
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
         try { return View(await reader.ReadAsync(cancellationToken)); }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { return StatusCode(StatusCodes.Status499ClientClosedRequest); }
         catch (Exception exception)
         {
             logger.LogError(exception, "Unable to load table map");
@@ -27,7 +27,7 @@ public sealed class TableMapController(ITableMapReader reader, ILogger<TableMapC
     public async Task<IActionResult> Snapshot(CancellationToken cancellationToken)
     {
         try { return Ok(await reader.ReadAsync(cancellationToken)); }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { return StatusCode(StatusCodes.Status499ClientClosedRequest); }
         catch (Exception exception)
         {
             logger.LogError(exception, "Unable to load table-map snapshot");
@@ -45,7 +45,7 @@ public sealed class TableMapController(ITableMapReader reader, ILogger<TableMapC
         catch (ArgumentOutOfRangeException) { return Conflict(new { message = "Dữ liệu đã được đặt lại. Vui lòng tải lại sơ đồ." }); }
         catch (Microsoft.Data.SqlClient.SqlException exception) when (exception.Number == 52001)
         { return Conflict(new { message = "Dữ liệu đã được đặt lại. Vui lòng tải lại sơ đồ." }); }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { return StatusCode(StatusCodes.Status499ClientClosedRequest); }
         catch (Exception exception)
         {
             logger.LogError(exception, "Unable to load table-map changes");

@@ -328,6 +328,10 @@ public class ReservationsController : Controller
         }
         model.TableId = null;
 
+        // S3-09 Task 3: chuẩn hoá số điện thoại ("0901 234 567", "+84 901 234 567"… → "0901234567") trước khi kiểm tra,
+        // để lịch sử không tới và mọi lượt đặt của cùng khách dùng chung một chuỗi.
+        PhoneNoShowGuard.NormalizePhone(ModelState, model);
+
         // Luôn load lại danh sách khu vực
         await LoadActiveAreas(model);
 
@@ -357,6 +361,17 @@ public class ReservationsController : Controller
 
                 return View(model);
             }
+        }
+
+
+        // =====================================================
+        // S3-09 Task 3: NHÂN VIÊN ĐẶT HỘ KHÁCH — KIỂM TRA LẠI LỊCH SỬ KHÔNG TỚI LÚC GỬI
+        // (khách tự đặt không đăng nhập: không tra cứu, không lộ lịch sử của số điện thoại)
+        // =====================================================
+
+        if (await PhoneNoShowGuard.RequireConfirmationAsync(User, ModelState, model, ConnectionString, HttpContext.RequestAborted))
+        {
+            return View(model);
         }
 
 

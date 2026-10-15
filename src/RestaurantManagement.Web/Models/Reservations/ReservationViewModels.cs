@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace RestaurantManagement.Web.Models.Reservations;
 
-public class ReservationCreateViewModel : IValidatableObject
+public class ReservationCreateViewModel : IValidatableObject, IPhoneNoShowForm
 {
     [Required(ErrorMessage = "Vui lòng nhập tên khách hàng.")]
     [StringLength(100)]
@@ -15,6 +15,15 @@ public class ReservationCreateViewModel : IValidatableObject
         ErrorMessage = "Số điện thoại phải gồm 10 chữ số.")]
     [Display(Name = "Số điện thoại")]
     public string Phone { get; set; } = string.Empty;
+
+    // S3-09 Task 3: cảnh báo số điện thoại có ít nhất 3 lần khách không tới trong 90 ngày (chỉ khi nhân viên tạo đặt bàn).
+    [Display(Name = PhoneNoShowRules.ConfirmationLabel)]
+    public bool NoShowWarningConfirmed { get; set; }
+
+    public int NoShowCountAcknowledged { get; set; }
+
+    [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]
+    public PhoneNoShowSummary? PhoneWarning { get; set; }
 
     [Range(
         1,

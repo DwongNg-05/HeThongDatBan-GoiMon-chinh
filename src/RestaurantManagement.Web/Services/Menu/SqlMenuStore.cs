@@ -217,10 +217,10 @@ namespace RestaurantManagement.Web.Services
 
         public Order CreateOrder()
         {
-            var dh = new Order { CreatedAt = DateTime.UtcNow, IsOpen = true };
-            _db.Orders.Add(dh);
+            var order = new Order { CreatedAt = DateTime.UtcNow, IsOpen = true };
+            _db.Orders.Add(order);
             _db.SaveChanges();
-            return dh;
+            return order;
         }
 
         public Order? GetOrder(int orderId) =>

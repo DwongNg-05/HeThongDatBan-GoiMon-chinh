@@ -1,5 +1,6 @@
 @model RestaurantManagement.Web.Models.Orders.ProvisionalBillViewModel
 @using RestaurantManagement.Web.Models.Cashier
+@using RestaurantManagement.Web.Models.Orders
 @using RestaurantManagement.Web.Models.Reservations
 @using RestaurantManagement.Web.Security
 @{
@@ -7,6 +8,8 @@
     var backToCashier = User.IsInRole(AppRoles.Cashier) && !User.IsInRole(AppRoles.Waiter) && !User.IsInRole(AppRoles.Manager);
     var isManager = User.IsInRole(AppRoles.Manager);
     var isWaiter = User.IsInRole(AppRoles.Waiter);
+    // S3-05 Task 1: Quản lý, Phục vụ huỷ món qua hộp xác nhận (lý do bắt buộc); Thu ngân chỉ xem.
+    var canCancel = (isManager || isWaiter) && !Model.IsClosed;
     var position = 0;
 }
 @section Styles {
@@ -18,6 +21,10 @@
     @if (TempData["Success"] is string success)
     {
         <div class="alert alert-success" role="status">@success</div>
+    }
+    @if (TempData["Info"] is string info)
+    {
+        <div class="alert alert-info" role="status">@info</div>
     }
     @if (TempData["Error"] is string error)
     {
@@ -85,8 +92,8 @@
                                 </small>
                                 @if (line.IsCancelled)
                                 {
-                                    <div class="provisional-cancel-info">
-                                        <strong>Đã hủy: @line.CancelReasonLabel</strong>
+                                    <div class="provisional-cancel-info@(line.IsChargedCancellation ? " provisional-cancel-info-charged" : "")">
+                                        <strong>@(line.IsChargedCancellation ? OrderCancelRules.ChargedLabel : "Đã hủy"): @line.CancelReasonLabel</strong>
                                         @if (line.CancellationNote is not null) { <span> · @line.CancellationNote</span> }
                                     </div>
                                 }
@@ -95,33 +102,37 @@
                             <td class="text-end text-nowrap provisional-bill-price">@Vnd.Format(line.UnitPrice)</td>
                             <td class="text-end text-nowrap fw-semibold provisional-bill-amount">@(line.IsCharged ? Vnd.Format(line.LineTotal) : "—")</td>
                             <td class="provisional-bill-action">
-                                @if (line.IsCancelled)
+                                @* S3-05 Task 1: nút mở hộp xác nhận huỷ (chọn lý do bắt buộc). Phục vụ chỉ huỷ món còn chờ bếp: món bếp đã
+                                   bắt đầu thì nút bị vô hiệu kèm lý do. Máy chủ vẫn kiểm tra lại trạng thái mới nhất khi xác nhận. *@
+                                @* S3-05 Task 3: Quản lý huỷ được món đang nấu / đã xong (có tính tiền); món đã mang ra thì không. *@
+                                @if (line.IsChargedCancellation)
+                                {
+                                    <span class="badge provisional-cancel-charged-badge" data-charged-cancelled="@line.Id">@OrderCancelRules.ChargedLabel</span>
+                                }
+                                else if (line.IsCancelled)
                                 {
                                     <span class="text-muted small">Đã hủy</span>
                                 }
-                                else if (isManager || (isWaiter && line.Status == "Pending"))
+                                else if (!canCancel)
                                 {
-                                    <form method="post" asp-action="CancelItem" asp-route-sessionId="@Model.SessionId" asp-route-orderItemId="@line.Id" class="provisional-cancel-form">
-                                        @Html.AntiForgeryToken()
-                                        <label class="visually-hidden" for="reason-@line.Id">Lý do hủy @line.ItemName</label>
-                                        <select id="reason-@line.Id" name="reason" required aria-label="Lý do hủy @line.ItemName">
-                                            <option value="ChangedMind">Khách đổi ý</option>
-                                            <option value="Mistake">Gọi nhầm món</option>
-                                            <option value="SoldOut">Hết nguyên liệu</option>
-                                            @if (isManager) { <option value="ManagerOverride">Quản lý yêu cầu</option> }
-                                        </select>
-                                        <label class="visually-hidden" for="note-@line.Id">Ghi chú hủy @line.ItemName</label>
-                                        <input id="note-@line.Id" name="note" maxlength="500" placeholder="Ghi chú (không bắt buộc)" aria-label="Ghi chú hủy @line.ItemName" />
-                                        <button type="submit" class="btn btn-outline-danger btn-sm">Hủy món</button>
-                                    </form>
+                                    <span class="text-muted small">—</span>
                                 }
-                                else if (isWaiter)
+                                else if (isManager ? OrderCancelRules.ManagerCanCancel(line.Status) : OrderCancelRules.WaiterCanCancel(line.Status))
                                 {
-                                    <span class="provisional-cancel-locked">Bếp đã nhận món; chỉ quản lý được hủy và món vẫn tính tiền.</span>
+                                    <button type="button" class="btn btn-outline-danger btn-sm provisional-cancel-open" aria-haspopup="dialog"
+                                            data-cancel-item="@line.Id"
+                                            data-cancel-url="@Url.Action("CancelItem", new { sessionId = Model.SessionId, orderItemId = line.Id })"
+                                            data-cancel-name="@line.ItemName"
+                                            data-cancel-quantity="@line.Quantity @line.Unit"
+                                            data-cancel-amount="@Vnd.Format(line.LineTotal)"
+                                            data-cancel-status="@line.Status"
+                                            data-cancel-charged="@(OrderCancelRules.IsChargedStatus(line.Status) ? "true" : "false")">@(OrderCancelRules.IsChargedStatus(line.Status) ? "Hủy có tính tiền" : "Hủy món")</button>
                                 }
                                 else
                                 {
-                                    <span class="text-muted small">—</span>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm provisional-cancel-disabled" disabled
+                                            aria-describedby="cancel-locked-@line.Id" data-cancel-locked="@line.Id">Hủy món</button>
+                                    <small class="provisional-cancel-locked" id="cancel-locked-@line.Id">@(isManager ? line.ManagerLockedReason : line.WaiterLockedReason)</small>
                                 }
                             </td>
                         </tr>
@@ -147,7 +158,7 @@
                             · @(line.CancelledByName ?? "Không rõ người thực hiện")
                             @if (line.CancelledAt is not null) { <text> · @line.CancelledAt.Value.ToString("HH:mm dd/MM/yyyy")</text> }
                             @if (!string.IsNullOrWhiteSpace(line.CancellationNote)) { <span> · Ghi chú: @line.CancellationNote</span> }
-                            @if (line.IsCharged) { <span class="provisional-cancel-charge">Món này vẫn tính tiền vì bếp đã bắt đầu xử lý.</span> }
+                            @if (line.IsCharged) { <span class="provisional-cancel-charge">@OrderCancelRules.ChargedLabel — món vẫn tính tiền vì bếp đã bắt đầu xử lý.</span> }
                         </li>
                     }
                 </ul>
@@ -155,9 +166,52 @@
         }
         <p class="text-muted small">Chưa trừ giảm giá. Số tiền chính thức theo hoá đơn khi thanh toán. Giờ Việt Nam (UTC+7); xem lúc @VietnamTime.Now.ToString("HH:mm dd/MM/yyyy").</p>
     }
+
+    @if (canCancel && Model.Lines.Any(l => !l.IsCancelled))
+    {
+        @* S3-05 Task 1: hộp xác nhận huỷ món (provisional-bill-cancel.js). Không chọn sẵn lý do: nút "Xác nhận hủy" chỉ bật khi đã chọn.
+           expectedStatus = trạng thái dòng món lúc mở hộp; bếp đổi trạng thái trong lúc chọn lý do thì máy chủ từ chối. *@
+        <dialog class="provisional-cancel-dialog" id="cancel-item-dialog" aria-labelledby="cancel-dialog-title" aria-describedby="cancel-dialog-item">
+            <form method="post" id="cancel-item-form" class="provisional-cancel-dialog-form">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="expectedStatus" id="cancel-expected-status" value="" />
+                <h3 id="cancel-dialog-title">Hủy món</h3>
+                <p class="provisional-cancel-dialog-item" id="cancel-dialog-item"></p>
+                <p class="provisional-cancel-dialog-free" id="cancel-dialog-free" hidden>Món còn chờ bếp: sau khi hủy, món <strong>không tính tiền</strong> và biến mất khỏi màn hình bếp.</p>
+                <p class="provisional-cancel-dialog-charge" id="cancel-dialog-charge" hidden>Bếp đã bắt đầu xử lý món này: sau khi hủy, món <strong>vẫn tính tiền</strong>, dòng món giữ trên hoá đơn với nhãn “@OrderCancelRules.ChargedLabel” và bếp nhận thông báo dừng món.</p>
+                <fieldset class="provisional-cancel-reasons">
+                    <legend>Lý do hủy <span class="provisional-cancel-required">(bắt buộc)</span></legend>
+                    @foreach (var option in OrderCancelRules.ReasonsFor(isManager))
+                    {
+                        @* S3-05 Task 3: huỷ có tính tiền chỉ có ba lý do — "Quản lý yêu cầu" bị ẩn khi bếp đã bắt đầu. *@
+                        <label class="provisional-cancel-reason" data-reason-charged="@(OrderCancelRules.IsAllowedForCharged(option.Code) ? "true" : "false")"><input type="radio" name="reason" value="@option.Code" required /> @option.Label</label>
+                    }
+                </fieldset>
+                @if (isManager)
+                {
+                    <label class="provisional-cancel-charged-confirm" id="cancel-dialog-charged-confirm" hidden>
+                        <input type="checkbox" name="confirmCharged" value="true" id="cancel-confirm-charged" disabled />
+                        Tôi xác nhận <strong>hủy có tính tiền</strong>: món vẫn tính <span id="cancel-dialog-charged-amount"></span> trên tạm tính và hoá đơn.
+                    </label>
+                }
+                <label class="provisional-cancel-note-label" for="cancel-dialog-note">Ghi chú (không bắt buộc)</label>
+                <input class="form-control form-control-sm" id="cancel-dialog-note" name="note" maxlength="500" autocomplete="off" />
+                <p class="provisional-cancel-dialog-error" id="cancel-dialog-error" role="alert" hidden
+                   data-missing-reason="@OrderCancelRules.MissingReason" data-missing-confirm="@OrderCancelRules.ChargedConfirmRequired">@OrderCancelRules.MissingReason</p>
+                <div class="provisional-cancel-dialog-actions">
+                    <button type="button" class="btn btn-outline-secondary" data-cancel-dismiss>Không hủy</button>
+                    <button type="submit" class="btn btn-danger" data-cancel-confirm disabled>Xác nhận hủy</button>
+                </div>
+            </form>
+        </dialog>
+    }
 </div>
 @section Scripts {
     <script>
         document.querySelector('[data-bill-print]')?.addEventListener('click', () => window.print());
     </script>
+    @if (canCancel)
+    {
+        <script src="~/js/provisional-bill-cancel.js" asp-append-version="true"></script>
+    }
 }

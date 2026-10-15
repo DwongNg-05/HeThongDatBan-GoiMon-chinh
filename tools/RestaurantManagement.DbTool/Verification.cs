@@ -41,7 +41,8 @@ internal static class Verification
             await Reject(connection, "No skipped kitchen states", "EXEC dbo.usp_TransitionOrderItem @OrderItemId=1,@ToStatus='Ready',@ActorUserId=3;", 51030);
             await Reject(connection, "Waiter cannot change kitchen states", "EXEC dbo.usp_TransitionOrderItem @OrderItemId=1,@ToStatus='Preparing',@ActorUserId=2;", 51001);
             await DatabaseTool.Execute(connection, "EXEC dbo.usp_TransitionOrderItem @OrderItemId=1,@ToStatus='Preparing',@ActorUserId=3;");
-            await Reject(connection, "Waiter cannot cancel prepared food", "EXEC dbo.usp_CancelOrderItem @OrderItemId=1,@Reason='ChangedMind',@ActorUserId=2;", 51001);
+            // S3-05 Task 1 (migration 056): Phục vụ huỷ món bếp đã bắt đầu → 51035 kèm thông báo rõ ràng (trước đây lỗi quyền chung 51001).
+            await Reject(connection, "Waiter cannot cancel prepared food", "EXEC dbo.usp_CancelOrderItem @OrderItemId=1,@Reason='ChangedMind',@ActorUserId=2;", 51035);
             await DatabaseTool.Execute(connection, "EXEC dbo.usp_TransitionOrderItem @OrderItemId=1,@ToStatus='Ready',@ActorUserId=3; EXEC dbo.usp_TransitionOrderItem @OrderItemId=1,@ToStatus='Served',@ActorUserId=2; EXEC dbo.usp_TransitionOrderItem @OrderItemId=1,@ToStatus='Served',@ActorUserId=2; EXEC dbo.usp_CancelOrderItem @OrderItemId=2,@Reason='Mistake',@ActorUserId=2;");
             await Check(connection, "Exactly one served event", "SELECT CASE WHEN COUNT(*)=1 THEN 1 ELSE 0 END FROM dbo.OrderItemEvents WHERE OrderItemId=1 AND ToStatus='Served'");
             await DatabaseTool.Execute(connection, "EXEC dbo.usp_SetMenuAvailability @MenuItemId=2,@IsSoldOut=1,@ActorUserId=1;");
@@ -72,8 +73,19 @@ internal static class Verification
             await ApiAuthorizationVerification.Run(connection);
             // S3-09 Task 1: cảnh báo đặt bàn trễ 15 phút, đánh dấu khách không tới (cần tài khoản do bước trên tạo).
             await LateReservationVerification.Run(connection);
+            // S3-09 Task 2: gia hạn giữ bàn 15 phút một lần, cảnh báo hiện lại khi hết hạn, vẫn đánh dấu khách không tới được.
+            await HoldExtensionVerification.Run(connection);
+            // S3-09 Task 3: cảnh báo số điện thoại có ít nhất 3 lần không tới trong 90 ngày khi tạo đặt bàn.
+            await PhoneNoShowVerification.Run(connection);
             // S3-01 Task 1: khách quét QR bàn trống → mở đúng một phiên mới, bàn chuyển "Đang phục vụ" (chạy sau cùng vì để lại bàn đang phục vụ).
             await QrGuestSessionVerification.Run(connection);
+            // S3-05 Task 1: phục vụ huỷ dòng món chờ bếp (lý do bắt buộc), hàng đợi bếp và tạm tính cập nhật, nhật ký, chống gửi lặp.
+            // Chạy sau bước QR vì chỉ dùng bàn trống còn lại; cần tài khoản do ApiAuthorizationVerification tạo.
+            await OrderCancellationVerification.Run(connection);
+            // S3-05 Task 2: báo cáo cuối ca — nhật ký huỷ món theo ca (huỷ thành công + yêu cầu bị từ chối), chỉ Quản lý.
+            await ShiftCancellationVerification.Run(connection);
+            // S3-05 Task 3: Quản lý huỷ món đã bắt đầu chế biến (vẫn tính tiền), bếp nhận thẻ dừng món, báo cáo cuối ca.
+            await ChargedCancellationVerification.Run(connection);
             await DatabaseTool.Execute(connection, "EXEC dbo.usp_RunMaintenance; EXEC dbo.usp_RunMaintenance;");
             Console.WriteLine("PASS: all SQL Server integration checks.");
         }
@@ -90,8 +102,8 @@ internal static class Verification
     }
 
     /// <summary>
-    /// S3-09 Task 1: chỉ chạy kiểm thử cảnh báo đặt bàn trễ + đánh dấu khách không tới (lệnh "verify-late-reservations")
-    /// trên database tạm riêng. Cần build Debug trước (kiểm thử chạy web thật).
+    /// S3-09 Task 1–3: chỉ chạy kiểm thử cảnh báo đặt bàn trễ, đánh dấu khách không tới, gia hạn giữ bàn và cảnh báo số điện thoại
+    /// nhiều lần không tới (lệnh "verify-late-reservations", "verify-hold-extension" hoặc "verify-phone-no-show") trên database tạm riêng. Cần build Debug trước (kiểm thử chạy web thật).
     /// </summary>
     internal static async Task RunLateReservations(string baseConnection)
     {
@@ -105,6 +117,95 @@ internal static class Verification
             await DatabaseTool.Seed(connection, "VerificationOnly9!" + Guid.NewGuid().ToString("N"));
             await ApiAuthorizationVerification.Run(connection);
             await LateReservationVerification.Run(connection);
+            await HoldExtensionVerification.Run(connection);
+            await PhoneNoShowVerification.Run(connection);
+        }
+        finally
+        {
+            SqlConnection.ClearAllPools();
+            builder.InitialCatalog = "master";
+            await using var cn = new SqlConnection(builder.ConnectionString);
+            await cn.OpenAsync();
+            await using var drop = new SqlCommand($"IF DB_ID(@name) IS NOT NULL BEGIN ALTER DATABASE [{name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{name}]; END", cn);
+            drop.Parameters.AddWithValue("@name", name);
+            await drop.ExecuteNonQueryAsync();
+        }
+    }
+
+    /// <summary>
+    /// S3-05 Task 1: chỉ chạy kiểm thử huỷ dòng món chờ bếp (lệnh "verify-cancel-item") trên database tạm riêng.
+    /// Cần build Debug trước (kiểm thử chạy web thật).
+    /// </summary>
+    internal static async Task RunCancelItem(string baseConnection)
+    {
+        var builder = new SqlConnectionStringBuilder(baseConnection);
+        var name = "RestaurantManagement_Test_" + Guid.NewGuid().ToString("N");
+        builder.InitialCatalog = name;
+        var connection = builder.ConnectionString;
+        try
+        {
+            await DatabaseTool.Migrate(connection);
+            await DatabaseTool.Seed(connection, "VerificationOnly9!" + Guid.NewGuid().ToString("N"));
+            await ApiAuthorizationVerification.Run(connection);
+            await OrderCancellationVerification.Run(connection);
+        }
+        finally
+        {
+            SqlConnection.ClearAllPools();
+            builder.InitialCatalog = "master";
+            await using var cn = new SqlConnection(builder.ConnectionString);
+            await cn.OpenAsync();
+            await using var drop = new SqlCommand($"IF DB_ID(@name) IS NOT NULL BEGIN ALTER DATABASE [{name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{name}]; END", cn);
+            drop.Parameters.AddWithValue("@name", name);
+            await drop.ExecuteNonQueryAsync();
+        }
+    }
+
+    /// <summary>
+    /// S3-05 Task 2: chỉ chạy kiểm thử báo cáo huỷ món theo ca (lệnh "verify-cancel-report") trên database tạm riêng.
+    /// Cần build Debug trước (kiểm thử chạy web thật).
+    /// </summary>
+    internal static async Task RunCancelReport(string baseConnection)
+    {
+        var builder = new SqlConnectionStringBuilder(baseConnection);
+        var name = "RestaurantManagement_Test_" + Guid.NewGuid().ToString("N");
+        builder.InitialCatalog = name;
+        var connection = builder.ConnectionString;
+        try
+        {
+            await DatabaseTool.Migrate(connection);
+            await DatabaseTool.Seed(connection, "VerificationOnly9!" + Guid.NewGuid().ToString("N"));
+            await ApiAuthorizationVerification.Run(connection);
+            await ShiftCancellationVerification.Run(connection);
+        }
+        finally
+        {
+            SqlConnection.ClearAllPools();
+            builder.InitialCatalog = "master";
+            await using var cn = new SqlConnection(builder.ConnectionString);
+            await cn.OpenAsync();
+            await using var drop = new SqlCommand($"IF DB_ID(@name) IS NOT NULL BEGIN ALTER DATABASE [{name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{name}]; END", cn);
+            drop.Parameters.AddWithValue("@name", name);
+            await drop.ExecuteNonQueryAsync();
+        }
+    }
+
+    /// <summary>
+    /// S3-05 Task 3: chỉ chạy kiểm thử huỷ có tính tiền của Quản lý (lệnh "verify-charged-cancel") trên database tạm riêng.
+    /// Cần build Debug trước (kiểm thử chạy web thật).
+    /// </summary>
+    internal static async Task RunChargedCancel(string baseConnection)
+    {
+        var builder = new SqlConnectionStringBuilder(baseConnection);
+        var name = "RestaurantManagement_Test_" + Guid.NewGuid().ToString("N");
+        builder.InitialCatalog = name;
+        var connection = builder.ConnectionString;
+        try
+        {
+            await DatabaseTool.Migrate(connection);
+            await DatabaseTool.Seed(connection, "VerificationOnly9!" + Guid.NewGuid().ToString("N"));
+            await ApiAuthorizationVerification.Run(connection);
+            await ChargedCancellationVerification.Run(connection);
         }
         finally
         {

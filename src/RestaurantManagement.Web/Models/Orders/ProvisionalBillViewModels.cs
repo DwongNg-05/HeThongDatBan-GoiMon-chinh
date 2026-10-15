@@ -16,14 +16,17 @@ public sealed record ProvisionalBillLine(long Id, string TableCode, string ItemN
 
     public bool IsCancelled => Status == "Cancelled";
 
-    public string? CancelReasonLabel => CancelReason switch
-    {
-        "ChangedMind" => "Khách đổi ý",
-        "Mistake" => "Gọi nhầm món",
-        "SoldOut" => "Món đã hết nguyên liệu",
-        "ManagerOverride" => "Quản lý yêu cầu",
-        _ => CancelReason
-    };
+    /// <summary>S3-05 Task 1: cùng nhãn với hộp xác nhận huỷ (OrderCancelRules).</summary>
+    public string? CancelReasonLabel => OrderCancelRules.Label(CancelReason);
+
+    /// <summary>S3-05 Task 1: lý do nút huỷ của Phục vụ bị vô hiệu (bếp đã bắt đầu); null khi còn chờ bếp hoặc đã huỷ.</summary>
+    public string? WaiterLockedReason => IsCancelled ? null : OrderCancelRules.LockedReason(Status);
+
+    /// <summary>S3-05 Task 3: lý do nút huỷ của Quản lý bị vô hiệu (món đã mang ra); null khi Quản lý vẫn huỷ được.</summary>
+    public string? ManagerLockedReason => IsCancelled ? null : OrderCancelRules.ManagerLockedReason(Status);
+
+    /// <summary>S3-05 Task 3: dòng đã huỷ có tính tiền (huỷ khi bếp đã bắt đầu) — giữ trên hoá đơn với nhãn riêng.</summary>
+    public bool IsChargedCancellation => IsCancelled && ChargeWhenCancelled;
 
     public string StatusLabel => Status switch
     {
@@ -31,7 +34,7 @@ public sealed record ProvisionalBillLine(long Id, string TableCode, string ItemN
         "Preparing" => "Đang nấu",
         "Ready" => "Xong, chờ mang ra",
         "Served" => "Đã mang ra",
-        "Cancelled" => ChargeWhenCancelled ? "Đã huỷ (vẫn tính tiền)" : "Đã huỷ",
+        "Cancelled" => ChargeWhenCancelled ? OrderCancelRules.ChargedLabel : "Đã huỷ",
         _ => Status
     };
 }
@@ -48,6 +51,9 @@ public sealed record ProvisionalBillViewModel(long SessionId, string Tables, int
     public int RequestLineCount => Lines.Count(l => l.Requests.HasAny);
     public bool HasSeveralTables => Lines.Select(l => l.TableCode).Distinct().Count() > 1;
     public IReadOnlyList<ProvisionalBillLine> CancelledLines => Lines.Where(l => l.IsCancelled).ToArray();
+
+    /// <summary>Đã thanh toán: không huỷ món được nữa (S3-05 Task 1).</summary>
+    public bool IsClosed => Status == "Closed";
 
     public string StatusLabel => Status switch
     {

@@ -1,0 +1,25 @@
+@using RestaurantManagement.Web.Models.Reservations
+@model IPhoneNoShowForm
+@*
+    S3-09 Task 3: cảnh báo số điện thoại có ít nhất 3 lần khách không tới trong 90 ngày (chỉ hiển thị cho Quản lý, Phục vụ).
+    - phone-no-show-warning.js tra cứu mỗi khi nhân viên nhập / đổi số điện thoại (POST /api/reservation-alerts/phone-history).
+    - Máy chủ đếm lại khi gửi form (PhoneNoShowGuard); đạt ngưỡng thì nhân viên phải đánh dấu ô xác nhận mới tạo được.
+    - NoShowCountAcknowledged = số lần nhân viên đã thấy; lịch sử tăng thêm sau đó thì phải xác nhận lại.
+*@
+@{
+    var warning = Model.PhoneWarning;
+    var confirmError = ViewData.ModelState[nameof(IPhoneNoShowForm.NoShowWarningConfirmed)]?.Errors.FirstOrDefault()?.ErrorMessage;
+}
+<div class="phone-no-show mb-3" id="phone-no-show" data-phone-history-api="@Url.Content("~/api/reservation-alerts/phone-history")" data-phone-input="Phone">
+    <div class="alert alert-warning mb-0" id="phone-no-show-warning" role="alert" aria-live="polite" hidden="@(warning is null)">
+        <strong><span aria-hidden="true">⚠</span> Khách nhiều lần không tới.</strong>
+        <span id="phone-no-show-message">@warning?.Message</span>
+        <div class="form-check mt-2">
+            <input class="form-check-input" type="checkbox" id="NoShowWarningConfirmed" name="NoShowWarningConfirmed" value="true" checked="@Model.NoShowWarningConfirmed" />
+            <input type="hidden" name="NoShowWarningConfirmed" value="false" />
+            <label class="form-check-label fw-semibold" for="NoShowWarningConfirmed">@PhoneNoShowRules.ConfirmationLabel</label>
+        </div>
+        <span class="text-danger d-block mt-1" id="phone-no-show-error">@confirmError</span>
+    </div>
+    <input type="hidden" id="NoShowCountAcknowledged" name="NoShowCountAcknowledged" value="@Model.NoShowCountAcknowledged" />
+</div>

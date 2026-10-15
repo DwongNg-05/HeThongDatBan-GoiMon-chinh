@@ -6,10 +6,11 @@ namespace RestaurantManagement.Web.Models.Reservations;
 
 public record DailyReservationItem(string Code, string CustomerName, string Phone, int GuestCount,
     string TimeSlot, string TableName, string Status, bool IsUpcoming = false, long Id = 0,
-    bool IsLate = false, int LateMinutes = 0, string? LateLabel = null);
+    bool IsLate = false, int LateMinutes = 0, string? LateLabel = null,
+    bool CanExtend = false, string? ExtensionLabel = null, bool IsExtended = false, string? HoldLabel = null);
 /// <param name="NextWarnAtUtc">S3-09 Task 1: mốc cảnh báo trễ kế tiếp — màn hình hẹn giờ tải lại đúng lúc đó.</param>
 public record DailyReservationPage(DateOnly Date, IReadOnlyList<DailyReservationItem> Reservations, DateTime EvaluatedAtUtc = default,
-    DateTime? NextWarnAtUtc = null, int LateCount = 0);
+    DateTime? NextWarnAtUtc = null, int LateCount = 0, string? AlertsError = null);
 
 public static class DailyReservationRules
 {
@@ -35,15 +36,21 @@ public static class DailyReservationRules
     /// <summary>
     /// S3-09 Task 1: gắn cảnh báo trễ (dbo.fn_LateReservationAlerts) vào các lượt của danh sách; lượt đang trễ lên đầu
     /// (giữ thứ tự cũ trong từng nhóm). Lượt không có trong cảnh báo (đã tới, đã huỷ, chưa tới mốc…) giữ nguyên.
+    /// S3-09 Task 2: lượt đang gia hạn giữ bàn (dbo.fn_ExtendedReservationHolds) không cảnh báo, mang thời hạn mới và đứng
+    /// ngay sau nhóm đang trễ. Lượt trễ chưa gia hạn có CanExtend; lượt trễ lại sau khi hết hạn gia hạn có ExtensionLabel.
     /// </summary>
     public static DailyReservationPage WithLateAlerts(DailyReservationPage page, LateReservationSnapshot alerts)
     {
         var late = alerts.Alerts.ToDictionary(alert => alert.Id);
+        var holds = alerts.Holds.ToDictionary(hold => hold.Id);
         var items = page.Reservations
             .Select(item => late.TryGetValue(item.Id, out var alert)
-                ? item with { IsLate = true, IsUpcoming = false, LateMinutes = alert.LateMinutes, LateLabel = alert.LateLabel }
-                : item)
-            .OrderByDescending(item => item.IsLate)
+                ? item with { IsLate = true, IsUpcoming = false, LateMinutes = alert.LateMinutes, LateLabel = alert.LateLabel,
+                    CanExtend = alert.CanExtend, ExtensionLabel = alert.ExtensionLabel }
+                : holds.TryGetValue(item.Id, out var hold)
+                    ? item with { IsExtended = true, IsUpcoming = false, HoldLabel = hold.HoldLabel }
+                    : item)
+            .OrderBy(item => item.IsLate ? 0 : item.IsExtended ? 1 : 2)
             .ToList();
         return page with { Reservations = items, NextWarnAtUtc = alerts.NextWarnAtUtc, LateCount = items.Count(item => item.IsLate) };
     }

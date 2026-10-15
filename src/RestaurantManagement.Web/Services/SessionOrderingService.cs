@@ -69,8 +69,15 @@ public sealed class SessionOrderingService
                 s.Id,
                 s.Status,
                 root.Status,
-                root.Id
+                root.Id,
+                a.Name,
+                t.MinCapacity,
+                t.MaxCapacity,
+                t.TableType,
+                s.OpenedAt
             FROM dbo.DiningTables t
+            JOIN dbo.Areas a
+                ON a.Id = t.AreaId
             JOIN dbo.SessionTables st
                 ON st.TableId = t.Id
                 AND st.ReleasedAt IS NULL
@@ -103,6 +110,11 @@ public sealed class SessionOrderingService
                 TableCode = reader.GetString(1),
                 SessionId = reader.GetInt64(2),
                 BillingSessionId = reader.GetInt64(5),
+                AreaName = reader.GetString(6),
+                MinCapacity = reader.GetInt32(7),
+                MaxCapacity = reader.GetInt32(8),
+                TableType = reader.GetString(9),
+                OpenedAtUtc = reader.IsDBNull(10) ? null : reader.GetDateTime(10),
                 SessionStatus =
                     reader.GetString(3) == "Open"
                     && reader.GetString(4) == "Open"

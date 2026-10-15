@@ -56,9 +56,11 @@ namespace RestaurantManagement.Data.Data
                     .HasConversion(value => value == DishStatus.OnSale,
                         value => value ? DishStatus.OnSale : DishStatus.Discontinued);
             });
-            modelBuilder.Entity<Order>().ToTable("DonHangs");
-            modelBuilder.Entity<OrderLine>().ToTable("DongHangs");
-            modelBuilder.Entity<PriceChangeLog>().ToTable("GhiNhanThayDoiGias");
+            // Tên bảng tiếng Anh (052_EnglishOrderingCartTableNames.sql đổi từ DonHangs / DongHangs).
+            modelBuilder.Entity<Order>().ToTable("Orders", "dbo");
+            modelBuilder.Entity<OrderLine>().ToTable("OrderLines", "dbo");
+            // Lịch sử giá đọc từ dbo.MenuPriceHistory bằng SQL (SqlMenuStore.GetPriceHistory); EF không ghi bảng này.
+            modelBuilder.Entity<PriceChangeLog>().ToTable("PriceChangeLogs", "dbo");
         }
     }
 }

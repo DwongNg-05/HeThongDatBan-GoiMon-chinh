@@ -163,6 +163,14 @@
 
     <aside id="cart" class="mb-3 menu-cart" aria-label="Giỏ gọi món">
         <h2>Giỏ gọi món</h2>
+        @if (orderingSession is not null)
+        {
+            <p class="menu-cart-table">
+                <span>Gọi cho</span>
+                <strong>Bàn @orderingSession.TableCode</strong>
+                <small>Phiên #@orderingSession.SessionId · @orderingSession.AreaName</small>
+            </p>
+        }
 
         <div id="cart-availability-notice"
              class="alert alert-warning"
@@ -460,25 +468,60 @@
                 const response = await fetch(form.action, {
                     method: 'POST',
                     body: pendingRequest,
-                    credentials: 'same-origin'
+                    credentials: 'same-origin',
+                    // Máy chủ nhận ra lời gọi từ màn hình này: trả JSON (thành công) hoặc 401/403 (hết phiên / không
+                    // có quyền) thay vì chuyển hướng sang trang HTML.
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
                 });
 
+                const contentType = response.headers.get('content-type') || '';
+
+                if (response.ok && contentType.includes('application/json')) {
+                    const result = await response.json().catch(() => null);
+
+                    if (result && result.ok && result.redirectUrl) {
+                        location.assign(result.redirectUrl);
+                        return;
+                    }
+                }
+
                 if (response.ok && response.redirected) {
+                    // Dự phòng: trang đích /Ordering (Razor Pages bỏ "/Index").
                     const destination = new URL(response.url);
-                    const expectedPath = new URL(form.action).pathname
-                        .replace(/\/Checkout\/?$/i, '/Index');
+                    const orderingPath = new URL(form.action).pathname
+                        .replace(/\/Checkout\/?$/i, '')
+                        .toLowerCase();
+                    const destinationPath = destination.pathname
+                        .replace(/\/Index\/?$/i, '')
+                        .replace(/\/$/, '')
+                        .toLowerCase();
 
                     if (destination.origin === location.origin
-                        && destination.pathname === expectedPath
+                        && destinationPath === orderingPath
                         && destination.searchParams.get('submitted')
                             === 'true') {
                         location.assign(response.url);
                         return;
                     }
 
-                    showMessage(
-                        'Phiên đăng nhập có thể đã hết hạn. '
-                        + 'Vui lòng đăng nhập lại trước khi gửi tiếp.');
+                    // Máy chủ chuyển sang trang khác: nói đúng lý do (kèm địa chỉ để dễ kiểm tra).
+                    if (/\/Account\/Login/i.test(destination.pathname)) {
+                        showMessage(
+                            'Phiên đăng nhập đã hết hạn. '
+                            + 'Vui lòng đăng nhập lại trước khi gửi tiếp.');
+                    } else if (/\/Account\/VerifyEmail/i.test(destination.pathname)) {
+                        showMessage('Tài khoản cần xác minh email trước khi gửi món.');
+                    } else if (/\/Account\/ChangePassword/i.test(destination.pathname)) {
+                        showMessage('Tài khoản cần đổi mật khẩu trước khi gửi món.');
+                    } else {
+                        showMessage(
+                            'Chưa xác nhận được kết quả gửi (máy chủ chuyển tới '
+                            + destination.pathname + '). '
+                            + 'Bấm “Gửi lại” để kiểm tra bằng cùng mã yêu cầu.');
+                    }
                     return;
                 }
 
@@ -495,9 +538,15 @@
                     return;
                 }
 
-                if (response.status === 401 || response.status === 403) {
+                if (response.status === 401) {
                     showMessage(
-                        'Bạn chưa đăng nhập hoặc không có quyền gửi món.');
+                        'Phiên đăng nhập đã hết hạn. '
+                        + 'Vui lòng đăng nhập lại trước khi gửi tiếp.');
+                    return;
+                }
+
+                if (response.status === 403) {
+                    showMessage('Tài khoản không có quyền gửi món.');
                     return;
                 }
 

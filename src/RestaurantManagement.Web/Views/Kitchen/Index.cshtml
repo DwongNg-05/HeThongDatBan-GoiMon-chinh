@@ -31,6 +31,13 @@
         </div>
     }
 
+    @if (TempData["Info"] is string info)
+    {
+        <div class="alert alert-info" role="status">
+            @info
+        </div>
+    }
+
     @if (TempData["Error"] is string error)
     {
         <div class="alert alert-danger" role="alert">
@@ -59,6 +66,35 @@
     </p>
 
     <div id="kitchen-batches">
+        @* S3-05 Task 3: thẻ "DỪNG MÓN" — Quản lý đã huỷ (có tính tiền) món bếp đang nấu / đã xong. Nằm trong #kitchen-batches
+           nên xuất hiện ở lần tải lại kế tiếp (≤ 3 giây); giữ tới khi tài khoản Bếp bấm "Đã dừng món". *@
+        @if (Model.Stops.Count > 0)
+        {
+            <section class="kitchen-stops" id="kitchen-stop-notices" role="alert" aria-live="assertive" data-stop-count="@Model.Stops.Count">
+                <h3 class="kitchen-stops-title">DỪNG MÓN — @Model.Stops.Count món vừa bị hủy</h3>
+                <ul class="kitchen-stops-list">
+                    @foreach (var stop in Model.Stops)
+                    {
+                        <li class="kitchen-stop" data-stop-item="@stop.OrderItemId" data-stop-from="@stop.FromStatus">
+                            <div class="kitchen-stop-text">
+                                <strong class="kitchen-stop-instruction">@stop.Instruction</strong>
+                                <span class="kitchen-stop-summary">@stop.Summary</span>
+                                <small class="kitchen-stop-meta">
+                                    Hủy bởi @(stop.CancelledByName ?? "Quản lý") lúc @stop.CancelledAt.ToString("HH:mm:ss") · món vẫn tính tiền cho khách
+                                </small>
+                            </div>
+                            @if (Model.CanChangeStatus)
+                            {
+                                <form asp-controller="Kitchen" asp-action="StopAck" asp-route-id="@stop.OrderItemId" method="post" class="kitchen-stop-ack">
+                                    <button type="submit" class="btn btn-sm btn-light">Đã dừng món</button>
+                                </form>
+                            }
+                        </li>
+                    }
+                </ul>
+            </section>
+        }
+
         @if (batches.Count == 0)
         {
             <p class="text-muted">
@@ -199,6 +235,17 @@
             let loading = false;
             let submitting = false;
 
+            // S3-05 Task 1: món bị phục vụ huỷ phải rời màn hình trong vòng 5 giây, nên danh sách tải lại mỗi 3 giây và
+            // chỉ hoãn khi đầu bếp ĐANG bấm (giữ chuột / chạm trong danh sách, cộng 0,3 giây để lượt bấm kịp xử lý) —
+            // không hoãn chỉ vì một nút còn giữ focus. Sau khi cập nhật, focus trở lại nút của cùng dòng món nếu còn.
+            const refreshEveryMs = 3000;
+            let pressedUntil = 0;
+            batches.addEventListener('pointerdown', () => { pressedUntil = Number.POSITIVE_INFINITY; });
+            ['pointerup', 'pointercancel'].forEach(name => document.addEventListener(name, () => {
+                if (pressedUntil === Number.POSITIVE_INFINITY) pressedUntil = Date.now() + 300;
+            }));
+            const pressing = () => Date.now() < pressedUntil;
+
             screen.addEventListener('submit', event => {
                 if (!(event.target instanceof HTMLFormElement)) return;
 
@@ -219,8 +266,8 @@
             async function refresh() {
                 if (loading || submitting || document.hidden) return;
 
-                // Giữ nguyên giao diện khi người dùng đang chọn thao tác.
-                if (batches.contains(document.activeElement)) return;
+                // Giữ nguyên giao diện khi người dùng đang bấm chọn thao tác.
+                if (pressing()) return;
 
                 loading = true;
 
@@ -264,13 +311,22 @@
                         throw new Error('Dữ liệu màn hình bếp không hợp lệ.');
                     }
 
-                    if (submitting ||
-                        batches.contains(document.activeElement)) {
+                    if (submitting || pressing()) {
                         return;
                     }
 
                     if (batches.innerHTML !== nextBatches.innerHTML) {
+                        const focusedItem = batches.contains(document.activeElement)
+                            ? document.activeElement.closest('[data-order-item]')?.dataset.orderItem
+                            : null;
+
                         batches.innerHTML = nextBatches.innerHTML;
+
+                        if (focusedItem) {
+                            batches
+                                .querySelector(`[data-order-item="${focusedItem}"] button`)
+                                ?.focus();
+                        }
                     }
 
                     message.hidden = true;
@@ -289,7 +345,12 @@
                 }
             }
 
-            window.setInterval(refresh, 3000);
+            window.setInterval(refresh, refreshEveryMs);
+
+            // Quay lại thẻ màn hình bếp: tải lại ngay, không chờ chu kỳ kế tiếp.
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) refresh();
+            });
         })();
     </script>
-}
+}

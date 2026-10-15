@@ -32,12 +32,15 @@ public class ReservationManagementController(IConfiguration configuration) : Con
         {
             var page = await new DailyReservationStore(ConnectionString).Read(selected, cancellationToken, status, now);
             // S3-09 Task 1: lượt trễ quá mốc 15 phút được đánh dấu cảnh báo (cùng quy tắc với sơ đồ bàn).
-            // Thiếu migration 049 hoặc lỗi đọc cảnh báo thì danh sách vẫn hiển thị như cũ.
+            // Lỗi đọc cảnh báo: danh sách vẫn hiển thị, kèm thông báo lỗi để nhân viên biết cảnh báo đang không chạy (không im lặng).
             try
             {
                 page = DailyReservationRules.WithLateAlerts(page, await new LateReservationStore(ConnectionString).ReadAsync(cancellationToken));
             }
-            catch (SqlException) { }
+            catch (SqlException ex)
+            {
+                page = page with { AlertsError = $"Không tải được cảnh báo đặt bàn trễ ({ex.Number}). {LateReservationRules.DatabaseNotUpdated}" };
+            }
             return Json(page);
         }
         catch (SqlException)

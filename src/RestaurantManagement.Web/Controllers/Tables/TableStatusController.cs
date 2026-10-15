@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using RestaurantManagement.Web.Security;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
+using RestaurantManagement.Web.Models;
 using RestaurantManagement.Web.Services;
 
 namespace RestaurantManagement.Web.Controllers;
@@ -15,14 +16,32 @@ public sealed class TableStatusController(TableMapStore tableMap, TableMapEventB
     [HttpGet]
     [Authorize(Roles = AppRoles.FrontOfHouse)]
     public async Task<IActionResult> Snapshot(CancellationToken cancellationToken)
-        => Ok(await tableMap.GetAllAsync(cancellationToken));
+    {
+        try
+        {
+            return Ok(await tableMap.GetAllAsync(cancellationToken));
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Trình duyệt đã huỷ yêu cầu (chuyển trang, đăng xuất, đóng tab): không phải lỗi.
+            return StatusCode(StatusCodes.Status499ClientClosedRequest);
+        }
+    }
 
     // Ghi trạng thái vào dbo.DiningTables; trigger + TableStatusOutboxWorker đẩy thay đổi tới mọi sơ đồ đang mở.
     [HttpPost("{code}")]
     [Authorize(Roles = AppRoles.FrontOfHouse)]
     public async Task<IActionResult> Update(string code, [FromBody] UpdateTableStatusRequest request, CancellationToken cancellationToken)
     {
-        var table = await tableMap.UpdateStatusAsync(code, request.Status, cancellationToken);
+        DiningTableCard? table;
+        try
+        {
+            table = await tableMap.UpdateStatusAsync(code, request.Status, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return StatusCode(StatusCodes.Status499ClientClosedRequest);
+        }
         return table is null
             ? BadRequest(new { message = "Mã bàn hoặc trạng thái không hợp lệ, hoặc bàn/khu vực đã ngừng hoạt động." })
             : Ok(table);

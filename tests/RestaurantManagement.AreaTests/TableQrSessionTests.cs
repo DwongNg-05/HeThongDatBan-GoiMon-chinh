@@ -239,7 +239,7 @@ static class TableQrSessionTests
             && bill.RequestLineCount == 2,
             "Bill notes: a line without requests shows no note box");
         check(bill.Subtotal == 125000 && bill.ChargedLineCount == 3 && !bill.Lines[2].IsCharged && bill.Lines[3].IsCharged
-            && bill.Lines[2].StatusLabel == "Đã huỷ" && bill.Lines[3].StatusLabel == "Đã huỷ (vẫn tính tiền)" && bill.HasSeveralTables,
+            && bill.Lines[2].StatusLabel == "Đã huỷ" && bill.Lines[3].StatusLabel == "Đã huỷ có tính tiền" && bill.HasSeveralTables,
             "Bill notes: the provisional total follows the session total rules (cancelled before cooking is free)");
         var reopened = new RestaurantManagement.Web.Models.Orders.ProvisionalBillViewModel(1, "A05, A06", 4, "AwaitingPayment", DateTime.Now,
             billLines.Select(l => l with { Status = l.Status == "Preparing" ? "Served" : l.Status }).ToArray());

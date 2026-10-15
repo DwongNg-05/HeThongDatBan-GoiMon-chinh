@@ -5,6 +5,11 @@
 }
 <div class="container mt-4" data-screen="cashier-shift">
     <h2>Chốt ca</h2>
+    @* S3-05 Task 2: Quản lý xem các lần huỷ món của ca trong báo cáo cuối ca. *@
+    @if (User.IsInRole("Manager"))
+    {
+        <p><a href="/Reports/Shift/Cancellations@(Model.OpenShift is { } current ? "?shiftId=" + current.Id : "")" id="shift-cancellations-link">Xem báo cáo huỷ món của ca</a></p>
+    }
     @if (TempData["Success"] is string success) { <div class="alert alert-success" role="status">@success</div> }
     @if (TempData["Error"] is string error) { <div class="alert alert-danger" role="alert">@error</div> }
 

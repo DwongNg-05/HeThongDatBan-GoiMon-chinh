@@ -164,12 +164,25 @@ Quantity = item.quantity
 
 // Database kiểm tra lại trạng thái tại lúc ghi món.
 // Cùng RequestId trong cùng phiên không tạo thêm đợt trùng.
-await _sessionOrdering.SubmitAsync(
+var batchId = await _sessionOrdering.SubmitAsync(
 SessionId,
 RequestId,
 submittedItems,
 actorUserId,
 cancellationToken);
+
+// Màn hình gọi món gửi bằng fetch (X-Requested-With): trả kết quả JSON rõ ràng thay vì chuyển hướng,
+// để trình duyệt không phải đoán kết quả qua địa chỉ trang đích (trước đây gây báo nhầm "phiên đăng nhập hết hạn").
+if (IsFetchRequest())
+{
+var nextUrl = Url.Page("/Ordering/Index", new
+{
+tableId = TableId,
+submitted = true
+}) ?? "/Ordering";
+
+return new JsonResult(new { ok = true, batchId, redirectUrl = nextUrl });
+}
 
 return RedirectToPage("/Ordering/Index", new
 {
@@ -184,6 +197,13 @@ when (exception.Number >= 51000
 return BadRequest(exception.Message);
 }
 }
+
+private bool IsFetchRequest() =>
+HttpContext is not null
+&& string.Equals(
+Request.Headers.XRequestedWith,
+"XMLHttpRequest",
+StringComparison.OrdinalIgnoreCase);
 
 public sealed class CartItem
 {

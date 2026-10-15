@@ -28,6 +28,11 @@ public class HomeController : Controller
         {
             return View(await _tableMap.GetMapAsync(areaId, cancellationToken));
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Người dùng rời trang (đăng xuất, bấm sang màn hình khác) khi sơ đồ đang tải: không phải lỗi.
+            return StatusCode(StatusCodes.Status499ClientClosedRequest);
+        }
         catch (Exception exception) when (exception is Microsoft.Data.SqlClient.SqlException or InvalidOperationException)
         {
             _logger.LogError(exception, "Không đọc được dữ liệu sơ đồ bàn từ SQL Server.");

@@ -34,3 +34,25 @@
 .no-show-toast[data-kind="info"]{background:#2b2b2b}
 .no-show-toast[hidden]{display:none}
 @media(max-width:575px){.late-alert{align-items:stretch}.late-alert .late-no-show{width:100%}}
+/* S3-09 Task 2: gia hạn giữ bàn 15 phút (một lần) */
+.late-alert-actions{display:flex;flex-wrap:wrap;gap:8px}
+.late-extend{flex:0 0 auto;min-height:38px;padding:6px 14px;border:1px solid #1f5fa8;border-radius:8px;background:#fff;color:#1f5fa8;font-size:14px;font-weight:600;cursor:pointer}
+.late-extend:hover,.late-extend:focus-visible{background:#eaf2fc}
+.late-extend:disabled{opacity:.65;cursor:progress}
+.late-alert-extension{color:#6e6e6e;font-style:italic}
+.table-late .late-extend{width:100%;min-height:32px;padding:4px 8px;font-size:12px}
+.table-late-note{color:#6e6e6e;font-size:11px;line-height:1.35}
+.hold-extensions{margin:0 0 22px;padding:14px 18px;border:1px solid #bcd3ee;border-left:5px solid #1f5fa8;border-radius:10px;background:#f3f8fe}
+.hold-extensions-title{display:flex;align-items:center;gap:8px;margin:0 0 10px;color:#174a84;font-size:16px;font-weight:700}
+.hold-extension-list{display:grid;gap:6px;margin:0;padding:0;list-style:none}
+.hold-extension{padding:8px 12px;border-radius:8px;background:#fff;color:#2b2b2b;font-size:14px;line-height:1.5;overflow-wrap:anywhere;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.hold-extension .late-alert-table{color:#174a84}
+.hold-extension-until{font-weight:700;color:#1f5fa8}
+.table-grid .table-card.has-hold-extension{border-color:#1f5fa8 !important;box-shadow:0 0 0 2px rgba(31,95,168,.3) !important}
+.table-hold-label{color:#174a84;font-size:12px;font-weight:700;line-height:1.35;overflow-wrap:anywhere}
+.reservation-hold-badge{display:inline-block;margin:0 6px;padding:1px 8px;border-radius:999px;background:#1f5fa8;color:#fff;font-size:12px;font-weight:700;white-space:nowrap}
+.reservation-extension-used{display:inline-block;margin:0 6px 0 0;color:#6e6e6e;font-size:12px;font-style:italic}
+.reservation-extend{margin-right:6px}
+@media(max-width:575px){.late-alert-actions{width:100%}.late-alert-actions>button{flex:1 1 0}}
+/* Chi tiết bàn: món đã gọi + gọi thêm món giữa bữa (cùng phiên, cùng hoá đơn) */
+.details-orders{margin-top:14px;padding:14px;border:1px solid #e7ece8;border-radius:11px;background:#fff}.details-orders-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}.details-orders-head>span{color:#879189;font-size:11px}.details-orders-empty{margin:0;color:#879189;font-size:12px}.details-order-batches{display:grid;gap:10px;max-height:220px;margin:0;padding:0;overflow:auto;list-style:none}.details-order-batch-head{margin-bottom:4px;color:#6b776f;font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase}.details-order-batch ul{display:grid;gap:4px;margin:0;padding:0;list-style:none}.details-order-line{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:baseline;gap:10px;padding:6px 0;border-bottom:1px dashed #edf1ee;font-size:13px}.details-order-line:last-child{border-bottom:0}.details-order-name{overflow-wrap:anywhere;color:#28372d}.details-order-state{color:#879189;font-size:11px}.details-order-total{color:#28372d;font-variant-numeric:tabular-nums;font-weight:600;text-align:right}.details-order-line.status-cancelled .details-order-name{color:#9aa39c;text-decoration:line-through}.details-add-items{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:16px;margin-top:14px;padding:14px;border:1px solid var(--s-red-soft,#fbe3e7);border-radius:11px;background:var(--s-red-soft,#fff4f5)}.details-add-items-text p{margin:6px 0 10px;color:#5d6a61;font-size:12px;line-height:1.5}.details-add-items-qr{display:grid;justify-items:center;gap:6px;margin:0}.details-add-items-qr[hidden]{display:none}.details-add-items-qr img{width:132px;height:132px;padding:6px;border:1px solid #e7ece8;border-radius:9px;background:#fff;image-rendering:pixelated}.details-add-items-qr figcaption{max-width:140px;color:#879189;font-size:10px;text-align:center;line-height:1.4}.details-actions{display:flex;flex-wrap:wrap;gap:8px}@media(max-width:575px){.details-add-items{grid-template-columns:1fr}.details-add-items-qr{justify-self:center}}

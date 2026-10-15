@@ -9,9 +9,39 @@
     ViewData["OrderingSession"] = session;
 
     var culture = System.Globalization.CultureInfo.GetCultureInfo("vi-VN");
+
+    if (session is not null)
+    {
+        ViewData["Title"] = "Gọi món – Bàn " + session.TableCode;
+    }
 }
 
-<h1>Gọi món</h1>
+@section Styles {
+    <link rel="stylesheet" href="~/css/staff-ordering.css" asp-append-version="true" />
+}
+
+@if (session is null)
+{
+    <h1>Gọi món</h1>
+}
+else
+{
+    @* Đầu màn hình có tên bàn (giống màn hình gọi món tại bàn của khách) để nhân viên không gọi nhầm bàn. *@
+    <header class="staff-order-banner @(session.CanAddItems ? "is-open" : "is-awaiting")" aria-labelledby="staff-order-title">
+        <p class="staff-order-kicker">Gọi món tại bàn · Nhân viên</p>
+        <h1 id="staff-order-title">Bàn @session.TableCode</h1>
+        <p class="staff-order-area">@session.AreaName · @session.TableTypeLabel · @session.CapacityLabel</p>
+        <p class="staff-order-meta">
+            <span class="staff-order-status">@(session.CanAddItems ? "Đang phục vụ" : "Chờ thanh toán")</span>
+            <span>Phiên #@session.SessionId@(session.OpenedAtLabel is null ? "" : " · mở lúc " + session.OpenedAtLabel)</span>
+            <span>Tạm tính: <strong>@session.Subtotal.ToString("N0", culture) đ</strong></span>
+        </p>
+        <p class="staff-order-links">
+            <a href="#cart">Giỏ gọi món</a>
+            <a href="#da-goi">Món bàn đã gọi (@session.Items.Count)</a>
+        </p>
+    </header>
+}
 
 @if (TempData["OrderingSuccess"] is string orderingSuccess)
 {
@@ -43,63 +73,51 @@
         </div>
     }
 
-    <div class="card mb-4">
-        <div class="card-body">
-            <h2 class="h4">Bàn @session.TableCode</h2>
+    @if (session.CanAddItems && session.Items.Count > 0)
+    {
+        <p class="alert alert-info py-2 small">
+            Đang gọi thêm món cho phiên đang mở: món mới được gửi thành đợt
+            @(session.Items.Max(item => item.BatchNumber) + 1) và cộng vào cùng hoá đơn của bàn,
+            không mở hoá đơn mới.
+        </p>
+    }
 
-            <p>
-                Phiên: <strong>#@session.SessionId</strong>
-            </p>
-
-            <p>
-                Trạng thái:
-                <strong>
-                    @(session.CanAddItems ? "Đang phục vụ" : "Chờ thanh toán")
-                </strong>
-            </p>
-
-            <p class="mb-0">
-                Tạm tính:
-                <strong>
-                    @session.Subtotal.ToString("N0", culture) đồng
-                </strong>
-            </p>
-
-            @if (session.IsAwaitingPayment)
+    @if (session.IsAwaitingPayment)
+    {
+        <div class="alert alert-warning">
+            @if (Model.CanReopen)
             {
-                <div class="mt-3">
-                    @if (Model.CanReopen)
-                    {
-                        <form id="reopen-table-form"
-                              method="post"
-                              asp-page-handler="Reopen">
+                <form id="reopen-table-form"
+                      method="post"
+                      asp-page-handler="Reopen"
+                      class="d-flex flex-wrap align-items-center gap-2">
 
-                            <input type="hidden"
-                                   name="tableId"
-                                   value="@session.TableId" />
+                    <input type="hidden"
+                           name="tableId"
+                           value="@session.TableId" />
 
-                            <input type="hidden"
-                                   name="sessionId"
-                                   value="@session.SessionId" />
+                    <input type="hidden"
+                           name="sessionId"
+                           value="@session.SessionId" />
 
-                            <button type="submit" class="btn btn-warning">
-                                Mở lại bàn
-                            </button>
-                        </form>
-                    }
-                    else
-                    {
-                        <p class="text-muted">
-                            Bạn không có quyền mở lại bàn.
-                            Vui lòng liên hệ nhân viên có quyền.
-                        </p>
-                    }
-                </div>
+                    <span>Bàn đang chờ thanh toán. Mở lại bàn (giữ nguyên phiên và hoá đơn) để gọi thêm món.</span>
+
+                    <button type="submit" class="btn btn-warning">
+                        Mở lại bàn
+                    </button>
+                </form>
+            }
+            else
+            {
+                <span>
+                    Bàn đang chờ thanh toán. Bạn không có quyền mở lại bàn.
+                    Vui lòng liên hệ nhân viên có quyền.
+                </span>
             }
         </div>
-    </div>
+    }
 
-    <h2 class="h4">Các món đã gọi</h2>
+    <h2 class="h4" id="da-goi">Món bàn @session.TableCode đã gọi</h2>
 
     @if (session.Items.Count == 0)
     {
@@ -158,7 +176,8 @@
                                         <span>Đã phục vụ</span>
                                         break;
                                     case "Cancelled":
-                                        <span>Đã huỷ</span>
+                                        @* S3-05 Task 3: dòng huỷ sau khi bếp bắt đầu vẫn tính tiền. *@
+                                        <span>@(item.ChargeWhenCancelled ? "Đã huỷ có tính tiền" : "Đã huỷ")</span>
                                         break;
                                     default:
                                         <span>@item.Status</span>

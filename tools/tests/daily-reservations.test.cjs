@@ -205,3 +205,43 @@ test('late bookings form the first red group with a no-show button and the refre
     assert.deepEqual(marked, [{ id: 11, description: 'lượt LATE01 – Khách LATE01' }]);
     assert.equal(urls.length, 2);
 });
+
+// S3-09 Task 2: lượt trễ chưa gia hạn có nút "Gia hạn 15 phút"; lượt đang gia hạn là nhóm riêng, hiện thời hạn mới, không cảnh báo;
+// lượt đã gia hạn và hết hạn chỉ còn ghi chú + nút "Khách không tới".
+test('extension: extend button once, extended group with the new hold time, expired extension only allows no-show', async () => {
+    const extended = [];
+    const noShow = {
+        mark: async () => ({ ok: true }),
+        extend: async (id, description) => { extended.push({ id, description }); return { ok: true }; },
+        nextDelay: () => 30000
+    };
+    const make = (code, extra) => ({ code, customerName: 'Khách ' + code, phone: '090****123', guestCount: 2,
+        timeSlot: '17:45–19:15', tableName: 'A01', status: 'Đã xác nhận', ...extra });
+    const urls = [];
+    const elements = setup(async url => {
+        urls.push(url);
+        return { ...response([]), json: async () => ({ reservations: [
+            make('LATE01', { id: 21, isLate: true, lateLabel: 'Trễ 16 phút', canExtend: true }),
+            make('EXPD02', { id: 22, isLate: true, lateLabel: 'Trễ 33 phút', canExtend: false, extensionLabel: 'Đã gia hạn 1 lần, hết hạn lúc 17:58' }),
+            make('HOLD03', { id: 23, isExtended: true, holdLabel: 'Gia hạn giữ bàn tới 18:15' }),
+            make('OTHER4', { id: 24 })] }) };
+    }, false, { ReservationNoShow: noShow });
+    await flush();
+    const rows = elements['reservation-rows'].children;
+    assert.equal(rows[0].children[0].textContent, 'Đang trễ quá 15 phút – khách chưa tới');
+    const fresh = rows[1].children[6];
+    assert.deepEqual(fresh.children.map(child => child.textContent), ['Đã xác nhận', 'Trễ 16 phút', 'Gia hạn 15 phút', 'Khách không tới']);
+    assert.equal(fresh.children[2].dataset.extendId, '21');
+    const expired = rows[2].children[6];
+    assert.deepEqual(expired.children.map(child => child.textContent), ['Đã xác nhận', 'Trễ 33 phút', 'Đã gia hạn 1 lần, hết hạn lúc 17:58', 'Khách không tới']);
+    assert.equal(rows[3].children[0].textContent, 'Đang gia hạn giữ bàn – chờ khách tới');
+    assert.equal(rows[4].className, 'table-info');
+    assert.equal(rows[4].dataset.extendedReservation, '23');
+    assert.deepEqual(rows[4].children[6].children.map(child => child.textContent), ['Đã xác nhận', 'Gia hạn giữ bàn tới 18:15']);
+    assert.equal(rows[4].dataset.lateReservation, undefined);
+    assert.equal(rows[5].children[0].textContent, 'Các lượt đặt còn lại');
+    await fresh.children[2].listeners.click();
+    await flush();
+    assert.deepEqual(extended, [{ id: 21, description: 'lượt LATE01 – Khách LATE01' }]);
+    assert.equal(urls.length, 2);
+});

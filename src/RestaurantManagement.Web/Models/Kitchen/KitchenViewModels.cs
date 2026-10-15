@@ -54,11 +54,44 @@ public sealed record KitchenOrderBatch(
         string.Join(", ", Items.Select(i => i.TableCode).Distinct());
 }
 
+/// <summary>
+/// S3-05 Task 3: thông báo "DỪNG MÓN" — Quản lý đã huỷ (có tính tiền) một món bếp đang nấu hoặc đã làm xong.
+/// Hiện ở đầu màn hình bếp cho tới khi tài khoản Bếp bấm "Đã dừng món" (dbo.vw_KitchenStopNotices, migration 058).
+/// </summary>
+public sealed record KitchenStopNotice(long OrderItemId, string TableCode, string ItemName, int Quantity, string Unit, string FromStatus,
+    string? CancelReason, string? CancellationNote, DateTime CancelledAt, string? CancelledByName, int BatchNumber)
+{
+    public string FromStatusLabel => FromStatus switch
+    {
+        "Preparing" => "đang nấu",
+        "Ready" => "đã làm xong, chưa mang ra",
+        _ => FromStatus
+    };
+
+    /// <summary>Việc bếp cần làm ngay.</summary>
+    public string Instruction => FromStatus == "Ready"
+        ? "Không mang món này ra bàn."
+        : "Dừng chế biến món này.";
+
+    public string ReasonLabel => RestaurantManagement.Web.Models.Orders.OrderCancelRules.Label(CancelReason) ?? "Không rõ lý do";
+
+    public string Summary =>
+        $"Bàn {TableCode} · Đợt {BatchNumber} · {Quantity} {Unit} {ItemName} ({FromStatusLabel}) — {ReasonLabel}"
+        + (CancellationNote is null ? "" : $" · {CancellationNote}");
+}
+
 public sealed record KitchenScreenViewModel(
     IReadOnlyList<KitchenOrderItem> Items,
-    bool CanChangeStatus)
+    bool CanChangeStatus,
+    IReadOnlyList<KitchenStopNotice>? StopNotices = null)
 {
+    /// <summary>S3-05 Task 3: món cần dừng (mới nhất lên đầu).</summary>
+    public IReadOnlyList<KitchenStopNotice> Stops => (StopNotices ?? Array.Empty<KitchenStopNotice>())
+        .OrderByDescending(n => n.CancelledAt).ThenByDescending(n => n.OrderItemId).ToArray();
+
+    // S3-05 Task 1: món đã huỷ không thuộc hàng đợi bếp (truy vấn của KitchenController đã loại; lọc thêm ở đây cho chắc chắn).
     public IReadOnlyList<KitchenOrderBatch> Batches => Items
+        .Where(i => i.Status != "Cancelled")
         .GroupBy(i => new
         {
             i.SessionId,
@@ -93,4 +126,4 @@ public sealed record TemporaryOutHistoryViewModel(
     int? DishId,
     string? DishName,
     IReadOnlyList<RestaurantManagement.Web.Services.DailyDish> Dishes,
-    IReadOnlyList<RestaurantManagement.Web.Services.TemporaryOutLogEntry> Entries);
+    IReadOnlyList<RestaurantManagement.Web.Services.TemporaryOutLogEntry> Entries);

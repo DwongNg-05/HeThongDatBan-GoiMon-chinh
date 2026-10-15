@@ -53,8 +53,13 @@ public class IndexModel(
         }
     }
 
-    public async Task OnGetAsync(int? tableId, string? tableCode)
+    /// <summary>Có khi mở từ nút/mã QR "Gọi thêm món" trong chi tiết bàn: phiên mà mã được tạo cho.</summary>
+    public long? ExpectedSessionId { get; private set; }
+
+    public async Task OnGetAsync(int? tableId, string? tableCode, long? sessionId = null)
     {
+        ExpectedSessionId = sessionId is > 0 ? sessionId : null;
+
         OnGet();
 
         if (tableId is null && string.IsNullOrWhiteSpace(tableCode))
@@ -90,6 +95,19 @@ public class IndexModel(
             SessionError =
                 "Bàn không còn phiên đang mở. "
                 + "Vui lòng quay lại sơ đồ bàn.";
+            return;
+        }
+
+        // Mã QR "Gọi thêm món" gắn với một phiên: bàn đã thanh toán và mở phiên mới thì mã cũ không còn dùng được,
+        // tránh ghi nhầm món của bữa trước sang khách mới.
+        if (ExpectedSessionId is not null
+            && ExpectedSessionId != CurrentSession.SessionId
+            && ExpectedSessionId != CurrentSession.BillingSessionId)
+        {
+            SessionError =
+                $"Mã gọi thêm món này thuộc phiên cũ của bàn {CurrentSession.TableCode}. "
+                + "Vui lòng mở lại chi tiết bàn trên sơ đồ để lấy mã mới.";
+            CurrentSession = null;
             return;
         }
 

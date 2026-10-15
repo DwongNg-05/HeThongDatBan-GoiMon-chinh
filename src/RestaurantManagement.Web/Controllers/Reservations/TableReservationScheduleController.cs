@@ -90,8 +90,12 @@ public sealed class TableReservationScheduleController(IConfiguration configurat
     public async Task<IActionResult> Create(ManagedTableReservationCreateViewModel model)
     {
         Normalize(model);
+        // S3-09 Task 3: cách nhập tương đương của số điện thoại → dạng chuẩn; kiểm tra lại lịch sử không tới ngay lúc gửi.
+        PhoneNoShowGuard.NormalizePhone(ModelState, model);
         await LoadTablesAsync(model);
         if (!ModelState.IsValid) return View(model);
+        if (await PhoneNoShowGuard.RequireConfirmationAsync(User, ModelState, model, ConnectionString, HttpContext.RequestAborted))
+            return View(model);
 
         if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var actorUserId)) return Forbid();
         try

@@ -17,9 +17,11 @@
     let nextDelay = 30000;
     // S3-09 Task 1 (reservation-no-show.js): đánh dấu khách không tới và hẹn giờ tải lại đúng lúc một lượt đạt mốc trễ.
     const noShow = globalThis.ReservationNoShow;
-    const groupOf = item => item.isLate ? 'late' : item.isUpcoming ? 'upcoming' : 'rest';
+    // S3-09 Task 2: lượt đang gia hạn giữ bàn (không cảnh báo) đứng ngay sau nhóm đang trễ, kèm thời hạn mới.
+    const groupOf = item => item.isLate ? 'late' : item.isExtended ? 'extended' : item.isUpcoming ? 'upcoming' : 'rest';
     const groups = {
         late: { title: 'Đang trễ quá 15 phút – khách chưa tới', className: 'table-danger' },
+        extended: { title: 'Đang gia hạn giữ bàn – chờ khách tới', className: 'table-info' },
         upcoming: { title: 'Sắp đến trong 30 phút tới', className: 'table-warning' },
         rest: { title: 'Các lượt đặt còn lại', className: 'table-light' }
     };
@@ -29,6 +31,16 @@
         const cell = document.createElement('td');
         cell.className = 'reservation-status';
         cell.dataset.tone = tones[item.status] || 'closed';
+        if (item.isExtended) {
+            const status = document.createElement('span');
+            status.textContent = item.status;
+            const hold = document.createElement('span');
+            hold.className = 'reservation-hold-badge';
+            hold.textContent = item.holdLabel || 'Đang gia hạn giữ bàn';
+            cell.append(status);
+            cell.append(hold);
+            return cell;
+        }
         if (!item.isLate) { cell.textContent = item.status; return cell; }
         const status = document.createElement('span');
         status.textContent = item.status;
@@ -37,6 +49,26 @@
         badge.textContent = item.lateLabel || 'Trễ quá 15 phút';
         cell.append(status);
         cell.append(badge);
+        if (item.extensionLabel) {
+            // Đã gia hạn một lần và đã hết hạn: không còn nút gia hạn, chỉ còn đánh dấu khách không tới.
+            const used = document.createElement('span');
+            used.className = 'reservation-extension-used';
+            used.textContent = item.extensionLabel;
+            cell.append(used);
+        }
+        if (noShow?.extend && item.id && item.canExtend) {
+            const extend = document.createElement('button');
+            extend.type = 'button';
+            extend.className = 'btn btn-sm btn-outline-primary reservation-extend';
+            extend.textContent = 'Gia hạn 15 phút';
+            extend.dataset.extendId = String(item.id);
+            extend.setAttribute('aria-label', `Gia hạn giữ bàn 15 phút: lượt ${item.code}, ${item.customerName}`);
+            extend.addEventListener('click', async () => {
+                const result = await noShow.extend(item.id, `lượt ${item.code} – ${item.customerName}`);
+                if (result) load(selectedDate, selectedStatus, true);
+            });
+            cell.append(extend);
+        }
         if (noShow && item.id) {
             const button = document.createElement('button');
             button.type = 'button';
@@ -85,8 +117,9 @@
                 document.getElementById('viewing-date').textContent = `${day}/${month}/${year}`;
             }
             rows.replaceChildren();
-            // Nhóm: đang trễ (S3-09) → sắp đến trong 30 phút → còn lại; chỉ có tiêu đề nhóm khi có lượt trễ hoặc sắp đến.
-            const grouped = data.reservations.some(item => item.isLate || item.isUpcoming);
+            // Nhóm: đang trễ (S3-09) → đang gia hạn giữ bàn → sắp đến trong 30 phút → còn lại;
+            // chỉ có tiêu đề nhóm khi có lượt trễ, đang gia hạn hoặc sắp đến.
+            const grouped = data.reservations.some(item => item.isLate || item.isExtended || item.isUpcoming);
             let lastGroup;
             for (const item of data.reservations) {
                 const group = groupOf(item);
@@ -104,6 +137,7 @@
                 const row = document.createElement('tr');
                 if (group !== 'rest') row.className = groups[group].className;
                 if (item.isLate) row.dataset.lateReservation = String(item.id);
+                if (item.isExtended) row.dataset.extendedReservation = String(item.id);
                 for (const field of ['code', 'customerName', 'phone', 'guestCount', 'timeSlot', 'tableName']) {
                     const cell = document.createElement('td');
                     cell.textContent = item[field];
@@ -113,9 +147,20 @@
                 rows.append(row);
             }
             nextDelay = noShow ? noShow.nextDelay(data, Date.now()) : 30000;
+            // Cảnh báo trễ không đọc được: báo ngay đầu danh sách, không im lặng.
+            if (data.alertsError) {
+                const heading = document.createElement('tr');
+                const cell = document.createElement('th');
+                cell.colSpan = 7;
+                cell.textContent = data.alertsError;
+                heading.className = 'table-danger';
+                heading.dataset.alertsError = 'true';
+                heading.append(cell);
+                rows.prepend ? rows.prepend(heading) : rows.append(heading);
+            }
             empty.hidden = data.reservations.length !== 0;
             empty.textContent = status ? 'Không có lượt đặt bàn phù hợp với ngày và trạng thái đã chọn.' : 'Chưa có lượt đặt bàn trong ngày này.';
-            results.hidden = data.reservations.length === 0;
+            results.hidden = data.reservations.length === 0 && !data.alertsError;
             if (data.evaluatedAtUtc) {
                 const evaluatedAt = new Date(data.evaluatedAtUtc);
                 root.dataset.date = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(evaluatedAt);

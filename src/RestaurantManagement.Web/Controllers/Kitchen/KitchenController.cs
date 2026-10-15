@@ -52,6 +52,7 @@ public sealed class KitchenController(IConfiguration configuration) : Controller
             JOIN dbo.DiningSessions s ON s.Id = b.SessionId
             JOIN dbo.DiningTables t ON t.Id = i.OriginalTableId
             WHERE s.Status <> 'Closed'
+              AND i.Status <> 'Cancelled' -- S3-05 Task 1: món đã huỷ rời hàng đợi bếp ở lần tải lại kế tiếp (tối đa 3 giây).
             ORDER BY b.CreatedAt, b.SessionId, b.BatchNumber, b.Id, i.Id;
             """, connection);
 
@@ -84,7 +85,68 @@ public sealed class KitchenController(IConfiguration configuration) : Controller
 
         return View(new KitchenScreenViewModel(
             items,
-            User.IsInRole(AppRoles.Kitchen)));
+            User.IsInRole(AppRoles.Kitchen),
+            await StopNoticesAsync(cancellationToken)));
+    }
+
+    // S3-05 Task 3: món Quản lý vừa huỷ khi bếp đang nấu / đã xong → thẻ "DỪNG MÓN" (tải lại cùng danh sách, mỗi 3 giây).
+    private async Task<IReadOnlyList<KitchenStopNotice>> StopNoticesAsync(CancellationToken cancellationToken)
+    {
+        var notices = new List<KitchenStopNotice>();
+        try
+        {
+            await using var connection = new SqlConnection(ConnectionString);
+            await using var command = new SqlCommand("""
+                SELECT OrderItemId, TableCode, ItemName, Quantity, Unit, FromStatus, CancelReason, CancellationNote,
+                       CancelledAt, CancelledByName, BatchNumber
+                FROM dbo.vw_KitchenStopNotices
+                ORDER BY CancelledAt DESC, OrderItemId DESC;
+                """, connection);
+            await connection.OpenAsync(cancellationToken);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+                notices.Add(new KitchenStopNotice(reader.GetInt64(0), reader.GetString(1), reader.GetString(2), reader.GetInt32(3),
+                    reader.GetString(4), reader.GetString(5), reader.IsDBNull(6) ? null : reader.GetString(6),
+                    reader.IsDBNull(7) ? null : reader.GetString(7), VietnamTime.FromUtc(reader.GetDateTime(8)),
+                    reader.IsDBNull(9) ? null : reader.GetString(9), reader.GetInt32(10)));
+        }
+        catch (SqlException ex) when (ex.Number == 208)
+        {
+            // Database chưa chạy migration 058: màn hình bếp vẫn hoạt động, chỉ chưa có thẻ dừng món.
+        }
+        return notices;
+    }
+
+    // S3-05 Task 3: Bếp xác nhận đã dừng món bị huỷ (thẻ "DỪNG MÓN" biến mất; bấm lặp không ghi thêm).
+    [HttpPost("StopAck/{id:long}")]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = AppRoles.KitchenWorkers)]
+    public async Task<IActionResult> StopAck(long id)
+    {
+        try
+        {
+            await using var connection = new SqlConnection(ConnectionString);
+            await using var command = new SqlCommand("dbo.usp_AcknowledgeKitchenStop", connection)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
+            command.Parameters.Add("@OrderItemId", SqlDbType.BigInt).Value = id;
+            command.Parameters.Add("@ActorUserId", SqlDbType.Int).Value = User.ActorUserId();
+            await connection.OpenAsync();
+            var outcome = await command.ExecuteScalarAsync() as string;
+            TempData[outcome == "Acknowledged" ? "Success" : "Info"] = outcome == "Acknowledged"
+                ? "Đã ghi nhận bếp dừng món."
+                : "Món này đã được xác nhận dừng trước đó.";
+        }
+        catch (SqlException ex)
+            when (ex.Number is >= 51000 and < 51500)
+        {
+            TempData["Error"] = ex.Number == 51001
+                ? "Tài khoản không có quyền xác nhận dừng món."
+                : ex.Message;
+        }
+
+        return RedirectToAction(nameof(Index));
     }
 
     // S2-08 Task 1: danh sách món trong ngày.
@@ -225,9 +287,21 @@ public sealed class KitchenController(IConfiguration configuration) : Controller
         {
             TempData["Error"] = ex.Number == 51001
                 ? "Tài khoản không có quyền chuyển trạng thái chế biến."
-                : ex.Message;
+                : ex.Number == 51030 && await IsCancelledAsync(id)
+                    ? "Món này vừa bị hủy nên không cần chế biến nữa; màn hình bếp đã gỡ món."
+                    : ex.Message;
         }
 
         return RedirectToAction(nameof(Index));
     }
-}
+
+    // S3-05 Task 1: bếp bấm vào món vừa bị huỷ (màn hình chưa kịp tải lại) → báo rõ thay vì lỗi chuyển trạng thái chung.
+    private async Task<bool> IsCancelledAsync(long id)
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await using var command = new SqlCommand("SELECT Status FROM dbo.OrderItems WHERE Id = @id;", connection);
+        command.Parameters.Add("@id", SqlDbType.BigInt).Value = id;
+        await connection.OpenAsync();
+        return await command.ExecuteScalarAsync() is "Cancelled";
+    }
+}

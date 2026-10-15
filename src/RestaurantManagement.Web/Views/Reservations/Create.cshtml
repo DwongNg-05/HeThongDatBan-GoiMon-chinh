@@ -80,6 +80,14 @@
                         </div>
 
 
+                        @* S3-09 Task 3: nhân viên đặt hộ khách — cảnh báo số điện thoại có ít nhất 3 lần không tới trong 90 ngày.
+                           Khách tự đặt (không đăng nhập) không thấy lịch sử của số điện thoại. *@
+                        @if (User.IsInRole("Manager") || User.IsInRole("Waiter"))
+                        {
+                            <partial name="_PhoneNoShowWarning" model="Model" />
+                        }
+
+
                         <!-- ============================= -->
                         <!-- SỐ KHÁCH -->
                         <!-- ============================= -->
@@ -272,5 +280,9 @@
 
     <partial name="_ValidationScriptsPartial" />
     <script src="~/js/booking-schedule.js" asp-append-version="true"></script>
+    @if (User.IsInRole("Manager") || User.IsInRole("Waiter"))
+    {
+        <script src="~/js/phone-no-show-warning.js" asp-append-version="true"></script>
+    }
 
 }

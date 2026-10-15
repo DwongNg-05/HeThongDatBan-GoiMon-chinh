@@ -89,6 +89,9 @@
 .reservation-status[data-tone="no-show"], .staff-table tr > td.reservation-status[data-tone="no-show"] { color: var(--s-red); }
 .reservation-status[data-tone="closed"], .staff-table tr > td.reservation-status[data-tone="closed"] { color: var(--s-muted); }
 .reservation-status .reservation-no-show { display: flex; margin-top: 8px; }
+/* S3-09 Task 2: nút gia hạn và ghi chú "đã gia hạn" xếp dòng riêng như nút "Khách không tới". */
+.reservation-status .reservation-extend { display: flex; margin-top: 8px; }
+.reservation-status .reservation-extension-used { display: block; margin-top: 4px; }
 
 /* ---------- Đơn chờ xử lý: thẻ ---------- */
 .pending-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
