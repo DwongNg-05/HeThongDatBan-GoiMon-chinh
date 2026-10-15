@@ -25,6 +25,9 @@ public sealed record PaymentsViewModel(ShiftSummary? OpenShift, IReadOnlyList<Pa
 public sealed record CashierPaymentLine(string ItemName, string Unit, int Quantity, decimal UnitPrice,
     decimal LineTotal, string? Notes, string OriginalTableCode, bool IsChargedCancellation);
 
+/// <summary>Thông tin QR chuyển khoản được sinh theo đúng tổng tiền của hóa đơn đang chốt.</summary>
+public sealed record BankTransferQr(string BankCode, string AccountNumber, string AccountName, string Reference, string ImageUrl);
+
 public sealed record CashierPaymentViewModel(
     PayableSession Session,
     IReadOnlyList<CashierPaymentLine> Lines,
@@ -32,6 +35,7 @@ public sealed record CashierPaymentViewModel(
     decimal CashReceived,
     string? TransferReference,
     Guid RequestId,
+    BankTransferQr? TransferQr,
     string? Error = null)
 {
     public decimal Total => Session.Subtotal;
