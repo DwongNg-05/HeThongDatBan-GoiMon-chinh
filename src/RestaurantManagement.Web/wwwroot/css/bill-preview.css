@@ -47,3 +47,8 @@
 .bill-receipt-meta dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .bill-receipt-head .bill-preview-meta { text-align: left; font-size: 13px; }
 @media (max-width: 575.98px) { .bill-receipt-meta { grid-template-columns: 1fr; } }
+
+/* S4-01 Task 4: thông báo khi không tạo được tệp PDF; nút đang tạo PDF. */
+.bill-preview-error { margin: 0 0 12px; }
+.bill-preview-error[hidden] { display: none; }
+[data-preview-pdf][aria-disabled="true"] { pointer-events: none; opacity: .65; }

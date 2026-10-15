@@ -103,7 +103,9 @@ internal static class RoleNavigationTests
             // S3-04 Task 4: phục vụ mở hoá đơn tạm tính để đối chiếu ghi chú khi mang món ra.
             "ProvisionalBill.Index GET", "ProvisionalBill.Table GET",
             // S4-01 Task 1: màn hình "Tạm tính" và API dữ liệu tạm tính của bàn đang phục vụ.
-            "ProvisionalBill.Preview GET", "ProvisionalBillApi.Get GET"
+            "ProvisionalBill.Preview GET", "ProvisionalBillApi.Get GET",
+            // S4-01 Task 4: xuất PDF hoá đơn tạm tính.
+            "ProvisionalBill.Pdf GET"
         }.Where(k => !ApiAccessMatrix.IsAllowed(Api(k), "Waiter")).ToArray();
         check(waiterAllowed.Length == 0, "Server scope: table map, reservation, ordering and serving-queue APIs are open to the waiter" + (waiterAllowed.Length > 0 ? ": " + string.Join(", ", waiterAllowed) : ""));
 

@@ -92,6 +92,8 @@ internal static class Verification
             await BillHeaderVerification.Run(connection);
             // S4-01 Task 3: in hoá đơn tạm tính khổ 80mm — bản in khớp màn hình, in không đổi trạng thái bàn, in xong vẫn gọi thêm món.
             await BillPrintVerification.Run(connection);
+            // S4-01 Task 4: xuất PDF khổ 80mm — tệp mở được, nội dung khớp màn hình, tên tệp đúng quy tắc, không đổi trạng thái bàn.
+            await BillPdfVerification.Run(connection);
             await DatabaseTool.Execute(connection, "EXEC dbo.usp_RunMaintenance; EXEC dbo.usp_RunMaintenance;");
             Console.WriteLine("PASS: all SQL Server integration checks.");
         }
@@ -214,6 +216,7 @@ internal static class Verification
             await BillPreviewVerification.Run(connection);
             await BillHeaderVerification.Run(connection);
             await BillPrintVerification.Run(connection);
+            await BillPdfVerification.Run(connection);
         }
         finally
         {
