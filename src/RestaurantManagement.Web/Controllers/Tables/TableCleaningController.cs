@@ -11,6 +11,29 @@ namespace RestaurantManagement.Web.Controllers;
 [Route("api/table-cleaning")]
 public sealed class TableCleaningController(IConfiguration configuration) : ControllerBase
 {
+    [HttpGet("warnings")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public async Task<IActionResult> Warnings(CancellationToken ct)
+    {
+        await using var cn = new SqlConnection(configuration.GetConnectionString("DefaultConnection"));
+        await cn.OpenAsync(ct);
+        await using var cmd = new SqlCommand("""
+            DECLARE @now datetime2(3)=SYSUTCDATETIME();
+            SELECT t.Code,t.StatusChangedAt,dbo.fn_IsCleaningOverdue(t.Status,t.StatusChangedAt,@now)
+            FROM dbo.DiningTables t JOIN dbo.Areas a ON a.Id=t.AreaId
+            WHERE t.IsActive=1 AND a.IsActive=1 AND t.Status='Cleaning';
+            """, cn);
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        var tables = new List<object>();
+        while (await reader.ReadAsync(ct))
+            tables.Add(new {
+                code = reader.GetString(0),
+                startedAtUtc = DateTime.SpecifyKind(reader.GetDateTime(1), DateTimeKind.Utc),
+                overdue = reader.GetBoolean(2)
+            });
+        return Ok(tables);
+    }
+
     [HttpPost("{code}/complete"), ValidateAntiForgeryToken]
     public async Task<IActionResult> Complete(string code, CancellationToken ct)
     {

@@ -1,0 +1,3 @@
+.table-card.has-cleaning-warning { border: 2px solid #b45309; }
+.cleaning-warning { margin-top: .75rem; padding: .5rem; border-radius: .5rem; background: #fff3cd; color: #78350f; font-weight: 600; white-space: normal; overflow-wrap: anywhere; }
+.cleaning-warning[hidden] { display: none; }

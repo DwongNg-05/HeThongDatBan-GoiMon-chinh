@@ -2,6 +2,7 @@ $ErrorActionPreference='Stop'
 $root=Split-Path $PSScriptRoot -Parent
 Set-Location $root
 $db='RestaurantCleaningTest_'+[Guid]::NewGuid().ToString('N')
+$env:CLEANING_TEST_DB=$db
 $env:RM_CONNECTION_STRING="Server=(localdb)\MSSQLLocalDB;Database=$db;Integrated Security=true;TrustServerCertificate=true"
 $env:RM_DEMO_PASSWORD='CleaningTest-'+[Guid]::NewGuid().ToString('N')
 $env:ASPNETCORE_ENVIRONMENT='Development'
@@ -16,9 +17,16 @@ try{
  dotnet .local/db-startup-fix/RestaurantManagement.DbTool.dll seed-login-demo
  if($LASTEXITCODE -ne 0){throw 'Seed failed'}
  Sql @'
+ DECLARE @start datetime2(3)='2026-01-01T00:00:00';
+ IF dbo.fn_IsCleaningOverdue('Cleaning',@start,DATEADD(millisecond,599999,@start))<>0 THROW 51999,'Before threshold failed',1;
+ IF dbo.fn_IsCleaningOverdue('Cleaning',@start,DATEADD(minute,10,@start))<>0 THROW 51999,'Exact threshold failed',1;
+ IF dbo.fn_IsCleaningOverdue('Cleaning',@start,DATEADD(millisecond,600001,@start))<>1 THROW 51999,'After threshold failed',1;
+ IF dbo.fn_IsCleaningOverdue('Available',@start,DATEADD(minute,11,@start))<>0 THROW 51999,'Non-cleaning warning',1;
+ PRINT 'PASS: 09:59.999, 10:00.000, 10:00.001 and non-cleaning boundaries';
  DECLARE @a int=(SELECT TOP(1) Id FROM dbo.Areas),@u int=(SELECT Id FROM dbo.Users WHERE UserName='demo-manager');
  INSERT dbo.DiningTables(AreaId,Code,MaxCapacity,Status)
  VALUES(@a,'CLEAN1',4,'Cleaning'),(@a,'FREE1',4,'Available'),(@a,'RES1',4,'Reserved'),(@a,'SERV1',4,'Serving'),(@a,'BUSY1',4,'Cleaning'),(@a,'RACE1',4,'Cleaning');
+ UPDATE dbo.DiningTables SET StatusChangedAt=DATEADD(minute,-11,SYSUTCDATETIME()) WHERE Code='CLEAN1';
  INSERT dbo.Shifts(Name,BusinessDate,OpenedBy) VALUES('Test',CONVERT(date,GETDATE()),@u);
  DECLARE @shift bigint=SCOPE_IDENTITY();
  INSERT dbo.DiningSessions(ShiftId,GuestCount,OpenedBy) VALUES(@shift,2,@u);
