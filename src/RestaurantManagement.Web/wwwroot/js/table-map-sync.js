@@ -40,9 +40,11 @@
         const card = cards.get(table.code);
         const display = statuses[table.status];
 
-        if (!card || !display || card.dataset.status === table.status) {
+        if (!card || !display) {
             return;
         }
+        card.dataset.changedAt = table.changedAtUtc;
+        if (card.dataset.status === table.status) return;
 
         const previousStatus = card.dataset.status;
         const wasAvailable = previousStatus === 'Available';
