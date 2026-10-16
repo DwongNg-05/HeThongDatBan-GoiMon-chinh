@@ -5,6 +5,7 @@ using RestaurantManagement.Web.Models.Reports;
 using RestaurantManagement.Web.Security;
 using RestaurantManagement.Web.Services;
 using System.Globalization;
+using RestaurantManagement.Web.Authentication;
 
 namespace RestaurantManagement.Web.Controllers;
 
@@ -15,7 +16,21 @@ public sealed class DailyOverviewController(DailyOverviewStore store, TimeProvid
 {
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken cancellationToken, string? from = null, string? to = null)
+        => await LoadAsync(cancellationToken, from, to, false);
+
+    [HttpGet("Snapshot")]
+    [PassiveSessionRead]
+    public async Task<IActionResult> Snapshot(CancellationToken cancellationToken, string? from = null, string? to = null)
+        => await LoadAsync(cancellationToken, from, to, true);
+
+    private async Task<IActionResult> LoadAsync(CancellationToken cancellationToken, string? from, string? to, bool snapshot)
     {
+        IActionResult Render(DailyOverview model)
+        {
+            if (!snapshot) return View("Index", model);
+            Response.Headers["X-Report-Snapshot"] = "1";
+            return PartialView("_Snapshot", model);
+        }
         var now = clock.GetUtcNow().ToOffset(TimeSpan.FromHours(7)).DateTime;
         DateOnly? start = null, end = null;
         var requested = Request.Query.ContainsKey("from") || Request.Query.ContainsKey("to");
@@ -27,16 +42,28 @@ public sealed class DailyOverviewController(DailyOverviewStore store, TimeProvid
             if (error is not null)
             {
                 Response.StatusCode = StatusCodes.Status400BadRequest;
-                return View(new DailyOverview(start ?? DateOnly.FromDateTime(now), now, 0, 0, 0, 0, 0, [],
+                return Render(new DailyOverview(start ?? DateOnly.FromDateTime(now), now, 0, 0, 0, 0, 0, [],
                     RangeEnd: end, FromInput: from ?? "", ToInput: to ?? "", ValidationError: error));
             }
         }
-        try { return View(await store.RangeAsync(start, end, cancellationToken)); }
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(TimeSpan.FromSeconds(10));
+        try { return Render(await store.RangeAsync(start, end, deadline.Token)); }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return StatusCode(StatusCodes.Status499ClientClosedRequest);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+            return Render(new DailyOverview(start ?? DateOnly.FromDateTime(now), now, 0, 0, 0, 0, 0, [],
+                LoadError: "Cập nhật quá thời gian chờ. Vui lòng thử lại.", RangeEnd: end, FromInput: from, ToInput: to));
+        }
         catch (SqlException ex)
         {
             logger.LogError(ex, "Không tải được tổng quan hôm nay.");
             Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
-            return View(new DailyOverview(start ?? DateOnly.FromDateTime(now), now, 0, 0, 0, 0, 0, [],
+            return Render(new DailyOverview(start ?? DateOnly.FromDateTime(now), now, 0, 0, 0, 0, 0, [],
                 LoadError: "Không tải được số liệu. Vui lòng thử tải lại trang.", RangeEnd: end,
                 FromInput: from, ToInput: to));
         }

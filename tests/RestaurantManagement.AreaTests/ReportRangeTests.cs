@@ -58,6 +58,10 @@ internal static class ReportRangeTests
             var result = (ViewResult)await controller.Index(CancellationToken.None, from, to);
             var model = (DailyOverview)result.Model!;
             check(context.Response.StatusCode == 400 && model.ValidationError is not null && model.FromInput == (from ?? "") && model.ToInput == (to ?? ""), "Range controller rejects invalid query without SQL and preserves inputs: " + query);
+            context.Response.StatusCode = 200;
+            var snapshot = (PartialViewResult)await controller.Snapshot(CancellationToken.None, from, to);
+            check(context.Response.StatusCode == 400 && snapshot.Model is DailyOverview { ValidationError: not null }
+                && context.Response.Headers["X-Report-Snapshot"] == "1", "Snapshot uses the same server range validation: " + query);
         }
     }
 }

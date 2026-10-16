@@ -31,6 +31,11 @@ if (args.Contains("--daily-overview-db"))
     Console.WriteLine($"{count} daily overview database tests passed.");
     return;
 }
+if (args.Contains("--daily-overview-live"))
+{
+    await ReportLiveHttpTests.RunAsync();
+    return;
+}
 if (args.Contains("--image-only"))
 {
     await MenuImageTests.Run(Check);

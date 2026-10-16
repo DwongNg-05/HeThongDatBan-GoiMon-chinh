@@ -91,6 +91,7 @@ internal static class ApiAccessMatrix
         new("AuditLogs.Index GET", Manager, "GET", "/AuditLogs"),
         // S3-05 Task 2: báo cáo cuối ca — nhật ký huỷ món (trang và dữ liệu JSON), chỉ Quản lý.
         new("DailyOverview.Index GET", Manager, "GET", "/Reports/Today"),
+        new("DailyOverview.Snapshot GET", Manager, "GET", "/Reports/Today/Snapshot"),
         new("ShiftReports.Cancellations GET", Manager, "GET", "/Reports/Shift/Cancellations"),
         new("ShiftReports.CancellationsData GET", Manager, "GET", "/api/reports/shift-cancellations"),
         new("EmployeeAccounts.Index GET", Manager, "GET", "/admin/employee-accounts"),
@@ -109,6 +110,7 @@ internal static class ApiAccessMatrix
         new("Page /GuestOrdering/Index", Anonymous, "GET", "/GuestOrdering/Index"),
         new("Page /GuestOrdering/Success", Anonymous, "GET", "/GuestOrdering/Success"),
         new("TableDetails.Get GET", FrontOfHouse, "GET", "/api/table-map/ZZ99"),
+        new("TableDetails.AddItemsQr GET", FrontOfHouse, "GET", "/api/table-map/ZZ99/add-items-qr?sessionId=999999"),
         new("TableStatus.Snapshot GET", FrontOfHouse, "GET", "/api/table-status"),
         new("TableStatus.Stream GET", FrontOfHouse, "GET", "/api/table-status/stream"),
         new("TableStatus.Update POST", FrontOfHouse, "POST", "/api/table-status/ZZ99"),
