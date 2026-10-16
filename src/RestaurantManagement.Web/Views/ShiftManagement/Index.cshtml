@@ -1,0 +1,265 @@
+﻿@model RestaurantManagement.Web.Models.Cashier.ShiftManagementViewModel
+
+@{
+    ViewData["Title"] = "Quản lý ca";
+}
+
+<div class="container mt-4" data-screen="shift-management">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h3">Quản lý ca</h1>
+
+        <a asp-action="Index"
+           asp-route-shiftId="@Model.SelectedShiftId"
+           class="btn btn-outline-secondary">
+            Cập nhật
+        </a>
+    </div>
+
+    <p class="text-muted">
+        Chỉ quản lý được mở lại ca đã chốt.
+        Bắt buộc nhập lý do. Thời gian hiển thị theo giờ Việt Nam.
+    </p>
+
+    <p>
+        <a asp-controller="Cashier"
+           asp-action="Shift"
+           class="btn btn-outline-primary">
+            Đến màn hình chốt ca
+        </a>
+    </p>
+
+    @if (TempData["Success"] is string success)
+    {
+        <div class="alert alert-success" role="status">
+            @success
+        </div>
+    }
+
+    @if (TempData["Error"] is string error)
+    {
+        <div class="alert alert-danger" role="alert">
+            @error
+        </div>
+    }
+
+    @if (Model.HasOpenShift)
+    {
+        <div class="alert alert-warning" role="status">
+            Đang có ca mở. Cần chốt ca đang mở trước khi mở lại ca khác.
+        </div>
+    }
+
+    <section class="card mb-4">
+        <div class="card-body">
+            <h2 class="h5">Danh sách 50 ca gần nhất</h2>
+
+            @if (Model.Shifts.Count == 0)
+            {
+                <p class="text-muted">Chưa có ca nào.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle">
+                        <thead>
+                            <tr>
+                                <th>Mã ca</th>
+                                <th>Tên ca</th>
+                                <th>Ngày kinh doanh</th>
+                                <th>Trạng thái</th>
+                                <th>Chốt lúc</th>
+                                <th>Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var shift in Model.Shifts)
+                            {
+                                <tr data-shift-id="@shift.Id"
+                                    data-shift-status="@shift.Status">
+                                    <td>#@shift.Id</td>
+                                    <td>@shift.Name</td>
+                                    <td>
+                                        @shift.BusinessDate.ToString("dd/MM/yyyy")
+                                    </td>
+                                    <td>
+                                        @(shift.Status == "Open"
+                                            ? "Đang mở"
+                                            : shift.Status == "Closed"
+                                                ? "Đã chốt"
+                                                : shift.Status)
+                                    </td>
+                                    <td>
+                                        @(shift.ClosedAt?.ToString("dd/MM/yyyy HH:mm")
+                                            ?? "—")
+                                    </td>
+                                    <td>
+                                        <a asp-action="Index"
+                                           asp-route-shiftId="@shift.Id"
+                                           class="btn btn-sm btn-outline-primary mb-2">
+                                            Xem lịch sử
+                                        </a>
+
+                                        @if (shift.Status == "Closed")
+                                        {
+                                            @if (Model.HasOpenShift)
+                                            {
+                                                <p class="text-muted mb-0">
+                                                    Chưa thể mở lại khi đang có ca mở.
+                                                </p>
+                                            }
+                                            else
+                                            {
+                                                <form asp-action="Reopen"
+                                                      method="post"
+                                                      class="reopen-shift-form"
+                                                      data-shift-id="@shift.Id">
+
+                                                    <input type="hidden"
+                                                           name="shiftId"
+                                                           value="@shift.Id" />
+
+                                                    <label for="reason-@shift.Id"
+                                                           class="form-label">
+                                                        Lý do mở lại ca
+                                                    </label>
+
+                                                    <textarea id="reason-@shift.Id"
+                                                              name="reason"
+                                                              class="form-control mb-2"
+                                                              rows="2"
+                                                              maxlength="500"
+                                                              placeholder="Nhập lý do mở lại ca"
+                                                              required></textarea>
+
+                                                    <button type="submit"
+                                                            class="btn btn-sm btn-warning">
+                                                        Mở lại ca
+                                                    </button>
+                                                </form>
+                                            }
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </section>
+
+    @if (Model.SelectedShiftId is { } selectedId)
+    {
+        <section class="card mb-4">
+            <div class="card-body">
+                <h2 class="h5">Lịch sử ca #@selectedId</h2>
+
+                @if (Model.History.Count == 0)
+                {
+                    <p class="text-muted">
+                        Chưa có lịch sử của ca này.
+                    </p>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-bordered align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Thời điểm</th>
+                                    <th>Thao tác</th>
+                                    <th>Người thực hiện</th>
+                                    <th>Lý do / Giải trình</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var entry in Model.History)
+                                {
+                                    <tr>
+                                        <td>
+                                            @entry.OccurredAt.ToString("dd/MM/yyyy HH:mm:ss")
+                                        </td>
+                                        <td>@entry.ActionLabel</td>
+                                        <td>Mã nhân viên #@entry.ActorUserId</td>
+                                        <td class="text-break"
+                                            style="white-space: pre-wrap">
+                                            @(entry.Reason ?? "—")
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        (() => {
+            'use strict';
+
+            document.querySelectorAll('.reopen-shift-form')
+                .forEach(form => {
+                    const reason = form.querySelector('[name="reason"]');
+                    const button = form.querySelector('[type="submit"]');
+
+                    let submitting = false;
+
+                    reason.addEventListener('input', () => {
+                        reason.setCustomValidity('');
+                    });
+
+                    form.addEventListener('submit', event => {
+                        if (submitting) {
+                            event.preventDefault();
+                            return;
+                        }
+
+                        reason.setCustomValidity('');
+
+                        const text = reason.value.trim();
+
+                        if (!text) {
+                            event.preventDefault();
+
+                            reason.setCustomValidity(
+                                'Vui lòng nhập lý do mở lại ca.');
+
+                            reason.reportValidity();
+                            reason.focus();
+                            return;
+                        }
+
+                        if (!form.reportValidity()) {
+                            event.preventDefault();
+                            return;
+                        }
+
+                        const confirmed = window.confirm(
+                            'Xác nhận mở lại ca #' + form.dataset.shiftId
+                            + '?\n\nLý do: ' + text
+                            + '\n\nCa sẽ trở về trạng thái đang mở.'
+                        );
+
+                        if (!confirmed) {
+                            event.preventDefault();
+                            return;
+                        }
+
+                        submitting = true;
+                        button.disabled = true;
+                        button.textContent = 'Đang mở lại...';
+                    });
+
+                    window.addEventListener('pageshow', () => {
+                        submitting = false;
+                        button.disabled = false;
+                        button.textContent = 'Mở lại ca';
+                    });
+                });
+        })();
+    </script>
+}
