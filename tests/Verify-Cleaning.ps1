@@ -39,6 +39,7 @@ try{
   THROW 51999,'Kitchen permission check failed',1;
  END TRY BEGIN CATCH IF ERROR_NUMBER()<>51001 THROW; END CATCH;
 '@
+ Sql (Get-Content (Join-Path $PSScriptRoot 'cleaning-next-reservation.sql') -Raw)
  $listener=[Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback,0);$listener.Start();$port=$listener.LocalEndpoint.Port;$listener.Stop()
  $env:CLEANING_TEST_URL="http://127.0.0.1:$port/"
  $proc=Start-Process dotnet -ArgumentList @((Join-Path $root '.local/cleaning-check/RestaurantManagement.Web.dll'),'--urls',$env:CLEANING_TEST_URL) -WorkingDirectory (Join-Path $root 'src/RestaurantManagement.Web') -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $root '.local/cleaning-check/web.log') -RedirectStandardError (Join-Path $root '.local/cleaning-check/web.err.log')
@@ -50,6 +51,8 @@ try{
  Sql @'
  IF (SELECT COUNT(*) FROM dbo.TableStatusChangeEvents WHERE TableCode='RACE1' AND PreviousStatus='Cleaning' AND Status='Available')<>1 THROW 51999,'Duplicate event',1;
  IF (SELECT Status FROM dbo.DiningTables WHERE Code='BUSY1')<>'Cleaning' THROW 51999,'Active session released',1;
+ IF EXISTS(SELECT 1 FROM dbo.DiningTables WHERE Code IN ('NEXT1','MULTI1','BOUND1') AND Status<>'Reserved') THROW 51999,'Reserved state not persisted',1;
+ IF EXISTS(SELECT 1 FROM dbo.TableStatusChangeEvents WHERE TableCode IN ('NEXT1','MULTI1','BOUND1') AND PreviousStatus='Cleaning' AND Status='Available') THROW 51999,'Unexpected intermediate available state',1;
  UPDATE dbo.DiningTables SET Status='Cleaning' WHERE Code='RACE1';
  DECLARE @w int=(SELECT Id FROM dbo.Users WHERE UserName='clean-waiter');
  EXEC dbo.usp_CompleteTableCleaning 'RACE1',@w;

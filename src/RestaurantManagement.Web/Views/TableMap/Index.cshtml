@@ -123,6 +123,8 @@
                             <article class="table-card status-@table.StatusClass"
                                      data-table-code="@table.Code"
                                      data-status="@table.Status"
+                                     data-upcoming-guest="@table.UpcomingGuestName"
+                                     data-upcoming-starts-at="@table.UpcomingStartsAtUtc?.ToString("O")"
                                      data-changed-at="@table.ChangedAtUtc.ToString("O")"
                                      aria-label="Bàn @table.Code, @table.Capacity chỗ, @table.StatusLabel">
 

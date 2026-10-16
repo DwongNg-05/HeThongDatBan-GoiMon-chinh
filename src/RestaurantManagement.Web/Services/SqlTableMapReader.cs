@@ -22,6 +22,7 @@ public sealed class SqlTableMapReader(
         await connection.OpenAsync(cancellationToken);
 
         await using var command = new SqlCommand("""
+            DECLARE @now datetime2(3)=SYSUTCDATETIME();
             SELECT COALESCE(MAX(Id), 0)
             FROM dbo.TableStatusChangeEvents;
 
@@ -45,11 +46,9 @@ public sealed class SqlTableMapReader(
                     THEN COALESCE(
                         payment.PaymentRequestedAt,
                         t.StatusChangedAt)
-                    WHEN t.Status = 'Available'
-                        AND reservation.StartsAt IS NOT NULL
-                    THEN DATEADD(minute, -30, reservation.StartsAt)
                     ELSE t.StatusChangedAt
-                END AS DisplayChangedAt
+                END AS DisplayChangedAt,
+                reservation.CustomerName,reservation.StartsAt
             FROM dbo.Areas a
             LEFT JOIN dbo.DiningTables t
                 ON t.AreaId = a.Id AND t.IsActive = 1
@@ -74,15 +73,7 @@ public sealed class SqlTableMapReader(
                     AND root.Status <> 'Closed'
                 ORDER BY st.SessionId DESC
             ) payment
-            OUTER APPLY (
-                SELECT TOP (1) r.StartsAt
-                FROM dbo.Reservations r
-                WHERE r.TableId = t.Id
-                    AND r.Status IN ('Pending', 'Confirmed')
-                    AND r.StartsAt <= DATEADD(minute, 30, SYSUTCDATETIME())
-                    AND DATEADD(minute, 15, r.EndsAt) > SYSUTCDATETIME()
-                ORDER BY r.StartsAt, r.Id
-            ) reservation
+            OUTER APPLY dbo.fn_NextTableReservation(t.Id,@now) reservation
             WHERE a.IsActive = 1
             ORDER BY a.SortOrder, a.Id, t.SortOrder, t.Code;
             """, connection);
@@ -128,7 +119,9 @@ public sealed class SqlTableMapReader(
                 display.CssClass,
                 new DateTimeOffset(DateTime.SpecifyKind(
                     reader.GetDateTime(5),
-                    DateTimeKind.Utc))));
+                    DateTimeKind.Utc)),
+                reader.IsDBNull(6) ? null : reader.GetString(6),
+                reader.IsDBNull(7) ? null : new DateTimeOffset(DateTime.SpecifyKind(reader.GetDateTime(7),DateTimeKind.Utc))));
         }
 
         return new TableMapSnapshot(areas)
@@ -150,6 +143,7 @@ public sealed class SqlTableMapReader(
         // Trả trạng thái hiện tại của các bàn để nhận cả thay đổi
         // thanh toán chỉ xảy ra trên DiningSessions.
         await using var command = new SqlCommand("""
+            DECLARE @now datetime2(3)=SYSUTCDATETIME();
             DECLARE @cursor bigint = (
                 SELECT COALESCE(MAX(Id), 0)
                 FROM dbo.TableStatusChangeEvents
@@ -181,11 +175,9 @@ public sealed class SqlTableMapReader(
                     THEN COALESCE(
                         payment.PaymentRequestedAt,
                         t.StatusChangedAt)
-                    WHEN t.Status = 'Available'
-                        AND reservation.StartsAt IS NOT NULL
-                    THEN DATEADD(minute, -30, reservation.StartsAt)
                     ELSE t.StatusChangedAt
-                END AS DisplayChangedAt
+                END AS DisplayChangedAt,
+                reservation.CustomerName,reservation.StartsAt
             FROM dbo.DiningTables t
             JOIN dbo.Areas a ON a.Id = t.AreaId
             OUTER APPLY (
@@ -209,15 +201,7 @@ public sealed class SqlTableMapReader(
                     AND root.Status <> 'Closed'
                 ORDER BY st.SessionId DESC
             ) payment
-            OUTER APPLY (
-                SELECT TOP (1) r.StartsAt
-                FROM dbo.Reservations r
-                WHERE r.TableId = t.Id
-                    AND r.Status IN ('Pending', 'Confirmed')
-                    AND r.StartsAt <= DATEADD(minute, 30, SYSUTCDATETIME())
-                    AND DATEADD(minute, 15, r.EndsAt) > SYSUTCDATETIME()
-                ORDER BY r.StartsAt, r.Id
-            ) reservation
+            OUTER APPLY dbo.fn_NextTableReservation(t.Id,@now) reservation
             WHERE t.IsActive = 1 AND a.IsActive = 1
             ORDER BY a.SortOrder, a.Id, t.SortOrder, t.Code;
             """, connection);
@@ -249,7 +233,9 @@ public sealed class SqlTableMapReader(
                 display.CssClass,
                 new DateTimeOffset(DateTime.SpecifyKind(
                     reader.GetDateTime(4),
-                    DateTimeKind.Utc))));
+                    DateTimeKind.Utc)),
+                reader.IsDBNull(5) ? null : reader.GetString(5),
+                reader.IsDBNull(6) ? null : new DateTimeOffset(DateTime.SpecifyKind(reader.GetDateTime(6),DateTimeKind.Utc))));
         }
 
         return new TableMapChanges(
