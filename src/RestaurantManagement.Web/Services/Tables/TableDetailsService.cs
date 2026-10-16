@@ -52,16 +52,7 @@ public sealed class TableDetailsService(
             LEFT JOIN dbo.DiningSessions AS session ON session.Id=m.SessionId
             LEFT JOIN dbo.DiningSessions AS billingRoot ON billingRoot.Id=COALESCE(session.BillingSessionId,session.Id)
             LEFT JOIN dbo.Reservations AS currentReservation ON currentReservation.Id=session.ReservationId
-            OUTER APPLY
-            (
-                SELECT TOP(1) r.Id,r.CustomerName,r.Phone,r.GuestCount,r.StartsAt
-                FROM dbo.Reservations r
-                WHERE r.TableId=m.Id
-                  AND r.Status IN ('Pending','Confirmed')
-                  AND r.StartsAt<=DATEADD(minute,30,SYSUTCDATETIME())
-                  AND DATEADD(minute,15,r.EndsAt)>SYSUTCDATETIME()
-                ORDER BY r.StartsAt,r.Id
-            ) AS reservationWindow
+            OUTER APPLY dbo.fn_NextTableReservation(m.Id,SYSUTCDATETIME()) AS reservationWindow
             OUTER APPLY
             (
                 SELECT SUM(sessionTotals.Subtotal) AS Subtotal

@@ -73,7 +73,7 @@
                 <div class="table-grid">
                     @foreach (var table in areaTables)
                     {
-                        <article class="table-card status-@table.StatusClass" data-table-code="@table.Code" data-status="@table.Status" data-changed-at="@table.ChangedAtUtc.ToString("O")" aria-label="Bàn @table.Code, sức chứa @table.Capacity người, trạng thái @table.StatusLabel">
+                        <article class="table-card status-@table.StatusClass" data-table-code="@table.Code" data-status="@table.Status" data-changed-at="@table.ChangedAtUtc.ToString("O")" data-upcoming-guest="@table.UpcomingGuestName" data-upcoming-starts-at="@table.UpcomingStartsAtUtc?.ToString("O")" aria-label="Bàn @table.Code, sức chứa @table.Capacity người, trạng thái @table.StatusLabel">
                             <button class="table-detail-trigger" type="button" data-open-details="@table.Code" aria-label="Xem chi tiết bàn @table.Code">
                                 <span class="table-card-top"><span class="table-glyph"><i class="fa-solid fa-chair" aria-hidden="true"></i></span><span class="table-status"><i></i><span class="table-status-label">@table.StatusLabel</span></span></span>
                                 <strong class="table-code">@table.Code</strong>

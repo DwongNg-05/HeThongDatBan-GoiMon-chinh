@@ -17,17 +17,24 @@
         badge.className = 'cleaning-warning'; badge.dataset.cleaningWarning = '';
         badge.setAttribute('role', 'status'); badge.hidden = true;
         cards.set(card, badge); card.append(badge);
+        const guest = document.createElement('div');
+        guest.className = 'table-upcoming-guest'; guest.dataset.upcomingGuestLabel = '';
+        guest.setAttribute('role', 'status'); card.append(guest);
         const button = document.createElement('button');
         button.type = 'button'; button.className = 'btn btn-outline-success btn-sm mt-2';
         button.dataset.completeCleaning = ''; button.textContent = 'Báo đã dọn xong';
         const update = () => {
             button.hidden = card.dataset.status !== 'Cleaning';
             updateWarning(card, badge);
+            guest.hidden = card.dataset.status !== 'Reserved' || !card.dataset.upcomingGuest;
+            const time = Date.parse(card.dataset.upcomingStartsAt);
+            guest.textContent = guest.hidden ? '' : `Khách sắp tới: ${card.dataset.upcomingGuest}`
+                + (Number.isFinite(time) ? ` · ${new Date(time).toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit' })}` : '');
         };
         const feedback = document.createElement('small');
         feedback.setAttribute('role', 'status'); feedback.className = 'd-block text-danger';
         update(); card.append(button, feedback);
-        new MutationObserver(update).observe(card, { attributes: true, attributeFilter: ['data-status', 'data-changed-at'] });
+        new MutationObserver(update).observe(card, { attributes: true, attributeFilter: ['data-status', 'data-changed-at', 'data-upcoming-guest', 'data-upcoming-starts-at'] });
         button.addEventListener('click', async event => {
             event.stopPropagation(); button.disabled = true; message.textContent = ''; feedback.textContent = '';
             try {

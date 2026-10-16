@@ -232,6 +232,10 @@
         card.classList.add(`status-${cssClass}`);
         card.dataset.status = status;
         card.dataset.changedAt = update.changedAtUtc;
+        if (Object.prototype.hasOwnProperty.call(update, 'upcomingGuestName')) {
+            card.dataset.upcomingGuest = update.upcomingGuestName || '';
+            card.dataset.upcomingStartsAt = update.upcomingStartsAtUtc || '';
+        }
         card.setAttribute('aria-label', `Bàn ${update.code}, sức chứa ${update.capacity} người, trạng thái ${statusLabels[status]}`);
         card.querySelector('.table-status-label').textContent = statusLabels[status];
         const editor = card.querySelector('[data-status-editor]');
@@ -295,6 +299,7 @@
         try {
             const update = JSON.parse(event.data);
             applyStatus(update);
+            refreshSnapshot().catch(() => {});
             refreshAlertsSoon();
             if (!detailsOverlay.hidden && selectedDetailCode === update.code)
                 refreshDetails(update.code).catch(() => {});

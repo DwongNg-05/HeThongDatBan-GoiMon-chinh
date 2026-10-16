@@ -1,6 +1,14 @@
 const {chromium}=require('playwright');
 const assert=require('node:assert/strict');
 const {execFileSync}=require('node:child_process');
+const fs=require('node:fs');
+const path=require('node:path');
+const screenshots=process.env.CLEANING_SCREENSHOTS;
+async function capture(page,code,name){
+ if(!screenshots)return;
+ fs.mkdirSync(screenshots,{recursive:true});
+ await page.locator(`[data-table-code=${code}]`).screenshot({path:path.join(screenshots,name+'.png')});
+}
 (async()=>{
  const browser=await chromium.launch({channel:'chrome',headless:true});
  try{
@@ -43,6 +51,39 @@ const {execFileSync}=require('node:child_process');
   for(const tab of pages) await tab.waitForFunction(()=>document.querySelector('[data-table-code=CLEAN1]').dataset.status==='Available',null,{timeout:5000});
   assert.ok(Date.now()-start2<5000);
   console.log('PASS: snapshot-map button, wrong status, active session, CSRF, duplicate and concurrent requests');
+  for(const [code,guest] of [['NEXT1','Khách kế tiếp'],['MULTI1','Khách đến trước'],['BOUND1','Khách đúng biên']]) {
+   if(code==='NEXT1') await capture(page,code,'01-before-cleaning-completed');
+   const started=Date.now();
+   await page.locator(`[data-table-code=${code}] [data-complete-cleaning]`).click();
+   for(const tab of pages) {
+    await tab.waitForFunction(({code,guest})=>{
+     const card=document.querySelector(`[data-table-code=${code}]`);
+     return card.dataset.status==='Reserved' && card.querySelector('[data-upcoming-guest-label]').textContent.includes(guest)
+       && !card.querySelector('[data-upcoming-guest-label]').hidden;
+    },{code,guest},{timeout:5000});
+   }
+   assert.ok(Date.now()-started<5000);
+   if(code==='NEXT1') {
+    await capture(page,code,'02-reserved-with-guest');
+    await capture(pages[1],code,'03-second-browser-synced');
+    await capture(pages[2],code,'04-alternative-map-synced');
+   }
+   if(code==='MULTI1') await capture(page,code,'05-earliest-guest');
+  }
+  for(const code of ['CANCEL1','FAR1','PENDING1','ARRIVE1','PAST1']) {
+   assert.equal((await post(code)).status(),200);
+   for(const tab of pages) {
+    await tab.waitForFunction(code=>document.querySelector(`[data-table-code=${code}]`).dataset.status==='Available',code,{timeout:5000});
+    assert.equal(await tab.locator(`[data-table-code=${code}] [data-upcoming-guest-label]`).isVisible(),false);
+   }
+   if(code==='CANCEL1') await capture(page,code,'06-cancelled-booking-table-free');
+   if(code==='FAR1') await capture(page,code,'07-outside-window-table-free');
+  }
+  // A customer's name can change without a table-status event. Both maps must still refresh it.
+  assert.match(process.env.CLEANING_TEST_DB,/^RestaurantCleaningTest_[a-f0-9]{32}$/);
+  execFileSync('sqlcmd',['-S','(localdb)\\MSSQLLocalDB','-d',process.env.CLEANING_TEST_DB,'-E','-b','-I','-Q',"UPDATE dbo.Reservations SET CustomerName=N'Updated guest' WHERE Code='NX0001';"]);
+  for(const tab of pages) await tab.waitForFunction(()=>document.querySelector('[data-table-code=NEXT1] [data-upcoming-guest-label]').textContent.includes('Updated guest'),null,{timeout:5000});
+  console.log('PASS: cleaning directly reserves the next confirmed guest, earliest of multiple, cancelled/pending/arrived/past/far excluded, names refresh across both maps');
   // Prepare a near-boundary fixture, then keep all three pages open through the deadline.
   assert.match(process.env.CLEANING_TEST_DB,/^RestaurantCleaningTest_[a-f0-9]{32}$/);
   execFileSync('sqlcmd',['-S','(localdb)\\MSSQLLocalDB','-d',process.env.CLEANING_TEST_DB,'-E','-b','-I','-Q',"UPDATE dbo.DiningTables SET StatusChangedAt=DATEADD(second,-590,SYSUTCDATETIME()) WHERE Code='BUSY1';"]);

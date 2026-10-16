@@ -44,6 +44,8 @@
             return;
         }
         card.dataset.changedAt = table.changedAtUtc;
+        card.dataset.upcomingGuest = table.upcomingGuestName || '';
+        card.dataset.upcomingStartsAt = table.upcomingStartsAtUtc || '';
         if (card.dataset.status === table.status) return;
 
         const previousStatus = card.dataset.status;
