@@ -1,0 +1,225 @@
+﻿@model RestaurantManagement.Web.Models.Cashier.ShiftClosingPdfViewModel
+@using RestaurantManagement.Web.Models.Cashier
+
+@{
+    ViewData["Title"] = "Bản chốt ca";
+
+    string VietnamTime(DateTime value)
+    {
+        return DateTime.SpecifyKind(value, DateTimeKind.Utc)
+            .AddHours(7)
+            .ToString("dd/MM/yyyy HH:mm:ss");
+    }
+}
+
+<div class="container mt-4">
+    <h1 class="h3">Bản chốt ca đã lưu</h1>
+
+    <div class="d-flex gap-2 flex-wrap mb-3">
+        <a asp-controller="Cashier"
+           asp-action="Shift"
+           class="btn btn-outline-secondary">
+            Về màn hình chốt ca
+        </a>
+
+        <a asp-controller="ShiftClosing"
+           asp-action="Index"
+           asp-route-shiftId="@(Model.ShiftId > 0 ? Model.ShiftId : (long?)null)"
+           class="btn btn-outline-primary">
+            Tải lại bản chốt
+        </a>
+    </div>
+
+    @if (TempData["Error"] is string error)
+    {
+        <div class="alert alert-danger" role="alert">
+            @error
+            Bạn có thể bấm “Xuất PDF” lần nữa để thử lại.
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="alert alert-warning" role="alert">
+            @Model.ErrorMessage
+        </div>
+    }
+
+    @if (Model.Closings.Count > 0)
+    {
+        <h2 class="h5">Các lần chốt của ca #@Model.ShiftId</h2>
+
+        <div class="table-responsive mb-4">
+            <table class="table table-bordered align-middle">
+                <thead>
+                    <tr>
+                        <th>Lần chốt</th>
+                        <th>Thời điểm chốt (giờ Việt Nam)</th>
+                        <th>Người chốt</th>
+                        <th>Thông tin</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.Closings)
+                    {
+                        <tr>
+                            <td>@item.ClosingNumber</td>
+                            <td>@VietnamTime(item.ClosedAt)</td>
+                            <td>@item.ClosedByName</td>
+                            <td>
+                                @if (!item.HasCompleteSnapshot)
+                                {
+                                    <span>Bản cũ chưa đủ dữ liệu xuất PDF</span>
+                                }
+                                else if (item.WasReopened)
+                                {
+                                    <span>Ca đã mở lại sau lần chốt này</span>
+                                }
+                                else
+                                {
+                                    <span>Bản chốt đã lưu</span>
+                                }
+                            </td>
+                            <td>
+                                <a asp-controller="ShiftClosing"
+                                   asp-action="Index"
+                                   asp-route-shiftId="@item.ShiftId"
+                                   asp-route-eventId="@item.EventId"
+                                   class="btn btn-sm btn-outline-primary">
+                                    Xem bản chốt
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    @if (Model.SelectedClosing is { } closing)
+    {
+        <section class="card mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between
+                    align-items-start gap-3 flex-wrap">
+                    <div>
+                        <h2 class="h4">
+                            @closing.ShiftName — lần chốt @closing.ClosingNumber
+                        </h2>
+
+                        <p>Mã ca: <strong>#@closing.ShiftId</strong></p>
+
+                        <p>
+                            Ngày kinh doanh:
+                            @closing.BusinessDate.ToString("dd/MM/yyyy")
+                        </p>
+
+                        <p>
+                            Người chốt:
+                            <strong>@closing.ClosedByName</strong>
+                        </p>
+
+                        <p>
+                            Chốt lúc:
+                            @VietnamTime(closing.ClosedAt)
+                            (giờ Việt Nam)
+                        </p>
+                    </div>
+
+                    <a asp-controller="ShiftClosing"
+                       asp-action="Download"
+                       asp-route-shiftId="@closing.ShiftId"
+                       asp-route-eventId="@closing.ClosingEventId"
+                       class="btn btn-success">
+                        Xuất PDF
+                    </a>
+                </div>
+
+                <div class="alert @(Model.WasReopened
+                     ? "alert-warning" : "alert-info")">
+                    @Model.ClosingStatusLabel
+                </div>
+
+                <h3 class="h5">@closing.RestaurantName</h3>
+                <p class="mb-1">@closing.RestaurantAddress</p>
+                <p>Điện thoại: @closing.RestaurantPhone</p>
+
+                <h3 class="h5 mt-4">Tổng hợp trong ca</h3>
+
+                <table class="table table-bordered">
+                    <tbody>
+                        <tr>
+                            <th scope="row">Số hoá đơn đã thanh toán</th>
+                            <td>@closing.InvoiceCount</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Tổng doanh thu</th>
+                            <td>@Vnd.Format(closing.Revenue)</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Doanh thu tiền mặt</th>
+                            <td>@Vnd.Format(closing.CashRevenue)</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Doanh thu chuyển khoản</th>
+                            <td>@Vnd.Format(closing.TransferRevenue)</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Tổng giảm giá</th>
+                            <td>@Vnd.Format(closing.DiscountTotal)</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Số bàn đã phục vụ</th>
+                            <td>@closing.ServedTableCount</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 class="h5 mt-4">Đối chiếu tiền mặt</h3>
+
+                <table class="table table-bordered">
+                    <tbody>
+                        <tr>
+                            <th scope="row">Tiền đầu ca</th>
+                            <td>@Vnd.Format(closing.OpeningCash)</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Tiền mặt phải có</th>
+                            <td>@Vnd.Format(closing.ExpectedCash)</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Tiền mặt thực đếm</th>
+                            <td>@Vnd.Format(closing.CountedCash)</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Chênh lệch</th>
+                            <td>
+                                <strong>
+                                    @Vnd.Format(closing.CashDifference)
+                                </strong>
+
+                                @if (closing.CashDifference > 0)
+                                {
+                                    <span>— Thừa tiền mặt</span>
+                                }
+                                else if (closing.CashDifference < 0)
+                                {
+                                    <span>— Thiếu tiền mặt</span>
+                                }
+                                else
+                                {
+                                    <span>— Khớp tiền mặt</span>
+                                }
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 class="h5 mt-4">Giải trình</h3>
+
+                <p style="white-space: pre-wrap; overflow-wrap: anywhere;">@(string.IsNullOrWhiteSpace(closing.Explanation) ? "Không có giải trình." : closing.Explanation)</p>
+            </div>
+        </section>
+    }
+</div>
