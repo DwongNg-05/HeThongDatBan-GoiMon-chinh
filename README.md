@@ -6,6 +6,8 @@ Quản lý mở **Thống kê doanh thu** (`/Reports/Today`) để xem năm ch�
 
 Task 2 bổ sung chọn khoảng ngày tối đa 92 ngày (tính cả hai đầu), biểu đồ theo giờ cho một ngày và theo ngày cho nhiều ngày. Cách demo và kiểm thử: [S4-05 Task 2](docs/S4-05-Task2.md).
 
+Task 3 tự động làm mới số liệu, bảng và biểu đồ mỗi 20 giây theo khoảng đang xem; hiển thị lần cập nhật thành công và cảnh báo khi mất kết nối. Mốc 60 giây tính từ khi thanh toán commit thành công. Cách nghiệm thu và kết quả đo bằng hóa đơn thật: [S4-05 Task 3](docs/S4-05-Task3.md).
+
 Database SQL Server và bộ khung ASP.NET Core MVC .NET 10 cho nhóm phát triển.
 
 ## Trạng thái hiện tại

@@ -2,95 +2,30 @@
 @using System.Globalization
 @{
     ViewData["Title"] = "Thống kê doanh thu";
-    var vi = CultureInfo.GetCultureInfo("vi-VN");
-    string Money(decimal value) => value.ToString("N0", vi) + " ₫";
-    var columns = Model.IsMultiDay
-        ? (Model.Days ?? []).Select(d => new RestaurantManagement.Web.Models.Reports.RevenueHour(d.Date.ToDateTime(TimeOnly.MinValue), d.Date.AddDays(1).ToDateTime(TimeOnly.MinValue), d.Revenue)).ToArray()
-        : Model.Hours;
-    var max = Math.Max(1m, columns.Select(h => h.Revenue).DefaultIfEmpty().Max());
     var fromValue = Model.FromInput ?? Model.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
     var toValue = Model.ToInput ?? Model.EndDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 }
 @section Styles {
     <link rel="stylesheet" href="~/css/daily-overview.css" asp-append-version="true" />
 }
-<div class="daily-overview">
+<div class="daily-overview" data-report-live data-enabled="@(Model.ValidationError is null ? "true" : "false")" data-endpoint="@Url.Content("~/Reports/Today/Snapshot")">
     <header class="mb-4">
         <h1>Thống kê doanh thu</h1>
-        @if (Model.ValidationError is null)
-        {
-            <p>Ngày kinh doanh <strong>@Model.Date.ToString("dd/MM/yyyy")@(Model.IsMultiDay ? " – " + Model.EndDate.ToString("dd/MM/yyyy") : "")</strong> · UTC+7</p>
-        }
-        <small class="text-muted">Số liệu lúc @Model.CapturedAt.ToString("HH:mm:ss dd/MM/yyyy"). Tải lại trang để xem số liệu mới.</small>
+        <p>Tự động cập nhật mỗi 20 giây theo khoảng ngày đang xem.</p>
     </header>
-    <form method="get" action="/Reports/Today" class="overview-range" aria-label="Chọn khoảng ngày">
+    <form method="get" action="@Url.Content("~/Reports/Today")" class="overview-range" aria-label="Chọn khoảng ngày">
         <div><label for="report-from" class="form-label">Từ ngày</label><input id="report-from" name="from" type="date" class="form-control" required min="1900-01-01" max="9998-12-31" value="@fromValue" aria-describedby="range-help" /></div>
         <div><label for="report-to" class="form-label">Đến ngày</label><input id="report-to" name="to" type="date" class="form-control" required min="1900-01-01" max="9998-12-31" value="@toValue" aria-describedby="range-help" /></div>
         <button class="btn btn-primary" type="submit">Xem thống kê</button>
-        <a class="btn btn-outline-secondary" href="/Reports/Today">Hôm nay</a>
+        <a class="btn btn-outline-secondary" href="@Url.Content("~/Reports/Today")">Hôm nay</a>
         <p id="range-help">Tối đa 92 ngày, tính cả ngày đầu và ngày cuối. Chọn một ngày xem theo giờ; nhiều ngày xem theo ngày.</p>
     </form>
-    @if (Model.ValidationError is not null)
-    {
-        <div class="alert alert-warning" role="alert">@Model.ValidationError</div>
-    }
-    else if (Model.LoadError is not null)
-    {
-        <div class="alert alert-danger" role="alert">@Model.LoadError</div>
-    }
-    else
-    {
-        <dl class="overview-metrics" aria-label="Năm chỉ số của khoảng ngày">
-            <div><dt>Doanh thu</dt><dd>@Money(Model.Revenue)</dd><small>Sau giảm giá, đã thanh toán</small></div>
-            <div><dt>Số hóa đơn</dt><dd>@Model.InvoiceCount.ToString("N0", vi)</dd><small>Không gồm hóa đơn hủy</small></div>
-            <div><dt>Lượt khách</dt><dd>@Model.GuestCount.ToString("N0", vi)</dd><small>Trên hóa đơn đã thanh toán</small></div>
-            <div><dt>Trung bình mỗi hóa đơn</dt><dd>@Money(Model.AverageInvoice)</dd><small>Doanh thu / số hóa đơn</small></div>
-            <div><dt>Bàn đang phục vụ</dt><dd>@Model.ServingTables.ToString("N0", vi)</dd><small>Hiện tại · @Model.CapturedAt.ToString("HH:mm dd/MM/yyyy"), không phải số bàn lịch sử</small></div>
-        </dl>
-        <section class="overview-chart" aria-labelledby="revenue-title">
-            <h2 id="revenue-title">@(Model.IsMultiDay ? "Doanh thu theo ngày" : "Doanh thu theo giờ")</h2>
-            <p>@(Model.IsMultiDay ? "Mỗi cột tương ứng một ngày kinh doanh, bao gồm ngày không có giao dịch." : "Mỗi cột tương ứng 1 tiếng từ giờ mở cửa.") Đơn vị: VND.</p>
-            @if (Model.ScheduleMessage is not null)
-            {
-                <p class="text-muted">@Model.ScheduleMessage</p>
-            }
-            @if (Model.InvoiceCount == 0)
-            {
-                <div class="alert alert-light border" role="status"><strong>Chưa có dữ liệu</strong><br />Chưa có hóa đơn đã thanh toán trong giờ hoạt động của khoảng ngày đã chọn.</div>
-            }
-            @if (columns.Count > 0)
-            {
-                <div class="revenue-scroll" tabindex="0" aria-label="Biểu đồ cột doanh thu, cuộn ngang để xem thêm">
-                    <div class="revenue-columns" role="img" aria-label="Biểu đồ doanh thu. Số tiền và thời gian được ghi trên từng cột và trong bảng bên dưới.">
-                        @foreach (var hour in columns)
-                        {
-                            var height = (hour.Revenue / max * 100).ToString("0.###", CultureInfo.InvariantCulture) + "%";
-                            <div class="revenue-column">
-                                <span class="revenue-amount">@Money(hour.Revenue)</span>
-                                <div class="revenue-track"><div class="revenue-bar" style="height:@height" title="@hour.Start.ToString(Model.IsMultiDay ? "dd/MM/yyyy" : "HH:mm"): @Money(hour.Revenue)"></div></div>
-                                @if (Model.IsMultiDay) { <span>@hour.Start.ToString("dd/MM")<br />@hour.Start.ToString("yyyy")</span> }
-                                else { <span>@hour.Start.ToString("HH:mm")<br />@hour.End.ToString("HH:mm")</span> }
-                                @if (!Model.IsMultiDay && DateOnly.FromDateTime(hour.Start) > Model.Date) { <small>Hôm sau</small> }
-                            </div>
-                        }
-                    </div>
-                </div>
-                <details class="mt-3">
-                    <summary>@(Model.IsMultiDay ? "Xem bảng doanh thu theo ngày" : "Xem bảng doanh thu theo giờ")</summary>
-                    <table class="table mt-2">
-                        <caption>@Model.Date.ToString("dd/MM/yyyy") – @Model.EndDate.ToString("dd/MM/yyyy") · UTC+7</caption>
-                        <thead><tr><th scope="col">@(Model.IsMultiDay ? "Ngày kinh doanh" : "Khung giờ")</th><th scope="col" class="text-end">Doanh thu</th></tr></thead>
-                        <tbody>
-                        @foreach (var hour in columns)
-                        {
-                            <tr><th scope="row">@(Model.IsMultiDay ? hour.Start.ToString("dd/MM/yyyy") : hour.Start.ToString("dd/MM HH:mm") + " – " + hour.End.ToString("dd/MM HH:mm"))</th><td class="text-end">@Money(hour.Revenue)</td></tr>
-                        }
-                        </tbody>
-                        <tfoot><tr><th>Tổng</th><td class="text-end">@Money(Model.Revenue)</td></tr></tfoot>
-                    </table>
-                </details>
-            }
-        </section>
-        <p class="mt-3 text-muted">Hóa đơn được tính theo thời điểm nhận thanh toán, từ giờ mở cửa (bao gồm) đến giờ đóng cửa (không bao gồm). Ca qua nửa đêm thuộc ngày bắt đầu mở cửa.</p>
-    }
+    <div class="report-refresh-controls">
+        <button type="button" class="btn btn-outline-secondary" data-report-refresh hidden>Làm mới ngay</button>
+        <p data-report-refresh-status role="status" aria-live="polite" class="text-muted"></p>
+    </div>
+    <div data-report-panel aria-busy="false"><partial name="~/Views/DailyOverview/_Snapshot.cshtml" model="Model" /></div>
 </div>
+@section Scripts {
+    <script src="~/js/daily-overview.js" asp-append-version="true" defer></script>
+}

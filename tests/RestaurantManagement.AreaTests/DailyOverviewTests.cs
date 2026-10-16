@@ -55,6 +55,9 @@ internal static class DailyOverviewTests
         check(rangeHtml.Contains("Doanh thu theo ngày") && rangeHtml.Contains("16/10/2026") && rangeHtml.Contains("height:100%"), "Multi-day Razor shows daily columns and selected period");
         var invalidHtml = await Render(empty with { ValidationError = "Chỉ được chọn tối đa 92 ngày.", FromInput = "2026-01-01", ToInput = "2026-04-03" });
         check(invalidHtml.Contains("Chỉ được chọn tối đa 92 ngày.") && invalidHtml.Contains("value=\"2026-04-03\"") && !invalidHtml.Contains("overview-metrics\""), "Invalid range keeps inputs and shows limit instead of misleading metrics");
+        check(html.Contains("daily-overview.js") && html.Contains("data-report-updated") && html.Contains("data-report-panel") && html.Contains("data-enabled=\"true\""), "Valid report has live script, refresh target and last-success timestamp");
+        check(invalidHtml.Contains("data-enabled=\"false\""), "Invalid range never starts background requests");
+        check(!error.Contains("data-report-updated"), "Initial SQL error never displays a false successful-update timestamp");
     }
     internal static async Task RunDatabaseAsync(Action<bool, string> check)
     {
@@ -123,5 +126,7 @@ internal static class DailyOverviewTests
         check(DailyOverviewRules.BusinessDate(date.AddDays(1).ToDateTime(new(1, 0)), night with { Closed = true }) == date.AddDays(1), "Closed previous day never captures today's business date");
         var auth = (AuthorizeAttribute?)Attribute.GetCustomAttribute(typeof(DailyOverviewController), typeof(AuthorizeAttribute));
         check(auth?.Roles == AppRoles.Manager && RoleNavigation.Items.Single(i => i.Key == "daily-overview").Roles.SequenceEqual([AppRoles.Manager]), "Report and navigation restricted to Manager");
+        check(Attribute.IsDefined(typeof(DailyOverviewController).GetMethod(nameof(DailyOverviewController.Snapshot))!, typeof(RestaurantManagement.Web.Authentication.PassiveSessionReadAttribute)),
+            "Automatic snapshots do not extend idle login sessions");
     }
 }

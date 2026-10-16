@@ -40,7 +40,7 @@ public sealed class DailyOverviewStore(IConfiguration configuration, TimeProvide
             invoices.Add(new(reader.GetDateTime(0).AddHours(7), reader.GetDecimal(1), reader.GetInt32(2)));
         await reader.NextResultAsync(cancellationToken);
         await reader.ReadAsync(cancellationToken);
-        return DailyOverviewRules.CalculateRange(schedules, now, invoices, reader.GetInt32(0));
+        return DailyOverviewRules.CalculateRange(schedules, clock.GetUtcNow().ToOffset(TimeSpan.FromHours(7)).DateTime, invoices, reader.GetInt32(0));
     }
 
     private static async Task<IReadOnlyList<ReportHours>> RangeHoursAsync(SqlConnection cn, DateOnly from, DateOnly to, CancellationToken cancellationToken)
