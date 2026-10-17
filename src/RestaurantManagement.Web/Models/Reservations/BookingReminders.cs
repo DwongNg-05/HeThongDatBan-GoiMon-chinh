@@ -144,6 +144,44 @@ public static class BookingReminderRules
     /// <summary>S4-08 Task 3: email không còn đúng lần thử tác vụ này đang giữ (tác vụ khác đã nhận lại) — không gửi.</summary>
     public const string NotClaimed = "NotClaimed";
 
+    /// <summary>
+    /// S4-08 Task 4: khách chỉ huỷ qua email khi còn TRÊN 60 phút tới giờ hẹn
+    /// (khớp mặc định dbo.RestaurantSettings.CancelCutoffMinutes).
+    /// </summary>
+    public const int CancelCutoffMinutes = 60;
+
+    /// <summary>
+    /// Email nhắc có đường dẫn huỷ khi thời gian từ lúc GỬI email tới giờ hẹn lớn hơn 60 phút.
+    /// Còn đúng 60 phút hoặc ít hơn thì không có đường dẫn.
+    /// </summary>
+    public static bool ShowCancelLink(DateTime startsAtUtc, DateTime sentAtUtc, int cutoffMinutes = CancelCutoffMinutes) =>
+        startsAtUtc - sentAtUtc > TimeSpan.FromMinutes(cutoffMinutes);
+
+    /// <summary>
+    /// Lý do không huỷ được khi khách xác nhận huỷ (tính theo thời điểm xác nhận, khớp dbo.usp_CancelReservationFromReminder);
+    /// null = huỷ được.
+    /// </summary>
+    public static string? CancelBlockReason(string? reservationStatus, DateTime startsAtUtc, DateTime nowUtc, int cutoffMinutes = CancelCutoffMinutes) =>
+        reservationStatus switch
+        {
+            null => "NotFound",
+            "Cancelled" => "AlreadyCancelled",
+            "Arrived" => "Arrived",
+            not ("Pending" or "Confirmed") => "NotCancellable",
+            _ => startsAtUtc <= nowUtc.AddMinutes(cutoffMinutes) ? "TooLate" : null
+        };
+
+    /// <summary>Thông báo cho khách theo kết quả huỷ.</summary>
+    public static string CancelResultMessage(string result) => result switch
+    {
+        "Cancelled" => "Đã huỷ lượt đặt bàn thành công. Nhà hàng đã nhận được yêu cầu huỷ của bạn.",
+        "AlreadyCancelled" => "Lượt đặt bàn này đã được huỷ trước đó. Bạn không cần làm gì thêm.",
+        "Arrived" => "Không thể huỷ: lượt đặt bàn đã được ghi nhận là khách đã tới.",
+        "TooLate" => $"Không thể huỷ qua email vì chỉ còn {CancelCutoffMinutes} phút hoặc ít hơn tới giờ hẹn. Vui lòng gọi điện cho nhà hàng.",
+        "NotCancellable" => "Không thể huỷ lượt đặt bàn này qua email. Vui lòng liên hệ nhà hàng.",
+        _ => "Đường dẫn huỷ không hợp lệ hoặc lượt đặt bàn không còn tồn tại. Vui lòng liên hệ nhà hàng."
+    };
+
     /// <summary>Số lần thử tối đa của một email nhắc (lần gửi đầu + 3 lần gửi lại).</summary>
     public const int MaxAttempts = 4;
 

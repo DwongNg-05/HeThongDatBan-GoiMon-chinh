@@ -139,8 +139,10 @@ public sealed class SqlBookingEmailOutbox(string connectionString) : IBookingEma
 /// bàn đã giữ và nút "Tra cứu đặt bàn" điền sẵn mã (<see cref="BookingConfirmationLinks"/>). Lúc khách vừa đặt không gửi email.
 /// </summary>
 public sealed class BookingEmailDispatcher(IBookingEmailOutbox outbox, IEmailSender sender, ILogger<BookingEmailDispatcher> logger,
-    BookingConfirmationLinks? confirmationLinks = null)
+    BookingConfirmationLinks? confirmationLinks = null, TimeProvider? timeProvider = null)
 {
+    private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
+
     public const string BookingReceived = "BookingReceived";
 
     /// <summary>Email gửi khi nhân viên xác nhận lượt đặt (usp_ConfirmReservation xếp vào dbo.EmailOutbox).</summary>
@@ -256,8 +258,13 @@ public sealed class BookingEmailDispatcher(IBookingEmailOutbox outbox, IEmailSen
             var details = BookingConfirmationEmail.ParsePayload(claimed.PayloadJson);
             var confirmUrl = messageType == BookingReceived ? confirmationLinks?.CreateUrl(details.Code) : null;
             var lookupUrl = messageType == BookingCancelled ? null : confirmationLinks?.CreateLookupUrl(details.Code);
+            // S4-08 Task 4: đường dẫn huỷ riêng của lượt này, chỉ khi giờ hẹn còn hơn 60 phút tính từ lúc gửi email.
+            var cancelUrl = messageType == BookingReminder && claimed.ReservationId is long reservationId
+                && BookingReminderRules.ShowCancelLink(details.StartsAtUtc, _time.GetUtcNow().UtcDateTime)
+                    ? confirmationLinks?.CreateCancelUrl(reservationId, details.Code)
+                    : null;
             var message = messageType == BookingReminder
-                ? BookingReminderEmail.Create(claimed.Recipient, details, lookupUrl)
+                ? BookingReminderEmail.Create(claimed.Recipient, details, lookupUrl, cancelUrl)
                 : BookingConfirmationEmail.Create(claimed.Recipient, details, messageType, confirmUrl, lookupUrl);
             // Không gắn với yêu cầu HTTP: khách đóng trình duyệt giữa chừng thì email vẫn gửi xong và kết quả vẫn được lưu.
             using var timeout = new CancellationTokenSource(SendTimeout);

@@ -283,6 +283,10 @@ Chạy `migrate` để áp dụng `057_S305ShiftCancellationReport.sql`. Quản 
 
 Chạy `migrate` để áp dụng `058_S305ChargedCancellation.sql`. Trên **Hoá đơn tạm tính**, Quản lý bấm **Hủy có tính tiền** ở món đang nấu hoặc đã xong (món đã mang ra không huỷ được). Hộp xác nhận bắt buộc chọn một trong ba lý do và đánh dấu ô xác nhận huỷ có tính tiền. Dòng món giữ trên hoá đơn với nhãn “Đã huỷ có tính tiền”; tạm tính và hoá đơn không giảm. Màn hình bếp gỡ món và hiện thẻ “DỪNG MÓN” trong vòng 5 giây, cho tới khi Bếp bấm **Đã dừng món**. Lần huỷ vào nhật ký và báo cáo cuối ca. Quy tắc cần PO chốt, demo và kiểm thử (`verify-charged-cancel`): [docs/S3-05-Task3.md](docs/S3-05-Task3.md).
 
+## S4-08 Task 4 — đường dẫn huỷ trong email nhắc
+
+Chạy `migrate` để áp dụng `062_S408CancelFromReminder.sql`. Email nhắc có nút **Huỷ đặt bàn** riêng cho từng lượt khi giờ hẹn còn hơn 60 phút tính từ lúc gửi; còn đúng 60 phút hoặc ít hơn thì không có. Khách mở đường dẫn (không cần đăng nhập), bấm **Xác nhận huỷ** và thấy kết quả. Điều kiện còn hơn 60 phút được kiểm tra lại lúc bấm. Lượt đã huỷ, khách đã tới hoặc quá hạn huỷ thì bị từ chối; gửi lại yêu cầu huỷ không thay đổi dữ liệu. Quy định cần PO chốt, demo và kiểm thử: [docs/S4-08-Task4.md](docs/S4-08-Task4.md).
+
 ## S4-08 Task 3 — mỗi lượt đặt bàn chỉ nhận tối đa một email nhắc
 
 Chạy `migrate` để áp dụng `061_S408OneReminderPerReservation.sql`. Lượt chỉ được đánh dấu "đã nhắc" (`ReminderEmailSentAt`) khi gửi thành công, và lượt đã nhắc bị loại khỏi danh sách cần gửi ở mọi lần chạy sau. Database chỉ cho mỗi lượt một email nhắc (chỉ mục duy nhất). Nhận email để gửi diễn ra dưới khoá chung, nên hai tác vụ chạy đồng thời không gửi trùng; ngay trước khi gửi còn kiểm tra lượt chưa được nhắc và email vẫn do tác vụ đó giữ. Gửi lỗi thì tự thử lại sau 5 phút, tối đa 4 lần thử. Màn hình **Email nhắc lịch** hiện số lần thử và kết quả cuối cùng. Demo và kiểm thử (`BookingReminderTests.cs`; SQL Server thật: `dotnet run --project tests/RestaurantManagement.AreaTests -- --reminder-sql`): [docs/S4-08-Task3.md](docs/S4-08-Task3.md).

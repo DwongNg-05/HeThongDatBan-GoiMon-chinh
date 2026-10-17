@@ -1,4 +1,8 @@
+using System.Net;
 using System.Text.Json;
+using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using RestaurantManagement.Web.Models.Reservations;
 using RestaurantManagement.Web.Services;
@@ -25,6 +29,94 @@ internal static class BookingReminderTests
         SkipRules(check);
         await SkipInvalid(check);
         await OneReminderOnly(check);
+        await CancelLinks(check);
+    }
+
+    private sealed class FixedTime(EmailRetryTests.Clock clock) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => new(DateTime.SpecifyKind(clock.Now, DateTimeKind.Utc));
+    }
+
+    private static BookingConfirmationLinks Links(IDataProtectionProvider? provider = null) => new(
+        provider ?? new EphemeralDataProtectionProvider(),
+        new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Booking:PublicBaseUrl"] = "https://quan.example" }).Build());
+
+    private static string? CancelUrlIn(string html)
+    {
+        var match = Regex.Match(html, "href=\"([^\"]*CancelFromEmail[^\"]*)\"");
+        return match.Success ? WebUtility.HtmlDecode(match.Groups[1].Value) : null;
+    }
+
+    private static string TokenOf(string url) => Uri.UnescapeDataString(url[(url.IndexOf("token=", StringComparison.Ordinal) + 6)..]);
+
+    /// <summary>S4-08 Task 4: đường dẫn huỷ trong email nhắc theo điều kiện thời gian.</summary>
+    private static async Task CancelLinks(Action<bool, string> check)
+    {
+        check(BookingReminderRules.ShowCancelLink(Now.AddMinutes(61), Now) && BookingReminderRules.ShowCancelLink(Now.AddMinutes(60).AddSeconds(1), Now),
+            "Cancel link: shown when the booking is more than 60 minutes after the email is sent");
+        check(!BookingReminderRules.ShowCancelLink(Now.AddMinutes(60), Now) && !BookingReminderRules.ShowCancelLink(Now.AddMinutes(30), Now),
+            "Cancel link: hidden when exactly 60 minutes or less remain at send time");
+
+        var clock = new EmailRetryTests.Clock(Now);
+        var outbox = new ReminderOutbox(clock);
+        var sender = new CapturingSender();
+        var links = Links();
+        var dispatcher = new BookingEmailDispatcher(outbox, sender, NullLogger<BookingEmailDispatcher>.Instance, links, new FixedTime(clock));
+        var early = outbox.Book(61, "CXL001", "early@example.com", "Confirmed", Now.AddMinutes(100), "F01");
+        var exactly = outbox.Book(62, "CXL002", "exactly@example.com", "Confirmed", Now.AddMinutes(60), "F02");
+        var justOver = outbox.Book(63, "CXL003", "justover@example.com", "Confirmed", Now.AddMinutes(61), "F03");
+        var late = outbox.Book(64, "CXL004", "late@example.com", "Confirmed", Now.AddMinutes(20), "F04");
+        var run = await dispatcher.SendDueRemindersAsync();
+        EmailMessage MailTo(Booking b) => sender.Sent.Single(m => m.To == b.Email);
+        check(run.Sent == 4, "Cancel link: every due reminder is sent (with or without a cancel link)");
+
+        var earlyUrl = CancelUrlIn(MailTo(early).HtmlBody);
+        check(earlyUrl is not null && earlyUrl.StartsWith("https://quan.example/Reservations/CancelFromEmail?token=", StringComparison.Ordinal)
+              && MailTo(early).HtmlBody.Contains("data-cancel-link") && MailTo(early).TextBody.Contains(earlyUrl)
+              && CancelUrlIn(MailTo(justOver).HtmlBody) is not null,
+            "Cancel link: a reminder sent more than 60 minutes before the booking has a cancel link (HTML and text)");
+        check(CancelUrlIn(MailTo(exactly).HtmlBody) is null && !MailTo(exactly).HtmlBody.Contains("data-cancel-link")
+              && !MailTo(exactly).TextBody.Contains("CancelFromEmail") && MailTo(exactly).TextBody.Contains("gọi điện báo nhà hàng")
+              && CancelUrlIn(MailTo(late).HtmlBody) is null,
+            "Cancel link: a reminder sent with exactly 60 minutes or less left has no cancel link");
+
+        var token = TokenOf(earlyUrl!);
+        check(links.ReadCancelToken(token) is { ReservationId: 61, Code: "CXL001" },
+            "Cancel link: the link identifies exactly its own booking (id and booking code)");
+        var otherToken = TokenOf(CancelUrlIn(MailTo(justOver).HtmlBody)!);
+        check(token != otherToken && links.ReadCancelToken(otherToken) is { ReservationId: 63, Code: "CXL003" },
+            "Cancel link: each booking gets its own link");
+        var tampered = token[..^2] + (token[^1] == 'A' ? "BB" : "AA");
+        check(links.ReadCancelToken(tampered) is null && links.ReadCancelToken("") is null && links.ReadCancelToken(null) is null
+              && links.ReadCancelToken(links.CreateToken("CXL001")) is null && Links().ReadCancelToken(token) is null,
+            "Cancel link: a tampered link, a confirm-button token or a link from another server cancels nothing");
+
+        // Điều kiện huỷ tính theo thời điểm khách xác nhận.
+        check(BookingReminderRules.CancelBlockReason("Confirmed", Now.AddMinutes(61), Now) is null
+              && BookingReminderRules.CancelBlockReason("Pending", Now.AddMinutes(90), Now) is null,
+            "Cancel: a booking still more than 60 minutes away can be cancelled");
+        check(BookingReminderRules.CancelBlockReason("Confirmed", Now.AddMinutes(60), Now) == "TooLate"
+              && BookingReminderRules.CancelBlockReason("Confirmed", Now.AddMinutes(10), Now) == "TooLate",
+            "Cancel: a booking 60 minutes away or less can no longer be cancelled by link");
+        check(BookingReminderRules.CancelBlockReason("Cancelled", Now.AddMinutes(100), Now) == "AlreadyCancelled"
+              && BookingReminderRules.CancelBlockReason("Arrived", Now.AddMinutes(100), Now) == "Arrived"
+              && BookingReminderRules.CancelBlockReason("NoShow", Now.AddMinutes(100), Now) == "NotCancellable"
+              && BookingReminderRules.CancelBlockReason(null, Now.AddMinutes(100), Now) == "NotFound",
+            "Cancel: cancelled, arrived, no-show and unknown bookings cannot be cancelled by link");
+        check(BookingReminderRules.CancelResultMessage("Cancelled").StartsWith("Đã huỷ lượt đặt bàn thành công")
+              && BookingReminderRules.CancelResultMessage("AlreadyCancelled").Contains("đã được huỷ trước đó")
+              && BookingReminderRules.CancelResultMessage("TooLate").Contains("60 phút")
+              && BookingReminderRules.CancelResultMessage("Arrived").StartsWith("Không thể huỷ")
+              && BookingReminderRules.CancelResultMessage("NotFound").Contains("không hợp lệ"),
+            "Cancel: the customer sees a clear success or refusal message");
+
+        var vnNow = new DateTime(2026, 10, 17, 10, 0, 0);
+        ReservationListItemViewModel Res(string status, DateTime start) => new() { Code = "CXL001", Status = status, StartsAt = start };
+        check(new ReminderCancelViewModel("t", Res("Confirmed", vnNow.AddMinutes(90)), vnNow) is { CanCancel: true, Notice: null }
+              && new ReminderCancelViewModel("t", Res("Confirmed", vnNow.AddMinutes(45)), vnNow) is { CanCancel: false, BlockReason: "TooLate" }
+              && new ReminderCancelViewModel("t", Res("Cancelled", vnNow.AddMinutes(90)), vnNow) is { CanCancel: false, BlockReason: "AlreadyCancelled" }
+              && new ReminderCancelViewModel("t", null, vnNow) is { CanCancel: false, BlockReason: "NotFound" },
+            "Cancel page: shows the confirm button only for a booking that can still be cancelled");
     }
 
     /// <summary>S4-08 Task 3: mỗi lượt đặt bàn chỉ nhận tối đa một email nhắc.</summary>
