@@ -2,6 +2,12 @@
   "version": 1,
   "dependencies": {
     "net10.0": {
+      "System.Security.Cryptography.Pkcs": {
+        "type": "Direct",
+        "requested": "[10.0.*, )",
+        "resolved": "10.0.13",
+        "contentHash": "a+EovgC1fBnwdlQ6cn3j4JFBfKqiFaFvoAhjisOoSvazLAcIznaBzPQP0oYnvccmeXfqUH1KebVZOxSeH6rMaw=="
+      },
       "BCrypt.Net-Next": {
         "type": "Transitive",
         "resolved": "4.0.3",
@@ -348,11 +354,6 @@
         "resolved": "8.0.0",
         "contentHash": "ne1843evDugl0md7Fjzy6QjJrzsjh46ZKbhf8GwBXb5f/gw97J4bxMs0NQKifDuThh/f0bZ0e62NPl1jzTuRqA=="
       },
-      "System.Security.Cryptography.Pkcs": {
-        "type": "Transitive",
-        "resolved": "10.0.0",
-        "contentHash": "UPWqLSygJlFerRi9XNIuM0a1VC8gHUIufyP24xQ0sc+XimqUAEcjpOz9DhKpyDjH+5B/wO3RpC0KpkEeDj/ddg=="
-      },
       "System.Security.Cryptography.ProtectedData": {
         "type": "Transitive",
         "resolved": "9.0.18",
@@ -368,14 +369,16 @@
         "dependencies": {
           "Microsoft.Data.SqlClient": "[7.1.0, )",
           "Microsoft.EntityFrameworkCore": "[10.0.12, )",
-          "Microsoft.EntityFrameworkCore.SqlServer": "[10.0.12, )"
+          "Microsoft.EntityFrameworkCore.SqlServer": "[10.0.12, )",
+          "System.Security.Cryptography.Pkcs": "[10.0.*, )"
         }
       },
       "restaurantmanagement.dbtool": {
         "type": "Project",
         "dependencies": {
           "BCrypt.Net-Next": "[4.0.3, )",
-          "Microsoft.Data.SqlClient": "[7.1.0, )"
+          "Microsoft.Data.SqlClient": "[7.1.0, )",
+          "System.Security.Cryptography.Pkcs": "[10.0.*, )"
         }
       },
       "restaurantmanagement.web": {
@@ -387,7 +390,8 @@
           "Microsoft.EntityFrameworkCore.Sqlite": "[10.0.12, )",
           "QRCoder": "[1.6.0, )",
           "RestaurantManagement.Data": "[1.0.0, )",
-          "SixLabors.ImageSharp": "[4.1.2, )"
+          "SixLabors.ImageSharp": "[4.1.2, )",
+          "System.Security.Cryptography.Pkcs": "[10.0.*, )"
         }
       }
     }
