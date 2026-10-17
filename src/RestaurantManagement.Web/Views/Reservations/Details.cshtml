@@ -80,6 +80,9 @@
         <dt class="col-sm-3">Gửi nhắc từ</dt><dd class="col-sm-9">@r.ReminderAt.ToString("dd/MM/yyyy HH:mm") <span class="text-muted">(trước giờ hẹn 2 tiếng)</span></dd>
         <dt class="col-sm-3">Trạng thái gửi nhắc</dt>
         <dd class="col-sm-9" data-field="reminder-status" data-skip-reason="@r.ReminderSkipReason">@r.ReminderEmailLabel</dd>
+        <dt class="col-sm-3">Số lần thử gửi nhắc</dt>
+        <dd class="col-sm-9" data-field="reminder-attempts">@r.ReminderEmailAttempts/@RestaurantManagement.Web.Models.Reservations.BookingReminderRules.MaxAttempts
+            @if (r.ReminderAlreadySent) { <span class="text-muted">· đã nhắc thành công, không gửi lại</span> }</dd>
         <dt class="col-sm-3">Gửi thành công lúc</dt>
         <dd class="col-sm-9" data-field="reminder-sent-at">@(r.ReminderEmailSentAt?.ToString("dd/MM/yyyy HH:mm:ss") ?? "Chưa gửi")</dd>
     </dl>

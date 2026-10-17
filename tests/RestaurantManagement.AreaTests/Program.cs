@@ -193,6 +193,8 @@ await EmailRetryTests.Run(Check);
 await BookingEmailFlowTests.Run(Check);
 // S4-08 Task 1: email nhắc trước giờ hẹn 2 tiếng.
 await BookingReminderTests.Run(Check);
+// S4-08 Task 3: mỗi lượt chỉ một email nhắc, hai tác vụ chạy đồng thời trên SQL Server thật (cần RM_CONNECTION_STRING).
+if (args.Contains("--reminder-sql")) await BookingReminderSqlTests.Run(Check);
 await ApiAuthorizationCoverageTests.Run(Check);
 RoleNavigationTests.Run(Check);
 await SessionActivityFilterTests.Run(Check);

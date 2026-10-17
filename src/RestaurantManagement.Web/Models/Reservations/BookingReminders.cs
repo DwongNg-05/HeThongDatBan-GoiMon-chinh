@@ -39,8 +39,12 @@ public sealed record BookingReminderItem(
     string? SkipReason = null,
     string? SkipReasonLabel = null,
     string? ReservationStatus = null,
-    string? ReservationStatusLabel = null)
+    string? ReservationStatusLabel = null,
+    string? FinalResult = null)
 {
+    /// <summary>S4-08 Task 3: số lần thử tối đa (hiển thị "đã thử / tối đa").</summary>
+    public int MaxAttempts => BookingReminderRules.MaxAttempts;
+
     /// <summary>S4-08 Task 2: email nhắc bị bỏ qua vì lượt đặt bàn không còn hợp lệ.</summary>
     public bool IsSkipped => SkipReason is not null;
 }
@@ -68,7 +72,7 @@ public sealed record BookingReminderListViewModel(
 }
 
 /// <summary>Kết quả một lượt chạy tác vụ nhắc lịch.</summary>
-public sealed record BookingReminderRunResult(int Queued, int Sent, int Failed, int Skipped = 0)
+public sealed record BookingReminderRunResult(int Queued, int Sent, int Failed, int Skipped = 0, int Duplicates = 0)
 {
     public int Attempted => Sent + Failed;
 
@@ -77,6 +81,7 @@ public sealed record BookingReminderRunResult(int Queued, int Sent, int Failed, 
         : $"Đã xếp {Queued} email nhắc mới, gửi thành công {Sent}"
           + (Failed > 0 ? $", lỗi {Failed} (sẽ tự gửi lại sau 5 phút)" : "")
           + (Skipped > 0 ? $", bỏ qua {Skipped} (lượt đặt bàn không còn ở trạng thái đã xác nhận)" : "")
+          + (Duplicates > 0 ? $", chặn {Duplicates} lần gửi trùng" : "")
           + ".";
 }
 
@@ -128,8 +133,43 @@ public static class BookingReminderRules
         "NoShow" => "Khách không tới",
         "NotConfirmed" => "Lượt đặt bàn không ở trạng thái đã xác nhận",
         "StartPassed" => "Đã qua giờ hẹn",
+        AlreadySent => "Lượt đặt bàn đã được nhắc thành công",
+        NotClaimed => "Email đang do tác vụ khác xử lý",
         _ => skipReason
     };
+
+    /// <summary>S4-08 Task 3: lượt đã được nhắc thành công — không gửi lần hai.</summary>
+    public const string AlreadySent = "AlreadySent";
+
+    /// <summary>S4-08 Task 3: email không còn đúng lần thử tác vụ này đang giữ (tác vụ khác đã nhận lại) — không gửi.</summary>
+    public const string NotClaimed = "NotClaimed";
+
+    /// <summary>Số lần thử tối đa của một email nhắc (lần gửi đầu + 3 lần gửi lại).</summary>
+    public const int MaxAttempts = 4;
+
+    /// <summary>Lý do chống gửi trùng (không phải do trạng thái lượt đặt bàn).</summary>
+    public static bool IsDuplicateGuard(string? reason) => reason is AlreadySent or NotClaimed;
+
+    /// <summary>
+    /// S4-08 Task 3: chỉ xếp hàng / gửi nhắc cho lượt CHƯA được nhắc thành công (Reservations.ReminderEmailSentAt trống)
+    /// và chưa có email nhắc nào (mỗi lượt tối đa một email nhắc).
+    /// </summary>
+    public static bool NeedsReminder(string reservationStatus, string? email, DateTime startsAtUtc, DateTime nowUtc,
+        DateTime? reminderSentAtUtc, bool hasReminderEmail) =>
+        reminderSentAtUtc is null && !hasReminderEmail && IsDue(reservationStatus, email, startsAtUtc, nowUtc);
+
+    /// <summary>Kết quả gửi cuối cùng hiển thị trên màn hình theo dõi.</summary>
+    public static string FinalResult(EmailDeliveryState state, int attempts, bool skipped) => skipped
+        ? "Đã bỏ qua, không gửi"
+        : state switch
+        {
+            EmailDeliveryState.Sent => attempts > 1 ? $"Gửi thành công ở lần thử {attempts}" : "Gửi thành công",
+            EmailDeliveryState.Failed => $"Thất bại sau {attempts} lần thử",
+            EmailDeliveryState.Retrying => $"Lỗi, sẽ tự gửi lại (đã thử {attempts}/{MaxAttempts})",
+            EmailDeliveryState.Sending => "Đang gửi",
+            EmailDeliveryState.Cancelled => "Đã huỷ, không gửi",
+            _ => "Chưa gửi"
+        };
 
     /// <summary>CSS cho nhãn trạng thái lượt đặt bàn (đã xác nhận, đã huỷ, khách đã tới…).</summary>
     public static string ReservationStatusCss(string status) => status switch
@@ -184,7 +224,8 @@ public static class BookingReminderRules
             skipped,
             SkipReasonLabel(skipped),
             r.ReservationStatus,
-            r.ReservationStatus is null ? null : ReservationStatusDisplay.Label(r.ReservationStatus));
+            r.ReservationStatus is null ? null : ReservationStatusDisplay.Label(r.ReservationStatus),
+            FinalResult(state, r.AttemptCount, skipped is not null));
     }
 
     public static BookingReminderListViewModel BuildList(IEnumerable<BookingReminderRecord> records, string? filter, int leadMinutes)
