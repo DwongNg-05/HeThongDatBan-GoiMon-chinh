@@ -181,8 +181,23 @@ public class ReservationListItemViewModel
     /// <summary>Mốc bắt đầu gửi nhắc: giờ hẹn - 2 tiếng (giờ Việt Nam).</summary>
     public DateTime ReminderAt => BookingReminderRules.RemindAt(StartsAt);
 
+    /// <summary>S4-08 Task 2: lý do bỏ qua gửi nhắc (Cancelled, Arrived, …) khi lượt không còn ở trạng thái đã xác nhận.</summary>
+    public string? ReminderSkipReason { get; set; }
+
+    /// <summary>Thời điểm khách tới (giờ Việt Nam).</summary>
+    public DateTime? ArrivedAt { get; set; }
+
+    /// <summary>Thời điểm huỷ (giờ Việt Nam).</summary>
+    public DateTime? CancelledAt { get; set; }
+
+    /// <summary>CSS của nhãn trạng thái lượt đặt bàn (đã xác nhận / đã huỷ / khách đã tới).</summary>
+    public string StatusCssClass => BookingReminderRules.ReservationStatusCss(Status);
+
+    /// <summary>Nhân viên chỉ đánh dấu khách đã tới cho lượt đã xác nhận.</summary>
+    public bool CanMarkArrived => Status == "Confirmed";
+
     /// <summary>Nhãn trạng thái gửi nhắc trên màn hình chi tiết.</summary>
-    public string ReminderEmailLabel => BookingReminderRules.DetailLabel(ReminderEmailStatus, Status, Email, StartsAt, VietnamTime.Now);
+    public string ReminderEmailLabel => BookingReminderRules.DetailLabel(ReminderEmailStatus, Status, Email, StartsAt, VietnamTime.Now, ReminderSkipReason);
 }
 
 public class ReservationConfirmationViewModel

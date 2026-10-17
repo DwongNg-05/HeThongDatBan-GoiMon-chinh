@@ -42,7 +42,15 @@
         <dt class="col-sm-3">Kết thúc</dt><dd class="col-sm-9">@r.EndsAt.ToString("dd/MM/yyyy HH:mm")</dd>
         <dt class="col-sm-3">Ghi chú</dt><dd class="col-sm-9 text-break">@(string.IsNullOrWhiteSpace(r.Notes) ? "Không có" : r.Notes)</dd>
         <dt class="col-sm-3">Trạng thái đặt bàn</dt>
-        <dd class="col-sm-9"><span class="reservation-status" data-reservation-status="@r.Status">@r.StatusLabel</span></dd>
+        <dd class="col-sm-9"><span class="reservation-status reservation-state @r.StatusCssClass" data-reservation-status="@r.Status">@r.StatusLabel</span></dd>
+        @if (r.Status == "Arrived" && r.ArrivedAt is not null)
+        {
+            <dt class="col-sm-3">Khách tới lúc</dt><dd class="col-sm-9" data-field="arrived-at">@r.ArrivedAt.Value.ToString("dd/MM/yyyy HH:mm")</dd>
+        }
+        @if (r.Status == "Cancelled" && r.CancelledAt is not null)
+        {
+            <dt class="col-sm-3">Huỷ lúc</dt><dd class="col-sm-9" data-field="cancelled-at">@r.CancelledAt.Value.ToString("dd/MM/yyyy HH:mm")</dd>
+        }
         @if (r.ConfirmationEmailLabel is string emailLabel)
         {
             @* S2-09 Task 2: cập nhật sau mỗi lần thử gửi email xác nhận. *@
@@ -61,6 +69,9 @@
          data-reminder-status="@(r.ReminderEmailStatus ?? "None")">
     <h3 id="reservation-reminder-title" class="reservation-section-title">Email nhắc lịch</h3>
     <dl class="row">
+        <dt class="col-sm-3">Trạng thái lượt đặt</dt>
+        <dd class="col-sm-9"><span class="reservation-state @r.StatusCssClass" data-field="reminder-reservation-status">@r.StatusLabel</span>
+            @if (!r.CanMarkArrived) { <span class="text-muted">· chỉ lượt đã xác nhận mới được gửi nhắc</span> }</dd>
         <dt class="col-sm-3">Email nhận nhắc</dt>
         <dd class="col-sm-9" data-field="reminder-recipient">@(string.IsNullOrWhiteSpace(r.Email) ? "Không có (khách không để lại email)" : r.Email)</dd>
         <dt class="col-sm-3">Mã đặt bàn</dt><dd class="col-sm-9"><strong>@r.Code</strong></dd>
@@ -68,11 +79,22 @@
         <dt class="col-sm-3">Bàn đã xếp</dt><dd class="col-sm-9">@(r.TableCode ?? "Chưa xếp bàn")</dd>
         <dt class="col-sm-3">Gửi nhắc từ</dt><dd class="col-sm-9">@r.ReminderAt.ToString("dd/MM/yyyy HH:mm") <span class="text-muted">(trước giờ hẹn 2 tiếng)</span></dd>
         <dt class="col-sm-3">Trạng thái gửi nhắc</dt>
-        <dd class="col-sm-9" data-field="reminder-status">@r.ReminderEmailLabel</dd>
+        <dd class="col-sm-9" data-field="reminder-status" data-skip-reason="@r.ReminderSkipReason">@r.ReminderEmailLabel</dd>
         <dt class="col-sm-3">Gửi thành công lúc</dt>
         <dd class="col-sm-9" data-field="reminder-sent-at">@(r.ReminderEmailSentAt?.ToString("dd/MM/yyyy HH:mm:ss") ?? "Chưa gửi")</dd>
     </dl>
-    <a asp-controller="ReservationReminders" asp-action="Index" class="btn btn-sm btn-outline-secondary">Xem danh sách email nhắc lịch</a>
+    <div class="d-flex flex-wrap gap-2">
+        @if (r.CanMarkArrived)
+        {
+            @* S4-08 Task 2: khách đã tới thì không gửi email nhắc nữa. *@
+            <form asp-action="MarkArrived" asp-route-id="@r.Id" method="post"
+                  data-confirm="Đánh dấu khách của lượt @r.Code đã tới? Email nhắc lịch chưa gửi sẽ không được gửi."
+                  onsubmit="return confirm(this.dataset.confirm);">
+                <button type="submit" class="btn btn-sm btn-success" data-mark-arrived>Đánh dấu khách đã tới</button>
+            </form>
+        }
+        <a asp-controller="ReservationReminders" asp-action="Index" class="btn btn-sm btn-outline-secondary">Xem danh sách email nhắc lịch</a>
+    </div>
 </section>
 
 @if (User.IsInRole("Manager") && r.CanDelete)

@@ -117,6 +117,36 @@ public class ReservationsController : Controller
         return RedirectToAction(nameof(Details), new { id });
     }
 
+    /// <summary>
+    /// S4-08 Task 2: Quản lý / Phục vụ đánh dấu khách đã tới cho lượt đã xác nhận (dbo.usp_MarkReservationArrived).
+    /// Email nhắc lịch chưa gửi của lượt này bị bỏ qua ngay (lý do "Khách đã tới").
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = ReservationWriters)]
+    public async Task<IActionResult> MarkArrived(long id)
+    {
+        var reservation = await FindReservation(id, HttpContext.RequestAborted);
+        if (reservation is null) return NotFound();
+        if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var actorUserId)) return Forbid();
+        try
+        {
+            await using var connection = new SqlConnection(ConnectionString);
+            await using var command = new SqlCommand("dbo.usp_MarkReservationArrived", connection) { CommandType = CommandType.StoredProcedure };
+            command.Parameters.Add("@ReservationId", SqlDbType.BigInt).Value = id;
+            command.Parameters.Add("@ActorUserId", SqlDbType.Int).Value = actorUserId;
+            await connection.OpenAsync();
+            await command.ExecuteNonQueryAsync();
+        }
+        catch (SqlException ex) when (ex.Number is >= 51000 and < 51500)
+        {
+            TempData["Error"] = ex.Message;
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        TempData["Success"] = $"Đã đánh dấu khách đã tới cho lượt đặt bàn {reservation.Code}. Email nhắc lịch chưa gửi sẽ không được gửi.";
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
     /// <summary>Quản lý xoá hẳn một lượt đặt bàn đã huỷ / bị từ chối / khách không đến khỏi danh sách.</summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -178,7 +208,7 @@ public class ReservationsController : Controller
             COALESCE(r.AreaNameSnapshot,a.Name) AS AreaName,r.StartsAt,r.EndsAt,r.Status,
             t.Code AS TableCode,ta.Name AS TableAreaName,r.Notes,r.CancelReason,
             r.ConfirmationEmailStatus,r.ConfirmationEmailAttempts,
-            r.ReminderEmailStatus,r.ReminderEmailSentAt
+            r.ReminderEmailStatus,r.ReminderEmailSentAt,r.ReminderSkipReason,r.ArrivedAt,r.CancelledAt
         FROM dbo.Reservations r LEFT JOIN dbo.Areas a ON a.Id=r.PreferredAreaId
         LEFT JOIN dbo.DiningTables t ON t.Id=r.TableId LEFT JOIN dbo.Areas ta ON ta.Id=t.AreaId
         """;
@@ -204,7 +234,11 @@ public class ReservationsController : Controller
         ConfirmationEmailAttempts = reader.GetInt32(reader.GetOrdinal("ConfirmationEmailAttempts")),
         // S4-08 Task 1: trạng thái gửi email nhắc lịch và thời điểm gửi thành công (migration 059).
         ReminderEmailStatus = reader.IsDBNull(reader.GetOrdinal("ReminderEmailStatus")) ? null : reader.GetString(reader.GetOrdinal("ReminderEmailStatus")),
-        ReminderEmailSentAt = reader.IsDBNull(reader.GetOrdinal("ReminderEmailSentAt")) ? null : VietnamTime.FromUtc(reader.GetDateTime(reader.GetOrdinal("ReminderEmailSentAt")))
+        ReminderEmailSentAt = reader.IsDBNull(reader.GetOrdinal("ReminderEmailSentAt")) ? null : VietnamTime.FromUtc(reader.GetDateTime(reader.GetOrdinal("ReminderEmailSentAt"))),
+        // S4-08 Task 2: lý do bỏ qua gửi nhắc, thời điểm khách tới / huỷ (migration 060).
+        ReminderSkipReason = reader.IsDBNull(reader.GetOrdinal("ReminderSkipReason")) ? null : reader.GetString(reader.GetOrdinal("ReminderSkipReason")),
+        ArrivedAt = reader.IsDBNull(reader.GetOrdinal("ArrivedAt")) ? null : VietnamTime.FromUtc(reader.GetDateTime(reader.GetOrdinal("ArrivedAt"))),
+        CancelledAt = reader.IsDBNull(reader.GetOrdinal("CancelledAt")) ? null : VietnamTime.FromUtc(reader.GetDateTime(reader.GetOrdinal("CancelledAt")))
     };
 
     // =========================================================

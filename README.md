@@ -283,6 +283,10 @@ Chạy `migrate` để áp dụng `057_S305ShiftCancellationReport.sql`. Quản 
 
 Chạy `migrate` để áp dụng `058_S305ChargedCancellation.sql`. Trên **Hoá đơn tạm tính**, Quản lý bấm **Hủy có tính tiền** ở món đang nấu hoặc đã xong (món đã mang ra không huỷ được). Hộp xác nhận bắt buộc chọn một trong ba lý do và đánh dấu ô xác nhận huỷ có tính tiền. Dòng món giữ trên hoá đơn với nhãn “Đã huỷ có tính tiền”; tạm tính và hoá đơn không giảm. Màn hình bếp gỡ món và hiện thẻ “DỪNG MÓN” trong vòng 5 giây, cho tới khi Bếp bấm **Đã dừng món**. Lần huỷ vào nhật ký và báo cáo cuối ca. Quy tắc cần PO chốt, demo và kiểm thử (`verify-charged-cancel`): [docs/S3-05-Task3.md](docs/S3-05-Task3.md).
 
+## S4-08 Task 2 — không gửi nhắc cho lượt đặt bàn không còn hợp lệ
+
+Chạy `migrate` để áp dụng `060_S408SkipInvalidReminders.sql`. Trạng thái lượt đặt bàn được kiểm tra lại khi lấy danh sách email cần gửi và ngay trước khi gửi. Lượt đã huỷ, khách đã tới, bị từ chối, khách không tới hoặc đã qua giờ hẹn thì email nhắc bị bỏ qua, kèm lý do. Chi tiết đặt bàn có nhãn Đã xác nhận / Đã huỷ / Khách đã tới và nút **Đánh dấu khách đã tới**. Danh sách **Email nhắc lịch** có cột lý do bỏ qua và bộ lọc "Chỉ email bị bỏ qua". Quy tắc, demo và kiểm thử (`BookingReminderTests.cs`, `docs/S4-08-KiemTraBoQuaNhac.sql`): [docs/S4-08-Task2.md](docs/S4-08-Task2.md).
+
 ## S4-08 Task 1 — email nhắc trước giờ hẹn 2 tiếng
 
 Chạy `migrate` để áp dụng `059_S408BookingReminderEmail.sql`. Web kiểm tra mỗi 60 giây (`Email:ReminderPollSeconds`, 0 = tắt) và gửi email nhắc cho lượt đặt bàn **đã xác nhận** khi còn 2 tiếng tới giờ hẹn. Email gồm mã đặt bàn, giờ hẹn và bàn đã xếp, gửi tới email của lượt đặt bàn. Chi tiết đặt bàn hiện email nhận nhắc, trạng thái gửi và thời điểm gửi thành công. Tab **Email nhắc lịch** (`/ReservationReminders`) liệt kê các email nhắc; Quản lý có nút chạy kiểm tra ngay. Quy định cần PO chốt, demo và kiểm thử (`BookingReminderTests.cs`, `docs/S4-08-KiemTraNhacLich.sql`): [docs/S4-08-Task1.md](docs/S4-08-Task1.md).

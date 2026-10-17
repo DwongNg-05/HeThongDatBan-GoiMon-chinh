@@ -7,8 +7,8 @@ namespace RestaurantManagement.Web.Services;
 /// <summary>S4-08 Task 1: đọc danh sách email nhắc lịch (dbo.EmailOutbox, MessageType = BookingReminder).</summary>
 public interface IBookingReminderStore
 {
-    /// <summary>Email nhắc mới nhất trước; <paramref name="sentOnly"/> = chỉ email đã gửi thành công.</summary>
-    Task<IReadOnlyList<BookingReminderRecord>> ListAsync(bool sentOnly, int take, CancellationToken cancellationToken = default);
+    /// <summary>Email nhắc mới nhất trước; <paramref name="filter"/>: all / sent / skipped (<see cref="BookingReminderFilter"/>).</summary>
+    Task<IReadOnlyList<BookingReminderRecord>> ListAsync(string filter, int take, CancellationToken cancellationToken = default);
 
     /// <summary>Số phút gửi nhắc trước giờ hẹn (dbo.RestaurantSettings.ReminderLeadMinutes).</summary>
     Task<int> LeadMinutesAsync(CancellationToken cancellationToken = default);
@@ -22,21 +22,23 @@ public sealed class SqlBookingReminderStore(string connectionString) : IBookingR
     private const string Query = """
         SELECT TOP(@take) e.Id AS EmailId,e.ReservationId,r.Code,r.CustomerName,r.StartsAt,
                COALESCE(JSON_VALUE(e.PayloadJson,'$.TableCode'),t.Code) AS TableCode,
-               e.Recipient,e.Status,e.AttemptCount,e.SentAt,e.LastError,e.CreatedAt
+               e.Recipient,e.Status,e.AttemptCount,e.SentAt,e.LastError,e.CreatedAt,
+               e.SkipReason,r.Status AS ReservationStatus
         FROM dbo.EmailOutbox e
         JOIN dbo.Reservations r ON r.Id=e.ReservationId
         LEFT JOIN dbo.DiningTables t ON t.Id=r.TableId
-        WHERE e.MessageType='BookingReminder' AND (@sentOnly=0 OR e.Status='Sent')
+        WHERE e.MessageType='BookingReminder'
+          AND (@filter='all' OR (@filter='sent' AND e.Status='Sent') OR (@filter='skipped' AND e.Status='Cancelled' AND e.SkipReason IS NOT NULL))
         ORDER BY COALESCE(e.SentAt,e.CreatedAt) DESC,e.Id DESC;
         """;
 
-    public async Task<IReadOnlyList<BookingReminderRecord>> ListAsync(bool sentOnly, int take, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<BookingReminderRecord>> ListAsync(string filter, int take, CancellationToken cancellationToken = default)
     {
         var rows = new List<BookingReminderRecord>();
         await using var connection = new SqlConnection(connectionString);
         await using var command = new SqlCommand(Query, connection);
         command.Parameters.Add("@take", SqlDbType.Int).Value = Math.Clamp(take, 1, MaxRows);
-        command.Parameters.Add("@sentOnly", SqlDbType.Bit).Value = sentOnly;
+        command.Parameters.Add("@filter", SqlDbType.VarChar, 10).Value = BookingReminderFilter.Normalize(filter);
         await connection.OpenAsync(cancellationToken);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
@@ -54,7 +56,9 @@ public sealed class SqlBookingReminderStore(string connectionString) : IBookingR
                 reader.GetInt32(reader.GetOrdinal("AttemptCount")),
                 reader.IsDBNull(reader.GetOrdinal("SentAt")) ? null : reader.GetDateTime(reader.GetOrdinal("SentAt")),
                 Text("LastError"),
-                reader.GetDateTime(reader.GetOrdinal("CreatedAt"))));
+                reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
+                Text("SkipReason"),
+                reader.GetString(reader.GetOrdinal("ReservationStatus"))));
         }
         return rows;
     }

@@ -180,6 +180,8 @@ internal static class ApiAccessMatrix
         new("Reservations.Index GET", FrontOfHouse, "GET", "/Reservations"),
         new("Reservations.Details GET", FrontOfHouse, "GET", $"/Reservations/Details/{Missing}"),
         new("Reservations.EmailStatus GET", FrontOfHouse, "GET", $"/Reservations/EmailStatus/{Missing}"),
+        // S4-08 Task 2: đánh dấu khách đã tới (Quản lý, Phục vụ) — email nhắc chưa gửi bị bỏ qua.
+        new("Reservations.MarkArrived POST", FrontOfHouse, "POST", $"/Reservations/MarkArrived/{Missing}"),
         new("Reservations.Create GET", Anonymous, "GET", "/Reservations/Create"),
         new("Reservations.Create POST", Anonymous, "POST", "/Reservations/Create"),
         new("Reservations.Success GET", Anonymous, "GET", "/Reservations/Success"),

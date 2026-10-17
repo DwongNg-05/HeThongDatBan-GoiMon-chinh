@@ -41,6 +41,13 @@ public interface IBookingEmailOutbox
 
     /// <summary>S4-08 Task 1: nhận một email nhắc lịch đang chờ gửi (dbo.usp_ClaimDueBookingReminder); null khi không còn.</summary>
     Task<ClaimedEmail?> ClaimDueReminderAsync(CancellationToken cancellationToken = default) => Task.FromResult<ClaimedEmail?>(null);
+
+    /// <summary>
+    /// S4-08 Task 2: kiểm tra lại lượt đặt bàn ngay trước khi gửi một email nhắc đã nhận (dbo.usp_CheckBookingReminderBeforeSend).
+    /// Trả về lý do bỏ qua (Cancelled, Arrived…) và database đánh dấu email đã bỏ qua; null = lượt vẫn đã xác nhận, gửi email.
+    /// </summary>
+    Task<string?> CheckReminderBeforeSendAsync(long emailId, int attemptNumber, CancellationToken cancellationToken = default) =>
+        Task.FromResult<string?>(null);
 }
 
 public sealed class SqlBookingEmailOutbox(string connectionString) : IBookingEmailOutbox
@@ -80,6 +87,16 @@ public sealed class SqlBookingEmailOutbox(string connectionString) : IBookingEma
         await using var command = new SqlCommand("dbo.usp_ClaimDueBookingReminder", connection) { CommandType = CommandType.StoredProcedure };
         await connection.OpenAsync(cancellationToken);
         return await ReadClaimed(command, cancellationToken);
+    }
+
+    public async Task<string?> CheckReminderBeforeSendAsync(long emailId, int attemptNumber, CancellationToken cancellationToken = default)
+    {
+        await using var connection = new SqlConnection(connectionString);
+        await using var command = new SqlCommand("dbo.usp_CheckBookingReminderBeforeSend", connection) { CommandType = CommandType.StoredProcedure };
+        command.Parameters.Add("@EmailId", SqlDbType.BigInt).Value = emailId;
+        command.Parameters.Add("@AttemptNumber", SqlDbType.Int).Value = attemptNumber;
+        await connection.OpenAsync(cancellationToken);
+        return await command.ExecuteScalarAsync(cancellationToken) is string reason ? reason : null;
     }
 
     private static async Task<ClaimedEmail?> ReadClaimed(SqlCommand command, CancellationToken cancellationToken)
@@ -196,17 +213,28 @@ public sealed class BookingEmailDispatcher(IBookingEmailOutbox outbox, IEmailSen
     public async Task<BookingReminderRunResult> SendDueRemindersAsync(CancellationToken cancellationToken = default)
     {
         var queued = await outbox.QueueDueRemindersAsync(cancellationToken);
-        int sent = 0, failed = 0;
-        while (sent + failed < MaxRetriesPerRun && !cancellationToken.IsCancellationRequested)
+        int sent = 0, failed = 0, skipped = 0;
+        while (sent + failed + skipped < MaxRetriesPerRun && !cancellationToken.IsCancellationRequested)
         {
+            // usp_ClaimDueBookingReminder đã bỏ qua lượt không còn hợp lệ và chỉ trả email của lượt vẫn đã xác nhận.
             var claimed = await outbox.ClaimDueReminderAsync(cancellationToken);
             if (claimed is null) break;
+            // S4-08 Task 2: kiểm tra lại ngay trước khi gửi — lượt vừa bị huỷ / khách vừa tới thì không gửi.
+            var skipReason = await outbox.CheckReminderBeforeSendAsync(claimed.Id, claimed.AttemptNumber, cancellationToken);
+            if (skipReason is not null)
+            {
+                skipped++;
+                logger.LogInformation("Bỏ qua email nhắc {EmailId} của lượt đặt bàn {ReservationId}: {Reason}.",
+                    claimed.Id, claimed.ReservationId, BookingReminderRules.SkipReasonLabel(skipReason));
+                continue;
+            }
             var result = await DeliverAsync(claimed);
             if (result.Outcome == BookingEmailOutcome.Sent) sent++; else failed++;
         }
-        if (queued > 0 || sent + failed > 0)
-            logger.LogInformation("Nhắc lịch đặt bàn: xếp {Queued} email mới, gửi thành công {Sent}, lỗi {Failed}.", queued, sent, failed);
-        return new BookingReminderRunResult(queued, sent, failed);
+        if (queued > 0 || sent + failed + skipped > 0)
+            logger.LogInformation("Nhắc lịch đặt bàn: xếp {Queued} email mới, gửi thành công {Sent}, lỗi {Failed}, bỏ qua {Skipped}.",
+                queued, sent, failed, skipped);
+        return new BookingReminderRunResult(queued, sent, failed, skipped);
     }
 
     /// <summary>Gửi một email đã nhận và lưu kết quả của lần thử đó.</summary>
