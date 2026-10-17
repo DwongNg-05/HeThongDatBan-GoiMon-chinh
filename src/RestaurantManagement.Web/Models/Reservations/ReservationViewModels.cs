@@ -168,6 +168,21 @@ public class ReservationListItemViewModel
 
     /// <summary>Quản lý chỉ xoá hẳn được lượt đã kết thúc: đã huỷ, bị từ chối, khách không đến.</summary>
     public bool CanDelete => Status is "Cancelled" or "Rejected" or "NoShow";
+
+    /// <summary>
+    /// S4-08 Task 1: trạng thái gửi email nhắc lịch (Pending, Sending, Retrying, Sent, Failed, Cancelled;
+    /// trống khi chưa xếp email nhắc). Email nhận nhắc là <see cref="Email"/> của lượt đặt bàn.
+    /// </summary>
+    public string? ReminderEmailStatus { get; set; }
+
+    /// <summary>S4-08 Task 1: thời điểm gửi email nhắc thành công (giờ Việt Nam).</summary>
+    public DateTime? ReminderEmailSentAt { get; set; }
+
+    /// <summary>Mốc bắt đầu gửi nhắc: giờ hẹn - 2 tiếng (giờ Việt Nam).</summary>
+    public DateTime ReminderAt => BookingReminderRules.RemindAt(StartsAt);
+
+    /// <summary>Nhãn trạng thái gửi nhắc trên màn hình chi tiết.</summary>
+    public string ReminderEmailLabel => BookingReminderRules.DetailLabel(ReminderEmailStatus, Status, Email, StartsAt, VietnamTime.Now);
 }
 
 public class ReservationConfirmationViewModel

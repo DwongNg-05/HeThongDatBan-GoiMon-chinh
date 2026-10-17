@@ -62,6 +62,9 @@ internal static class ApiAccessMatrix
         new("ReservationManagement.Index GET", FrontOfHouse, "GET", "/ReservationManagement"),
         new("ReservationManagement.Daily GET", FrontOfHouse, "GET", "/ReservationManagement/Daily"),
         new("ReservationManagement.Details GET", FrontOfHouse, "GET", "/ReservationManagement/Details/999999"),
+        // S4-08 Task 1: danh sách email nhắc lịch (Quản lý, Phục vụ); chạy ngay tác vụ nhắc lịch (chỉ Quản lý).
+        new("ReservationReminders.Index GET", FrontOfHouse, "GET", "/ReservationReminders"),
+        new("ReservationReminders.RunNow POST", Manager, "POST", "/ReservationReminders/RunNow"),
         new("TableReservationSchedule.Index GET", Manager, "GET", "/TableReservationSchedule/Index"),
         new("TableReservationSchedule.Create GET", Manager, "GET", "/TableReservationSchedule/Create"),
         new("TableReservationSchedule.Create POST", Manager, "POST", "/TableReservationSchedule/Create"),

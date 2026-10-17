@@ -56,6 +56,25 @@
     </dl>
 </section>
 
+@* S4-08 Task 1: email nhắc trước giờ hẹn 2 tiếng — email nhận nhắc lấy từ lượt đặt bàn, trạng thái gửi và thời điểm gửi thành công. *@
+<section class="reservation-section reservation-reminder" id="reservation-reminder" aria-labelledby="reservation-reminder-title"
+         data-reminder-status="@(r.ReminderEmailStatus ?? "None")">
+    <h3 id="reservation-reminder-title" class="reservation-section-title">Email nhắc lịch</h3>
+    <dl class="row">
+        <dt class="col-sm-3">Email nhận nhắc</dt>
+        <dd class="col-sm-9" data-field="reminder-recipient">@(string.IsNullOrWhiteSpace(r.Email) ? "Không có (khách không để lại email)" : r.Email)</dd>
+        <dt class="col-sm-3">Mã đặt bàn</dt><dd class="col-sm-9"><strong>@r.Code</strong></dd>
+        <dt class="col-sm-3">Giờ hẹn</dt><dd class="col-sm-9">@r.StartsAt.ToString("dd/MM/yyyy HH:mm")</dd>
+        <dt class="col-sm-3">Bàn đã xếp</dt><dd class="col-sm-9">@(r.TableCode ?? "Chưa xếp bàn")</dd>
+        <dt class="col-sm-3">Gửi nhắc từ</dt><dd class="col-sm-9">@r.ReminderAt.ToString("dd/MM/yyyy HH:mm") <span class="text-muted">(trước giờ hẹn 2 tiếng)</span></dd>
+        <dt class="col-sm-3">Trạng thái gửi nhắc</dt>
+        <dd class="col-sm-9" data-field="reminder-status">@r.ReminderEmailLabel</dd>
+        <dt class="col-sm-3">Gửi thành công lúc</dt>
+        <dd class="col-sm-9" data-field="reminder-sent-at">@(r.ReminderEmailSentAt?.ToString("dd/MM/yyyy HH:mm:ss") ?? "Chưa gửi")</dd>
+    </dl>
+    <a asp-controller="ReservationReminders" asp-action="Index" class="btn btn-sm btn-outline-secondary">Xem danh sách email nhắc lịch</a>
+</section>
+
 @if (User.IsInRole("Manager") && r.CanDelete)
 {
     @* Chỉ Quản lý: xoá hẳn lượt đặt bàn đã kết thúc khỏi danh sách. *@

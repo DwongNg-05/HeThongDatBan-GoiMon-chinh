@@ -196,9 +196,16 @@ namespace RestaurantManagement.Web.Services
         private static bool UsesBookingTemplate(QueuedEmail email) =>
             email.MessageType is BookingConfirmationEmail.Confirmed or BookingConfirmationEmail.Received;
 
+        /// <summary>S4-08 Task 1: email nhắc lịch dùng chung mẫu với BookingEmailDispatcher (mã đặt bàn, giờ hẹn, bàn đã xếp).</summary>
+        private static bool IsReminder(QueuedEmail email) =>
+            email.MessageType == BookingReminderEmail.MessageType;
+
         private static string BuildSubject(
             QueuedEmail email)
         {
+            if (IsReminder(email))
+                return BookingReminderEmail.Subject(BookingConfirmationEmail.ParsePayload(email.PayloadJson));
+
             if (UsesBookingTemplate(email))
                 return BookingConfirmationEmail.Subject(BookingConfirmationEmail.ParsePayload(email.PayloadJson), email.MessageType);
 
@@ -214,6 +221,9 @@ namespace RestaurantManagement.Web.Services
         private static string BuildEmailBody(
             QueuedEmail email)
         {
+            if (IsReminder(email))
+                return BookingReminderEmail.Create(email.Recipient, BookingConfirmationEmail.ParsePayload(email.PayloadJson)).HtmlBody;
+
             if (UsesBookingTemplate(email))
                 return BookingConfirmationEmail.Create(email.Recipient, BookingConfirmationEmail.ParsePayload(email.PayloadJson), email.MessageType).HtmlBody;
 

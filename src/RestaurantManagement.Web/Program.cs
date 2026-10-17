@@ -118,13 +118,16 @@ builder.Services.AddSingleton<BookingConfirmationLinks>();
 // Tự động gửi lại email đặt bàn thất bại.
 builder.Services.AddHostedService<BookingEmailRetryWorker>();
 
+// S4-08: nhắc lịch trước giờ hẹn và màn hình kiểm tra email nhắc.
+builder.Services.AddScoped<IBookingReminderStore>(_ => new SqlBookingReminderStore(sqlConnectionString));
+builder.Services.AddHostedService<BookingReminderWorker>();
+
 builder.Services.AddControllersWithViews(options =>
 {
     options.Filters.Add<SessionActivityFilter>();
     options.Filters.Add<SessionActivityPageFilter>();
     options.Filters.Add<BookingAntiforgeryRecoveryFilter>();
 });
-
 builder.Services.AddRazorPages();
 
 // Dịch vụ sơ đồ bàn.
