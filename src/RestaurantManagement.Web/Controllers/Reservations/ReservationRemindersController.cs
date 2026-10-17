@@ -17,18 +17,19 @@ public class ReservationRemindersController(IBookingReminderStore reminders) : C
 {
     [HttpGet("")]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-    public async Task<IActionResult> Index(bool sent = false, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> Index(string? filter = null, CancellationToken cancellationToken = default)
     {
+        var f = BookingReminderFilter.Normalize(filter);
         try
         {
-            var rows = await reminders.ListAsync(sent, SqlBookingReminderStore.MaxRows, cancellationToken);
+            var rows = await reminders.ListAsync(f, SqlBookingReminderStore.MaxRows, cancellationToken);
             var lead = await reminders.LeadMinutesAsync(cancellationToken);
-            return View(BookingReminderRules.BuildList(rows, sent, lead));
+            return View(BookingReminderRules.BuildList(rows, f, lead));
         }
         catch (SqlException ex)
         {
-            ViewData["LoadError"] = $"Không tải được danh sách email nhắc lịch ({ex.Number}). Kiểm tra đã chạy migration 059 chưa.";
-            return View(BookingReminderRules.BuildList([], sent, BookingReminderRules.DefaultLeadMinutes));
+            ViewData["LoadError"] = $"Không tải được danh sách email nhắc lịch ({ex.Number}). Kiểm tra đã chạy migration 059 và 060 chưa.";
+            return View(BookingReminderRules.BuildList([], f, BookingReminderRules.DefaultLeadMinutes));
         }
     }
 

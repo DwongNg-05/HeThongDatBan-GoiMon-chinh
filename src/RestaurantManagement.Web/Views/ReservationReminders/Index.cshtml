@@ -1,4 +1,5 @@
 @model RestaurantManagement.Web.Models.Reservations.BookingReminderListViewModel
+@using RestaurantManagement.Web.Models.Reservations
 @{
     ViewData["Title"] = "Email nhắc lịch";
     var leadText = Model.LeadMinutes % 60 == 0 ? $"{Model.LeadMinutes / 60} tiếng" : $"{Model.LeadMinutes} phút";
@@ -11,7 +12,7 @@
 <header class="staff-page-head">
     <div>
         <h1>Email nhắc lịch</h1>
-        <p>Lượt đặt bàn đã xác nhận được gửi email nhắc trước giờ hẹn @leadText. Giờ hiển thị theo giờ Việt Nam (UTC+7).</p>
+        <p>Lượt đặt bàn đã xác nhận được gửi email nhắc trước giờ hẹn @leadText. Ngay trước khi gửi, hệ thống kiểm tra lại: lượt đã huỷ hoặc khách đã tới thì bỏ qua, không gửi. Giờ hiển thị theo giờ Việt Nam (UTC+7).</p>
     </div>
     @if (User.IsInRole("Manager"))
     {
@@ -28,9 +29,10 @@
 <form method="get" class="staff-toolbar">
     <div>
         <label for="reminder-filter" class="form-label">Hiển thị</label>
-        <select id="reminder-filter" name="sent" class="form-select" onchange="this.form.submit()">
-            <option value="false" selected="@(!Model.SentOnly)">Tất cả email nhắc</option>
-            <option value="true" selected="@Model.SentOnly">Chỉ email đã gửi thành công</option>
+        <select id="reminder-filter" name="filter" class="form-select" onchange="this.form.submit()">
+            <option value="all" selected="@(Model.Filter == BookingReminderFilter.All)">Tất cả email nhắc</option>
+            <option value="sent" selected="@(Model.Filter == BookingReminderFilter.Sent)">Chỉ email đã gửi thành công</option>
+            <option value="skipped" selected="@(Model.Filter == BookingReminderFilter.Skipped)">Chỉ email bị bỏ qua (lượt không còn hợp lệ)</option>
         </select>
     </div>
     <div class="staff-toolbar-buttons">
@@ -41,12 +43,17 @@
 @if (Model.Items.Count == 0)
 {
     <p class="staff-empty" role="status" data-reminder-empty>
-        @(Model.SentOnly ? "Chưa có email nhắc nào được gửi thành công." : "Chưa có email nhắc lịch nào. Email được xếp khi lượt đã xác nhận còn " + leadText + " tới giờ hẹn.")
+        @(Model.Filter switch
+        {
+            BookingReminderFilter.Sent => "Chưa có email nhắc nào được gửi thành công.",
+            BookingReminderFilter.Skipped => "Chưa có email nhắc nào bị bỏ qua.",
+            _ => "Chưa có email nhắc lịch nào. Email được xếp khi lượt đã xác nhận còn " + leadText + " tới giờ hẹn."
+        })
     </p>
 }
 else
 {
-    <p class="staff-count"><strong>@Model.Items.Count</strong> email nhắc · <strong>@Model.SentCount</strong> đã gửi thành công</p>
+    <p class="staff-count"><strong>@Model.Items.Count</strong> email nhắc · <strong>@Model.SentCount</strong> đã gửi thành công · <strong>@Model.SkippedCount</strong> bị bỏ qua</p>
     <div class="table-responsive staff-table-card">
         <table class="table table-hover staff-table" data-reminder-list>
             <caption>Email nhắc lịch mới nhất ở trên cùng</caption>
@@ -56,7 +63,9 @@ else
                     <th scope="col">Giờ hẹn</th>
                     <th scope="col">Bàn</th>
                     <th scope="col">Email nhận</th>
+                    <th scope="col">Trạng thái lượt đặt</th>
                     <th scope="col">Trạng thái gửi</th>
+                    <th scope="col">Lý do bỏ qua</th>
                     <th scope="col">Gửi lúc</th>
                 </tr>
             </thead>
@@ -69,11 +78,18 @@ else
                         <td data-field="starts-at">@item.StartsAt.ToString("dd/MM/yyyy HH:mm")</td>
                         <td data-field="table">@item.TableLabel</td>
                         <td data-field="recipient">@item.Recipient</td>
+                        <td data-field="reservation-status">
+                            @if (item.ReservationStatus is not null)
+                            {
+                                <span class="reservation-state @BookingReminderRules.ReservationStatusCss(item.ReservationStatus)">@item.ReservationStatusLabel</span>
+                            }
+                        </td>
                         <td>
-                            <span class="email-state @item.StateCssClass">@item.StateLabel</span>
+                            <span class="email-state @item.StateCssClass">@(item.IsSkipped ? "Đã bỏ qua" : item.StateLabel)</span>
                             @if (item.AttemptCount > 1) { <div class="text-muted small">@item.AttemptCount lần thử</div> }
                             @if (item.ErrorMessage is not null) { <div class="reservation-email-error small text-wrap">@item.ErrorMessage</div> }
                         </td>
+                        <td data-field="skip-reason" data-skip-reason="@item.SkipReason">@(item.SkipReasonLabel ?? "—")</td>
                         <td data-field="sent-at">@(item.SentAt?.ToString("dd/MM/yyyy HH:mm:ss") ?? "—")</td>
                     </tr>
                 }

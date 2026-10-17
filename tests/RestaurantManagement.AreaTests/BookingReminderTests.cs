@@ -22,6 +22,92 @@ internal static class BookingReminderTests
         Content(check);
         await Dispatch(check);
         Display(check);
+        SkipRules(check);
+        await SkipInvalid(check);
+    }
+
+    /// <summary>S4-08 Task 2: lý do bỏ qua theo trạng thái lượt đặt bàn tại thời điểm gửi.</summary>
+    private static void SkipRules(Action<bool, string> check)
+    {
+        var start = Now.AddHours(1);
+        check(BookingReminderRules.SkipReasonFor("Confirmed", start, Now) is null,
+            "Skip rule: a booking still confirmed is sent its reminder");
+        check(BookingReminderRules.SkipReasonFor("Cancelled", start, Now) == "Cancelled" && BookingReminderRules.SkipReasonFor(null, start, Now) == "Cancelled",
+            "Skip rule: a cancelled (or deleted) booking is skipped as cancelled");
+        check(BookingReminderRules.SkipReasonFor("Arrived", start, Now) == "Arrived",
+            "Skip rule: a booking whose guest has arrived is skipped");
+        check(BookingReminderRules.SkipReasonFor("Rejected", start, Now) == "Rejected" && BookingReminderRules.SkipReasonFor("NoShow", start, Now) == "NoShow"
+              && BookingReminderRules.SkipReasonFor("Pending", start, Now) == "NotConfirmed" && BookingReminderRules.SkipReasonFor("Confirmed", Now, Now) == "StartPassed",
+            "Skip rule: rejected, no-show, unconfirmed and past bookings are skipped with their own reason");
+        check(BookingReminderRules.SkipReasonLabel("Cancelled") == "Lượt đặt bàn đã huỷ" && BookingReminderRules.SkipReasonLabel("Arrived") == "Khách đã tới"
+              && BookingReminderRules.SkipReasonLabel(null) is null,
+            "Skip rule: reasons are shown in Vietnamese");
+        check(BookingReminderRules.ReservationStatusCss("Cancelled") == "reservation-state-cancelled"
+              && BookingReminderRules.ReservationStatusCss("Arrived") == "reservation-state-arrived"
+              && BookingReminderRules.ReservationStatusCss("Confirmed") == "reservation-state-confirmed"
+              && ReservationStatusDisplay.Label("Arrived") == "Khách đã tới" && ReservationStatusDisplay.Label("Cancelled") == "Đã huỷ"
+              && ReservationStatusDisplay.Label("Confirmed") == "Đã xác nhận",
+            "Reservation details: cancelled, confirmed and arrived statuses have their own label and style");
+        var start19 = new DateTime(2026, 10, 17, 19, 0, 0);
+        var at10 = new DateTime(2026, 10, 17, 10, 0, 0);
+        check(BookingReminderRules.DetailLabel("Cancelled", "Arrived", "a@example.com", start19, at10, "Arrived") == "Đã bỏ qua gửi nhắc: Khách đã tới"
+              && BookingReminderRules.DetailLabel("Cancelled", "Cancelled", "a@example.com", start19, at10, "Cancelled") == "Đã bỏ qua gửi nhắc: Lượt đặt bàn đã huỷ"
+              && BookingReminderRules.DetailLabel(null, "Cancelled", "a@example.com", start19, at10) == "Không gửi nhắc: Lượt đặt bàn đã huỷ",
+            "Reservation details: the reminder status explains why the reminder was skipped");
+    }
+
+    /// <summary>S4-08 Task 2: tác vụ nhắc lịch bỏ qua lượt đã huỷ / khách đã tới, kể cả khi đổi trạng thái ngay trước lúc gửi.</summary>
+    private static async Task SkipInvalid(Action<bool, string> check)
+    {
+        var clock = new EmailRetryTests.Clock(Now);
+        var outbox = new ReminderOutbox(clock);
+        var sender = new CapturingSender();
+        var dispatcher = new BookingEmailDispatcher(outbox, sender, NullLogger<BookingEmailDispatcher>.Instance);
+
+        var cancelled = outbox.Book(11, "SK0001", "cancelled@example.com", "Confirmed", Now.AddMinutes(100), "A01");
+        var arrived = outbox.Book(12, "SK0002", "arrived@example.com", "Confirmed", Now.AddMinutes(100), "A02");
+        var confirmed = outbox.Book(13, "SK0003", "confirmed@example.com", "Confirmed", Now.AddMinutes(100), "A03");
+        var lastMinute = outbox.Book(14, "SK0004", "lastminute@example.com", "Confirmed", Now.AddMinutes(100), "A04");
+
+        // Email nhắc đã xếp hàng, rồi lượt đổi trạng thái trước khi tác vụ gửi.
+        await outbox.QueueDueRemindersAsync();
+        cancelled.Status = "Cancelled";
+        arrived.Status = "Arrived";
+        // Lượt này đổi trạng thái sau khi web đã nhận email nhưng ngay trước lúc gửi.
+        outbox.BeforeSend = claimed => { if (claimed.ReservationId == lastMinute.Id) lastMinute.Status = "Cancelled"; };
+
+        var run = await dispatcher.SendDueRemindersAsync();
+        check(sender.Sent.All(m => m.To != cancelled.Email!) && cancelled.ReminderStatus == "Cancelled" && cancelled.ReminderSkipReason == "Cancelled"
+              && cancelled.ReminderSentAtUtc is null,
+            "Skip invalid: a cancelled booking gets no reminder email");
+        check(sender.Sent.All(m => m.To != arrived.Email!) && arrived.ReminderStatus == "Cancelled" && arrived.ReminderSkipReason == "Arrived",
+            "Skip invalid: a booking whose guest has arrived gets no reminder email");
+        check(sender.Sent.Count(m => m.To == confirmed.Email!) == 1 && confirmed.ReminderStatus == "Sent" && confirmed.ReminderSkipReason is null,
+            "Skip invalid: a booking still confirmed gets its reminder email");
+        check(sender.Sent.All(m => m.To != lastMinute.Email!) && lastMinute.ReminderSkipReason == "Cancelled"
+              && outbox.EmailOf(lastMinute.Id) is { Status: "Cancelled", AttemptCount: 0 },
+            "Skip invalid: a booking that changes status right before sending gets no email (no send attempt counted)");
+        check(run is { Sent: 1, Failed: 0, Skipped: 1 } && sender.Sent.Count == 1 && run.Summary.Contains("bỏ qua 1"),
+            "Skip invalid: run summary counts the reminder skipped right before sending");
+
+        // Chạy lại tác vụ: không có email mới nào được gửi.
+        var again = await dispatcher.SendDueRemindersAsync();
+        check(again is { Queued: 0, Sent: 0, Skipped: 0 } && sender.Sent.Count == 1,
+            "Skip invalid: running the task again sends no new email");
+
+        // Danh sách theo dõi: lý do bỏ qua đúng từng lượt.
+        var list = BookingReminderRules.BuildList(outbox.Records(), BookingReminderFilter.All, 120);
+        BookingReminderItem Row(Booking b) => list.Items.Single(i => i.ReservationId == b.Id);
+        check(Row(cancelled) is { IsSkipped: true, SkipReasonLabel: "Lượt đặt bàn đã huỷ", ReservationStatusLabel: "Đã huỷ", SentAt: null }
+              && Row(arrived) is { IsSkipped: true, SkipReasonLabel: "Khách đã tới", ReservationStatusLabel: "Khách đã tới" }
+              && Row(lastMinute) is { IsSkipped: true, SkipReasonLabel: "Lượt đặt bàn đã huỷ" }
+              && Row(confirmed) is { IsSkipped: false, SkipReasonLabel: null, State: EmailDeliveryState.Sent, ReservationStatusLabel: "Đã xác nhận" },
+            "Reminder list: shows the right skip reason (or none) for each booking");
+        var skippedOnly = BookingReminderRules.BuildList(outbox.Records(), BookingReminderFilter.Skipped, 120);
+        check(skippedOnly.Items.Count == 3 && skippedOnly.Items.All(i => i.IsSkipped) && skippedOnly.Filter == "skipped" && list.SkippedCount == 3,
+            "Reminder list: 'skipped' filter lists only skipped reminders");
+        check(BookingReminderFilter.Normalize("SKIPPED") == "all" && BookingReminderFilter.Normalize(null) == "all" && BookingReminderFilter.Normalize("sent") == "sent",
+            "Reminder list: unknown filters fall back to all");
     }
 
     private static void Rules(Action<bool, string> check)
@@ -163,11 +249,12 @@ internal static class BookingReminderTests
         public long Id { get; init; }
         public string Code { get; init; } = "";
         public string? Email { get; init; }
-        public string Status { get; init; } = "Confirmed";
+        public string Status { get; set; } = "Confirmed";
         public DateTime StartsAtUtc { get; init; }
         public string? TableCode { get; init; }
         public string? ReminderStatus { get; set; }
         public DateTime? ReminderSentAtUtc { get; set; }
+        public string? ReminderSkipReason { get; set; }
     }
 
     /// <summary>Hàng đợi email nhắc giả lập theo migration 059 (xếp hàng một lần / lượt, nhận email đang chờ, ghi kết quả).</summary>
@@ -175,6 +262,41 @@ internal static class BookingReminderTests
     {
         private readonly List<Booking> _bookings = [];
         private readonly List<EmailRetryTests.SimulatedEmail> _emails = [];
+        private readonly Dictionary<long, string> _skipReasons = new();
+
+        /// <summary>Chạy ngay trước bước kiểm tra lại (giả lập lượt đổi trạng thái sát giờ gửi).</summary>
+        public Action<ClaimedEmail>? BeforeSend { get; set; }
+
+        private Booking BookingOf(EmailRetryTests.SimulatedEmail e) => _bookings.Single(b => b.Id == e.ReservationId);
+
+        private void Skip(EmailRetryTests.SimulatedEmail email, string reason)
+        {
+            email.Status = "Cancelled";
+            _skipReasons[email.Id] = reason;
+            var booking = BookingOf(email);
+            booking.ReminderStatus = "Cancelled";
+            booking.ReminderSkipReason = reason;
+        }
+
+        public IReadOnlyList<BookingReminderRecord> Records() => _emails.Select(e =>
+        {
+            var b = BookingOf(e);
+            return new BookingReminderRecord(e.Id, b.Id, b.Code, "Khách", b.StartsAtUtc, b.TableCode, e.Recipient, e.Status, e.AttemptCount,
+                e.SentAtUtc, e.LastError, e.CreatedAtUtc, _skipReasons.GetValueOrDefault(e.Id), b.Status);
+        }).ToArray();
+
+        public Task<string?> CheckReminderBeforeSendAsync(long emailId, int attemptNumber, CancellationToken cancellationToken = default)
+        {
+            var email = _emails.Single(e => e.Id == emailId);
+            BeforeSend?.Invoke(new ClaimedEmail(email.Id, attemptNumber, email.Recipient, "", email.PayloadJson, email.MessageType, email.ReservationId));
+            var reason = BookingReminderRules.SkipReasonFor(BookingOf(email).Status, BookingOf(email).StartsAtUtc, clock.Now);
+            if (reason is not null && email.Status == "Processing" && email.AttemptCount == attemptNumber)
+            {
+                email.AttemptCount--;
+                Skip(email, reason);
+            }
+            return Task.FromResult(reason);
+        }
 
         public Booking Book(long id, string code, string? email, string status, DateTime startsAtUtc, string? table)
         {
@@ -203,8 +325,12 @@ internal static class BookingReminderTests
 
         public Task<ClaimedEmail?> ClaimDueReminderAsync(CancellationToken cancellationToken = default)
         {
+            // Migration 060: bỏ qua email nhắc của lượt không còn hợp lệ trước khi nhận email để gửi.
+            foreach (var pending in _emails.Where(e => e.Status == "Pending").ToArray())
+                if (BookingReminderRules.SkipReasonFor(BookingOf(pending).Status, BookingOf(pending).StartsAtUtc, clock.Now) is { } reason)
+                    Skip(pending, reason);
             var email = _emails.Where(e => e.Status == "Pending" && e.AttemptCount < EmailRetryPolicy.MaxAttempts && e.NextAttemptAtUtc <= clock.Now
-                    && _bookings.Single(b => b.Id == e.ReservationId).StartsAtUtc > clock.Now)
+                    && BookingOf(e).Status == "Confirmed" && BookingOf(e).StartsAtUtc > clock.Now)
                 .OrderBy(e => e.Id).FirstOrDefault();
             if (email is null) return Task.FromResult<ClaimedEmail?>(null);
             email.Status = "Processing";
