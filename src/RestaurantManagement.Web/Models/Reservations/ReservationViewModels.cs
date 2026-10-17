@@ -184,6 +184,12 @@ public class ReservationListItemViewModel
     /// <summary>S4-08 Task 2: lý do bỏ qua gửi nhắc (Cancelled, Arrived, …) khi lượt không còn ở trạng thái đã xác nhận.</summary>
     public string? ReminderSkipReason { get; set; }
 
+    /// <summary>S4-08 Task 3: số lần đã thử gửi email nhắc (tối đa 4).</summary>
+    public int ReminderEmailAttempts { get; set; }
+
+    /// <summary>Đã nhắc thành công: lượt không bao giờ nhận email nhắc thứ hai.</summary>
+    public bool ReminderAlreadySent => ReminderEmailSentAt is not null;
+
     /// <summary>Thời điểm khách tới (giờ Việt Nam).</summary>
     public DateTime? ArrivedAt { get; set; }
 

@@ -45,6 +45,7 @@ public interface IBookingEmailOutbox
     /// <summary>
     /// S4-08 Task 2: kiểm tra lại lượt đặt bàn ngay trước khi gửi một email nhắc đã nhận (dbo.usp_CheckBookingReminderBeforeSend).
     /// Trả về lý do bỏ qua (Cancelled, Arrived…) và database đánh dấu email đã bỏ qua; null = lượt vẫn đã xác nhận, gửi email.
+    /// S4-08 Task 3: thêm "AlreadySent" (lượt đã được nhắc thành công) và "NotClaimed" (email không còn do tác vụ này giữ) — không gửi.
     /// </summary>
     Task<string?> CheckReminderBeforeSendAsync(long emailId, int attemptNumber, CancellationToken cancellationToken = default) =>
         Task.FromResult<string?>(null);
@@ -213,14 +214,22 @@ public sealed class BookingEmailDispatcher(IBookingEmailOutbox outbox, IEmailSen
     public async Task<BookingReminderRunResult> SendDueRemindersAsync(CancellationToken cancellationToken = default)
     {
         var queued = await outbox.QueueDueRemindersAsync(cancellationToken);
-        int sent = 0, failed = 0, skipped = 0;
-        while (sent + failed + skipped < MaxRetriesPerRun && !cancellationToken.IsCancellationRequested)
+        int sent = 0, failed = 0, skipped = 0, duplicates = 0;
+        while (sent + failed + skipped + duplicates < MaxRetriesPerRun && !cancellationToken.IsCancellationRequested)
         {
             // usp_ClaimDueBookingReminder đã bỏ qua lượt không còn hợp lệ và chỉ trả email của lượt vẫn đã xác nhận.
             var claimed = await outbox.ClaimDueReminderAsync(cancellationToken);
             if (claimed is null) break;
             // S4-08 Task 2: kiểm tra lại ngay trước khi gửi — lượt vừa bị huỷ / khách vừa tới thì không gửi.
             var skipReason = await outbox.CheckReminderBeforeSendAsync(claimed.Id, claimed.AttemptNumber, cancellationToken);
+            // S4-08 Task 3: lượt đã được nhắc thành công / email đang do tác vụ khác giữ -> không gửi (chống gửi trùng).
+            if (BookingReminderRules.IsDuplicateGuard(skipReason))
+            {
+                duplicates++;
+                logger.LogWarning("Không gửi email nhắc {EmailId} của lượt đặt bàn {ReservationId}: {Reason}.",
+                    claimed.Id, claimed.ReservationId, BookingReminderRules.SkipReasonLabel(skipReason));
+                continue;
+            }
             if (skipReason is not null)
             {
                 skipped++;
@@ -234,7 +243,7 @@ public sealed class BookingEmailDispatcher(IBookingEmailOutbox outbox, IEmailSen
         if (queued > 0 || sent + failed + skipped > 0)
             logger.LogInformation("Nhắc lịch đặt bàn: xếp {Queued} email mới, gửi thành công {Sent}, lỗi {Failed}, bỏ qua {Skipped}.",
                 queued, sent, failed, skipped);
-        return new BookingReminderRunResult(queued, sent, failed, skipped);
+        return new BookingReminderRunResult(queued, sent, failed, skipped, duplicates);
     }
 
     /// <summary>Gửi một email đã nhận và lưu kết quả của lần thử đó.</summary>

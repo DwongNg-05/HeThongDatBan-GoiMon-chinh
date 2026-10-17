@@ -208,7 +208,7 @@ public class ReservationsController : Controller
             COALESCE(r.AreaNameSnapshot,a.Name) AS AreaName,r.StartsAt,r.EndsAt,r.Status,
             t.Code AS TableCode,ta.Name AS TableAreaName,r.Notes,r.CancelReason,
             r.ConfirmationEmailStatus,r.ConfirmationEmailAttempts,
-            r.ReminderEmailStatus,r.ReminderEmailSentAt,r.ReminderSkipReason,r.ArrivedAt,r.CancelledAt
+            r.ReminderEmailStatus,r.ReminderEmailSentAt,r.ReminderSkipReason,r.ArrivedAt,r.CancelledAt,r.ReminderEmailAttempts
         FROM dbo.Reservations r LEFT JOIN dbo.Areas a ON a.Id=r.PreferredAreaId
         LEFT JOIN dbo.DiningTables t ON t.Id=r.TableId LEFT JOIN dbo.Areas ta ON ta.Id=t.AreaId
         """;
@@ -238,7 +238,9 @@ public class ReservationsController : Controller
         // S4-08 Task 2: lý do bỏ qua gửi nhắc, thời điểm khách tới / huỷ (migration 060).
         ReminderSkipReason = reader.IsDBNull(reader.GetOrdinal("ReminderSkipReason")) ? null : reader.GetString(reader.GetOrdinal("ReminderSkipReason")),
         ArrivedAt = reader.IsDBNull(reader.GetOrdinal("ArrivedAt")) ? null : VietnamTime.FromUtc(reader.GetDateTime(reader.GetOrdinal("ArrivedAt"))),
-        CancelledAt = reader.IsDBNull(reader.GetOrdinal("CancelledAt")) ? null : VietnamTime.FromUtc(reader.GetDateTime(reader.GetOrdinal("CancelledAt")))
+        CancelledAt = reader.IsDBNull(reader.GetOrdinal("CancelledAt")) ? null : VietnamTime.FromUtc(reader.GetDateTime(reader.GetOrdinal("CancelledAt"))),
+        // S4-08 Task 3: số lần thử gửi nhắc (migration 061).
+        ReminderEmailAttempts = reader.GetInt32(reader.GetOrdinal("ReminderEmailAttempts"))
     };
 
     // =========================================================

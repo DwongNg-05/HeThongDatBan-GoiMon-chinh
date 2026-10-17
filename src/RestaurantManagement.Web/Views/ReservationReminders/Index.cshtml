@@ -12,7 +12,7 @@
 <header class="staff-page-head">
     <div>
         <h1>Email nhắc lịch</h1>
-        <p>Lượt đặt bàn đã xác nhận được gửi email nhắc trước giờ hẹn @leadText. Ngay trước khi gửi, hệ thống kiểm tra lại: lượt đã huỷ hoặc khách đã tới thì bỏ qua, không gửi. Giờ hiển thị theo giờ Việt Nam (UTC+7).</p>
+        <p>Lượt đặt bàn đã xác nhận được gửi email nhắc trước giờ hẹn @leadText. Ngay trước khi gửi, hệ thống kiểm tra lại: lượt đã huỷ hoặc khách đã tới thì bỏ qua, không gửi. Mỗi lượt chỉ nhận tối đa một email nhắc; gửi lỗi thì tự thử lại sau 5 phút, tối đa @BookingReminderRules.MaxAttempts lần thử. Giờ hiển thị theo giờ Việt Nam (UTC+7).</p>
     </div>
     @if (User.IsInRole("Manager"))
     {
@@ -65,6 +65,8 @@ else
                     <th scope="col">Email nhận</th>
                     <th scope="col">Trạng thái lượt đặt</th>
                     <th scope="col">Trạng thái gửi</th>
+                    <th scope="col">Số lần thử</th>
+                    <th scope="col">Kết quả cuối cùng</th>
                     <th scope="col">Lý do bỏ qua</th>
                     <th scope="col">Gửi lúc</th>
                 </tr>
@@ -86,9 +88,10 @@ else
                         </td>
                         <td>
                             <span class="email-state @item.StateCssClass">@(item.IsSkipped ? "Đã bỏ qua" : item.StateLabel)</span>
-                            @if (item.AttemptCount > 1) { <div class="text-muted small">@item.AttemptCount lần thử</div> }
                             @if (item.ErrorMessage is not null) { <div class="reservation-email-error small text-wrap">@item.ErrorMessage</div> }
                         </td>
+                        <td data-field="attempts" data-attempts="@item.AttemptCount">@item.AttemptCount/@item.MaxAttempts</td>
+                        <td data-field="final-result" class="text-wrap">@item.FinalResult</td>
                         <td data-field="skip-reason" data-skip-reason="@item.SkipReason">@(item.SkipReasonLabel ?? "—")</td>
                         <td data-field="sent-at">@(item.SentAt?.ToString("dd/MM/yyyy HH:mm:ss") ?? "—")</td>
                     </tr>

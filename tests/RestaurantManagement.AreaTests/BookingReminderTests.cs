@@ -24,6 +24,107 @@ internal static class BookingReminderTests
         Display(check);
         SkipRules(check);
         await SkipInvalid(check);
+        await OneReminderOnly(check);
+    }
+
+    /// <summary>S4-08 Task 3: mỗi lượt đặt bàn chỉ nhận tối đa một email nhắc.</summary>
+    private static async Task OneReminderOnly(Action<bool, string> check)
+    {
+        // Chạy tác vụ nhiều lần liên tiếp.
+        {
+            var clock = new EmailRetryTests.Clock(Now);
+            var outbox = new ReminderOutbox(clock);
+            var sender = new CapturingSender();
+            var dispatcher = new BookingEmailDispatcher(outbox, sender, NullLogger<BookingEmailDispatcher>.Instance);
+            var booking = outbox.Book(21, "ON0001", "once@example.com", "Confirmed", Now.AddMinutes(110), "B01");
+            var runs = new List<BookingReminderRunResult>();
+            for (var i = 0; i < 6; i++)
+            {
+                runs.Add(await dispatcher.SendDueRemindersAsync());
+                clock.Now = clock.Now.AddMinutes(1);
+            }
+            check(sender.Sent.Count(m => m.To == booking.Email) == 1 && runs.Sum(r => r.Sent) == 1 && runs.Sum(r => r.Queued) == 1
+                  && outbox.EmailCount(booking.Id) == 1,
+                "One reminder: running the task 6 times in a row sends exactly one reminder");
+            check(booking.ReminderSentAtUtc == Now && booking.ReminderStatus == "Sent",
+                "One reminder: the booking is marked as reminded at the successful send");
+            // Dù hàng đợi lỡ có email nhắc thứ hai (dữ liệu bất thường), lượt đã nhắc không bị gửi lại.
+            outbox.ForceSecondReminder(booking.Id);
+            var forced = await dispatcher.SendDueRemindersAsync();
+            check(forced.Sent == 0 && sender.Sent.Count(m => m.To == booking.Email) == 1,
+                "One reminder: a booking already reminded successfully is never sent again");
+        }
+
+        // Hai tác vụ chạy đồng thời.
+        {
+            var clock = new EmailRetryTests.Clock(Now);
+            var outbox = new ReminderOutbox(clock);
+            var sender = new CapturingSender { Delay = TimeSpan.FromMilliseconds(30) };
+            var first = new BookingEmailDispatcher(outbox, sender, NullLogger<BookingEmailDispatcher>.Instance);
+            var second = new BookingEmailDispatcher(outbox, sender, NullLogger<BookingEmailDispatcher>.Instance);
+            var bookings = Enumerable.Range(0, 5)
+                .Select(i => outbox.Book(30 + i, $"PAR00{i}", $"par{i}@example.com", "Confirmed", Now.AddMinutes(90 + i), $"C0{i}")).ToArray();
+            var results = await Task.WhenAll(
+                Task.Run(() => first.SendDueRemindersAsync()), Task.Run(() => second.SendDueRemindersAsync()),
+                Task.Run(() => first.SendDueRemindersAsync()), Task.Run(() => second.SendDueRemindersAsync()));
+            check(bookings.All(b => sender.Sent.Count(m => m.To == b.Email) == 1) && sender.Sent.Count == bookings.Length
+                  && results.Sum(r => r.Sent) == bookings.Length && bookings.All(b => outbox.EmailCount(b.Id) == 1),
+                "One reminder: four task runs at the same time send each booking exactly one reminder");
+        }
+
+        // Khoá hết hạn: tác vụ khác đã nhận lại email -> tác vụ cũ không được gửi.
+        {
+            var clock = new EmailRetryTests.Clock(Now);
+            var outbox = new ReminderOutbox(clock);
+            var booking = outbox.Book(41, "STALE1", "stale@example.com", "Confirmed", Now.AddMinutes(100), "D01");
+            await outbox.QueueDueRemindersAsync();
+            var claimed = (await outbox.ClaimDueReminderAsync())!;
+            outbox.ExpireAndReclaim(claimed.Id);
+            var reason = await outbox.CheckReminderBeforeSendAsync(claimed.Id, claimed.AttemptNumber);
+            check(reason == BookingReminderRules.NotClaimed && BookingReminderRules.IsDuplicateGuard(reason)
+                  && BookingReminderRules.SkipReasonLabel(reason) == "Email đang do tác vụ khác xử lý",
+                "One reminder: a task whose claim was taken over by another task does not send");
+            outbox.MarkSent(booking.Id);
+            check(await outbox.CheckReminderBeforeSendAsync(claimed.Id, claimed.AttemptNumber + 1) == BookingReminderRules.AlreadySent,
+                "One reminder: a booking already reminded is detected right before sending");
+        }
+
+        // Gửi thất bại: được thử lại; gửi thành công rồi thì không gửi lại.
+        {
+            var clock = new EmailRetryTests.Clock(Now);
+            var outbox = new ReminderOutbox(clock);
+            var sender = new CapturingSender { FailNext = true };
+            var dispatcher = new BookingEmailDispatcher(outbox, sender, NullLogger<BookingEmailDispatcher>.Instance);
+            var booking = outbox.Book(51, "RETRY1", "retry@example.com", "Confirmed", Now.AddMinutes(100), "E01");
+            var failed = await dispatcher.SendDueRemindersAsync();
+            check(failed is { Sent: 0, Failed: 1 } && booking.ReminderSentAtUtc is null && booking.ReminderStatus == "Retrying"
+                  && outbox.EmailOf(booking.Id) is { Status: "Pending", AttemptCount: 1 },
+                "One reminder: a failed send does not mark the booking as reminded");
+            var tooSoon = await dispatcher.SendDueRemindersAsync();
+            check(tooSoon.Sent == 0 && sender.Sent.Count == 0, "One reminder: a failed reminder waits 5 minutes before retrying");
+            clock.Now = Now.AddMinutes(5);
+            var retried = await dispatcher.SendDueRemindersAsync();
+            check(retried.Sent == 1 && sender.Sent.Count == 1 && booking.ReminderSentAtUtc == Now.AddMinutes(5)
+                  && outbox.EmailOf(booking.Id) is { Status: "Sent", AttemptCount: 2 },
+                "One reminder: a failed reminder can be retried and then succeeds");
+            for (var i = 0; i < 3; i++) { clock.Now = clock.Now.AddMinutes(6); await dispatcher.SendDueRemindersAsync(); }
+            check(sender.Sent.Count == 1, "One reminder: after a successful send the booking is not sent again");
+
+            var list = BookingReminderRules.BuildList(outbox.Records(), BookingReminderFilter.All, 120);
+            var row = list.Items.Single(i => i.ReservationId == booking.Id);
+            check(row is { AttemptCount: 2, MaxAttempts: 4, FinalResult: "Gửi thành công ở lần thử 2", State: EmailDeliveryState.Sent },
+                "Reminder list: shows the number of attempts and the final result");
+        }
+        check(BookingReminderRules.FinalResult(EmailDeliveryState.Failed, 4, false) == "Thất bại sau 4 lần thử"
+              && BookingReminderRules.FinalResult(EmailDeliveryState.Retrying, 2, false) == "Lỗi, sẽ tự gửi lại (đã thử 2/4)"
+              && BookingReminderRules.FinalResult(EmailDeliveryState.Waiting, 0, false) == "Chưa gửi"
+              && BookingReminderRules.FinalResult(EmailDeliveryState.Cancelled, 0, true) == "Đã bỏ qua, không gửi",
+            "Reminder list: final result label for each delivery state");
+        check(new BookingReminderRunResult(0, 1, 0, 0, 2).Summary.Contains("chặn 2 lần gửi trùng"),
+            "Reminder task: run summary reports blocked duplicate sends");
+        var model = new ReservationListItemViewModel { Status = "Confirmed", ReminderEmailAttempts = 2, ReminderEmailSentAt = new DateTime(2026, 10, 17, 10, 0, 0) };
+        check(model.ReminderAlreadySent && model.ReminderEmailAttempts == 2,
+            "Reservation details: shows the reminder attempts and that the booking was already reminded");
     }
 
     /// <summary>S4-08 Task 2: lý do bỏ qua theo trạng thái lượt đặt bàn tại thời điểm gửi.</summary>
@@ -263,6 +364,37 @@ internal static class BookingReminderTests
         private readonly List<Booking> _bookings = [];
         private readonly List<EmailRetryTests.SimulatedEmail> _emails = [];
         private readonly Dictionary<long, string> _skipReasons = new();
+        // Giống khoá usp_LockOperations: mọi thao tác trên hàng đợi chạy lần lượt, kể cả khi nhiều tác vụ chạy đồng thời.
+        private readonly object _gate = new();
+
+        public int EmailCount(long reservationId) { lock (_gate) return _emails.Count(e => e.ReservationId == reservationId); }
+
+        /// <summary>Giả lập dữ liệu bất thường: thêm một email nhắc thứ hai đang chờ cho lượt đã nhắc.</summary>
+        public void ForceSecondReminder(long reservationId)
+        {
+            lock (_gate)
+            {
+                var b = _bookings.Single(x => x.Id == reservationId);
+                _emails.Add(new EmailRetryTests.SimulatedEmail
+                {
+                    Id = 5000 + b.Id, ReservationId = b.Id, MessageType = BookingReminderRules.MessageType, Recipient = b.Email!,
+                    PayloadJson = Payload(b.Code, b.TableCode, b.StartsAtUtc), NextAttemptAtUtc = clock.Now, CreatedAtUtc = clock.Now
+                });
+            }
+        }
+
+        /// <summary>Giả lập khoá hết hạn: email được trả về hàng đợi rồi một tác vụ khác nhận lại (lần thử mới).</summary>
+        public void ExpireAndReclaim(long emailId)
+        {
+            lock (_gate)
+            {
+                var e = _emails.Single(x => x.Id == emailId);
+                e.Status = "Processing";
+                e.AttemptCount++;
+            }
+        }
+
+        public void MarkSent(long reservationId) { lock (_gate) _bookings.Single(b => b.Id == reservationId).ReminderSentAtUtc = clock.Now; }
 
         /// <summary>Chạy ngay trước bước kiểm tra lại (giả lập lượt đổi trạng thái sát giờ gửi).</summary>
         public Action<ClaimedEmail>? BeforeSend { get; set; }
@@ -287,15 +419,28 @@ internal static class BookingReminderTests
 
         public Task<string?> CheckReminderBeforeSendAsync(long emailId, int attemptNumber, CancellationToken cancellationToken = default)
         {
+            lock (_gate) return Task.FromResult(CheckCore(emailId, attemptNumber));
+        }
+
+        private string? CheckCore(long emailId, int attemptNumber)
+        {
             var email = _emails.Single(e => e.Id == emailId);
             BeforeSend?.Invoke(new ClaimedEmail(email.Id, attemptNumber, email.Recipient, "", email.PayloadJson, email.MessageType, email.ReservationId));
+            // Migration 061: email không còn do tác vụ này giữ, hoặc lượt đã được nhắc thành công -> không gửi.
+            if (email.Status != "Processing" || email.AttemptCount != attemptNumber) return BookingReminderRules.NotClaimed;
+            if (BookingOf(email).ReminderSentAtUtc is not null)
+            {
+                email.Status = "Cancelled";
+                email.AttemptCount--;
+                return BookingReminderRules.AlreadySent;
+            }
             var reason = BookingReminderRules.SkipReasonFor(BookingOf(email).Status, BookingOf(email).StartsAtUtc, clock.Now);
             if (reason is not null && email.Status == "Processing" && email.AttemptCount == attemptNumber)
             {
                 email.AttemptCount--;
                 Skip(email, reason);
             }
-            return Task.FromResult(reason);
+            return reason;
         }
 
         public Booking Book(long id, string code, string? email, string status, DateTime startsAtUtc, string? table)
@@ -309,8 +454,14 @@ internal static class BookingReminderTests
 
         public Task<int> QueueDueRemindersAsync(CancellationToken cancellationToken = default)
         {
+            lock (_gate) return Task.FromResult(QueueCore());
+        }
+
+        private int QueueCore()
+        {
             var queued = 0;
-            foreach (var b in _bookings.Where(b => BookingReminderRules.IsDue(b.Status, b.Email, b.StartsAtUtc, clock.Now) && EmailOf(b.Id) is null))
+            foreach (var b in _bookings.Where(b => BookingReminderRules.NeedsReminder(b.Status, b.Email, b.StartsAtUtc, clock.Now,
+                         b.ReminderSentAtUtc, _emails.Any(e => e.ReservationId == b.Id))).ToArray())
             {
                 _emails.Add(new EmailRetryTests.SimulatedEmail
                 {
@@ -320,24 +471,32 @@ internal static class BookingReminderTests
                 b.ReminderStatus = "Pending";
                 queued++;
             }
-            return Task.FromResult(queued);
+            return queued;
         }
 
         public Task<ClaimedEmail?> ClaimDueReminderAsync(CancellationToken cancellationToken = default)
         {
+            lock (_gate) return Task.FromResult(ClaimCore());
+        }
+
+        private ClaimedEmail? ClaimCore()
+        {
+            // Migration 061: email chờ của lượt đã nhắc thành công bị huỷ, không bao giờ gửi lần hai.
+            foreach (var extra in _emails.Where(e => e.Status == "Pending" && BookingOf(e).ReminderSentAtUtc is not null).ToArray())
+                extra.Status = "Cancelled";
             // Migration 060: bỏ qua email nhắc của lượt không còn hợp lệ trước khi nhận email để gửi.
             foreach (var pending in _emails.Where(e => e.Status == "Pending").ToArray())
                 if (BookingReminderRules.SkipReasonFor(BookingOf(pending).Status, BookingOf(pending).StartsAtUtc, clock.Now) is { } reason)
                     Skip(pending, reason);
             var email = _emails.Where(e => e.Status == "Pending" && e.AttemptCount < EmailRetryPolicy.MaxAttempts && e.NextAttemptAtUtc <= clock.Now
-                    && BookingOf(e).Status == "Confirmed" && BookingOf(e).StartsAtUtc > clock.Now)
+                    && BookingOf(e).Status == "Confirmed" && BookingOf(e).StartsAtUtc > clock.Now && BookingOf(e).ReminderSentAtUtc is null)
                 .OrderBy(e => e.Id).FirstOrDefault();
-            if (email is null) return Task.FromResult<ClaimedEmail?>(null);
+            if (email is null) return null;
             email.Status = "Processing";
             email.AttemptCount++;
             email.LastAttemptAtUtc = clock.Now;
-            return Task.FromResult<ClaimedEmail?>(new ClaimedEmail(email.Id, email.AttemptCount, email.Recipient, "Nhắc lịch đặt bàn",
-                email.PayloadJson, email.MessageType, email.ReservationId));
+            return new ClaimedEmail(email.Id, email.AttemptCount, email.Recipient, "Nhắc lịch đặt bàn",
+                email.PayloadJson, email.MessageType, email.ReservationId);
         }
 
         public Task<ClaimedEmail?> ClaimAsync(long reservationId, string messageType, CancellationToken cancellationToken = default) =>
@@ -345,7 +504,15 @@ internal static class BookingReminderTests
 
         public Task CompleteAsync(long emailId, int attemptNumber, bool succeeded, string? error, CancellationToken cancellationToken = default)
         {
+            lock (_gate) CompleteCore(emailId, attemptNumber, succeeded, error);
+            return Task.CompletedTask;
+        }
+
+        private void CompleteCore(long emailId, int attemptNumber, bool succeeded, string? error)
+        {
             var email = _emails.Single(e => e.Id == emailId);
+            // usp_CompleteEmail chỉ ghi kết quả cho đúng lần thử đang Processing.
+            if (email.Status != "Processing" || email.AttemptCount != attemptNumber) return;
             var outcome = EmailRetryPolicy.AfterAttempt(attemptNumber, succeeded, clock.Now);
             email.Status = outcome.Status;
             email.LastError = succeeded ? null : error;
@@ -353,25 +520,32 @@ internal static class BookingReminderTests
             if (succeeded) email.SentAtUtc = clock.Now;
             var booking = _bookings.Single(b => b.Id == email.ReservationId);
             booking.ReminderStatus = email.Status == "Pending" ? "Retrying" : email.Status;
-            if (succeeded) booking.ReminderSentAtUtc = clock.Now;
-            return Task.CompletedTask;
+            if (succeeded && booking.ReminderSentAtUtc is null) booking.ReminderSentAtUtc = clock.Now;
         }
     }
 
     private sealed class CapturingSender : IEmailSender
     {
-        public List<EmailMessage> Sent { get; } = [];
+        private readonly object _gate = new();
+        private readonly List<EmailMessage> _sent = [];
         public bool FailNext { get; set; }
+        /// <summary>Giả lập máy chủ email chậm để hai tác vụ chạy chồng lên nhau.</summary>
+        public TimeSpan Delay { get; init; }
 
-        public Task SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
+        public List<EmailMessage> Sent { get { lock (_gate) return [.. _sent]; } }
+
+        public async Task SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
         {
-            if (FailNext)
+            if (Delay > TimeSpan.Zero) await Task.Delay(Delay, cancellationToken);
+            lock (_gate)
             {
-                FailNext = false;
-                throw new InvalidOperationException("SMTP 421: máy chủ bận");
+                if (FailNext)
+                {
+                    FailNext = false;
+                    throw new InvalidOperationException("SMTP 421: máy chủ bận");
+                }
+                _sent.Add(message);
             }
-            Sent.Add(message);
-            return Task.CompletedTask;
         }
     }
 }
