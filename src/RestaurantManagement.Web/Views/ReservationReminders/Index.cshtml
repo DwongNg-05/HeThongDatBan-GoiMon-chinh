@@ -1,0 +1,83 @@
+@model RestaurantManagement.Web.Models.Reservations.BookingReminderListViewModel
+@{
+    ViewData["Title"] = "Email nhắc lịch";
+    var leadText = Model.LeadMinutes % 60 == 0 ? $"{Model.LeadMinutes / 60} tiếng" : $"{Model.LeadMinutes} phút";
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/reservation-email.css" asp-append-version="true" />
+}
+@* S4-08 Task 1: danh sách email nhắc trước giờ hẹn (mã đặt bàn, giờ hẹn, bàn, email nhận, trạng thái gửi). *@
+<partial name="_ReservationManagementTabs" />
+<header class="staff-page-head">
+    <div>
+        <h1>Email nhắc lịch</h1>
+        <p>Lượt đặt bàn đã xác nhận được gửi email nhắc trước giờ hẹn @leadText. Giờ hiển thị theo giờ Việt Nam (UTC+7).</p>
+    </div>
+    @if (User.IsInRole("Manager"))
+    {
+        <form class="staff-page-actions" asp-action="RunNow" method="post">
+            <button type="submit" class="btn btn-primary" data-run-reminders><i class="fa-regular fa-paper-plane" aria-hidden="true"></i> Chạy kiểm tra nhắc lịch ngay</button>
+        </form>
+    }
+</header>
+
+@if (TempData["Success"] is string success) { <div class="alert alert-success" role="status" data-reminder-run-result>@success</div> }
+@if (TempData["Error"] is string error) { <div class="alert alert-danger" role="alert">@error</div> }
+@if (ViewData["LoadError"] is string loadError) { <div class="alert alert-danger" role="alert">@loadError</div> }
+
+<form method="get" class="staff-toolbar">
+    <div>
+        <label for="reminder-filter" class="form-label">Hiển thị</label>
+        <select id="reminder-filter" name="sent" class="form-select" onchange="this.form.submit()">
+            <option value="false" selected="@(!Model.SentOnly)">Tất cả email nhắc</option>
+            <option value="true" selected="@Model.SentOnly">Chỉ email đã gửi thành công</option>
+        </select>
+    </div>
+    <div class="staff-toolbar-buttons">
+        <button class="btn btn-outline-secondary" type="submit">Làm mới</button>
+    </div>
+</form>
+
+@if (Model.Items.Count == 0)
+{
+    <p class="staff-empty" role="status" data-reminder-empty>
+        @(Model.SentOnly ? "Chưa có email nhắc nào được gửi thành công." : "Chưa có email nhắc lịch nào. Email được xếp khi lượt đã xác nhận còn " + leadText + " tới giờ hẹn.")
+    </p>
+}
+else
+{
+    <p class="staff-count"><strong>@Model.Items.Count</strong> email nhắc · <strong>@Model.SentCount</strong> đã gửi thành công</p>
+    <div class="table-responsive staff-table-card">
+        <table class="table table-hover staff-table" data-reminder-list>
+            <caption>Email nhắc lịch mới nhất ở trên cùng</caption>
+            <thead>
+                <tr>
+                    <th scope="col">Mã đặt bàn</th>
+                    <th scope="col">Giờ hẹn</th>
+                    <th scope="col">Bàn</th>
+                    <th scope="col">Email nhận</th>
+                    <th scope="col">Trạng thái gửi</th>
+                    <th scope="col">Gửi lúc</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.Items)
+                {
+                    <tr data-email-id="@item.EmailId" data-reservation-code="@item.ReservationCode" data-email-state="@item.State">
+                        <td><a asp-controller="Reservations" asp-action="Details" asp-route-id="@item.ReservationId">@item.ReservationCode</a>
+                            <div class="text-muted small fw-normal">@item.CustomerName</div></td>
+                        <td data-field="starts-at">@item.StartsAt.ToString("dd/MM/yyyy HH:mm")</td>
+                        <td data-field="table">@item.TableLabel</td>
+                        <td data-field="recipient">@item.Recipient</td>
+                        <td>
+                            <span class="email-state @item.StateCssClass">@item.StateLabel</span>
+                            @if (item.AttemptCount > 1) { <div class="text-muted small">@item.AttemptCount lần thử</div> }
+                            @if (item.ErrorMessage is not null) { <div class="reservation-email-error small text-wrap">@item.ErrorMessage</div> }
+                        </td>
+                        <td data-field="sent-at">@(item.SentAt?.ToString("dd/MM/yyyy HH:mm:ss") ?? "—")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

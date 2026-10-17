@@ -177,7 +177,8 @@ public class ReservationsController : Controller
         SELECT r.Id,r.Code,r.CustomerName,r.Phone,r.Email,r.GuestCount,
             COALESCE(r.AreaNameSnapshot,a.Name) AS AreaName,r.StartsAt,r.EndsAt,r.Status,
             t.Code AS TableCode,ta.Name AS TableAreaName,r.Notes,r.CancelReason,
-            r.ConfirmationEmailStatus,r.ConfirmationEmailAttempts
+            r.ConfirmationEmailStatus,r.ConfirmationEmailAttempts,
+            r.ReminderEmailStatus,r.ReminderEmailSentAt
         FROM dbo.Reservations r LEFT JOIN dbo.Areas a ON a.Id=r.PreferredAreaId
         LEFT JOIN dbo.DiningTables t ON t.Id=r.TableId LEFT JOIN dbo.Areas ta ON ta.Id=t.AreaId
         """;
@@ -200,7 +201,10 @@ public class ReservationsController : Controller
         CancelReason = reader.IsDBNull(reader.GetOrdinal("CancelReason")) ? null : reader.GetString(reader.GetOrdinal("CancelReason")),
         // S2-09 Task 2: trạng thái email xác nhận được cập nhật trên lượt đặt bàn sau mỗi lần thử gửi.
         ConfirmationEmailStatus = reader.IsDBNull(reader.GetOrdinal("ConfirmationEmailStatus")) ? null : reader.GetString(reader.GetOrdinal("ConfirmationEmailStatus")),
-        ConfirmationEmailAttempts = reader.GetInt32(reader.GetOrdinal("ConfirmationEmailAttempts"))
+        ConfirmationEmailAttempts = reader.GetInt32(reader.GetOrdinal("ConfirmationEmailAttempts")),
+        // S4-08 Task 1: trạng thái gửi email nhắc lịch và thời điểm gửi thành công (migration 059).
+        ReminderEmailStatus = reader.IsDBNull(reader.GetOrdinal("ReminderEmailStatus")) ? null : reader.GetString(reader.GetOrdinal("ReminderEmailStatus")),
+        ReminderEmailSentAt = reader.IsDBNull(reader.GetOrdinal("ReminderEmailSentAt")) ? null : VietnamTime.FromUtc(reader.GetDateTime(reader.GetOrdinal("ReminderEmailSentAt")))
     };
 
     // =========================================================

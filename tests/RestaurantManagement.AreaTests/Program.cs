@@ -168,6 +168,8 @@ ReservationEmailStatusTests.Run(Check);
 await BookingConfirmationEmailTests.Run(Check);
 await EmailRetryTests.Run(Check);
 await BookingEmailFlowTests.Run(Check);
+// S4-08 Task 1: email nhắc trước giờ hẹn 2 tiếng.
+await BookingReminderTests.Run(Check);
 await ApiAuthorizationCoverageTests.Run(Check);
 RoleNavigationTests.Run(Check);
 await SessionActivityFilterTests.Run(Check);

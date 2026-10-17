@@ -1,5 +1,6 @@
 using System.Data;
 using Microsoft.Data.SqlClient;
+using RestaurantManagement.Web.Models.Reservations;
 using RestaurantManagement.Web.Services.EmailVerification;
 
 namespace RestaurantManagement.Web.Services;
@@ -31,6 +32,15 @@ public interface IBookingEmailOutbox
     Task<ClaimedEmail?> ClaimDueRetryAsync(CancellationToken cancellationToken = default) => Task.FromResult<ClaimedEmail?>(null);
 
     Task CompleteAsync(long emailId, int attemptNumber, bool succeeded, string? error, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// S4-08 Task 1: xếp email nhắc cho các lượt đã xác nhận còn không quá 2 tiếng tới giờ hẹn (dbo.usp_QueueDueBookingReminders).
+    /// Trả về số email nhắc vừa xếp hàng.
+    /// </summary>
+    Task<int> QueueDueRemindersAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
+
+    /// <summary>S4-08 Task 1: nhận một email nhắc lịch đang chờ gửi (dbo.usp_ClaimDueBookingReminder); null khi không còn.</summary>
+    Task<ClaimedEmail?> ClaimDueReminderAsync(CancellationToken cancellationToken = default) => Task.FromResult<ClaimedEmail?>(null);
 }
 
 public sealed class SqlBookingEmailOutbox(string connectionString) : IBookingEmailOutbox
@@ -49,6 +59,25 @@ public sealed class SqlBookingEmailOutbox(string connectionString) : IBookingEma
     {
         await using var connection = new SqlConnection(connectionString);
         await using var command = new SqlCommand("dbo.usp_ClaimDueBookingEmail", connection) { CommandType = CommandType.StoredProcedure };
+        await connection.OpenAsync(cancellationToken);
+        return await ReadClaimed(command, cancellationToken);
+    }
+
+    public async Task<int> QueueDueRemindersAsync(CancellationToken cancellationToken = default)
+    {
+        await using var connection = new SqlConnection(connectionString);
+        await using var command = new SqlCommand("dbo.usp_QueueDueBookingReminders", connection) { CommandType = CommandType.StoredProcedure };
+        var queued = command.Parameters.Add("@QueuedCount", SqlDbType.Int);
+        queued.Direction = ParameterDirection.Output;
+        await connection.OpenAsync(cancellationToken);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+        return queued.Value is int count ? count : 0;
+    }
+
+    public async Task<ClaimedEmail?> ClaimDueReminderAsync(CancellationToken cancellationToken = default)
+    {
+        await using var connection = new SqlConnection(connectionString);
+        await using var command = new SqlCommand("dbo.usp_ClaimDueBookingReminder", connection) { CommandType = CommandType.StoredProcedure };
         await connection.OpenAsync(cancellationToken);
         return await ReadClaimed(command, cancellationToken);
     }
@@ -106,6 +135,9 @@ public sealed class BookingEmailDispatcher(IBookingEmailOutbox outbox, IEmailSen
 
     public const string BookingCancelled = "BookingCancelled";
 
+    /// <summary>S4-08 Task 1: email nhắc lịch trước giờ hẹn 2 tiếng.</summary>
+    public const string BookingReminder = BookingReminderEmail.MessageType;
+
     public Task<BookingEmailResult> SendBookingReceivedAsync(long reservationId, CancellationToken cancellationToken = default) =>
         SendAsync(reservationId, BookingReceived, cancellationToken);
 
@@ -155,6 +187,28 @@ public sealed class BookingEmailDispatcher(IBookingEmailOutbox outbox, IEmailSen
         return processed;
     }
 
+    /// <summary>
+    /// S4-08 Task 1 — tác vụ nhắc lịch: (1) xếp email nhắc cho các lượt đã xác nhận còn không quá 2 tiếng tới giờ hẹn,
+    /// (2) gửi mọi email nhắc đang chờ (mã đặt bàn, giờ hẹn, bàn đã xếp) và ghi kết quả từng lần gửi.
+    /// Gửi thành công thì database ghi thời điểm gửi lên lượt đặt bàn (Reservations.ReminderEmailSentAt).
+    /// Gọi định kỳ từ <see cref="BookingReminderWorker"/>; Quản lý có thể chạy ngay ở màn hình "Email nhắc lịch".
+    /// </summary>
+    public async Task<BookingReminderRunResult> SendDueRemindersAsync(CancellationToken cancellationToken = default)
+    {
+        var queued = await outbox.QueueDueRemindersAsync(cancellationToken);
+        int sent = 0, failed = 0;
+        while (sent + failed < MaxRetriesPerRun && !cancellationToken.IsCancellationRequested)
+        {
+            var claimed = await outbox.ClaimDueReminderAsync(cancellationToken);
+            if (claimed is null) break;
+            var result = await DeliverAsync(claimed);
+            if (result.Outcome == BookingEmailOutcome.Sent) sent++; else failed++;
+        }
+        if (queued > 0 || sent + failed > 0)
+            logger.LogInformation("Nhắc lịch đặt bàn: xếp {Queued} email mới, gửi thành công {Sent}, lỗi {Failed}.", queued, sent, failed);
+        return new BookingReminderRunResult(queued, sent, failed);
+    }
+
     /// <summary>Gửi một email đã nhận và lưu kết quả của lần thử đó.</summary>
     public async Task<BookingEmailResult> DeliverAsync(ClaimedEmail claimed)
     {
@@ -165,7 +219,9 @@ public sealed class BookingEmailDispatcher(IBookingEmailOutbox outbox, IEmailSen
             var details = BookingConfirmationEmail.ParsePayload(claimed.PayloadJson);
             var confirmUrl = messageType == BookingReceived ? confirmationLinks?.CreateUrl(details.Code) : null;
             var lookupUrl = messageType == BookingCancelled ? null : confirmationLinks?.CreateLookupUrl(details.Code);
-            var message = BookingConfirmationEmail.Create(claimed.Recipient, details, messageType, confirmUrl, lookupUrl);
+            var message = messageType == BookingReminder
+                ? BookingReminderEmail.Create(claimed.Recipient, details, lookupUrl)
+                : BookingConfirmationEmail.Create(claimed.Recipient, details, messageType, confirmUrl, lookupUrl);
             // Không gắn với yêu cầu HTTP: khách đóng trình duyệt giữa chừng thì email vẫn gửi xong và kết quả vẫn được lưu.
             using var timeout = new CancellationTokenSource(SendTimeout);
             await sender.SendAsync(message, timeout.Token);
