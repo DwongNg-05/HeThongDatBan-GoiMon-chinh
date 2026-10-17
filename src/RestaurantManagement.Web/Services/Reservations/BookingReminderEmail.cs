@@ -25,8 +25,16 @@ public static class BookingReminderEmail
     public static string Subject(BookingEmailDetails d) => $"{d.RestaurantName} - Nhắc lịch đặt bàn {d.Code}";
 
     /// <param name="lookupUrl">Liên kết "Tra cứu đặt bàn" đã điền sẵn mã (không bắt buộc).</param>
-    public static EmailMessage Create(string to, BookingEmailDetails d, string? lookupUrl = null)
+    /// <param name="cancelUrl">
+    /// S4-08 Task 4: đường dẫn huỷ riêng của lượt này; chỉ truyền khi giờ hẹn còn hơn 60 phút tính từ lúc gửi
+    /// (<see cref="RestaurantManagement.Web.Models.Reservations.BookingReminderRules.ShowCancelLink"/>). null = email không có đường dẫn huỷ.
+    /// </param>
+    public static EmailMessage Create(string to, BookingEmailDetails d, string? lookupUrl = null, string? cancelUrl = null)
     {
+        var showCancel = !string.IsNullOrWhiteSpace(cancelUrl);
+        var cancelNote = showCancel
+            ? "Nếu không đến được, bạn có thể huỷ lượt đặt bàn bằng đường dẫn bên dưới (chỉ huỷ được khi còn hơn 60 phút tới giờ hẹn)."
+            : "Nếu không đến được, vui lòng gọi điện báo nhà hàng.";
         static string E(string? value) => Html.Encode(value ?? string.Empty);
         var when = BookingConfirmationEmail.FormatDateTime(d.StartsAtVietnam);
         var table = d.TableCode ?? NoTableLabel;
@@ -39,6 +47,13 @@ public static class BookingReminderEmail
         string Row(string label, string valueHtml, string? dataField = null) =>
             $"<tr><td style=\"padding:8px 0;color:#6e6e6e;width:120px;vertical-align:top\">{label}</td>" +
             $"<td style=\"padding:8px 0;font-weight:600\"{(dataField is null ? "" : $" data-field=\"{dataField}\"")}>{valueHtml}</td></tr>";
+
+        var cancelHtml = showCancel ? $"""
+            <tr><td align="center" style="padding:0 24px 20px">
+              <a href="{E(cancelUrl)}" target="_blank" data-cancel-link style="display:inline-block;padding:10px 22px;font-size:15px;font-weight:700;color:{Brand};text-decoration:none;border:2px solid {Brand};border-radius:10px">Huỷ đặt bàn</a>
+              <div style="font-size:12px;color:#8a8a8a;margin-top:8px;line-height:1.5">Chỉ huỷ được khi còn hơn 60 phút tới giờ hẹn. Đường dẫn chỉ dùng cho lượt đặt bàn {E(d.Code)}.</div>
+            </td></tr>
+            """ : string.Empty;
 
         var lookupHtml = showLookup ? $"""
             <tr><td align="center" style="padding:4px 24px 20px">
@@ -75,10 +90,11 @@ public static class BookingReminderEmail
                       </table>
                     </td></tr>
                     {lookupHtml}
+                    {cancelHtml}
                     <tr><td style="padding:0 24px 24px">
                       <div style="background:{BrandSoft};border:1px solid #f1b8c2;border-radius:10px;padding:12px 14px;font-size:14px;line-height:1.5">
                         Giờ hiển thị theo giờ Việt Nam (UTC+7). Khi đến quán, vui lòng đọc mã đặt bàn <strong>{E(d.Code)}</strong> cho nhân viên.
-                        Nếu không đến được, vui lòng gọi điện báo nhà hàng.
+                        {E(cancelNote)}
                       </div>
                     </td></tr>
                     <tr><td style="background:#fafafa;padding:14px 24px;font-size:12px;color:#8a8a8a">Email được gửi tự động, vui lòng không trả lời.</td></tr>
@@ -104,7 +120,9 @@ public static class BookingReminderEmail
             "",
             showLookup ? $"Xem lượt đặt bàn: {lookupUrl}" : null,
             showLookup ? "" : null,
-            $"Khi đến quán, vui lòng đọc mã đặt bàn {d.Code} cho nhân viên. Nếu không đến được, vui lòng gọi điện báo nhà hàng.",
+            showCancel ? $"Huỷ đặt bàn (còn hơn 60 phút tới giờ hẹn): {cancelUrl}" : null,
+            showCancel ? "" : null,
+            $"Khi đến quán, vui lòng đọc mã đặt bàn {d.Code} cho nhân viên. {cancelNote}",
             "Email được gửi tự động, vui lòng không trả lời."
         }.Where(line => line is not null));
 

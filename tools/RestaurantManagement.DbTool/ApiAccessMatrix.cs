@@ -191,6 +191,9 @@ internal static class ApiAccessMatrix
         new("Reservations.EmailStatus GET", FrontOfHouse, "GET", $"/Reservations/EmailStatus/{Missing}"),
         // S4-08 Task 2: đánh dấu khách đã tới (Quản lý, Phục vụ) — email nhắc chưa gửi bị bỏ qua.
         new("Reservations.MarkArrived POST", FrontOfHouse, "POST", $"/Reservations/MarkArrived/{Missing}"),
+        // S4-08 Task 4: khách huỷ từ đường dẫn trong email nhắc (công khai, có mã bảo mật trong đường dẫn).
+        new("Reservations.CancelFromEmail GET", Anonymous, "GET", "/Reservations/CancelFromEmail?token=x"),
+        new("Reservations.CancelFromEmail POST", Anonymous, "POST", "/Reservations/CancelFromEmail?token=x"),
         new("Reservations.Create GET", Anonymous, "GET", "/Reservations/Create"),
         new("Reservations.Create POST", Anonymous, "POST", "/Reservations/Create"),
         new("Reservations.Success GET", Anonymous, "GET", "/Reservations/Success"),

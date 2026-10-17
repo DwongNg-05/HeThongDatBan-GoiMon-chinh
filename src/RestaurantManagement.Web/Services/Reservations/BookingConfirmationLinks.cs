@@ -16,13 +16,19 @@ public sealed class BookingConfirmationLinks
     /// <summary>Trang "Tra cứu đặt bàn" — liên kết trong email điền sẵn mã đặt bàn (?code=ED095C).</summary>
     public const string LookupPath = "/ReservationLookup";
 
+    /// <summary>S4-08 Task 4: mã bảo mật riêng cho đường dẫn huỷ trong email nhắc (khác mục đích với nút xác nhận).</summary>
+    public const string CancelPurpose = "RestaurantManagement.BookingReminderCancel.v1";
+    public const string CancelPath = "/Reservations/CancelFromEmail";
+
     private readonly IDataProtector _protector;
+    private readonly IDataProtector _cancelProtector;
     private readonly string? _configuredBaseUrl;
     private string? _observedBaseUrl;
 
     public BookingConfirmationLinks(IDataProtectionProvider dataProtection, IConfiguration configuration)
     {
         _protector = dataProtection.CreateProtector(Purpose);
+        _cancelProtector = dataProtection.CreateProtector(CancelPurpose);
         var configured = configuration["Booking:PublicBaseUrl"]?.Trim();
         if (string.IsNullOrWhiteSpace(configured)) configured = configuration["TableQr:PublicBaseUrl"]?.Trim();
         _configuredBaseUrl = string.IsNullOrWhiteSpace(configured) ? null : configured.TrimEnd('/');
@@ -60,6 +66,36 @@ public sealed class BookingConfirmationLinks
     {
         var baseUrl = BaseUrl;
         return baseUrl is null ? null : $"{baseUrl}{LookupPath}?code={Uri.EscapeDataString(reservationCode.Trim())}";
+    }
+
+    /// <summary>
+    /// S4-08 Task 4: mã bảo mật của đường dẫn huỷ — bọc Id và mã đặt bàn của đúng một lượt, nên không dùng được cho lượt khác.
+    /// </summary>
+    public string CreateCancelToken(long reservationId, string reservationCode) =>
+        _cancelProtector.Protect($"{reservationId}|{reservationCode.Trim()}");
+
+    /// <summary>Id + mã đặt bàn trong mã bảo mật huỷ; null khi mã sai, bị sửa, thuộc máy chủ khác hoặc là mã của nút xác nhận.</summary>
+    public (long ReservationId, string Code)? ReadCancelToken(string? token)
+    {
+        if (string.IsNullOrWhiteSpace(token)) return null;
+        try
+        {
+            var parts = _cancelProtector.Unprotect(token.Trim()).Split('|');
+            return parts.Length == 2 && long.TryParse(parts[0], out var id) && id > 0 && parts[1].Length == 6
+                ? (id, parts[1])
+                : null;
+        }
+        catch (CryptographicException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Đường dẫn huỷ đầy đủ để đặt vào email nhắc; null khi chưa biết địa chỉ web.</summary>
+    public string? CreateCancelUrl(long reservationId, string reservationCode)
+    {
+        var baseUrl = BaseUrl;
+        return baseUrl is null ? null : $"{baseUrl}{CancelPath}?token={Uri.EscapeDataString(CreateCancelToken(reservationId, reservationCode))}";
     }
 
     /// <summary>Liên kết đầy đủ để đặt vào email; null khi chưa biết địa chỉ web.</summary>

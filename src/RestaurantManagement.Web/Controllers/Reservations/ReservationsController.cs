@@ -288,6 +288,67 @@ public class ReservationsController : Controller
         return RedirectToAction(nameof(Confirm), new { token });
     }
 
+    // =========================================================
+    // S4-08 Task 4: KHÁCH HUỶ ĐẶT BÀN TỪ ĐƯỜNG DẪN TRONG EMAIL NHẮC (không cần đăng nhập)
+    // =========================================================
+
+    /// <summary>
+    /// Trang xác nhận huỷ mở từ đường dẫn trong email nhắc. Chỉ hiển thị thông tin và nút "Xác nhận huỷ";
+    /// việc huỷ diễn ra khi khách bấm nút (POST), để trình quét liên kết của hộp thư không tự huỷ hộ.
+    /// </summary>
+    [HttpGet]
+    [AllowAnonymous]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public async Task<IActionResult> CancelFromEmail(string? token, [FromServices] BookingConfirmationLinks links, CancellationToken cancellationToken)
+    {
+        var target = links.ReadCancelToken(token);
+        var reservation = target is null ? null : await FindReservationByIdAndCode(target.Value.ReservationId, target.Value.Code, cancellationToken);
+        return View(new ReminderCancelViewModel(token ?? string.Empty, reservation, VietnamTime.Now));
+    }
+
+    [HttpPost]
+    [ActionName("CancelFromEmail")]
+    [ValidateAntiForgeryToken]
+    [AllowAnonymous]
+    public async Task<IActionResult> CancelFromEmailPost(string? token, [FromServices] BookingConfirmationLinks links,
+        [FromServices] BookingEmailDispatcher bookingEmails)
+    {
+        var target = links.ReadCancelToken(token);
+        var result = "NotFound";
+        if (target is not null)
+        {
+            try
+            {
+                await using var connection = new SqlConnection(ConnectionString);
+                await using var command = new SqlCommand("dbo.usp_CancelReservationFromReminder", connection) { CommandType = CommandType.StoredProcedure };
+                command.Parameters.Add("@ReservationId", SqlDbType.BigInt).Value = target.Value.ReservationId;
+                command.Parameters.Add("@Code", SqlDbType.Char, 6).Value = target.Value.Code;
+                await connection.OpenAsync();
+                result = await command.ExecuteScalarAsync() as string ?? "NotFound";
+            }
+            catch (SqlException)
+            {
+                TempData[ReminderCancelViewModel.ResultKey] = "Error";
+                return RedirectToAction(nameof(CancelFromEmail), new { token });
+            }
+            // Huỷ thành công: gửi ngay email báo huỷ (lỗi gửi không ảnh hưởng kết quả huỷ, email tự gửi lại sau).
+            if (result == "Cancelled") await bookingEmails.SendBookingCancelledAsync(target.Value.ReservationId);
+        }
+        TempData[ReminderCancelViewModel.ResultKey] = result;
+        return RedirectToAction(nameof(CancelFromEmail), new { token });
+    }
+
+    private async Task<ReservationListItemViewModel?> FindReservationByIdAndCode(long id, string code, CancellationToken cancellationToken)
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await using var command = new SqlCommand(ReservationQuery + " WHERE r.Id=@id AND r.Code=@code;", connection);
+        command.Parameters.Add("@id", SqlDbType.BigInt).Value = id;
+        command.Parameters.Add("@code", SqlDbType.Char, 6).Value = code;
+        await connection.OpenAsync(cancellationToken);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        return await reader.ReadAsync(cancellationToken) ? ReadReservation(reader) : null;
+    }
+
     private async Task<ReservationListItemViewModel?> FindReservationByCode(string code, CancellationToken cancellationToken)
     {
         await using var connection = new SqlConnection(ConnectionString);
