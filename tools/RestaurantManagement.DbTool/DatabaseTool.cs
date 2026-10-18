@@ -16,7 +16,7 @@ internal static partial class DatabaseTool
             var connection = Environment.GetEnvironmentVariable("RM_CONNECTION_STRING");
             if (command == "help" || string.IsNullOrWhiteSpace(connection))
             {
-                Console.WriteLine("Commands: migration-status | verify-merge-upgrade | verify-merge-tables | verify-unmerge-tables | migrate | seed-demo | reset-demo | seed-login-demo | seed-menu-demo | seed-menu-extra | seed-khai-vi | seed-confirmation-demo | seed-s4-demo | seed-menu-200 | hide-menu-200 | email-retry-now | verify | verify-s410-task3 | verify-booking-email | verify-api-permissions | verify-temporary-out | verify-qr-session | verify-late-reservations | verify-hold-extension | verify-phone-no-show | verify-cancel-item | verify-cancel-report | verify-charged-cancel | verify-bill-preview | verify-bill-header | verify-bill-print | verify-bill-pdf | maintenance | check\nSet RM_CONNECTION_STRING first. seed-demo and seed-login-demo also require RM_DEMO_PASSWORD.\nreset-demo restores only a previously seeded _Dev, _Demo, _Staging or _Test_ database; it preserves password hashes and retained audit history.\nseed-login-demo accepts RM_DEMO_USERNAME and RM_DEMO_PHONE; existing accounts are preserved.\nverify and verify-s410-task3 create and remove their own uniquely named test database.");
+                Console.WriteLine("Commands: migration-status | verify-merge-upgrade | verify-merge-tables | verify-unmerge-tables | migrate | seed-demo | reset-demo | reset-demo-accounts | seed-login-demo | seed-menu-demo | seed-menu-extra | seed-khai-vi | seed-confirmation-demo | seed-s4-demo | seed-menu-200 | hide-menu-200 | email-retry-now | verify | verify-s410-task3 | verify-booking-email | verify-api-permissions | verify-temporary-out | verify-qr-session | verify-late-reservations | verify-hold-extension | verify-phone-no-show | verify-cancel-item | verify-cancel-report | verify-charged-cancel | verify-bill-preview | verify-bill-header | verify-bill-print | verify-bill-pdf | maintenance | check\nSet RM_CONNECTION_STRING first. seed-demo, reset-demo-accounts and seed-login-demo also require RM_DEMO_PASSWORD.\nreset-demo restores only a previously seeded _Dev, _Demo, _Staging or _Test_ database; it preserves password hashes and retained audit history.\nseed-login-demo accepts RM_DEMO_USERNAME and RM_DEMO_PHONE; existing accounts are preserved.\nverify and verify-s410-task3 create and remove their own uniquely named test database.");
                 Environment.ExitCode = command == "help" ? 0 : 1;
                 return;
             }
@@ -29,6 +29,7 @@ internal static partial class DatabaseTool
                 case "migrate": await Migrate(connection); break;
                 case "seed-demo": await Seed(connection); break;
                 case "reset-demo": await DemoDataReset.Run(connection); break;
+                case "reset-demo-accounts": await ResetDemoAccounts(connection); break;
                 case "seed-login-demo": await SeedLoginDemo(connection); break;
                 case "seed-menu-demo": await SeedMenuDemo(connection); break;
                 case "seed-menu-extra": await SeedMenuExtra(connection); break;
@@ -181,6 +182,47 @@ internal static partial class DatabaseTool
             Console.WriteLine("Demo seeded: 4 accounts, 3 areas, 25 tables, 60 menu items, 20 bookings. Password not logged.");
         }
         catch { await tx.RollbackAsync(); throw; }
+    }
+
+    /// <summary>
+    /// Đồng bộ đúng bốn tài khoản diễn tập chuẩn, không tạo tài khoản mới và không
+    /// thay đổi vai trò/email. Dùng khi database demo đã có dữ liệu nhưng mật khẩu
+    /// cũ không còn biết; mật khẩu chỉ nhận từ biến môi trường, không ghi ra console.
+    /// </summary>
+    internal static async Task ResetDemoAccounts(string connection)
+    {
+        var password = Environment.GetEnvironmentVariable("RM_DEMO_PASSWORD");
+        if (password is null || password.Length < 8 || !password.Any(char.IsLetter) || !password.Any(char.IsDigit))
+            throw new ArgumentException("RM_DEMO_PASSWORD needs 8+ characters, including a letter and a digit.");
+
+        var accounts = new[] { "manager", "waiter", "kitchen", "cashier" };
+        await using var cn = new SqlConnection(connection);
+        await cn.OpenAsync();
+        await using var tx = (SqlTransaction)await cn.BeginTransactionAsync();
+        try
+        {
+            foreach (var account in accounts)
+            {
+                await using var command = new SqlCommand("""
+                    UPDATE dbo.Users
+                    SET PasswordHash=@hash, IsActive=1, MustChangePassword=0,
+                        FailedLoginCount=0, FailureWindowStartedAt=NULL, LockedUntil=NULL,
+                        PasswordChangedAt=SYSUTCDATETIME(), UpdatedAt=SYSUTCDATETIME()
+                    WHERE UserName=@userName;
+                    """, cn, tx);
+                command.Parameters.AddWithValue("@hash", BCrypt.Net.BCrypt.HashPassword(password, workFactor: 12));
+                command.Parameters.AddWithValue("@userName", account);
+                if (await command.ExecuteNonQueryAsync() != 1)
+                    throw new InvalidOperationException($"Missing or ambiguous demo account: {account}.");
+            }
+            await tx.CommitAsync();
+            Console.WriteLine("Demo accounts updated: manager, waiter, kitchen, cashier.");
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
     }
 
     internal static async Task Execute(string connection, string sql)
