@@ -35,6 +35,25 @@ internal static partial class DatabaseTool
         catch { await tx.RollbackAsync(); throw; }
     }
 
+    /// <summary>
+    /// Dữ liệu nghiệp vụ bổ sung để diễn tập báo cáo S4: ba hoá đơn lịch sử,
+    /// tiền mặt/chuyển khoản và một dòng món đã huỷ có tính tiền. Chạy lại an toàn,
+    /// chỉ tạo các bản ghi mang tiền tố S4D; không đụng dữ liệu đang có.
+    /// </summary>
+    internal static async Task SeedS4Demo(string connection)
+    {
+        await using var cn = new SqlConnection(connection);
+        await cn.OpenAsync();
+        await using var tx = (SqlTransaction)await cn.BeginTransactionAsync(IsolationLevel.Serializable);
+        try
+        {
+            await Batches(cn, tx, await File.ReadAllTextAsync(Path.Combine(Root, "database", "seeds", "S4Demo.sql")));
+            await tx.CommitAsync();
+            Console.WriteLine("S4 demo ready: 3 paid invoices, cash/transfer revenue and charged cancellation history. Existing data preserved.");
+        }
+        catch { await tx.RollbackAsync(); throw; }
+    }
+
     /// <summary>Thêm 6 món Khai vị (đang bán): khoai tây chiên, ngô chiên, phô mai que, gỏi tai heo, mực chiên giòn, hành tây chiên giòn.</summary>
     internal static async Task SeedKhaiVi(string connection)
     {

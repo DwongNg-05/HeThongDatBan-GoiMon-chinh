@@ -16,7 +16,7 @@ internal static partial class DatabaseTool
             var connection = Environment.GetEnvironmentVariable("RM_CONNECTION_STRING");
             if (command == "help" || string.IsNullOrWhiteSpace(connection))
             {
-                Console.WriteLine("Commands: migration-status | verify-merge-upgrade | verify-merge-tables | verify-unmerge-tables | migrate | seed-demo | reset-demo | seed-login-demo | seed-menu-demo | seed-menu-extra | seed-khai-vi | seed-confirmation-demo | seed-menu-200 | hide-menu-200 | email-retry-now | verify | verify-s410-task3 | verify-booking-email | verify-api-permissions | verify-temporary-out | verify-qr-session | verify-late-reservations | verify-hold-extension | verify-phone-no-show | verify-cancel-item | verify-cancel-report | verify-charged-cancel | verify-bill-preview | verify-bill-header | verify-bill-print | verify-bill-pdf | maintenance | check\nSet RM_CONNECTION_STRING first. seed-demo and seed-login-demo also require RM_DEMO_PASSWORD.\nreset-demo restores only a previously seeded _Dev, _Demo, _Staging or _Test_ database; it preserves password hashes and retained audit history.\nseed-login-demo accepts RM_DEMO_USERNAME and RM_DEMO_PHONE; existing accounts are preserved.\nverify and verify-s410-task3 create and remove their own uniquely named test database.");
+                Console.WriteLine("Commands: migration-status | verify-merge-upgrade | verify-merge-tables | verify-unmerge-tables | migrate | seed-demo | reset-demo | seed-login-demo | seed-menu-demo | seed-menu-extra | seed-khai-vi | seed-confirmation-demo | seed-s4-demo | seed-menu-200 | hide-menu-200 | email-retry-now | verify | verify-s410-task3 | verify-booking-email | verify-api-permissions | verify-temporary-out | verify-qr-session | verify-late-reservations | verify-hold-extension | verify-phone-no-show | verify-cancel-item | verify-cancel-report | verify-charged-cancel | verify-bill-preview | verify-bill-header | verify-bill-print | verify-bill-pdf | maintenance | check\nSet RM_CONNECTION_STRING first. seed-demo and seed-login-demo also require RM_DEMO_PASSWORD.\nreset-demo restores only a previously seeded _Dev, _Demo, _Staging or _Test_ database; it preserves password hashes and retained audit history.\nseed-login-demo accepts RM_DEMO_USERNAME and RM_DEMO_PHONE; existing accounts are preserved.\nverify and verify-s410-task3 create and remove their own uniquely named test database.");
                 Environment.ExitCode = command == "help" ? 0 : 1;
                 return;
             }
@@ -34,6 +34,7 @@ internal static partial class DatabaseTool
                 case "seed-menu-extra": await SeedMenuExtra(connection); break;
                 case "seed-khai-vi": await SeedKhaiVi(connection); break;
                 case "seed-confirmation-demo": await SeedConfirmationDemo(connection); break;
+                case "seed-s4-demo": await SeedS4Demo(connection); break;
                 case "seed-menu-200": await SeedMenu200(connection); break;
                 case "hide-menu-200": await HideMenu200(connection); break;
                 case "verify": await Verification.Run(connection); break;
