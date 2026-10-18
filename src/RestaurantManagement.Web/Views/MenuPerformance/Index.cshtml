@@ -1,0 +1,36 @@
+@model RestaurantManagement.Web.Models.Reports.MenuPerformancePage
+@using RestaurantManagement.Web.Models.Cashier
+@{
+    ViewData["Title"] = "Báo cáo món bán chạy";
+    var report = Model.Report;
+}
+<div class="container mt-4" data-screen="menu-performance">
+    <h1>Báo cáo món bán chạy</h1>
+    <p class="text-muted">Xem top 10 món theo số lượng, doanh thu gộp trước giảm giá hóa đơn và những món bị hủy nhiều nhất.</p>
+    <form method="get" action="/Reports/MenuPerformance" class="row g-2 align-items-end mb-3" aria-label="Chọn khoảng báo cáo món">
+        <div class="col-sm-4 col-lg-3"><label class="form-label" for="menu-report-from">Từ ngày</label><input id="menu-report-from" name="from" type="date" required class="form-control" value="@Model.FromInput" /></div>
+        <div class="col-sm-4 col-lg-3"><label class="form-label" for="menu-report-to">Đến ngày</label><input id="menu-report-to" name="to" type="date" required class="form-control" value="@Model.ToInput" /></div>
+        <div class="col-sm-4 col-lg-2"><button class="btn btn-primary w-100" type="submit">Xem báo cáo</button></div>
+        @if (report is not null)
+        {
+            <div class="col-sm-4 col-lg-2"><a class="btn btn-outline-secondary w-100" href="/Reports/MenuPerformance/Export?from=@Model.FromInput&amp;to=@Model.ToInput">Xuất CSV</a></div>
+        }
+        <p class="col-12 mb-0 text-muted">Tối đa 92 ngày, tính cả ngày đầu và ngày cuối.</p>
+    </form>
+    @if (Model.Error is { } error)
+    {
+        <div class="alert alert-danger" role="alert">@error</div>
+    }
+    else if (report is not null)
+    {
+        <p class="small text-muted">Dữ liệu từ @report.From.ToString("dd/MM/yyyy") đến @report.To.ToString("dd/MM/yyyy").</p>
+        <div class="row g-4">
+            <section class="col-xl-6"><h2 class="h4">Top 10 theo số lượng</h2><partial name="_SalesTable" model="report.BestByQuantity" /></section>
+            <section class="col-xl-6"><h2 class="h4">Top 10 theo doanh thu gộp</h2><partial name="_SalesTable" model="report.BestByRevenue" /></section>
+            <section class="col-12"><h2 class="h4">Top 10 món bị hủy nhiều</h2>
+                @if (report.MostCancelled.Count == 0) { <div class="alert alert-secondary" role="status">Không có món bị hủy trong khoảng đang xem.</div> }
+                else { <div class="table-responsive"><table class="table table-striped align-middle"><thead><tr><th>Món</th><th>Số lượng hủy</th><th>Lý do hủy phổ biến</th></tr></thead><tbody>@foreach (var item in report.MostCancelled) { <tr><td>@item.Name</td><td>@item.Quantity</td><td>@item.ReasonLabel</td></tr> }</tbody></table></div> }
+            </section>
+        </div>
+    }
+</div>

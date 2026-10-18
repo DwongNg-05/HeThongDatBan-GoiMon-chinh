@@ -155,8 +155,8 @@ internal static class BookingConfirmationVerification
             var customerToken = WebUtility.HtmlDecode(Regex.Match(confirmationForm, "name=\"token\" value=\"([^\"]+)\"").Groups[1].Value);
             using (var customerConfirm = await web.Client.PostAsync("/Reservations/Confirm", Form(("token", customerToken), ("__RequestVerificationToken", Token(confirmationForm)))))
                 Assert(customerConfirm.StatusCode == HttpStatusCode.Redirect, "Customer confirms the booking without signing in");
-            var confirmedPage = await Html(web.Client, new Uri(confirmUrl).PathAndQuery);
-            Assert(confirmedPage.Contains("Xác nhận đặt bàn thành công") && confirmedPage.Contains("data-reservation-status=\"Confirmed\"")
+            var confirmedCustomerPage = await Html(web.Client, new Uri(confirmUrl).PathAndQuery);
+            Assert(confirmedCustomerPage.Contains("Xác nhận đặt bàn thành công") && confirmedCustomerPage.Contains("data-reservation-status=\"Confirmed\"")
                 && await Scalar(connection, $"SELECT CASE WHEN Status='Confirmed' AND TableId={confirmTableId} THEN 1 ELSE 0 END FROM dbo.Reservations WHERE Id={confirmedId}") == 1,
                 "Customer confirmation is saved against the selected table and shown on the confirmation page");
             Assert(await Scalar(connection, $"SELECT CASE WHEN Status='Reserved' THEN 1 ELSE 0 END FROM dbo.DiningTables WHERE Id={confirmTableId}") == 1,

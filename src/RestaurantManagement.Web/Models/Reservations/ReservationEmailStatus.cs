@@ -1,4 +1,5 @@
 using RestaurantManagement.Web.Services;
+using System.Globalization;
 
 namespace RestaurantManagement.Web.Models.Reservations;
 
@@ -151,7 +152,8 @@ public static class ReservationEmailStatus
         var sentAt = state == EmailDeliveryState.Sent ? Local(r.SentAtUtc) : null;
         var finalResult = state switch
         {
-            EmailDeliveryState.Sent => (sentAt is null ? "Thành công" : $"Thành công lúc {sentAt.Value:dd/MM/yyyy HH:mm}")
+            // Dấu / phải cố định: định dạng dd/MM/yyyy nếu dùng culture của máy có thể biến thành dấu -.
+            EmailDeliveryState.Sent => (sentAt is null ? "Thành công" : $"Thành công lúc {sentAt.Value.ToString("dd'/'MM'/'yyyy HH:mm", CultureInfo.InvariantCulture)}")
                 + (attempts > 1 ? $" (ở lần thử thứ {attempts})" : ""),
             EmailDeliveryState.Failed => attempts > 1
                 ? $"Thất bại sau {attempts} lần thử (lần gửi đầu và {attempts - 1} lần gửi lại)"
@@ -219,8 +221,8 @@ public static class ReservationStatusDisplay
         "Confirmed" => "Đã xác nhận",
         "Rejected" => "Bị từ chối",
         "Cancelled" => "Đã huỷ",
-        "Arrived" => "Khách đã đến",
-        "NoShow" => "Khách không đến",
+        "Arrived" => "Khách đã tới",
+        "NoShow" => "Khách không tới",
         _ => status
     };
 }

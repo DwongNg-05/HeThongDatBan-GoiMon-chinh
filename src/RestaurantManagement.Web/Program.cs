@@ -35,6 +35,7 @@ builder.Configuration["ConnectionStrings:DefaultConnection"] = sqlConnectionStri
 builder.Services.AddScoped<AuditLogService>();
 builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
 builder.Services.AddScoped<DailyOverviewStore>();
+builder.Services.AddScoped<MenuPerformanceStore>();
 builder.Services.AddScoped<RestaurantManagement.Web.Services.Reservations.ReservationSlotService>();
 builder.Services.AddScoped<ReservationStore>();
 builder.Services.AddScoped<ReservationConfirmationService>();

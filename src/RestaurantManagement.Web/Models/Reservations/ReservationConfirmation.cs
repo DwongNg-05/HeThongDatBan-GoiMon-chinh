@@ -43,8 +43,8 @@ public sealed class ReservationConfirmation
     public int? SelectedTableId { get; set; }
     public string StatusLabel => Status switch
     {
-        "Pending" => "Chờ xác nhận", "Confirmed" => "Đã xác nhận", "Arrived" => "Khách đã đến",
-        "Cancelled" => "Đã hủy", "Rejected" => "Đã từ chối", "NoShow" => "Khách không đến", _ => Status
+        "Pending" => "Chờ xác nhận", "Confirmed" => "Đã xác nhận", "Arrived" => "Khách đã tới",
+        "Cancelled" => "Đã huỷ", "Rejected" => "Đã từ chối", "NoShow" => "Khách không tới", _ => Status
     };
     public string NotificationLabel => EmailStatus switch
     {

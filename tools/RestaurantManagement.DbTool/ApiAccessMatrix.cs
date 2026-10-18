@@ -95,6 +95,8 @@ internal static class ApiAccessMatrix
         // S3-05 Task 2: báo cáo cuối ca — nhật ký huỷ món (trang và dữ liệu JSON), chỉ Quản lý.
         new("DailyOverview.Index GET", Manager, "GET", "/Reports/Today"),
         new("DailyOverview.Snapshot GET", Manager, "GET", "/Reports/Today/Snapshot"),
+        new("MenuPerformance.Index GET", Manager, "GET", "/Reports/MenuPerformance"),
+        new("MenuPerformance.Export GET", Manager, "GET", "/Reports/MenuPerformance/Export"),
         new("ShiftReports.Cancellations GET", Manager, "GET", "/Reports/Shift/Cancellations"),
         new("ShiftReports.CancellationsData GET", Manager, "GET", "/api/reports/shift-cancellations"),
         new("PermissionMatrix.Index GET", Manager, "GET", "/PermissionMatrix"),
@@ -118,12 +120,13 @@ internal static class ApiAccessMatrix
         new("Page /GuestOrdering/Success", Anonymous, "GET", "/GuestOrdering/Success"),
         new("TableAdjacency.Index GET", Manager, "GET", "/TableAdjacency"),
         new("TableAdjacency.Save POST", Manager, "POST", "/TableAdjacency/Save"),
-        new("TableDetails.AddItemsQr GET", FrontOfHouse, "GET", "/api/table-map/ZZ99/add-items-qr?sessionId=999999"),
         new("TableDetails.Get GET", FrontOfHouse, "GET", "/api/table-map/ZZ99"),
         new("TableDetails.AddItemsQr GET", FrontOfHouse, "GET", "/api/table-map/ZZ99/add-items-qr?sessionId=999999"),
         new("TableStatus.Snapshot GET", FrontOfHouse, "GET", "/api/table-status"),
         new("TableStatus.Stream GET", FrontOfHouse, "GET", "/api/table-status/stream"),
         new("TableStatus.Update POST", FrontOfHouse, "POST", "/api/table-status/ZZ99"),
+        new("TableCleaning.Warnings GET", FrontOfHouse, "GET", "/api/table-cleaning/warnings"),
+        new("TableCleaning.Complete POST", FrontOfHouse, "POST", "/api/table-cleaning/ZZ99/complete"),
 
         // ---- Thực đơn công khai, QR bàn ----
         new("Menu.Index GET", Anonymous, "GET", "/Menu"),
@@ -172,11 +175,20 @@ internal static class ApiAccessMatrix
 
         // ---- Thu ngân (S1-04 Task 2) ----
         new("Cashier.Index GET", Cashiers, "GET", "/Cashier"),
+        new("Cashier.Payment GET", Cashiers, "GET", "/Cashier/Payment/999999"),
+        new("Cashier.Discount POST", Cashiers, "POST", "/Cashier/Discount"),
+        new("Cashier.RemoveDiscount POST", Cashiers, "POST", "/Cashier/Discount/Remove"),
         new("Cashier.Checkout POST", Cashiers, "POST", "/Cashier/Checkout"),
+        new("Cashier.Receipt GET", Cashiers, "GET", "/Cashier/Receipt/999999"),
         new("Cashier.Invoices GET", Cashiers, "GET", "/Cashier/Invoices"),
+        new("Cashier.VoidInvoice POST", Manager, "POST", "/Cashier/Invoices/999999/Void"),
         new("Cashier.Shift GET", Cashiers, "GET", "/Cashier/Shift"),
         new("Cashier.OpenShift POST", Cashiers, "POST", "/Cashier/OpenShift"),
         new("Cashier.CloseShift POST", Cashiers, "POST", "/Cashier/CloseShift"),
+        new("ShiftClosing.Index GET", Cashiers, "GET", "/Cashier/ShiftClosing"),
+        new("ShiftClosing.Download GET", Cashiers, "GET", "/Cashier/ShiftClosing/Download?shiftId=999999&eventId=999999"),
+        new("ShiftManagement.Index GET", Manager, "GET", "/Cashier/ShiftManagement"),
+        new("ShiftManagement.Reopen POST", Manager, "POST", "/Cashier/ShiftManagement/Reopen"),
 
         // ---- Hoá đơn tạm tính (S3-04 Task 4) ----
         new("ProvisionalBill.Index GET", BillReaders, "GET", $"/ProvisionalBill/{Missing}"),

@@ -1,0 +1,15 @@
+@model IReadOnlyList<RestaurantManagement.Web.Models.Reports.MenuPerformanceItem>
+@using RestaurantManagement.Web.Models.Cashier
+@if (Model.Count == 0)
+{
+    <div class="alert alert-secondary" role="status">Chưa có món hợp lệ để thống kê trong khoảng đang xem.</div>
+}
+else
+{
+    <div class="table-responsive"><table class="table table-striped align-middle"><thead><tr><th>Món</th><th>Số lượng</th><th>Doanh thu gộp</th></tr></thead><tbody>
+    @foreach (var item in Model)
+    {
+        <tr><td>@item.Name @if (!item.IsActive) { <span class="badge text-bg-secondary">Ngừng bán</span> }</td><td>@item.Quantity</td><td>@Vnd.Format(item.GrossRevenue)</td></tr>
+    }
+    </tbody></table></div>
+}

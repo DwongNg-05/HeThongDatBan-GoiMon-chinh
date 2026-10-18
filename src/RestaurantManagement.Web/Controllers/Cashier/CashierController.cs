@@ -294,7 +294,7 @@ public sealed class CashierController(IConfiguration configuration) : Controller
             while (await reader.ReadAsync(cancellationToken))
                 invoices.Add(new InvoiceRow(reader.GetInt64(0), reader.GetString(1), reader.GetString(2), reader.GetInt32(3),
                     VietnamTime.FromUtc(reader.GetDateTime(4)), reader.GetDecimal(5), reader.GetDecimal(6), reader.GetDecimal(7),
-                    reader.GetString(8), reader.GetString(9)));
+                    reader.GetString(8), reader.GetString(9), null, null, null));
 
         var paid = invoices.Where(invoice => invoice.Status == "Paid").ToArray();
         return Ok(new
