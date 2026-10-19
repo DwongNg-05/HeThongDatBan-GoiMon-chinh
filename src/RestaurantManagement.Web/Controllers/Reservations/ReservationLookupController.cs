@@ -107,7 +107,8 @@ public class ReservationLookupController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Cancel(
         [Bind("Code,Phone")]
-        ReservationLookupViewModel model)
+        ReservationLookupViewModel model,
+        [FromServices] BookingEmailDispatcher bookingEmails)
     {
         var ipAddress =
             GetClientIpAddress();
@@ -255,6 +256,20 @@ public class ReservationLookupController : Controller
             role,
             $"Cancel reservation {model.Code}",
             ipAddress);
+
+        // Gửi ngay email "Huỷ đặt bàn thành công" cho khách (email đã được xếp hàng
+        // trong dbo.usp_CancelReservation). Gửi lỗi không ảnh hưởng kết quả huỷ:
+        // email được tự gửi lại sau (BookingEmailRetryWorker).
+        var reservationId =
+            await _store.FindReservationIdAsync(
+                model.Code,
+                model.Phone);
+
+        if (reservationId is long cancelledId)
+        {
+            await bookingEmails.SendBookingCancelledAsync(
+                cancelledId);
+        }
 
         model.Result =
             await _store.LookupAsync(

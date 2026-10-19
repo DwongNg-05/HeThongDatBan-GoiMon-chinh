@@ -21,7 +21,8 @@ public sealed record BookingEmailDetails(
     string RestaurantAddress,
     string? RestaurantPhone,
     string? TableCode = null,
-    string? CancelReason = null)
+    string? CancelReason = null,
+    string? RejectionReason = null)
 {
     /// <summary>
     /// Mã đặt bàn gửi cho khách: luôn là mã đặt bàn 6 ký tự (ví dụ ED095C) — đúng mã khách nhập ở "Tra cứu đặt bàn".
@@ -40,7 +41,6 @@ public sealed record BookingEmailDetails(
 /// </summary>
 public static class BookingConfirmationEmail
 {
-    private const string DefaultRestaurantName = "Bếp Nhà";
     private static readonly HtmlEncoder Html = HtmlEncoder.Create(UnicodeRanges.All);
     private static readonly string[] Weekdays = ["Chủ nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
 
@@ -62,11 +62,13 @@ public static class BookingConfirmationEmail
             DateTime.SpecifyKind(startsAt, DateTimeKind.Utc),
             guests,
             string.IsNullOrWhiteSpace(Text("AreaName")) ? null : Text("AreaName")!.Trim(),
-            string.IsNullOrWhiteSpace(Text("RestaurantName")) ? DefaultRestaurantName : Text("RestaurantName")!.Trim(),
+            // Dữ liệu mẫu cũ "Nhà hàng Demo" hoặc tên trống → "Bếp Nhà" (EmailBranding.NormalizeName).
+            EmailBranding.NormalizeName(Text("RestaurantName")),
             Text("RestaurantAddress")?.Trim() ?? string.Empty,
             string.IsNullOrWhiteSpace(Text("RestaurantPhone")) ? null : Text("RestaurantPhone")!.Trim(),
             string.IsNullOrWhiteSpace(Text("TableCode")) ? null : Text("TableCode")!.Trim(),
-            string.IsNullOrWhiteSpace(Text("CancelReason")) ? null : Text("CancelReason")!.Trim());
+            string.IsNullOrWhiteSpace(Text("CancelReason")) ? null : Text("CancelReason")!.Trim(),
+            string.IsNullOrWhiteSpace(Text("RejectionReason")) ? null : Text("RejectionReason")!.Trim());
     }
 
     /// <summary>Ví dụ: "19:00, Thứ Hai ngày 05/10/2026".</summary>
@@ -76,27 +78,57 @@ public static class BookingConfirmationEmail
     public const string Received = "BookingReceived";
     public const string Confirmed = "BookingConfirmed";
     public const string Cancelled = "BookingCancelled";
+    /// <summary>Email báo từ chối đặt bàn kèm lý do (usp_RejectReservation, migration 065).</summary>
+    public const string Rejected = "BookingRejected";
 
     /// <summary>Màu thương hiệu (đỏ logo Bếp Nhà) dùng trong email.</summary>
     private const string Brand = "#b40829", BrandDark = "#8f0620", BrandSoft = "#fff4f5";
 
     /// <summary>Ví dụ: "Bếp Nhà - Xác nhận đặt bàn ED095C" (tên nhà hàng đứng trước).</summary>
-    public static string Subject(BookingEmailDetails d, string messageType = Confirmed) => messageType == Cancelled
-        ? $"{d.RestaurantName} - Đã huỷ đặt bàn {d.Code}"
+    public static string Subject(BookingEmailDetails d, string messageType = Confirmed) => messageType == Rejected
+        ? $"{d.RestaurantName} - Không thể nhận đặt bàn {d.Code}"
+        : messageType == Cancelled
+        ? IsCustomerCancellation(d) ? $"{d.RestaurantName} - Huỷ đặt bàn thành công {d.Code}" : $"{d.RestaurantName} - Đã huỷ đặt bàn {d.Code}"
         : $"{d.RestaurantName} - Xác nhận đặt bàn {d.Code}";
 
     /// <summary>Email xác nhận (BookingConfirmed; BookingReceived cũ dùng cùng mẫu) hoặc email báo huỷ (BookingCancelled).</summary>
     /// <param name="confirmUrl">Chỉ cho email "đã ghi nhận" cũ: liên kết để khách tự xác nhận (lượt đã có bàn).</param>
     /// <param name="lookupUrl">Liên kết "Tra cứu đặt bàn" đã điền sẵn mã đặt bàn (khách không phải gõ lại mã).</param>
+    /// <summary>Lý do huỷ ghi khi khách tự huỷ ở trang "Tra cứu đặt bàn" (ReservationStore.CancelAsync).</summary>
+    public const string OnlineCancelReason = "Khách huỷ trực tuyến";
+    /// <summary>Lý do huỷ ghi khi khách tự huỷ bằng đường dẫn trong email nhắc lịch (migration 062).</summary>
+    public const string ReminderLinkCancelReason = "Khách huỷ qua email nhắc lịch";
+
+    /// <summary>
+    /// Khách tự huỷ: lý do là một trong hai lý do cố định ở trên (hoặc trống, dữ liệu cũ).
+    /// Nhân viên huỷ luôn phải ghi lý do riêng (dbo.usp_StaffCancelReservation).
+    /// </summary>
+    public static bool IsCustomerCancellation(BookingEmailDetails d) =>
+        string.IsNullOrWhiteSpace(d.CancelReason)
+        || d.CancelReason.Trim() == OnlineCancelReason
+        || d.CancelReason.Trim() == ReminderLinkCancelReason;
+
     public static EmailMessage Create(string to, BookingEmailDetails d, string messageType = Confirmed, string? confirmUrl = null,
         string? lookupUrl = null)
     {
         var cancelled = messageType == Cancelled;
+        // Khách tự huỷ: email báo "Huỷ đặt bàn thành công" thay cho lời xin lỗi của nhà hàng.
+        var customerCancelled = cancelled && IsCustomerCancellation(d);
         var confirmed = messageType == Confirmed;
+        // Nhà hàng từ chối lượt chờ xác nhận: email xin lỗi kèm lý do (Hết bàn / Ngoài giờ phục vụ / Không liên lạc được).
+        var rejected = messageType == Rejected;
+        var rejectionLabel = d.RejectionReason is not null && RejectionReasons.Labels.TryGetValue(d.RejectionReason, out var reasonLabel) ? reasonLabel : null;
+        var rejectionText = RejectionReasons.CustomerText(d.RejectionReason);
+        // Email huỷ / từ chối: không có lời dặn "đọc mã khi đến quán".
+        var closed = cancelled || rejected;
         var showConfirm = messageType == Received && !string.IsNullOrWhiteSpace(confirmUrl) && d.TableCode is not null;
         var showLookup = !cancelled && !string.IsNullOrWhiteSpace(lookupUrl);
-        var title = cancelled ? "Huỷ đặt bàn" : "Xác nhận đặt bàn";
-        var intro = cancelled
+        var title = rejected ? "Không thể nhận đặt bàn" : customerCancelled ? "Huỷ đặt bàn thành công" : cancelled ? "Huỷ đặt bàn" : "Xác nhận đặt bàn";
+        var intro = rejected
+            ? "Nhà hàng rất tiếc chưa thể nhận lượt đặt bàn dưới đây của bạn." + (rejectionText is null ? "" : " " + rejectionText)
+            : customerCancelled
+            ? "Bạn đã huỷ đặt bàn thành công. Lượt đặt bàn dưới đây đã được huỷ, bạn không cần làm gì thêm."
+            : cancelled
             ? "Nhà hàng rất tiếc phải thông báo lượt đặt bàn dưới đây đã bị huỷ."
             : confirmed
                 ? d.TableCode is null
@@ -105,7 +137,11 @@ public static class BookingConfirmationEmail
                 : showConfirm
                     ? "Nhà hàng đã ghi nhận yêu cầu đặt bàn của bạn. Vui lòng bấm nút “Xác nhận đặt bàn” bên dưới để giữ bàn."
                     : "Nhà hàng đã ghi nhận yêu cầu đặt bàn của bạn. Vui lòng giữ lại mã đặt bàn dưới đây.";
-        var note = cancelled
+        var note = rejected
+            ? "Bạn có thể đặt bàn vào khung giờ khác hoặc gọi điện cho nhà hàng để được hỗ trợ. Mong sớm được đón tiếp bạn."
+            : customerCancelled
+            ? "Cảm ơn bạn đã báo trước cho nhà hàng. Khi muốn dùng bữa vào dịp khác, bạn có thể đặt bàn mới bất cứ lúc nào."
+            : cancelled
             ? "Nếu bạn vẫn muốn dùng bữa, vui lòng đặt bàn mới hoặc gọi điện cho nhà hàng."
             : "Giờ hiển thị theo giờ Việt Nam (UTC+7). Dùng mã đặt bàn và số điện thoại để tra cứu hoặc huỷ đặt bàn.";
         // Mã hoá ký tự HTML nguy hiểm nhưng giữ nguyên chữ tiếng Việt để email dễ đọc (kể cả khi xem mã nguồn).
@@ -138,7 +174,7 @@ public static class BookingConfirmationEmail
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f6f6;padding:24px 12px">
                 <tr><td align="center">
                   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:16px;overflow:hidden">
-                    <tr><td style="background:{Brand};padding:18px 24px;color:#ffffff;font-size:20px;font-weight:700">{E(d.RestaurantName)} - {title}</td></tr>
+                    {EmailBranding.Header(E(title), Brand)}
                     <tr><td style="padding:24px 24px 8px;font-size:16px;line-height:1.6">
                       <p style="margin:0 0 12px">Xin chào <strong>{E(guestName)}</strong>,</p>
                       <p style="margin:0">{E(intro)}</p>
@@ -155,14 +191,15 @@ public static class BookingConfirmationEmail
                         {(d.AreaName is null ? "" : Row("Khu vực", E(d.AreaName)))}
                         {Row("Địa chỉ quán", E(address))}
                         {(d.RestaurantPhone is null ? "" : Row("Điện thoại", E(d.RestaurantPhone)))}
-                        {(cancelled && d.CancelReason is not null ? Row("Lý do huỷ", E(d.CancelReason)) : "")}
+                        {(cancelled && !customerCancelled && d.CancelReason is not null ? Row("Lý do huỷ", E(d.CancelReason)) : "")}
+                        {(rejected && rejectionLabel is not null ? Row("Lý do", E(rejectionLabel)) : "")}
                       </table>
                     </td></tr>
                     {actionHtml}
                     <tr><td style="padding:0 24px 24px">
                       <div style="background:{BrandSoft};border:1px solid #f1b8c2;border-radius:10px;padding:12px 14px;font-size:14px;line-height:1.5">
                         {E(note)}
-                        {(cancelled ? "" : $" Khi đến quán, vui lòng đọc mã đặt bàn <strong>{E(d.Code)}</strong> cho nhân viên.")}
+                        {(closed ? "" : $" Khi đến quán, vui lòng đọc mã đặt bàn <strong>{E(d.Code)}</strong> cho nhân viên.")}
                       </div>
                     </td></tr>
                     <tr><td style="background:#fafafa;padding:14px 24px;font-size:12px;color:#8a8a8a">Email được gửi tự động, vui lòng không trả lời.</td></tr>
@@ -176,7 +213,7 @@ public static class BookingConfirmationEmail
         {
             $"Xin chào {guestName},",
             "",
-            cancelled ? $"{d.RestaurantName} rất tiếc phải thông báo lượt đặt bàn dưới đây đã bị huỷ." : intro,
+            cancelled && !customerCancelled ? $"{d.RestaurantName} rất tiếc phải thông báo lượt đặt bàn dưới đây đã bị huỷ." : intro,
             "",
             $"Mã đặt bàn:   {d.Code}",
             d.TableCode is null ? null : $"Bàn:          {d.TableCode}",
@@ -185,11 +222,12 @@ public static class BookingConfirmationEmail
             d.AreaName is null ? null : $"Khu vực:      {d.AreaName}",
             $"Địa chỉ quán: {address}",
             d.RestaurantPhone is null ? null : $"Điện thoại:   {d.RestaurantPhone}",
-            cancelled && d.CancelReason is not null ? $"Lý do huỷ:    {d.CancelReason}" : null,
+            cancelled && !customerCancelled && d.CancelReason is not null ? $"Lý do huỷ:    {d.CancelReason}" : null,
+            rejected && rejectionLabel is not null ? $"Lý do:        {rejectionLabel}" : null,
             "",
             showConfirm ? $"Xác nhận đặt bàn: {confirmUrl}" : showLookup ? $"Tra cứu đặt bàn: {lookupUrl}" : null,
             showConfirm || showLookup ? "" : null,
-            cancelled ? note : $"Khi đến quán, vui lòng đọc mã đặt bàn {d.Code} cho nhân viên.",
+            closed ? note : $"Khi đến quán, vui lòng đọc mã đặt bàn {d.Code} cho nhân viên.",
             "Email được gửi tự động, vui lòng không trả lời."
         }.Where(line => line is not null));
 

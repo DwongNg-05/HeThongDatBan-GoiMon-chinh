@@ -58,7 +58,8 @@ public sealed class TableDetailsService(
                 FROM dbo.Reservations r
                 WHERE r.TableId=m.Id
                   AND r.Status IN ('Pending','Confirmed')
-                  AND r.StartsAt<=DATEADD(minute,30,SYSUTCDATETIME())
+                  -- Cùng quy tắc với sơ đồ bàn: lượt đã xác nhận giữ bàn từ lúc xác nhận; lượt chờ xác nhận từ 30 phút trước giờ hẹn.
+                  AND (r.Status='Confirmed' OR r.StartsAt<=DATEADD(minute,30,SYSUTCDATETIME()))
                   AND DATEADD(minute,15,r.EndsAt)>SYSUTCDATETIME()
                 ORDER BY r.StartsAt,r.Id
             ) AS reservationWindow
@@ -110,10 +111,46 @@ public sealed class TableDetailsService(
             };
         }
 
+        details = details with { Reservations = await ReadReservations(connection, details.Code, cancellationToken) };
+
         if (details.SessionId is null)
             return details;
 
         return details with { OrderedItems = await ReadOrderedItems(connection, details.SessionId.Value, cancellationToken) };
+    }
+
+    /// <summary>
+    /// Lịch đặt bàn của bàn: lượt chờ xác nhận / đã xác nhận chưa kết thúc (tính cả 15 phút giữ bàn sau giờ kết thúc),
+    /// sắp theo giờ hẹn gần nhất trước; tối đa 30 lượt.
+    /// </summary>
+    private static async Task<IReadOnlyList<TableReservationSlot>> ReadReservations(
+        SqlConnection connection, string tableCode, CancellationToken cancellationToken)
+    {
+        const string query = """
+            SELECT TOP (30) r.Code, r.CustomerName, r.Phone, r.GuestCount, r.StartsAt, r.EndsAt, r.Status
+            FROM dbo.Reservations AS r
+            JOIN dbo.DiningTables AS t ON t.Id=r.TableId
+            WHERE t.Code=@Code
+              AND r.Status IN ('Pending','Confirmed')
+              AND DATEADD(minute,15,r.EndsAt)>SYSUTCDATETIME()
+            ORDER BY r.StartsAt, r.Id;
+            """;
+        await using var command = new SqlCommand(query, connection);
+        command.Parameters.Add("@Code", System.Data.SqlDbType.VarChar, 20).Value = tableCode;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var slots = new List<TableReservationSlot>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            slots.Add(new TableReservationSlot(
+                reader.GetString(0).Trim(),
+                reader.IsDBNull(1) ? string.Empty : reader.GetString(1),
+                reader.IsDBNull(2) ? string.Empty : reader.GetString(2).Trim(),
+                reader.GetInt32(3),
+                AsUtc(reader.GetDateTime(4)),
+                AsUtc(reader.GetDateTime(5)),
+                reader.GetString(6)));
+        }
+        return slots;
     }
 
     /// <summary>Các món của phiên (cùng nguồn với màn hình Gọi món: dbo.OrderBatches + dbo.OrderItems).</summary>
@@ -174,6 +211,10 @@ public sealed class TableDetailsService(
             true)
         {
             UpcomingReservationCount = upcoming is null ? 0 : 1,
+            Reservations = upcoming is null
+                ? Array.Empty<TableReservationSlot>()
+                : [new TableReservationSlot("DEMO01", upcoming.CustomerName, upcoming.Phone, upcoming.GuestCount,
+                    upcoming.StartsAtUtc, upcoming.StartsAtUtc.AddMinutes(90), "Confirmed")],
             SessionStatus = serving ? "Open" : null,
             OrderedItems = serving
                 ? (IReadOnlyList<TableDetailsOrderItem>)new List<TableDetailsOrderItem>

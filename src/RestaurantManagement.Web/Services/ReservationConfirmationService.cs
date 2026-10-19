@@ -88,6 +88,33 @@ public sealed class ReservationConfirmationService(IConfiguration configuration)
         cmd.Parameters.Add("@Reason",SqlDbType.NVarChar,100).Value=(object?)reason??DBNull.Value;
         await cn.OpenAsync(ct);
         await cmd.ExecuteNonQueryAsync(ct);
+        await QueueRejectionEmail(cn,id,ct);
+    }
+
+    /// <summary>
+    /// Bảo đảm email báo từ chối có trong hàng đợi (kèm lý do) để web gửi ngay, kể cả khi database chưa chạy
+    /// migration 065 (usp_RejectReservation cũ không xếp email). Khoá chống trùng DedupeKey "BookingRejected:{id}"
+    /// nên gọi lại không tạo email thứ hai. Lỗi ở bước này không làm hỏng việc từ chối đã lưu.
+    /// </summary>
+    private static async Task QueueRejectionEmail(SqlConnection cn,long id,CancellationToken ct)
+    {
+        const string sql = """
+            EXEC dbo.usp_QueueBookingEmail @ReservationId=@Id,@Kind='BookingRejected';
+            UPDATE o SET PayloadJson=JSON_MODIFY(o.PayloadJson,'$.RejectionReason',r.RejectionReason)
+            FROM dbo.EmailOutbox o JOIN dbo.Reservations r ON r.Id=o.ReservationId
+            WHERE o.ReservationId=@Id AND o.MessageType='BookingRejected' AND o.Status='Pending'
+              AND r.RejectionReason IS NOT NULL AND JSON_VALUE(o.PayloadJson,'$.RejectionReason') IS NULL;
+            """;
+        try
+        {
+            await using var queue=new SqlCommand(sql,cn);
+            queue.Parameters.Add("@Id",SqlDbType.BigInt).Value=id;
+            await queue.ExecuteNonQueryAsync(ct);
+        }
+        catch(SqlException)
+        {
+            // Tài khoản database không có quyền ghi trực tiếp: dựa vào migration 065 (usp_RejectReservation tự xếp email).
+        }
     }
     public async Task<List<ReservedSlot>> Slots(int actor,DateTime day,CancellationToken ct = default)
     {

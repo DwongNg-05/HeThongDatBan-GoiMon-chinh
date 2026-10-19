@@ -6,6 +6,22 @@ public sealed record UpcomingTableReservation(
     int GuestCount,
     DateTimeOffset StartsAtUtc);
 
+/// <summary>
+/// Một lượt đặt của bàn trong "Lịch đặt bàn" ở hộp thông tin bàn (sơ đồ bàn): khung giờ, khách, trạng thái.
+/// Chỉ gồm lượt chờ xác nhận / đã xác nhận chưa kết thúc, sắp theo giờ hẹn gần nhất trước.
+/// </summary>
+public sealed record TableReservationSlot(
+    string Code,
+    string CustomerName,
+    string Phone,
+    int GuestCount,
+    DateTimeOffset StartsAtUtc,
+    DateTimeOffset EndsAtUtc,
+    string Status)
+{
+    public string StatusLabel => Status == "Confirmed" ? "Đã xác nhận" : "Chờ xác nhận";
+}
+
 public sealed record TableDetailsViewModel(
     string Code,
     string Area,
@@ -41,6 +57,9 @@ public sealed record TableDetailsViewModel(
 
     /// <summary>Các món đã gọi trong phiên, theo đợt gọi.</summary>
     public IReadOnlyList<TableDetailsOrderItem> OrderedItems { get; init; } = [];
+
+    /// <summary>Lịch đặt bàn: các lượt chờ xác nhận / đã xác nhận chưa kết thúc, giờ hẹn gần nhất trước.</summary>
+    public IReadOnlyList<TableReservationSlot> Reservations { get; init; } = [];
 
     public int BatchCount => OrderedItems.Select(item => item.BatchNumber).Distinct().Count();
 

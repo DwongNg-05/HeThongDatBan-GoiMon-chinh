@@ -70,7 +70,7 @@ public static class BookingReminderEmail
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f6f6;padding:24px 12px">
                 <tr><td align="center">
                   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:16px;overflow:hidden">
-                    <tr><td style="background:{Brand};padding:18px 24px;color:#ffffff;font-size:20px;font-weight:700">{E(d.RestaurantName)} - Nhắc lịch đặt bàn</td></tr>
+                    {EmailBranding.Header("Nhắc lịch đặt bàn", Brand)}
                     <tr><td style="padding:24px 24px 8px;font-size:16px;line-height:1.6">
                       <p style="margin:0 0 12px">Xin chào <strong>{E(guestName)}</strong>,</p>
                       <p style="margin:0">{E(intro)}</p>

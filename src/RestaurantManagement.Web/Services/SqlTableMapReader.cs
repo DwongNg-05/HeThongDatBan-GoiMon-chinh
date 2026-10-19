@@ -47,7 +47,11 @@ public sealed class SqlTableMapReader(
                         t.StatusChangedAt)
                     WHEN t.Status = 'Available'
                         AND reservation.StartsAt IS NOT NULL
-                    THEN DATEADD(minute, -30, reservation.StartsAt)
+                    THEN CASE
+                        WHEN reservation.HoldSince > t.StatusChangedAt
+                        THEN reservation.HoldSince
+                        ELSE t.StatusChangedAt
+                    END
                     ELSE t.StatusChangedAt
                 END AS DisplayChangedAt
             FROM dbo.Areas a
@@ -75,11 +79,20 @@ public sealed class SqlTableMapReader(
                 ORDER BY st.SessionId DESC
             ) payment
             OUTER APPLY (
-                SELECT TOP (1) r.StartsAt
+                -- Bàn "Đã đặt trước": lượt đã được nhân viên / quản lý xác nhận (từ lúc xác nhận
+                -- tới hết giờ hẹn), hoặc lượt chờ xác nhận còn dưới 30 phút tới giờ hẹn.
+                -- HoldSince: mốc bắt đầu giữ bàn (không lấy giờ trong tương lai để sơ đồ cập nhật đúng thứ tự).
+                SELECT TOP (1) r.StartsAt,
+                    CASE
+                        WHEN DATEADD(minute, -30, r.StartsAt) <= SYSUTCDATETIME()
+                        THEN DATEADD(minute, -30, r.StartsAt)
+                        ELSE COALESCE(r.ConfirmedAt, SYSUTCDATETIME())
+                    END AS HoldSince
                 FROM dbo.Reservations r
                 WHERE r.TableId = t.Id
                     AND r.Status IN ('Pending', 'Confirmed')
-                    AND r.StartsAt <= DATEADD(minute, 30, SYSUTCDATETIME())
+                    AND (r.Status = 'Confirmed'
+                        OR r.StartsAt <= DATEADD(minute, 30, SYSUTCDATETIME()))
                     AND DATEADD(minute, 15, r.EndsAt) > SYSUTCDATETIME()
                 ORDER BY r.StartsAt, r.Id
             ) reservation
@@ -183,7 +196,11 @@ public sealed class SqlTableMapReader(
                         t.StatusChangedAt)
                     WHEN t.Status = 'Available'
                         AND reservation.StartsAt IS NOT NULL
-                    THEN DATEADD(minute, -30, reservation.StartsAt)
+                    THEN CASE
+                        WHEN reservation.HoldSince > t.StatusChangedAt
+                        THEN reservation.HoldSince
+                        ELSE t.StatusChangedAt
+                    END
                     ELSE t.StatusChangedAt
                 END AS DisplayChangedAt
             FROM dbo.DiningTables t
@@ -210,11 +227,20 @@ public sealed class SqlTableMapReader(
                 ORDER BY st.SessionId DESC
             ) payment
             OUTER APPLY (
-                SELECT TOP (1) r.StartsAt
+                -- Bàn "Đã đặt trước": lượt đã được nhân viên / quản lý xác nhận (từ lúc xác nhận
+                -- tới hết giờ hẹn), hoặc lượt chờ xác nhận còn dưới 30 phút tới giờ hẹn.
+                -- HoldSince: mốc bắt đầu giữ bàn (không lấy giờ trong tương lai để sơ đồ cập nhật đúng thứ tự).
+                SELECT TOP (1) r.StartsAt,
+                    CASE
+                        WHEN DATEADD(minute, -30, r.StartsAt) <= SYSUTCDATETIME()
+                        THEN DATEADD(minute, -30, r.StartsAt)
+                        ELSE COALESCE(r.ConfirmedAt, SYSUTCDATETIME())
+                    END AS HoldSince
                 FROM dbo.Reservations r
                 WHERE r.TableId = t.Id
                     AND r.Status IN ('Pending', 'Confirmed')
-                    AND r.StartsAt <= DATEADD(minute, 30, SYSUTCDATETIME())
+                    AND (r.Status = 'Confirmed'
+                        OR r.StartsAt <= DATEADD(minute, 30, SYSUTCDATETIME()))
                     AND DATEADD(minute, 15, r.EndsAt) > SYSUTCDATETIME()
                 ORDER BY r.StartsAt, r.Id
             ) reservation

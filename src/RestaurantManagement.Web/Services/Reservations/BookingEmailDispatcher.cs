@@ -155,6 +155,9 @@ public sealed class BookingEmailDispatcher(IBookingEmailOutbox outbox, IEmailSen
 
     public const string BookingCancelled = "BookingCancelled";
 
+    /// <summary>Email báo từ chối đặt bàn kèm lý do (usp_RejectReservation xếp vào dbo.EmailOutbox, migration 065).</summary>
+    public const string BookingRejected = BookingConfirmationEmail.Rejected;
+
     /// <summary>S4-08 Task 1: email nhắc lịch trước giờ hẹn 2 tiếng.</summary>
     public const string BookingReminder = BookingReminderEmail.MessageType;
 
@@ -168,6 +171,10 @@ public sealed class BookingEmailDispatcher(IBookingEmailOutbox outbox, IEmailSen
     /// <summary>Gửi ngay email báo huỷ sau khi quản lý huỷ lượt đặt bàn.</summary>
     public Task<BookingEmailResult> SendBookingCancelledAsync(long reservationId, CancellationToken cancellationToken = default) =>
         SendAsync(reservationId, BookingCancelled, cancellationToken);
+
+    /// <summary>Gửi ngay email báo từ chối (kèm lý do) sau khi Quản lý / Phục vụ từ chối lượt đặt.</summary>
+    public Task<BookingEmailResult> SendBookingRejectedAsync(long reservationId, CancellationToken cancellationToken = default) =>
+        SendAsync(reservationId, BookingRejected, cancellationToken);
 
     public async Task<BookingEmailResult> SendAsync(long reservationId, string messageType, CancellationToken cancellationToken = default)
     {

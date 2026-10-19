@@ -2,16 +2,19 @@ using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.Extensions.Options;
 using MimeKit;
+using RestaurantManagement.Web.Services.EmailVerification;
 
 namespace RestaurantManagement.Web.Services
 {
     public class CancellationSmtpEmailSender
     {
         private readonly SmtpOptions _options;
+        private readonly IWebHostEnvironment _environment;
 
-        public CancellationSmtpEmailSender(IOptions<SmtpOptions> options)
+        public CancellationSmtpEmailSender(IOptions<SmtpOptions> options, IWebHostEnvironment environment)
         {
             _options = options.Value;
+            _environment = environment;
         }
 
         public async Task SendAsync(
@@ -32,10 +35,20 @@ namespace RestaurantManagement.Web.Services
 
             message.Subject = subject;
 
-            message.Body = new TextPart("html")
+            // Logo Bếp Nhà đính kèm dạng ảnh nhúng (cid:bepnha-logo); không có tệp logo thì bỏ thẻ ảnh.
+            var builder = new BodyBuilder();
+            var logo = body.Contains(EmailBranding.LogoImg) ? EmailBranding.FindLogo(_environment) : null;
+            if (logo is null)
             {
-                Text = body
-            };
+                builder.HtmlBody = EmailBranding.RemoveLogo(body);
+            }
+            else
+            {
+                builder.HtmlBody = body;
+                var image = builder.LinkedResources.Add(logo);
+                image.ContentId = EmailBranding.LogoContentId;
+            }
+            message.Body = builder.ToMessageBody();
 
             using var client = new SmtpClient();
 

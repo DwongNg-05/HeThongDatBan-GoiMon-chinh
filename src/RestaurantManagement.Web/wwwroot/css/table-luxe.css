@@ -1,0 +1,177 @@
+/* =====================================================================
+   "Khu vực & bàn", Thêm/Sửa bàn, Chi tiết bàn (mã QR):
+   phong cách nhà hàng cổ điển, sang trọng: nền ngà, viền vàng đồng,
+   chữ có chân (Playfair Display) cho tiêu đề, đỏ rượu vang của thương hiệu.
+   Tệp nạp trong @section Styles (trước michelin.css / staff-theme.css),
+   nên mọi bộ chọn bắt đầu bằng ".admin-shell .at-luxe" để không bị ghi đè.
+   ===================================================================== */
+.at-luxe {
+    --lx-wine: var(--m-red, #b40829);
+    --lx-wine-dark: var(--m-red-dark, #8f0620);
+    --lx-gold: #b08d57;
+    --lx-gold-soft: #e7d7b8;
+    /* Nền trắng như các màn hình khác của hệ thống. */
+    --lx-ivory: #ffffff;
+    --lx-paper: #ffffff;
+    --lx-ink: #2b2220;
+    --lx-muted: #7a6c64;
+    /* Phông chữ bình thường của hệ thống (Be Vietnam Pro, khai báo trong michelin.css). */
+    --lx-serif: var(--m-font, "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif);
+}
+/* Playfair Display mặc định dùng chữ số kiểu cổ (số 0 nhỏ như chữ "o", số 1 thấp): bật chữ số thẳng hàng
+   để mã bàn như "LAU01" hiển thị rõ, đều chiều cao với chữ in hoa. */
+.at-luxe, .at-luxe h1, .at-luxe .at-table-code, .at-luxe .td-title, .at-luxe .td-code {
+    font-variant-numeric: lining-nums tabular-nums;
+    font-feature-settings: "lnum" 1, "tnum" 1;
+}
+
+/* ---------- Tiêu đề trang ---------- */
+.admin-shell .at-luxe h1,
+.admin-shell .at-luxe .at-area-title h2 { font-family: var(--lx-serif); color: var(--lx-ink); }
+
+/* ---------- Khu vực ---------- */
+.admin-shell .at-luxe .at-area {
+    background: var(--lx-paper);
+    border: 1px solid var(--lx-gold-soft);
+    border-left: 5px solid var(--lx-wine);
+    border-radius: 14px;
+    box-shadow: 0 1px 2px rgba(43, 34, 32, .04), 0 10px 28px rgba(43, 34, 32, .06);
+}
+.admin-shell .at-luxe .at-area.is-off { border-left-color: #b9b2b4; background: #fafafa; }
+
+/* ---------- Thẻ bàn ---------- */
+.admin-shell .at-luxe .at-tables { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.admin-shell .at-luxe .at-table {
+    position: relative;
+    gap: 10px;
+    padding: 18px 16px 16px;
+    border: 1px solid var(--lx-gold-soft);
+    border-radius: 12px;
+    background: var(--lx-ivory);
+    box-shadow: inset 0 0 0 4px var(--lx-ivory), inset 0 0 0 5px rgba(176, 141, 87, .35);
+    transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+.admin-shell .at-luxe .at-table:hover {
+    transform: translateY(-2px);
+    border-color: var(--lx-gold);
+    box-shadow: inset 0 0 0 4px var(--lx-ivory), inset 0 0 0 5px rgba(176, 141, 87, .6), 0 10px 22px rgba(43, 34, 32, .08);
+}
+.admin-shell .at-luxe .at-table.is-off { background: #f6f6f6; opacity: .8; }
+.admin-shell .at-luxe .at-table-code { font-family: var(--lx-serif); font-size: 1.3rem; font-weight: 700; letter-spacing: .01em; color: var(--lx-ink); }
+.admin-shell .at-luxe .at-table-rule {
+    display: flex; align-items: center; gap: 8px; margin: 0; color: var(--lx-gold); font-size: .7rem; line-height: 1;
+}
+.admin-shell .at-luxe .at-table-rule::before,
+.admin-shell .at-luxe .at-table-rule::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--lx-gold-soft), transparent); }
+.admin-shell .at-luxe .at-table-info { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--lx-muted); font-size: .95rem; }
+.admin-shell .at-luxe .at-table-info i { color: var(--lx-gold); }
+
+/* Ba nút Sửa / Mã QR / Xoá cùng kích cỡ: lưới chia đều, nút luôn một dòng. */
+.admin-shell .at-luxe .at-table-actions {
+    display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; margin-top: auto;
+}
+.admin-shell .at-luxe .at-table-actions form { display: flex; margin: 0; }
+.admin-shell .at-luxe .at-table-actions .btn, .admin-shell .at-luxe .at-table-actions form .btn { margin: 0; line-height: 1.2; }
+.admin-shell .at-luxe .at-table-actions .btn {
+    width: 100%; min-height: 40px; padding: 6px 8px; gap: 6px;
+    border-radius: 8px; font-size: .9rem; font-weight: 600; white-space: nowrap;
+}
+.admin-shell .at-luxe .at-table-actions .btn i { font-size: .85em; }
+
+.admin-shell .at-luxe .at-status { border: 1px solid transparent; letter-spacing: .02em; }
+.admin-shell .at-luxe .at-status.is-available { border-color: #cfe9d8; }
+.admin-shell .at-luxe .at-status.is-reserved { border-color: #ddd5f5; }
+.admin-shell .at-luxe .at-status.is-serving { border-color: #f3dfb4; }
+.admin-shell .at-luxe .at-status.is-cleaning { border-color: #c6e7e6; }
+
+/* ---------- Biểu mẫu thêm / sửa bàn ---------- */
+.admin-shell .at-luxe.at-form-card {
+    background: var(--lx-paper);
+    border: 1px solid var(--lx-gold-soft);
+    border-top: 4px solid var(--lx-wine);
+    border-radius: 14px;
+    box-shadow: 0 10px 28px rgba(43, 34, 32, .06);
+}
+.admin-shell .at-luxe.at-form-card h1 { font-size: 1.75rem; }
+.admin-shell .at-luxe.at-form-card .form-control,
+.admin-shell .at-luxe.at-form-card .form-select { background-color: #fff; border-color: #e6dccb; }
+.admin-shell .at-luxe.at-form-card .form-control:focus,
+.admin-shell .at-luxe.at-form-card .form-select:focus { border-color: var(--lx-gold); box-shadow: 0 0 0 3px rgba(176, 141, 87, .18); }
+
+/* ---------- Chi tiết bàn: Thông tin bàn | Mã QR của bàn (50 : 50) ---------- */
+.admin-shell .at-luxe .td-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: stretch; }
+.admin-shell .at-luxe .td-card {
+    position: relative;
+    display: flex; flex-direction: column;
+    min-width: 0;
+    padding: 28px 32px 30px;
+    border: 1px solid var(--lx-gold-soft);
+    border-radius: 14px;
+    background: var(--lx-paper);
+    box-shadow: inset 0 0 0 6px var(--lx-paper), inset 0 0 0 7px rgba(176, 141, 87, .4), 0 10px 28px rgba(43, 34, 32, .06);
+}
+/* Tiêu đề hai thẻ căn giữa, hai bên có đường kẻ trang trí giống nhau. */
+.admin-shell .at-luxe .td-title {
+    display: flex; align-items: center; align-self: stretch; gap: 14px;
+    margin: 0 0 22px;
+    font-family: var(--lx-serif); font-size: 1.3rem; font-weight: 600;
+    color: var(--lx-wine-dark); text-align: center;
+}
+.admin-shell .at-luxe .td-title::before,
+.admin-shell .at-luxe .td-title::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--lx-gold)); }
+.admin-shell .at-luxe .td-title::after { background: linear-gradient(90deg, var(--lx-gold), transparent); }
+
+/* Danh sách thông tin kiểu thực đơn: nhãn ..... giá trị */
+.admin-shell .at-luxe .td-facts { margin: 0; }
+.admin-shell .at-luxe .td-fact { display: flex; align-items: baseline; gap: 10px; padding: 12px 0; border-bottom: 1px solid #f0e8da; }
+.admin-shell .at-luxe .td-fact:last-child { border-bottom: 0; }
+.admin-shell .at-luxe .td-fact dt { display: flex; flex: 1; align-items: baseline; gap: 10px; margin: 0; font-weight: 600; color: var(--lx-ink); white-space: nowrap; }
+.admin-shell .at-luxe .td-fact dt::after { content: ""; flex: 1; min-width: 24px; border-bottom: 2px dotted var(--lx-gold-soft); transform: translateY(-4px); }
+.admin-shell .at-luxe .td-fact dd { margin: 0; color: var(--lx-ink); text-align: right; }
+.admin-shell .at-luxe .td-fact dd.td-code { font-family: var(--lx-serif); font-size: 1.05rem; font-weight: 700; }
+.admin-shell .at-luxe .td-card-foot { margin-top: auto; padding-top: 24px; text-align: center; }
+
+/* Thẻ thông tin bàn: chừa khoảng trống phía dưới cho ảnh ở góc trái, ảnh không che thông tin hay nút Xoá bàn. */
+.admin-shell .at-luxe .td-info { padding-bottom: 210px; overflow: hidden; }
+.admin-shell .at-luxe .td-photo {
+    position: absolute; left: 22px; bottom: 14px;
+    width: auto; height: 190px;
+    pointer-events: none; user-select: none;
+    filter: drop-shadow(0 6px 8px rgba(43, 34, 32, .12));
+}
+
+/* Thẻ mã QR: chừa sẵn khoảng trống phía dưới cho chú chuột đầu bếp, nên ảnh không che nội dung. */
+.admin-shell .at-luxe .td-qr { align-items: center; text-align: center; padding-bottom: 196px; overflow: hidden; }
+.admin-shell .at-luxe .td-qr-stage { display: grid; place-items: center; width: 100%; }
+.admin-shell .at-luxe .td-qr-frame {
+    display: inline-grid; place-items: center; width: fit-content; max-width: 100%; margin: 0 auto; padding: 14px;
+    border: 1px solid var(--lx-gold-soft); border-radius: 10px; background: #fff;
+    box-shadow: inset 0 0 0 4px #fff, inset 0 0 0 5px rgba(176, 141, 87, .35);
+}
+/* Kích thước cố định (không dùng %): ảnh QR gốc rất lớn, nếu tính theo % thì khung bị giãn theo ảnh gốc và mã lệch trái. */
+.admin-shell .at-luxe .td-qr-frame img { display: block; width: 260px; max-width: 100%; height: auto; margin: 0 auto; image-rendering: pixelated; }
+.admin-shell .at-luxe .td-qr-note { margin: 14px auto 18px; color: var(--lx-muted); font-size: .95rem; }
+.admin-shell .at-luxe .td-qr-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.admin-shell .at-luxe .td-qr-actions form { display: flex; margin: 0; }
+.admin-shell .at-luxe .td-qr-actions .btn { min-width: 150px; white-space: nowrap; }
+.admin-shell .at-luxe .td-qr-created { margin: 16px auto 0; color: var(--lx-muted); font-size: .88rem; font-style: italic; }
+.admin-shell .at-luxe .td-mascot {
+    position: absolute; left: 22px; bottom: 14px;
+    width: auto; height: 172px;
+    pointer-events: none; user-select: none;
+    filter: drop-shadow(0 6px 8px rgba(43, 34, 32, .12));
+}
+
+@media (max-width: 991.98px) {
+    .admin-shell .at-luxe .td-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 576px) {
+    .admin-shell .at-luxe .at-tables { grid-template-columns: 1fr; }
+    .admin-shell .at-luxe .td-card { padding: 22px 18px 24px; }
+    .admin-shell .at-luxe .td-qr { padding-bottom: 160px; }
+    .admin-shell .at-luxe .td-mascot { height: 140px; left: 12px; }
+    .admin-shell .at-luxe .td-info { padding-bottom: 170px; }
+    .admin-shell .at-luxe .td-photo { height: 150px; left: 12px; }
+    .admin-shell .at-luxe .td-qr-frame img { width: 220px; }
+    .admin-shell .at-luxe .td-qr-actions .btn, .admin-shell .at-luxe .td-qr-actions form { width: 100%; }
+}

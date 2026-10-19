@@ -15,21 +15,25 @@ public sealed class TableMapStore(IConfiguration configuration)
 
     private const string TablesSql = """
         -- Trạng thái trên sơ đồ là trạng thái vận hành.  Một bàn còn đang để
-        -- Available nhưng đã có lượt Pending/Confirmed trong 30 phút tới phải
-        -- hiện "Đã đặt trước" để nhân viên không xếp khách vãng lai vào bàn đó.
+        -- Available nhưng đã có lượt được xác nhận (Confirmed, chưa hết giờ hẹn) hoặc
+        -- lượt Pending trong 30 phút tới phải hiện "Đã đặt trước" để nhân viên không
+        -- xếp khách vãng lai vào bàn đó.
         SELECT t.Code, a.Id, a.Name, t.MaxCapacity,
                CASE WHEN t.Status='Available' AND reservation.Id IS NOT NULL THEN 'Reserved' ELSE t.Status END AS Status,
                CASE WHEN t.Status='Available' AND reservation.Id IS NOT NULL
-                    THEN DATEADD(minute,-30,reservation.StartsAt) ELSE t.StatusChangedAt END AS StatusChangedAt
+                    THEN CASE WHEN reservation.HoldSince>t.StatusChangedAt THEN reservation.HoldSince ELSE t.StatusChangedAt END
+                    ELSE t.StatusChangedAt END AS StatusChangedAt
         FROM dbo.DiningTables t
         JOIN dbo.Areas a ON a.Id = t.AreaId
         OUTER APPLY
         (
-            SELECT TOP(1) r.Id,r.StartsAt
+            SELECT TOP(1) r.Id,r.StartsAt,
+                   CASE WHEN DATEADD(minute,-30,r.StartsAt)<=SYSUTCDATETIME() THEN DATEADD(minute,-30,r.StartsAt)
+                        ELSE COALESCE(r.ConfirmedAt,SYSUTCDATETIME()) END AS HoldSince
             FROM dbo.Reservations r
             WHERE r.TableId=t.Id
               AND r.Status IN ('Pending','Confirmed')
-              AND r.StartsAt<=DATEADD(minute,30,SYSUTCDATETIME())
+              AND (r.Status='Confirmed' OR r.StartsAt<=DATEADD(minute,30,SYSUTCDATETIME()))
               AND DATEADD(minute,15,r.EndsAt)>SYSUTCDATETIME()
             ORDER BY r.StartsAt,r.Id
         ) reservation

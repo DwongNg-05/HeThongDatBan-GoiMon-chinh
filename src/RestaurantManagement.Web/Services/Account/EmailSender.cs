@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Mail;
+using System.Net.Mime;
 using System.Text;
 using Microsoft.Extensions.Options;
 
@@ -29,7 +30,7 @@ public sealed class SmtpEmailSender(IOptions<EmailOptions> options, IWebHostEnvi
             var safeTo = string.Concat(message.To.Select(c => char.IsLetterOrDigit(c) || c is '.' or '@' or '-' or '_' ? c : '_'));
             var name = $"{DateTime.UtcNow:yyyyMMdd-HHmmss-fff}-{Guid.NewGuid():N}"[..32] + "-" + safeTo;
             var header = $"To: {message.To}\nSubject: {message.Subject}\n\n";
-            await File.WriteAllTextAsync(Path.Combine(dir, name + ".html"), message.HtmlBody, Encoding.UTF8, cancellationToken);
+            await File.WriteAllTextAsync(Path.Combine(dir, name + ".html"), EmailBranding.InlineLogoForFile(message.HtmlBody, environment), Encoding.UTF8, cancellationToken);
             await File.WriteAllTextAsync(Path.Combine(dir, name + ".txt"), header + message.TextBody, Encoding.UTF8, cancellationToken);
             logger.LogWarning("Chưa cấu hình SMTP (Email:Host). Email xác minh được lưu tại {Directory}.", dir);
             return;
@@ -47,7 +48,13 @@ public sealed class SmtpEmailSender(IOptions<EmailOptions> options, IWebHostEnvi
             IsBodyHtml = false
         };
         mail.To.Add(new MailAddress(message.To));
-        mail.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(message.HtmlBody, Encoding.UTF8, "text/html"));
+        // Logo Bếp Nhà đính kèm dạng ảnh nhúng (cid:bepnha-logo) để hiện được trong Gmail/Outlook.
+        var logo = message.HtmlBody.Contains(EmailBranding.LogoImg) ? EmailBranding.FindLogo(environment) : null;
+        var htmlView = AlternateView.CreateAlternateViewFromString(
+            logo is null ? EmailBranding.RemoveLogo(message.HtmlBody) : message.HtmlBody, Encoding.UTF8, "text/html");
+        if (logo is not null)
+            htmlView.LinkedResources.Add(new LinkedResource(logo, "image/png") { ContentId = EmailBranding.LogoContentId, TransferEncoding = TransferEncoding.Base64 });
+        mail.AlternateViews.Add(htmlView);
         using var client = new SmtpClient(o.Host, o.Port)
         {
             EnableSsl = o.EnableSsl,

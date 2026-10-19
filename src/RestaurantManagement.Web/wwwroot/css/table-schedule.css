@@ -1,0 +1,33 @@
+/* Sơ đồ bàn → hộp thông tin bàn: "Lịch đặt bàn" (các khung giờ và khách đặt, nhóm theo ngày, gần nhất trước). */
+.details-schedule { margin-top: 14px; padding: 14px; border: 1px solid #f1d4da; border-radius: 11px; background: #fffafb; }
+.details-schedule[hidden] { display: none; }
+.details-schedule-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.details-schedule-head > span { color: #8a7b7e; font-size: 11px; font-weight: 600; }
+.details-schedule-empty { margin: 0; color: #8a7b7e; font-size: 13px; }
+.details-schedule-empty[hidden] { display: none; }
+.details-schedule-days { display: grid; gap: 12px; max-height: 300px; margin: 0; padding: 0 4px 0 0; overflow: auto; list-style: none; }
+.details-schedule-date {
+    position: sticky; top: 0; z-index: 1;
+    margin-bottom: 6px; padding: 4px 0; background: #fffafb;
+    color: var(--m-red-dark, #8f0620); font-size: 11px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase;
+}
+.details-schedule-day ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.details-slot {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px;
+    padding: 9px 11px; border: 1px solid #efe4e6; border-left: 3px solid var(--m-red, #b40829); border-radius: 9px; background: #fff;
+}
+.details-slot-time { color: #2b2220; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.details-slot-guest { display: grid; min-width: 0; gap: 1px; }
+.details-slot-guest strong { overflow: hidden; color: #2b2220; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.details-slot-guest small { overflow: hidden; color: #7a6c70; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.details-slot-status { padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.details-slot-status.is-confirmed { background: #e6f4ec; color: #1e7a46; }
+.details-slot-status.is-pending { background: #fff4e5; color: #8a4b00; }
+.details-slot:has(.is-pending) { border-left-color: #e0a23b; }
+
+@media (max-width: 575px) {
+    .details-slot { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; }
+    .details-slot-time { grid-column: 1; }
+    .details-slot-status { grid-column: 2; grid-row: 1; }
+    .details-slot-guest { grid-column: 1 / -1; }
+}

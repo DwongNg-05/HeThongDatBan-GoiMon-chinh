@@ -29,8 +29,9 @@ internal static class BookingConfirmationEmailTests
         const string address = "12 Lê Lợi, Phường Bến Nghé, Quận 1, TP.HCM";
         check(message.To == "khach@example.com" && message.Subject == "Bếp Nhà - Xác nhận đặt bàn A1B2C3",
             "Booking email: subject starts with the restaurant name — \"Bếp Nhà - Xác nhận đặt bàn A1B2C3\"");
-        check(message.HtmlBody.Contains(">Bếp Nhà - Xác nhận đặt bàn</td>") && message.HtmlBody.Contains("#b40829") && !message.HtmlBody.Contains("#c92d3e"),
-            "Booking email: header reads \"Bếp Nhà - Xác nhận đặt bàn\" in the project red");
+        check(message.HtmlBody.Contains(EmailBranding.LogoImg) && message.HtmlBody.Contains(">Xác nhận đặt bàn</td>")
+              && message.HtmlBody.Contains("#b40829") && !message.HtmlBody.Contains("#c92d3e"),
+            "Booking email: header shows the Bếp Nhà logo (instead of the text) and \"Xác nhận đặt bàn\" in the project red");
         foreach (var (body, name) in new[] { (message.TextBody, "text"), (message.HtmlBody, "HTML") })
             check(body.Contains("A1B2C3") && body.Contains("19:00, Thứ Hai ngày 05/10/2026") && body.Contains("4 người") && body.Contains(address),
                 $"Booking email ({name}): booking code, date and time, guest count and restaurant address");
@@ -142,8 +143,39 @@ internal static class BookingConfirmationEmailTests
         outbox = new FakeOutbox(claimed with { MessageType = BookingEmailDispatcher.BookingCancelled });
         var cancelSender = new FakeSender();
         var cancelSent = await Dispatcher(outbox, cancelSender).SendBookingCancelledAsync(500);
-        check(cancelSent.Outcome == BookingEmailOutcome.Sent && outbox.ClaimedFor == (500, "BookingCancelled") && cancelSender.Sent.Single().Subject.StartsWith("Bếp Nhà - Đã huỷ đặt bàn"),
+        // Nội dung email mẫu không có lý do huỷ = khách tự huỷ → "Huỷ đặt bàn thành công".
+        check(cancelSent.Outcome == BookingEmailOutcome.Sent && outbox.ClaimedFor == (500, "BookingCancelled") && cancelSender.Sent.Single().Subject.StartsWith("Bếp Nhà - Huỷ đặt bàn thành công"),
             "Cancel: cancellation email is sent right away");
+
+        // Khách tự huỷ (Tra cứu đặt bàn: không lý do; email nhắc lịch: lý do cố định) → email "Huỷ đặt bàn thành công".
+        foreach (var selfCancel in new[] { withTable with { CancelReason = null }, withTable with { CancelReason = BookingConfirmationEmail.OnlineCancelReason },
+                                           withTable with { CancelReason = BookingConfirmationEmail.ReminderLinkCancelReason } })
+        {
+            var selfMessage = BookingConfirmationEmail.Create("khach@example.com", selfCancel, BookingConfirmationEmail.Cancelled);
+            check(selfMessage.Subject == "Bếp Nhà - Huỷ đặt bàn thành công A1B2C3"
+                  && selfMessage.HtmlBody.Contains(">Huỷ đặt bàn thành công</td>") && selfMessage.TextBody.Contains("Bạn đã huỷ đặt bàn thành công")
+                  && !selfMessage.TextBody.Contains("rất tiếc") && !selfMessage.TextBody.Contains("Lý do huỷ") && selfMessage.TextBody.Contains("A1B2C3"),
+                "Cancel: a customer's own cancellation gets a \"Huỷ đặt bàn thành công\" email with the booking code");
+        }
+        check(BookingConfirmationEmail.Create("khach@example.com", cancelDetails, BookingConfirmationEmail.Cancelled).TextBody.Contains("rất tiếc"),
+            "Cancel: a staff cancellation (with a reason) keeps the apology wording");
+
+        // Từ chối (migration 065): email kèm lý do, không có lời dặn "đọc mã khi đến quán"; gửi ngay khi nhân viên từ chối.
+        var rejectedDetails = BookingConfirmationEmail.ParsePayload(Payload.Replace("\"Code\":\"A1B2C3\",", "\"Code\":\"A1B2C3\",\"RejectionReason\":\"NoTable\","));
+        var rejectedMessage = BookingConfirmationEmail.Create("khach@example.com", rejectedDetails, BookingConfirmationEmail.Rejected);
+        check(rejectedDetails.RejectionReason == "NoTable" && rejectedMessage.Subject == "Bếp Nhà - Không thể nhận đặt bàn A1B2C3"
+              && rejectedMessage.HtmlBody.Contains(">Không thể nhận đặt bàn</td>") && rejectedMessage.HtmlBody.Contains("Hết bàn")
+              && rejectedMessage.TextBody.Contains("Lý do:        Hết bàn") && rejectedMessage.TextBody.Contains("hết bàn phù hợp")
+              && rejectedMessage.TextBody.Contains("A1B2C3") && !rejectedMessage.TextBody.Contains("Khi đến quán"),
+            "Reject: rejection email names the booking code and the reason, without arrival instructions");
+        outbox = new FakeOutbox(claimed with { MessageType = BookingEmailDispatcher.BookingRejected });
+        var rejectSender = new FakeSender();
+        var rejectSent = await Dispatcher(outbox, rejectSender).SendBookingRejectedAsync(500);
+        check(rejectSent.Outcome == BookingEmailOutcome.Sent && outbox.ClaimedFor == (500, "BookingRejected")
+              && rejectSender.Sent.Single().Subject.StartsWith("Bếp Nhà - Không thể nhận đặt bàn"),
+            "Reject: rejection email is sent right away");
+        check(ConfirmationEmailNotice.AfterReject(rejectSent).Contains("Đã gửi email báo từ chối"),
+            "Reject: staff see that the rejection email was sent");
         check(new ReservationListItemViewModel { Status = "Pending" }.CanCancel && new ReservationListItemViewModel { Status = "Confirmed" }.CanCancel
             && !new ReservationListItemViewModel { Status = "Cancelled" }.CanCancel && !new ReservationListItemViewModel { Status = "Arrived" }.CanCancel,
             "Cancel: only pending or confirmed reservations can be cancelled");

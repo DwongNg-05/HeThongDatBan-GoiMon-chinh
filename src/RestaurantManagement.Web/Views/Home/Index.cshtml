@@ -110,12 +110,11 @@
         <section class="details-metric"><span>Thời gian phục vụ</span><strong id="details-started">—</strong><small id="details-duration"></small></section>
         <section class="details-metric"><span>Tạm tính hiện tại</span><strong id="details-subtotal">—</strong><small id="details-subtotal-note"></small></section>
     </div>
-    <section class="details-reservation" id="details-reservation" hidden>
-        <div class="details-section-title">Đặt bàn sắp tới</div>
-        <strong id="details-reservation-name"></strong>
-        <span id="details-reservation-phone"></span>
-        <span id="details-reservation-guests"></span>
-        <time id="details-reservation-time"></time>
+    @* Lịch đặt bàn của bàn: từng ngày, từng khung giờ và khách đặt — lượt gần nhất ở trên cùng. *@
+    <section class="details-schedule" id="details-schedule" hidden>
+        <div class="details-schedule-head"><div class="details-section-title">Lịch đặt bàn</div><span id="details-schedule-summary"></span></div>
+        <p class="details-schedule-empty" id="details-schedule-empty">Chưa có lượt đặt nào sắp tới.</p>
+        <ol class="details-schedule-days" id="details-schedule-days"></ol>
     </section>
     @* Món đã gọi trong phiên hiện tại, theo đợt gọi. *@
     <section class="details-orders" id="details-orders" hidden>
@@ -147,6 +146,10 @@
     <p class="details-source" id="details-source" hidden>Dữ liệu mẫu phát triển</p>
 </section>
 </div>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/table-schedule.css" asp-append-version="true" />
+}
 
 @section Scripts {
     <script src="~/js/reservation-no-show.js" asp-append-version="true"></script>

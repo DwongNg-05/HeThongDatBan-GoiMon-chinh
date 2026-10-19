@@ -5,10 +5,11 @@
 }
 @section Styles {
     <link rel="stylesheet" href="~/css/area-tables.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/table-luxe.css" asp-append-version="true" />
 }
 
 <a href="@backUrl" class="at-back">← Quay lại Khu vực &amp; bàn</a>
-<div class="at-form-card">
+<div class="at-form-card at-luxe">
     <h1>Sửa bàn @Model.Code</h1>
     <p class="at-lead">Muốn chuyển bàn sang khu vực khác, chỉ cần chọn lại ô “Khu vực”.</p>
     <form asp-action="Edit" method="post">

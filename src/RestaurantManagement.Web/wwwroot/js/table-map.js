@@ -88,14 +88,7 @@
                     ? 'Bàn đang được dọn; chưa có phiên phục vụ hiện tại.'
                     : 'Bàn đang trống.';
 
-        const reservationPanel = byId('details-reservation');
-        reservationPanel.hidden = !reservation;
-        if (reservation) {
-            byId('details-reservation-name').textContent = reservation.customerName;
-            byId('details-reservation-phone').textContent = reservation.phone;
-            byId('details-reservation-guests').textContent = `${reservation.guestCount} khách`;
-            byId('details-reservation-time').textContent = formattedTime(reservation.startsAtUtc);
-        }
+        renderSchedule(details);
         byId('details-source').hidden = !details.isDemoData;
 
         // S3-04 Task 4: bàn đang có phiên phục vụ (dữ liệu thật) → nút mở hoá đơn tạm tính của bàn.
@@ -116,6 +109,67 @@
 
         renderOrderedItems(details);
         renderAddItems(details);
+    }
+
+    // Lịch đặt bàn: nhóm theo ngày (giờ Việt Nam), mỗi dòng là khung giờ + khách đặt; lượt gần nhất ở trên cùng.
+    const vietnamZone = 'Asia/Ho_Chi_Minh';
+    const dayKey = value => new Date(value).toLocaleDateString('en-CA', { timeZone: vietnamZone });
+    const slotClock = value => new Date(value).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', timeZone: vietnamZone });
+    function dayLabel(value) {
+        const key = dayKey(value);
+        const date = new Date(value).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: vietnamZone });
+        if (key === dayKey(Date.now())) return `Hôm nay · ${date}`;
+        if (key === dayKey(Date.now() + 86400000)) return `Ngày mai · ${date}`;
+        const weekday = new Date(value).toLocaleDateString('vi-VN', { weekday: 'long', timeZone: vietnamZone });
+        return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)} · ${date}`;
+    }
+
+    function renderSchedule(details) {
+        const panel = byId('details-schedule');
+        if (!panel) return;
+        const slots = [...(details.reservations || [])]
+            .sort((a, b) => Date.parse(a.startsAtUtc) - Date.parse(b.startsAtUtc));
+        const days = byId('details-schedule-days');
+        days.replaceChildren();
+        panel.hidden = false;
+        byId('details-schedule-empty').hidden = slots.length > 0;
+        byId('details-schedule-summary').textContent = slots.length ? `${slots.length} lượt sắp tới` : '';
+
+        const groups = new Map();
+        slots.forEach(slot => {
+            const key = dayKey(slot.startsAtUtc);
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key).push(slot);
+        });
+        groups.forEach(daySlots => {
+            const day = document.createElement('li');
+            day.className = 'details-schedule-day';
+            const head = document.createElement('div');
+            head.className = 'details-schedule-date';
+            head.textContent = dayLabel(daySlots[0].startsAtUtc);
+            const list = document.createElement('ul');
+            daySlots.forEach(slot => {
+                const row = document.createElement('li');
+                row.className = 'details-slot';
+                const time = document.createElement('span');
+                time.className = 'details-slot-time';
+                time.textContent = `${slotClock(slot.startsAtUtc)} – ${slotClock(slot.endsAtUtc)}`;
+                const guest = document.createElement('span');
+                guest.className = 'details-slot-guest';
+                const name = document.createElement('strong');
+                name.textContent = slot.customerName || 'Khách đặt bàn';
+                const meta = document.createElement('small');
+                meta.textContent = [slot.phone, `${slot.guestCount} khách`, `Mã ${slot.code}`].filter(Boolean).join(' · ');
+                guest.append(name, meta);
+                const state = document.createElement('span');
+                state.className = `details-slot-status ${slot.status === 'Confirmed' ? 'is-confirmed' : 'is-pending'}`;
+                state.textContent = slot.statusLabel;
+                row.append(time, guest, state);
+                list.append(row);
+            });
+            day.append(head, list);
+            days.append(day);
+        });
     }
 
     const money = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
@@ -206,7 +260,7 @@
             .find(button => button.dataset.openDetails === code) ?? null;
         byId('table-details-title').textContent = `Bàn ${code}`;
         byId('details-context').textContent = 'Đang tải thông tin…';
-        byId('details-reservation').hidden = true;
+        if (byId('details-schedule')) byId('details-schedule').hidden = true;
         if (byId('details-bill-link')) byId('details-bill-link').hidden = true;
         if (byId('details-preview-link')) byId('details-preview-link').hidden = true;
         if (byId('details-orders')) byId('details-orders').hidden = true;

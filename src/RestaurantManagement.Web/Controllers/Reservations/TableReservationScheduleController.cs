@@ -120,7 +120,7 @@ public sealed class TableReservationScheduleController(IConfiguration configurat
         }
         catch (SqlException ex) when (ex.Number == 51060)
         {
-            ModelState.AddModelError(string.Empty, "Bàn vừa có người đặt trong khung giờ này. Vui lòng chọn giờ khác.");
+            ModelState.AddModelError(string.Empty, "Bàn đã có người đặt trong khung giờ này (tính cả 15 phút dọn bàn). Vui lòng chọn giờ hoặc bàn khác.");
             model.HasConflict = true;
             await LoadSuggestionsAsync(model);
             return View(model);

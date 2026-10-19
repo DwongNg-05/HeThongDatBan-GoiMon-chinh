@@ -26,6 +26,7 @@ internal static class Verification
             await EmailVerificationVerification.Run(connection, password);
             await VerifyAreas(connection);
             await VerifyTableReservationSchedule(connection);
+            await VerifyTableHoldCleaningBuffer(connection);
             await VerifyManagedReservationConcurrencyAndSuggestions(connection);
             await VerifyManagedReservationRelease(connection);
             await BookingConcurrency(connection);
@@ -495,6 +496,48 @@ internal static class Verification
         await Reject(connection, "Direct SQL insert cannot bypass table hold", "INSERT dbo.Reservations(Code,CustomerName,Phone,GuestCount,TableId,StartsAt,EndsAt,Status) VALUES('S23D02',N'Trùng trực tiếp','0981000011',1,48,'2030-01-01T20:00:00','2030-01-01T21:30:00','Confirmed');", 51060);
         await DatabaseTool.Execute(connection, "INSERT dbo.Reservations(Code,CustomerName,Phone,GuestCount,TableId,StartsAt,EndsAt,Status) VALUES('S23C01',N'Đã huỷ','0981000012',1,49,'2030-01-01T19:00:00','2030-01-01T20:30:00','Cancelled'),('S23N01',N'Không tới','0981000013',1,49,'2030-01-01T19:00:00','2030-01-01T20:30:00','NoShow'); EXEC dbo.usp_CreateManagedTableReservation @TableId=49,@StartsAt='2030-01-01T19:00:00',@CustomerName=N'Được nhận',@Phone='0981000014',@InitialStatus='Pending',@ActorUserId=1;");
         await Check(connection, "Managed schedule stores table, status, duration and cleanup boundary", "SELECT CASE WHEN (SELECT COUNT(*) FROM dbo.Reservations WHERE TableId=45 AND StartsAt>='2030-01-01T19:00:00' AND Status IN ('Pending','Confirmed'))=3 AND EXISTS(SELECT 1 FROM dbo.Reservations WHERE TableId=49 AND CustomerName=N'Được nhận' AND Status='Pending') THEN 1 ELSE 0 END;");
+    }
+
+    /// <summary>
+    /// S2-03 chống trùng bàn (migration 064): khoảng dọn bàn 15 phút áp dụng cho mọi đường ghi lượt đặt có bàn.
+    /// Mỗi lượt giữ bàn [bắt đầu, kết thúc + 15 phút); bắt đầu đúng mốc hết dọn bàn được nhận, nghỉ dưới 15 phút bị từ chối.
+    /// Giờ trong ca kiểm thử là UTC; 11:00 UTC = 18:00 giờ Việt Nam (trong giờ mở cửa 08:00–23:00, đúng bước 30 phút).
+    /// </summary>
+    private static async Task VerifyTableHoldCleaningBuffer(string connection)
+    {
+        // Bàn 50: lượt Chờ xác nhận 09:20–10:50 → giữ bàn tới 11:05. Bàn 51: lượt Đã xác nhận 09:15–10:45 → giữ tới 11:00.
+        await DatabaseTool.Execute(connection, "EXEC dbo.usp_CreateManagedTableReservation @TableId=50,@StartsAt='2030-01-08T09:20:00',@CustomerName=N'Dọn bàn chờ',@Phone='0983000001',@InitialStatus='Pending',@ActorUserId=1;");
+        await DatabaseTool.Execute(connection, "EXEC dbo.usp_CreateManagedTableReservation @TableId=51,@StartsAt='2030-01-08T09:15:00',@CustomerName=N'Dọn bàn xác nhận',@Phone='0983000002',@InitialStatus='Confirmed',@ActorUserId=1;");
+        await Check(connection, "Each reservation stores start, end (start + 90 minutes) and a 15-minute cleaning hold",
+            "SELECT CASE WHEN COUNT(*)=2 AND MIN(DATEDIFF(minute,StartsAt,EndsAt))=90 AND MAX(DATEDIFF(minute,StartsAt,EndsAt))=90 THEN 1 ELSE 0 END FROM dbo.Reservations WHERE TableId IN (50,51) AND StartsAt>='2030-01-08' AND StartsAt<'2030-01-09'");
+
+        // Danh sách bàn trống cho khách: bàn còn trong 15 phút dọn bàn bị ẩn; bàn vừa hết 15 phút thì hiện.
+        await Check(connection, "Free-table list hides a table inside the 15-minute cleaning buffer and shows one at the exact boundary", """
+            DECLARE @t TABLE(Id int,Code varchar(20),AreaId int,AreaName nvarchar(200),MinCapacity int,MaxCapacity int);
+            INSERT @t EXEC dbo.usp_AvailableTables @StartsAt='2030-01-08T11:00:00',@GuestCount=1;
+            SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM @t WHERE Id=50) AND EXISTS(SELECT 1 FROM @t WHERE Id=51) THEN 1 ELSE 0 END;
+            """);
+
+        // Khách đặt bàn (usp_CreateReservation): nghỉ 10 phút sau lượt Chờ xác nhận → từ chối; nghỉ đúng 15 phút sau lượt Đã xác nhận → nhận.
+        await Reject(connection, "Customer booking with a break under 15 minutes after a pending reservation is rejected",
+            "EXEC dbo.usp_CreateReservation @CustomerName=N'Nghỉ 10 phút',@Phone='0983000003',@GuestCount=1,@StartsAt='2030-01-08T11:00:00',@TableId=50;", 51414);
+        await Check(connection, "Rejected booking stores nothing", "SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM dbo.Reservations WHERE Phone='0983000003') THEN 1 ELSE 0 END");
+        await DatabaseTool.Execute(connection, "EXEC dbo.usp_CreateReservation @CustomerName=N'Nghỉ đúng 15 phút',@Phone='0983000004',@GuestCount=1,@StartsAt='2030-01-08T11:00:00',@TableId=51;");
+        await Check(connection, "Customer booking exactly 15 minutes after a confirmed reservation is accepted",
+            "SELECT CASE WHEN EXISTS(SELECT 1 FROM dbo.Reservations WHERE TableId=51 AND CustomerName=N'Nghỉ đúng 15 phút' AND Status='Pending' AND StartsAt='2030-01-08T11:00:00') THEN 1 ELSE 0 END");
+
+        // Lượt mới vừa nhận cũng giữ bàn: lượt Đã xác nhận chồng lên nó bị từ chối (Chờ xác nhận chặn Đã xác nhận).
+        await Reject(connection, "Pending reservation blocks an overlapping confirmed reservation",
+            "EXEC dbo.usp_CreateManagedTableReservation @TableId=51,@StartsAt='2030-01-08T12:00:00',@CustomerName=N'Chồng lên',@Phone='0983000005',@InitialStatus='Confirmed',@ActorUserId=1;", 51060);
+
+        // Bỏ qua giao diện và thủ tục: ghi SQL trực tiếp vào khoảng dọn bàn vẫn bị ràng buộc database từ chối.
+        await Reject(connection, "Direct SQL insert inside the cleaning buffer is rejected by the database constraint",
+            "INSERT dbo.Reservations(Code,CustomerName,Phone,GuestCount,TableId,StartsAt,EndsAt,Status) VALUES('S23B01',N'Ghi trực tiếp','0983000006',1,50,'2030-01-08T11:00:00','2030-01-08T12:30:00','Pending');", 51060);
+        await Reject(connection, "Direct SQL update moving a reservation into the cleaning buffer is rejected",
+            "UPDATE dbo.Reservations SET StartsAt='2030-01-08T09:00:00',EndsAt='2030-01-08T10:30:00' WHERE TableId=51 AND CustomerName=N'Nghỉ đúng 15 phút';", 51060);
+        await DatabaseTool.Execute(connection, "INSERT dbo.Reservations(Code,CustomerName,Phone,GuestCount,TableId,StartsAt,EndsAt,Status) VALUES('S23B02',N'Đúng mốc trực tiếp','0983000007',1,50,'2030-01-08T11:05:00','2030-01-08T12:35:00','Pending');");
+        await Check(connection, "Direct SQL insert at the exact end of the cleaning buffer is accepted",
+            "SELECT CASE WHEN EXISTS(SELECT 1 FROM dbo.Reservations WHERE Code='S23B02' AND TableId=50) THEN 1 ELSE 0 END");
     }
 
     private static async Task VerifyManagedReservationConcurrencyAndSuggestions(string connection)

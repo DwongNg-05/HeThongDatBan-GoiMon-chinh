@@ -23,7 +23,7 @@ public static class VerificationEmail
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f1f1;padding:24px 12px">
                 <tr><td align="center">
                   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:16px;overflow:hidden">
-                    <tr><td style="background:#c92d3e;padding:18px 24px;color:#ffffff;font-size:20px;font-weight:700">Bếp Nhà · Hệ thống nhà hàng</td></tr>
+                    {EmailBranding.Header("Mã xác minh đăng nhập", "#c92d3e")}
                     <tr><td style="padding:28px 24px 8px;font-size:16px;line-height:1.6">
                       <p style="margin:0 0 12px">Xin chào <strong>{name}</strong>,</p>
                       <p style="margin:0 0 20px">Đây là <strong>mã xác minh đăng nhập</strong> của bạn. Hãy nhập mã này vào màn hình xác minh để tiếp tục:</p>
