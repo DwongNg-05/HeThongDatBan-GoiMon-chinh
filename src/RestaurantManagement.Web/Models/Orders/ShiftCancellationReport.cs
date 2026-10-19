@@ -9,7 +9,7 @@ namespace RestaurantManagement.Web.Models.Orders;
 public sealed record ShiftOption(long Id, string Name, DateTime BusinessDate, DateTime OpenedAtUtc, DateTime? ClosedAtUtc, string Status)
 {
     public string Label =>
-        $"{Name} · {BusinessDate:dd/MM/yyyy} · mở {VietnamTime.FromUtc(OpenedAtUtc):HH:mm}" +
+        $"{Name} · {BusinessDate:dd'/'MM'/'yyyy} · mở {VietnamTime.FromUtc(OpenedAtUtc):HH:mm}" +
         (ClosedAtUtc is { } closed ? $", chốt {VietnamTime.FromUtc(closed):HH:mm}" : " · đang mở");
 }
 
@@ -23,7 +23,7 @@ public sealed record ShiftCancellationEntry(string Kind, DateTime OccurredAtUtc,
 {
     public bool IsCancelled => Kind == "Cancelled";
     public string KindLabel => !IsCancelled ? "Bị từ chối" : ChargeWhenCancelled == true ? OrderCancelRules.ChargedLabel : "Đã hủy";
-    public string OccurredAtLabel => VietnamTime.FromUtc(OccurredAtUtc).ToString("HH:mm:ss dd/MM/yyyy");
+    public string OccurredAtLabel => VietnamTime.FromUtc(OccurredAtUtc).ToString("HH:mm:ss dd'/'MM'/'yyyy");
     public string OrderLabel => BillSessionId is null
         ? "Không xác định"
         : $"Hoá đơn #{BillSessionId}" + (TableCode is null ? "" : $" · Bàn {TableCode}") + (BatchNumber is null ? "" : $" · Đợt {BatchNumber}");

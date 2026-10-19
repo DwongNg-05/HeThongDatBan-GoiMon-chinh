@@ -92,7 +92,7 @@ public sealed record TableStatusDisplay(string Label, string CssClass)
             // Dùng màu đang phục vụ hiện có.
             "AwaitingPayment" => new("Chờ thanh toán", "serving"),
 
-            "Cleaning" => new("Đang dọn", "cleaning"),
+            "Cleaning" => new("Cần dọn", "cleaning"),
             _ => new("Không xác định", "unknown")
         };
     }

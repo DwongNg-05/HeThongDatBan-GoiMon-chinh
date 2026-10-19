@@ -55,7 +55,9 @@ internal static class RoleNavigationTests
         static bool Own(string key, params string[] prefixes) => prefixes.Any(p => key.StartsWith(p, StringComparison.Ordinal));
         var kitchenExtra = Allowed("Kitchen").Where(k => !Own(k, "Kitchen.", "Account.")).ToArray();
         // S3-04 Task 4: Thu ngân xem thêm hoá đơn tạm tính (chỉ đọc).
-        var cashierExtra = Allowed("Cashier").Where(k => !Own(k, "Cashier.", "ProvisionalBill.", "Account.")).ToArray();
+        // S4-04: chốt ca là phần việc của Thu ngân. Controller giữ tên ShiftClosing nên phải
+        // được tính cùng phạm vi Cashier, không phải một API vượt quyền.
+        var cashierExtra = Allowed("Cashier").Where(k => !Own(k, "Cashier.", "ShiftClosing.", "ProvisionalBill.", "Account.")).ToArray();
         check(kitchenExtra.Length == 0, "Server scope: kitchen can only call kitchen APIs and its own account" + (kitchenExtra.Length > 0 ? ": " + string.Join(", ", kitchenExtra) : ""));
         check(cashierExtra.Length == 0, "Server scope: cashier can only call cashier APIs, the provisional bill and its own account" + (cashierExtra.Length > 0 ? ": " + string.Join(", ", cashierExtra) : ""));
         check(!ApiAccessMatrix.IsAllowed(ApiAccessMatrix.All.Single(e => e.Key == "Kitchen.Advance POST"), "Manager")
@@ -78,7 +80,7 @@ internal static class RoleNavigationTests
             "Server scope: cooking status is Kitchen only; payments are not for Kitchen; sold-out-today only in dish management (Manager); \"Tạm hết\" toggle for Kitchen and Manager; table map and dish management are not for Kitchen/Cashier");
 
         // S1-04 Task 1: Phục vụ chỉ gọi được API sơ đồ bàn, đặt bàn, gọi món (và tài khoản của chính mình).
-        var waiterExtra = Allowed("Waiter").Where(k => !Own(k, "Account.", "Home.Index", "TableDetails.", "TableStatus.", "TableMap.", "Reservations.", "ReservationConfirmations.", "ReservationManagement.", "ReservationAlerts.", "Page /Ordering/", "Page /Orders/", "Serving.", "ProvisionalBill.", "ProvisionalBillApi.")).ToArray();
+        var waiterExtra = Allowed("Waiter").Where(k => !Own(k, "Account.", "Home.Index", "TableDetails.", "TableStatus.", "TableMap.", "TableCleaning.", "Reservations.", "ReservationConfirmations.", "ReservationManagement.", "ReservationReminders.", "ReservationAlerts.", "Page /Ordering/", "Page /Orders/", "Serving.", "ProvisionalBill.", "ProvisionalBillApi.")).ToArray();
         check(waiterExtra.Length == 0, "Server scope: waiter can only call table map, reservation, ordering, serving-queue and provisional-bill APIs and its own account" + (waiterExtra.Length > 0 ? ": " + string.Join(", ", waiterExtra) : ""));
         ApiEndpoint Api(string key) => ApiAccessMatrix.All.Single(e => e.Key == key);
         var waiterBlocked = new[]

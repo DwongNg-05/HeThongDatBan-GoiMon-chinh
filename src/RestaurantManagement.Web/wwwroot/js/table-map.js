@@ -16,7 +16,7 @@
         Reserved: 'Đã đặt trước',
         Serving: 'Đang phục vụ',
         AwaitingPayment: 'Chờ thanh toán',
-        Cleaning: 'Đang dọn',
+        Cleaning: 'Cần dọn',
         Unknown: 'Không xác định'
     };
     let selectedDetailCode = null;
@@ -86,7 +86,7 @@
             : reserved
                 ? 'Bàn đã giữ cho lượt đặt sắp tới.'
                 : cleaning
-                    ? 'Bàn đang được dọn; chưa có phiên phục vụ hiện tại.'
+                    ? 'Bàn cần được dọn trước khi đón khách tiếp theo; chưa có phiên phục vụ hiện tại.'
                     : 'Bàn đang trống.';
 
         const reservationPanel = byId('details-reservation');
@@ -384,28 +384,6 @@
         connectionIndicator.classList.remove('connected');
     });
 
-    document.querySelectorAll('[data-status-editor]').forEach(editor => {
-        editor.addEventListener('change', async () => {
-            const card = editor.closest('[data-table-code]');
-            const previous = card.dataset.status;
-            editor.disabled = true;
-            try {
-                const response = await fetch(`${apiUrl}/${encodeURIComponent(card.dataset.tableCode)}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ status: editor.value })
-                });
-                if (!response.ok) throw new Error('Không cập nhật được trạng thái bàn.');
-                applyStatus(await response.json());
-                connectionLabel.textContent = 'Đang đồng bộ trực tiếp';
-            } catch {
-                editor.value = previous;
-                connectionLabel.textContent = 'Chưa gửi được cập nhật; hãy thử lại';
-            } finally {
-                editor.disabled = false;
-            }
-        });
-    });
     // ---------- S3-09 Task 1: cảnh báo đặt bàn trễ 15 phút + "Đánh dấu khách không tới" ----------
     // ---------- S3-09 Task 2: "Gia hạn 15 phút" (một lần) + khung "Đang gia hạn giữ bàn" với thời hạn mới ----------
     // Tải cảnh báo ngay, rồi tải lại đúng lúc lượt kế tiếp đạt mốc (theo đồng hồ máy chủ) hoặc tối đa 30 giây/lần,

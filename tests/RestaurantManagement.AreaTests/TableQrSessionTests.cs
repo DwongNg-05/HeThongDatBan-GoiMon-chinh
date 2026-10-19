@@ -38,7 +38,7 @@ static class TableQrSessionTests
         foreach (var (outcome, title, status) in new[]
         {
             (QrStartOutcome.TableReserved, "Bàn đã được đặt trước", 409), (QrStartOutcome.TableBusy, "Bàn đang được phục vụ", 409),
-            (QrStartOutcome.TableCleaning, "Bàn đang được dọn", 409), (QrStartOutcome.NoShift, "Nhà hàng chưa nhận gọi món", 409),
+            (QrStartOutcome.TableCleaning, "Bàn cần dọn", 409), (QrStartOutcome.NoShift, "Nhà hàng chưa nhận gọi món", 409),
             (QrStartOutcome.OutsideOpeningHours, "Nhà hàng đang ngoài giờ hoạt động", 409),
             (QrStartOutcome.AwaitingPayment, "Bàn đang chờ thanh toán", 409),
             (QrStartOutcome.SystemBusy, "Hệ thống đang bận", 503)
@@ -260,7 +260,7 @@ static class TableQrSessionTests
             && new GuestOrderedItem(1, DateTime.UtcNow, "A", "Phần", 1, 1, null, "Pending", true, OrderSource.Staff).SourceLabel == "Nhân viên gọi",
             "QR join: each batch shows who ordered it (this phone, another guest at the table, staff)");
 
-        // S3-01 Task 3: mã đã thay / bàn đang dọn và hướng dẫn gọi phục vụ.
+        // S3-01 Task 3: mã đã thay / bàn cần dọn và hướng dẫn gọi phục vụ.
         var replaced = new TableQrLookup(1, "A05", "Tầng một", 1, 4, "Standard", true, true, "Serving", 1, 2);
         var cleaningTable = new TableQrLookup(1, "A05", "Tầng một", 1, 4, "Standard", true, false, "Cleaning", 2, 2);
         check(replaced.IsReplaced && !replaced.IsCleaning && cleaningTable.IsCleaning && !cleaningTable.IsReplaced,

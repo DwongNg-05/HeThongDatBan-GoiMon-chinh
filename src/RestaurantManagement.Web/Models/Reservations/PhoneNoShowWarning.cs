@@ -29,7 +29,9 @@ public static class PhoneNoShowRules
 
     public static string WarningMessage(int noShowCount, DateTime? lastNoShowAtUtc)
     {
-        var last = lastNoShowAtUtc is { } at ? $" (gần nhất ngày {VietnamTime.FromUtc(at):dd/MM/yyyy})" : "";
+        // Dùng dấu gạch chéo literal để thông điệp nhất quán, không phụ thuộc DateSeparator
+        // của máy chủ chạy ứng dụng (một số cấu hình vi-VN trả về dấu gạch ngang).
+        var last = lastNoShowAtUtc is { } at ? $" (gần nhất ngày {VietnamTime.FromUtc(at):dd'/'MM'/'yyyy})" : "";
         return $"Số điện thoại này có {noShowCount} lần khách không tới trong {WindowDays} ngày gần nhất{last}. " +
                "Hãy trao đổi lại với khách trước khi tạo đặt bàn.";
     }

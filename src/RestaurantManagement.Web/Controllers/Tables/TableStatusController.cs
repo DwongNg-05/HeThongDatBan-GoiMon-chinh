@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Authorization;
 using RestaurantManagement.Web.Security;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
-using RestaurantManagement.Web.Models;
 using RestaurantManagement.Web.Services;
 
 namespace RestaurantManagement.Web.Controllers;
@@ -28,23 +27,17 @@ public sealed class TableStatusController(TableMapStore tableMap, TableMapEventB
         }
     }
 
-    // Ghi trạng thái vào dbo.DiningTables; trigger + TableStatusOutboxWorker đẩy thay đổi tới mọi sơ đồ đang mở.
+    // Trạng thái bàn là kết quả của quy trình nghiệp vụ (quét QR/mở phiên, xác nhận đặt bàn,
+    // thanh toán và báo dọn xong). Không cho sửa trực tiếp vì có thể tạo bàn "Đang phục vụ"
+    // nhưng không có DiningSession, khiến cả khách và phục vụ đều không thể gọi thêm món.
     [HttpPost("{code}")]
     [Authorize(Roles = AppRoles.FrontOfHouse)]
-    public async Task<IActionResult> Update(string code, [FromBody] UpdateTableStatusRequest request, CancellationToken cancellationToken)
+    public IActionResult Update(string code, [FromBody] UpdateTableStatusRequest request)
     {
-        DiningTableCard? table;
-        try
+        return Conflict(new
         {
-            table = await tableMap.UpdateStatusAsync(code, request.Status, cancellationToken);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            return StatusCode(StatusCodes.Status499ClientClosedRequest);
-        }
-        return table is null
-            ? BadRequest(new { message = "Mã bàn hoặc trạng thái không hợp lệ, hoặc bàn/khu vực đã ngừng hoạt động." })
-            : Ok(table);
+            message = "Không thể đổi trạng thái bàn thủ công. Hãy quét QR để mở phiên, xác nhận đặt bàn, thanh toán hoặc báo đã dọn xong theo đúng quy trình."
+        });
     }
 
     [HttpGet("stream")]

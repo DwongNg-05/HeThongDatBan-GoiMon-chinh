@@ -80,7 +80,7 @@ var expectedStatuses = new Dictionary<string, (string Label, string CssClass)>
     ["Available"] = ("Trống", "available"),
     ["Reserved"] = ("Đã đặt trước", "reserved"),
     ["Serving"] = ("Đang phục vụ", "serving"),
-    ["Cleaning"] = ("Đang dọn", "cleaning")
+    ["Cleaning"] = ("Cần dọn", "cleaning")
 };
 foreach (var (status, expected) in expectedStatuses)
 {

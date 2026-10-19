@@ -10,7 +10,7 @@
             && Date.parse(warning.startedAtUtc) >= Date.parse(card.dataset.changedAt);
         badge.hidden = !visible;
         card.classList.toggle('has-cleaning-warning', Boolean(visible));
-        if (visible) badge.textContent = 'Cảnh báo: Đang dọn quá 10 phút';
+        if (visible) badge.textContent = 'Cảnh báo: Cần dọn quá 10 phút';
     }
     document.querySelectorAll('.table-card[data-table-code]').forEach(card => {
         const badge = document.createElement('div');

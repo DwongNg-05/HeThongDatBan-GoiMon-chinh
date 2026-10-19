@@ -1,7 +1,7 @@
 namespace RestaurantManagement.Web.Models.Tables;
 
 /// <summary>
-/// S3-01 Task 3: hướng dẫn gọi phục vụ khi khách không mở được phiên gọi món (mã QR đã thay, bàn đang dọn, ...).
+/// S3-01 Task 3: hướng dẫn gọi phục vụ khi khách không mở được phiên gọi món (mã QR đã thay, bàn cần dọn, ...).
 /// Hiển thị mã bàn (nếu biết) để khách đọc cho nhân viên và nút gọi điện cho nhà hàng (nếu đã cấu hình số).
 /// </summary>
 public sealed record CallStaffViewModel(string? TableCode, string? RestaurantPhone)

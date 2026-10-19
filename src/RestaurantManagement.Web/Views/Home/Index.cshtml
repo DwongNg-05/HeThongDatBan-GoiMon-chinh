@@ -80,14 +80,6 @@
                                 <span class="table-group-label" hidden="@(table.Group is null)">@(table.Group is null ? "" : "Nhóm " + table.Group.Label)</span>
                                 <span class="table-capacity"><span class="person-icon"><i class="fa-solid fa-user-group" aria-hidden="true"></i></span> @table.Capacity chỗ</span>
                             </button>
-                            <label class="visually-hidden" for="status-@table.Code">Cập nhật trạng thái bàn @table.Code</label>
-                            <select class="table-status-editor" id="status-@table.Code" data-status-editor aria-label="Cập nhật trạng thái bàn @table.Code">
-                                <option value="Available" selected="@(table.Status == "Available")">Trống</option>
-                                <option value="Reserved" selected="@(table.Status == "Reserved")">Đã đặt trước</option>
-                                <option value="Serving" selected="@(table.Status == "Serving")">Đang phục vụ</option>
-                                <option value="AwaitingPayment" selected="@(table.Status == "AwaitingPayment")" disabled>Chờ thanh toán</option>
-                                <option value="Cleaning" selected="@(table.Status == "Cleaning")">Đang dọn</option>
-                            </select>
                             <div class="table-late" data-late-slot hidden></div>
                         </article>
                     }

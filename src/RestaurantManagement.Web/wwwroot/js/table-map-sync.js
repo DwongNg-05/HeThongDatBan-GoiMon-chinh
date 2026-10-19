@@ -20,7 +20,7 @@
         Reserved: ['Đã đặt trước', 'reserved'],
         Serving: ['Đang phục vụ', 'serving'],
         AwaitingPayment: ['Chờ thanh toán', 'serving'],
-        Cleaning: ['Đang dọn', 'cleaning']
+        Cleaning: ['Cần dọn', 'cleaning']
     };
 
     let cursor = root.dataset.cursor;

@@ -25,7 +25,7 @@ public sealed class DiningTableListItemViewModel
         "Available" => "Trống",
         "Reserved" => "Đã đặt trước",
         "Serving" => "Đang phục vụ",
-        "Cleaning" => "Đang dọn",
+        "Cleaning" => "Cần dọn",
         _ => Status
     };
 }

@@ -9,7 +9,7 @@ namespace RestaurantManagement.Web.Controllers;
 /// Public, anonymous endpoint encoded in printed table QR codes.
 /// S3-01 Task 1: GET chỉ kiểm tra mã và hiển thị bàn (an toàn khi ứng dụng chat/trình duyệt tải trước đường dẫn);
 /// trình duyệt của khách tự gửi POST cùng địa chỉ để mở phiên gọi món rồi chuyển tới /TableOrder.
-/// S3-01 Task 3: mã đã bị sinh lại hoặc bàn đang dọn → không mở phiên, hiện thông báo kèm hướng dẫn gọi phục vụ.
+/// S3-01 Task 3: mã đã bị sinh lại hoặc bàn cần dọn → không mở phiên, hiện thông báo kèm hướng dẫn gọi phục vụ.
 /// </summary>
 [AllowAnonymous]
 [Route("q")]
@@ -25,7 +25,7 @@ public sealed class TableQrController(TableQrService qrService, GuestTableSessio
         if (qr.IsReplaced)
             return await ChangedPage(qr);
 
-        // S3-01 Task 3: kiểm tra trạng thái bàn ngay khi mở đường dẫn — bàn đang dọn thì báo luôn, không tự gửi yêu cầu mở phiên.
+        // S3-01 Task 3: kiểm tra trạng thái bàn ngay khi mở đường dẫn — bàn cần dọn thì báo luôn, không tự gửi yêu cầu mở phiên.
         if (qr.IsCleaning)
             return await UnavailablePage(QrStartOutcome.TableCleaning, token, qr);
 
@@ -48,7 +48,7 @@ public sealed class TableQrController(TableQrService qrService, GuestTableSessio
     /// S3-01 Task 1: mở (hoặc vào lại) phiên gọi món của bàn. Bàn trống → tạo đúng một phiên mới và chuyển
     /// "Đang phục vụ" trong cùng giao dịch SQL. Quét/bấm lặp không tạo thêm phiên.
     /// S3-01 Task 3: thủ tục SQL đối chiếu lại mã với phiên bản hiện tại và trạng thái bàn trong cùng giao dịch,
-    /// nên mã cũ / bàn đang dọn bị chặn kể cả khi trang GET đã mở từ trước.
+    /// nên mã cũ / bàn cần dọn bị chặn kể cả khi trang GET đã mở từ trước.
     /// </summary>
     [HttpPost("{token}")]
     [ValidateAntiForgeryToken]

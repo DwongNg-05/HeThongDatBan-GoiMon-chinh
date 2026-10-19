@@ -26,7 +26,7 @@ internal static class ApiAuthorizationVerification
     /// </summary>
     internal static readonly Dictionary<string, string> ScreenPaths = new()
     {
-        ["daily-overview"] = "/Reports/Today",
+        ["daily-overview"] = "/Reports/Today", ["menu-performance"] = "/Reports/MenuPerformance",
         ["reservations"] = "/ReservationManagement", ["areas"] = "/Areas", ["table-map"] = "/", ["opening-hours"] = "/OpeningHours",
         ["privacy"] = "/Home/Privacy", ["dish-categories"] = "/DishCategories", ["dishes"] = "/Dishes", ["menu"] = "/Menu",
         ["ordering"] = "/Ordering", ["serving-queue"] = "/Serving", ["kitchen-orders"] = "/Kitchen", ["daily-dishes"] = "/Kitchen/Dishes",
@@ -52,7 +52,7 @@ internal static class ApiAuthorizationVerification
     /// </summary>
     internal static readonly Dictionary<string, (string Landing, string[] Nav)> ExpectedNavigation = new()
     {
-        ["Manager"] = ("/", new[] { "daily-overview", "reservations", "areas", "table-map", "opening-hours", "privacy", "dish-categories", "dishes", "menu", "ordering", "serving-queue",
+        ["Manager"] = ("/", new[] { "daily-overview", "menu-performance", "reservations", "areas", "table-map", "opening-hours", "privacy", "dish-categories", "dishes", "menu", "ordering", "serving-queue",
             "kitchen-orders", "daily-dishes", "cashier-payments", "cashier-invoices", "cashier-shift", "employee-accounts", "audit-logs", "shift-cancellations", "permission-matrix" }),
         ["Waiter"] = ("/", new[] { "reservations", "table-map", "ordering", "serving-queue" }),
         ["Kitchen"] = ("/Kitchen", new[] { "kitchen-orders", "daily-dishes" }),

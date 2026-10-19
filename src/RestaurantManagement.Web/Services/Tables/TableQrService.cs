@@ -232,7 +232,7 @@ public sealed record TableQrLookup(
     /// <summary>S3-01 Task 3: mã khách quét không còn là phiên bản hiện tại của bàn (đã bị sinh lại).</summary>
     public bool IsReplaced => IsRevoked;
 
-    /// <summary>S3-01 Task 3: bàn đang dọn — không nhận khách mở phiên.</summary>
+    /// <summary>S3-01 Task 3: bàn cần dọn — không nhận khách mở phiên.</summary>
     public bool IsCleaning => Status == "Cleaning";
 }
 
