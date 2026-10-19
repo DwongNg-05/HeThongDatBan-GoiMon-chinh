@@ -6,7 +6,7 @@
     @if (Model.HasConflict)
     {
         <div class="alert alert-warning">
-            <strong>Bàn vừa có người đặt.</strong>
+            <strong>Bàn đã có người đặt.</strong> Thông tin bạn nhập vẫn được giữ nguyên, chỉ cần chọn giờ khác.
             @if (Model.SuggestedStartTimes.Count > 0)
             {
                 <span> Các giờ gần nhất còn trống:</span>

@@ -237,9 +237,54 @@ public class ReservationStore
 				SqlDbType.NVarChar,
 				500)
 			.Value =
-				"Khách huỷ trực tuyến";
+				BookingConfirmationEmail.OnlineCancelReason;
 
 		await command.ExecuteNonQueryAsync();
+	}
+
+	/// <summary>
+	/// Mã lượt đặt bàn (dbo.Reservations.Id) theo cặp mã đặt bàn + số điện thoại;
+	/// dùng để gửi ngay email "Huỷ đặt bàn thành công" sau khi khách tự huỷ.
+	/// </summary>
+	public async Task<long?> FindReservationIdAsync(
+		string code,
+		string phone)
+	{
+		var normalizedPhone =
+			ReservationPhoneNormalizer.Normalize(phone);
+
+		var normalizedCode =
+			code.Trim().ToUpperInvariant();
+
+		if (normalizedPhone is null ||
+			normalizedCode.Length != 6)
+		{
+			return null;
+		}
+
+		await using var connection =
+			new SqlConnection(_connectionString);
+
+		await connection.OpenAsync();
+
+		await using var command =
+			new SqlCommand(
+				"SELECT TOP (1) Id FROM dbo.Reservations WHERE Code = @Code AND Phone = @Phone;",
+				connection);
+
+		command.Parameters
+			.Add("@Code", SqlDbType.Char, 6)
+			.Value = normalizedCode;
+
+		command.Parameters
+			.Add("@Phone", SqlDbType.VarChar, 10)
+			.Value = normalizedPhone;
+
+		var value = await command.ExecuteScalarAsync();
+
+		return value is null or DBNull
+			? null
+			: Convert.ToInt64(value);
 	}
 
 	public async Task<string?> GetCancellationEmailStatusAsync(

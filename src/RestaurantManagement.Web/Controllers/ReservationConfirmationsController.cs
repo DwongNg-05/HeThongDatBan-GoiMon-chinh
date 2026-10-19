@@ -95,7 +95,7 @@ public sealed class ReservationConfirmationsController(ReservationConfirmationSe
         catch(SqlException ex) when(ex.Number==51001) { return Forbid(); }
     }
     [HttpPost,ValidateAntiForgeryToken]
-    public async Task<IActionResult> Reject(long id,string? reason,CancellationToken ct)
+    public async Task<IActionResult> Reject(long id,string? reason,[FromServices] BookingEmailDispatcher bookingEmails,CancellationToken ct)
     {
         if(reason is null || !RejectionReasons.Labels.ContainsKey(reason))
             ModelState.AddModelError("","Vui lòng chọn một trong ba lý do từ chối hợp lệ.");
@@ -104,7 +104,9 @@ public sealed class ReservationConfirmationsController(ReservationConfirmationSe
             if(ModelState.IsValid)
             {
                 await service.Reject(Actor,id,reason,ct);
-                TempData["Success"]="Đã từ chối lượt đặt. Khách có thể tra cứu lý do bằng mã đặt bàn và số điện thoại.";
+                // Gửi ngay email báo từ chối kèm lý do (đã xếp hàng trong usp_RejectReservation). Gửi lỗi thì tự gửi lại sau.
+                var email=await bookingEmails.SendBookingRejectedAsync(id);
+                TempData["Success"]=ConfirmationEmailNotice.AfterReject(email);
                 return RedirectToAction(nameof(Index));
             }
         }
@@ -122,6 +124,13 @@ public sealed class ReservationConfirmationsController(ReservationConfirmationSe
 /// <summary>Thông báo cho nhân viên sau khi xác nhận lượt đặt: kết quả gửi email cho khách.</summary>
 public static class ConfirmationEmailNotice
 {
+    public static string AfterReject(BookingEmailResult email) => "Đã từ chối lượt đặt. " + email.Outcome switch
+    {
+        BookingEmailOutcome.Sent => $"Đã gửi email báo từ chối kèm lý do tới {BookingSuccessViewModel.MaskEmail(email.Recipient) ?? "khách"}.",
+        BookingEmailOutcome.Failed => "Email báo từ chối chưa gửi được; hệ thống sẽ tự gửi lại sau 5 phút.",
+        _ => "Khách không để lại email — hãy gọi điện báo cho khách. Khách cũng có thể tra cứu lý do bằng mã đặt bàn và số điện thoại."
+    };
+
     public static string AfterConfirm(BookingEmailResult email) => "Đã xác nhận lượt đặt và giữ bàn trong khung giờ hẹn. " + email.Outcome switch
     {
         BookingEmailOutcome.Sent => $"Đã gửi email kèm mã đặt bàn tới {BookingSuccessViewModel.MaskEmail(email.Recipient) ?? "khách"}.",

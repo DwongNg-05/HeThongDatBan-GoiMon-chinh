@@ -72,7 +72,7 @@ public sealed class SecurityAuditFilter
     public const int DefaultDays = 7;
     public const int MaxDays = 90;
     /// <summary>Số dòng mỗi trang trên màn hình Nhật ký hệ thống.</summary>
-    public const int PageSize = 50;
+    public const int PageSize = 20;
     /// <summary>Trần số dòng một lần đọc của dbo.usp_SecurityAuditList (kích thước trang không vượt quá giá trị này).</summary>
     public const int RowLimit = 1000;
     public const int UnknownAccountsValue = 0;

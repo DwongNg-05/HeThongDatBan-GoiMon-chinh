@@ -678,7 +678,7 @@ public class ReservationsController : Controller
         {
             // Refresh a stale selection when an area was deactivated during submission.
             await LoadActiveAreas(model);
-            ModelState.AddModelError(ex.Number switch { 51413 or 51414 => nameof(model.TableId), 51407 or 51408 => nameof(model.PreferredAreaId), 51409 => nameof(model.GuestCount), 51003 or 51004 or 51410 or 51411 or 51412 => nameof(model.StartsAt), _ => string.Empty }, ex.Message);
+            ModelState.AddModelError(ex.Number switch { 51413 or 51414 or 51060 => nameof(model.TableId), 51407 or 51408 => nameof(model.PreferredAreaId), 51409 => nameof(model.GuestCount), 51003 or 51004 or 51410 or 51411 or 51412 => nameof(model.StartsAt), _ => string.Empty }, ex.Message);
             return View(model);
         }
 

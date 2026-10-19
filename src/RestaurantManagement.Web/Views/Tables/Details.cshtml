@@ -2,10 +2,12 @@
 @{ ViewData["Title"] = "Mã QR bàn " + Model.TableCode; }
 @section Styles {
     <link rel="stylesheet" href="~/css/area-tables.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/table-luxe.css" asp-append-version="true" />
 }
 
+<div class="at-luxe">
 <a asp-controller="Areas" asp-action="Index" class="at-back">← Quay lại Khu vực &amp; bàn</a>
-<div class="d-flex flex-wrap gap-3 justify-content-between align-items-center mt-2 mb-3">
+<div class="d-flex flex-wrap gap-3 justify-content-between align-items-center mt-2 mb-4">
     <div>
         <h1 class="h2 mb-1">Bàn @Model.TableCode</h1>
         <p class="text-muted mb-0">In mã QR bên dưới và dán lên bàn. Khách quét mã bằng điện thoại để xem thực đơn và gọi món.</p>
@@ -25,59 +27,62 @@
     <div class="alert alert-danger" role="alert">@TempData["Error"]</div>
 }
 
-<div class="row g-4">
-    <div class="col-lg-5">
-        <div class="card h-100 border-0 shadow-sm">
-            <div class="card-body">
-                <h3 class="h5">Thông tin bàn</h3>
-                <dl class="row mb-0">
-                    <dt class="col-sm-5">Khu vực</dt><dd class="col-sm-7">@Model.AreaName</dd>
-                    <dt class="col-sm-5">Số khách</dt><dd class="col-sm-7">@Model.CapacityLabel</dd>
-                    <dt class="col-sm-5">Loại bàn</dt><dd class="col-sm-7">@Model.TableTypeLabel</dd>
-                    <dt class="col-sm-5">Tình trạng</dt><dd class="col-sm-7">@Model.StatusLabel</dd>
-                    <dt class="col-sm-5">Sử dụng</dt><dd class="col-sm-7">@(Model.IsActive ? "Đang dùng" : "Ngừng dùng")</dd>
-                </dl>
-                @if (User.IsInRole("Manager"))
-                {
-                    <form asp-action="Delete" asp-route-id="@Model.TableId" method="post" class="mt-3"
-                          data-confirm="Xoá bàn @Model.TableCode? Bàn đã có lịch sử sẽ được chuyển sang &quot;Ngừng sử dụng&quot; thay vì xoá hẳn."
-                          onsubmit="return confirm(this.dataset.confirm);">
-                        <button type="submit" class="btn btn-outline-danger">Xoá bàn</button>
-                    </form>
-                }
+<div class="td-grid">
+    <section class="td-card td-info" aria-labelledby="td-info-title">
+        <h2 id="td-info-title" class="td-title">Thông tin bàn</h2>
+        <dl class="td-facts">
+            <div class="td-fact"><dt>Mã bàn</dt><dd class="td-code">@Model.TableCode</dd></div>
+            <div class="td-fact"><dt>Khu vực</dt><dd>@Model.AreaName</dd></div>
+            <div class="td-fact"><dt>Số khách</dt><dd>@Model.CapacityLabel</dd></div>
+            <div class="td-fact"><dt>Loại bàn</dt><dd>@Model.TableTypeLabel</dd></div>
+            <div class="td-fact"><dt>Tình trạng</dt><dd>@Model.StatusLabel</dd></div>
+            <div class="td-fact"><dt>Sử dụng</dt><dd>@(Model.IsActive ? "Đang dùng" : "Ngừng dùng")</dd></div>
+        </dl>
+        @if (User.IsInRole("Manager"))
+        {
+            <div class="td-card-foot">
+                <form asp-action="Delete" asp-route-id="@Model.TableId" method="post"
+                      data-confirm="Xoá bàn @Model.TableCode? Bàn đã có lịch sử sẽ được chuyển sang &quot;Ngừng sử dụng&quot; thay vì xoá hẳn."
+                      onsubmit="return confirm(this.dataset.confirm);">
+                    <button type="submit" class="btn btn-outline-danger"><i class="fa-solid fa-trash-can" aria-hidden="true"></i> Xoá bàn</button>
+                </form>
             </div>
-        </div>
-    </div>
-    <div class="col-lg-7">
-        <div class="card h-100 border-0 shadow-sm">
-            <div class="card-body text-center">
-                <h3 class="h5">Mã QR của bàn</h3>
-                @if (Model.HasQr)
-                {
-                    <img src="@Url.Action("QrImage", "Tables", new { id = Model.TableId })" alt="Mã QR cho bàn @Model.TableCode" class="img-fluid border rounded p-2 bg-white" style="max-width: 300px" />
-                    <p class="small text-muted mt-3">Khách quét mã này sẽ thấy đúng thông tin bàn @Model.TableCode.</p>
-                    <div class="d-flex justify-content-center gap-2 flex-wrap">
-                        <a asp-action="DownloadQrImage" asp-route-id="@Model.TableId" class="btn btn-primary">Tải ảnh QR để in</a>
-                        <a href="@Model.QrUrl" target="_blank" rel="noopener" class="btn btn-outline-secondary">Mở thử QR</a>
-                        <form asp-action="RotateQr" asp-route-id="@Model.TableId" method="post" class="d-inline" onsubmit="return confirm('Tạo mã QR mới? Mã QR đang dán trên bàn sẽ không dùng được nữa, bạn cần in và dán lại.');">
-                            @Html.AntiForgeryToken()
-                            <button type="submit" class="btn btn-outline-danger">Đổi mã QR mới</button>
-                        </form>
-                    </div>
-                    @if (Model.CreatedAt is not null)
-                    {
-                        <p class="small text-muted mt-3 mb-0">Mã hiện tại được tạo lúc @Model.CreatedAt.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm").</p>
-                    }
-                }
-                else
-                {
-                    <div class="alert alert-warning text-start">Bàn này chưa có mã QR. Bấm “Tạo mã QR” để tạo, sau đó tải ảnh về và in.</div>
-                    <form asp-action="GenerateQr" asp-route-id="@Model.TableId" method="post">
-                        @Html.AntiForgeryToken()
-                        <button type="submit" class="btn btn-primary">Tạo mã QR</button>
-                    </form>
-                }
+        }
+        <img src="~/images/brand/staff-photo.png" alt="" class="td-photo" aria-hidden="true" />
+    </section>
+
+    <section class="td-card td-qr" aria-labelledby="td-qr-title">
+        <h2 id="td-qr-title" class="td-title">Mã QR của bàn</h2>
+        @if (Model.HasQr)
+        {
+            <div class="td-qr-stage">
+                <div class="td-qr-frame">
+                    <img src="@Url.Action("QrImage", "Tables", new { id = Model.TableId })" alt="Mã QR cho bàn @Model.TableCode" />
+                </div>
             </div>
-        </div>
-    </div>
+            <p class="td-qr-note">Khách quét mã này sẽ thấy đúng thông tin bàn @Model.TableCode.</p>
+            <div class="td-qr-actions">
+                <a asp-action="DownloadQrImage" asp-route-id="@Model.TableId" class="btn btn-primary"><i class="fa-solid fa-download" aria-hidden="true"></i> Tải ảnh QR để in</a>
+                <a href="@Model.QrUrl" target="_blank" rel="noopener" class="btn btn-outline-secondary"><i class="fa-solid fa-qrcode" aria-hidden="true"></i> Mở thử QR</a>
+                <form asp-action="RotateQr" asp-route-id="@Model.TableId" method="post" onsubmit="return confirm('Tạo mã QR mới? Mã QR đang dán trên bàn sẽ không dùng được nữa, bạn cần in và dán lại.');">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-outline-danger"><i class="fa-solid fa-rotate" aria-hidden="true"></i> Đổi mã QR mới</button>
+                </form>
+            </div>
+            @if (Model.CreatedAt is not null)
+            {
+                <p class="td-qr-created">Mã hiện tại được tạo lúc @Model.CreatedAt.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm").</p>
+            }
+        }
+        else
+        {
+            <div class="alert alert-warning text-start w-100">Bàn này chưa có mã QR. Bấm “Tạo mã QR” để tạo, sau đó tải ảnh về và in.</div>
+            <form asp-action="GenerateQr" asp-route-id="@Model.TableId" method="post">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-primary">Tạo mã QR</button>
+            </form>
+        }
+        <img src="~/images/brand/chef-mouse.png" alt="" class="td-mascot" aria-hidden="true" />
+    </section>
+</div>
 </div>

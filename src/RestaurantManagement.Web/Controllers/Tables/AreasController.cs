@@ -44,7 +44,7 @@ public class AreasController(IConfiguration configuration) : Controller
                 FROM dbo.Reservations r
                 WHERE r.TableId=t.Id
                   AND r.Status IN ('Pending','Confirmed')
-                  AND r.StartsAt<=DATEADD(minute,30,SYSUTCDATETIME())
+                  AND (r.Status='Confirmed' OR r.StartsAt<=DATEADD(minute,30,SYSUTCDATETIME()))
                   AND DATEADD(minute,15,r.EndsAt)>SYSUTCDATETIME()
                 ORDER BY r.StartsAt,r.Id
             ) reservation
