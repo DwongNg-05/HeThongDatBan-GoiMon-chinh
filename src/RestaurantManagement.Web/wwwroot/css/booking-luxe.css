@@ -13,13 +13,13 @@
     --bk-line-strong: #c9c0b5;
     --bk-red: var(--m-red, #3c0102);
     --bk-red-dark: var(--m-red-dark, #260001);
-    --bk-serif: "Cormorant Garamond", "Times New Roman", Georgia, serif;
+    --bk-serif: "Playfair Display", "Times New Roman", Georgia, serif;
     --bk-sans: var(--m-font, "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif);
     --bk-ease: cubic-bezier(.215, .61, .355, 1);
 
     max-width: 1180px;
     margin: 0 auto;
-    /* Cormorant mặc định dùng số kiểu cổ (chữ số lên xuống như 0⁹); dùng số thẳng hàng cho ngày giờ, mã đặt bàn, số điện thoại. */
+    /* Dùng số thẳng hàng cho ngày giờ, mã đặt bàn, số điện thoại. */
     font-variant-numeric: lining-nums;
     font-feature-settings: "lnum" 1;
     padding: clamp(8px, 2vw, 24px) 0 clamp(40px, 6vw, 80px);
@@ -32,14 +32,14 @@
 
 /* ---------- Tiêu đề trang ---------- */
 .bk-hero { margin-bottom: clamp(32px, 4.5vw, 56px); text-align: center; }
-.bk-eyelet { margin: 0 0 14px; max-width: none; color: var(--bk-red); font-size: 12.5px; font-weight: 600; letter-spacing: .28em; text-transform: uppercase; }
+.bk-eyelet { margin: 0 0 14px; max-width: none; color: var(--bk-red); font-size: 12px; font-weight: 600; letter-spacing: .28em; text-transform: uppercase; }
 .bk-flower { display: inline-block; margin-right: 6px; letter-spacing: 0; }
 .bk-title {
     margin: 0; color: var(--bk-ink); font-family: var(--bk-serif); font-weight: 400;
-    font-size: clamp(46px, 6.4vw, 92px); line-height: .98; letter-spacing: -.01em;
+    font-size: clamp(40px, 5.5vw, 79px); line-height: 1.12; letter-spacing: -.01em;
 }
 .bk-title em { font-style: italic; }
-.bk-lead { max-width: 54ch; margin: 18px auto 0; color: var(--bk-muted); font-size: 16.5px; line-height: 1.8; }
+.bk-lead { max-width: 54ch; margin: 18px auto 0; color: var(--bk-muted); font-size: 16px; line-height: 1.8; }
 .bk-rule { display: block; width: 72px; height: 1px; margin: 28px auto 0; background: var(--bk-red); }
 
 /* ---------- Bố cục: ảnh + thông tin | khung đặt bàn ---------- */
@@ -52,11 +52,11 @@
 .bk-aside:hover .bk-aside__picture img { transform: scale(1.04); }
 .bk-aside__info { margin: 0; border-top: 1px solid var(--bk-line); }
 .bk-aside__info > div { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 12px; align-items: baseline; padding: 16px 0; border-bottom: 1px solid var(--bk-line); }
-.bk-aside__info dt { color: var(--bk-muted); font-size: 11.5px; font-weight: 600; letter-spacing: .22em; text-transform: uppercase; }
-.bk-aside__info dd { margin: 0; font-family: var(--bk-serif); font-size: 21px; line-height: 1.3; overflow-wrap: anywhere; }
+.bk-aside__info dt { color: var(--bk-muted); font-size: 12px; font-weight: 600; letter-spacing: .22em; text-transform: uppercase; }
+.bk-aside__info dd { margin: 0; font-family: var(--bk-serif); font-size: 18px; line-height: 1.3; overflow-wrap: anywhere; }
 .bk-aside__info a { text-decoration: none; }
 .bk-aside__info a:hover { color: var(--bk-red); }
-.bk-aside__note { margin: 22px 0 0; color: var(--bk-muted); font-size: 14.5px; line-height: 1.75; }
+.bk-aside__note { margin: 22px 0 0; color: var(--bk-muted); font-size: 14px; line-height: 1.75; }
 
 /* ---------- Khung giấy (viền đôi) ---------- */
 .bk-card {
@@ -72,7 +72,7 @@
 /* legend nổi (float) để nằm trong khung bước, không đè lên đường kẻ trên của fieldset. */
 .bk-step__head {
     float: left; width: 100%; display: flex; align-items: baseline; gap: 14px; margin: 0 0 22px; padding: 0;
-    font-family: var(--bk-serif); font-size: 27px; font-weight: 500; line-height: 1.2; color: var(--bk-ink);
+    font-family: var(--bk-serif); font-size: 23px; font-weight: 500; line-height: 1.2; color: var(--bk-ink);
 }
 .bk-step__head + * { clear: left; }
 .bk-step__no { color: var(--bk-red); font-family: var(--bk-sans); font-size: 12px; font-weight: 600; letter-spacing: .2em; }
@@ -82,7 +82,7 @@
 .bk-field { display: flex; flex-direction: column; min-width: 0; margin-bottom: 22px; }
 
 /* ---------- Ô nhập: chỉ gạch chân mảnh ---------- */
-.bk-page .bk-label { margin: 0 0 6px; color: var(--bk-muted); font-size: 11.5px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; }
+.bk-page .bk-label { margin: 0 0 6px; color: var(--bk-muted); font-size: 12px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; }
 .bk-page .bk-input, .bk-page .bk-input:disabled {
     box-sizing: border-box; width: 100%; min-height: 48px; padding: 10px 0; border: 0; border-bottom: 1px solid var(--bk-line-strong); border-radius: 0;
     background-color: transparent; box-shadow: none; color: var(--bk-ink); font-size: 17px;
@@ -110,7 +110,7 @@
 /* Kết quả kiểm tra lịch (booking-schedule.js đặt lớp text-success / text-danger / text-muted). */
 .bk-page #booking-schedule-feedback:not(:empty) {
     display: flex; gap: 10px; align-items: flex-start; margin: 0 0 14px !important; padding: 12px 16px;
-    border-left: 2px solid currentColor; background: rgba(28, 26, 25, .035); font-size: 14.5px; line-height: 1.55;
+    border-left: 2px solid currentColor; background: rgba(28, 26, 25, .035); font-size: 14px; line-height: 1.55;
 }
 .bk-page #booking-schedule-feedback.text-success { color: #1e6b42 !important; background: rgba(30, 107, 66, .06); }
 .bk-page #booking-schedule-feedback.text-danger { color: var(--bk-red) !important; background: rgba(60, 1, 2, .05); }
@@ -121,7 +121,7 @@
 .bk-page .phone-no-show { margin-top: -4px; }
 
 /* ---------- Thông báo ---------- */
-.bk-page .bk-alert { margin: 0 0 24px; padding: 14px 18px; border: 0; border-left: 2px solid currentColor; border-radius: 0; font-size: 14.5px; }
+.bk-page .bk-alert { margin: 0 0 24px; padding: 14px 18px; border: 0; border-left: 2px solid currentColor; border-radius: 0; font-size: 14px; }
 .bk-page .bk-alert ul { margin: 0; padding-left: 18px; }
 .bk-page .alert-danger.bk-alert { color: var(--bk-red-dark); background: #f6f3f3; }
 .bk-page .alert-warning.bk-alert { color: #7a4a00; background: #fbf3e2; }
@@ -134,7 +134,7 @@
 .bk-page .bk-submit, .bk-page .bk-submit:focus {
     display: inline-flex; align-items: center; justify-content: center; gap: 16px; min-height: 58px; padding: 0 34px;
     border: 1px solid var(--bk-ink); border-radius: 0; background: var(--bk-ink); color: #fff; box-shadow: none;
-    font-size: 13.5px; font-weight: 600; letter-spacing: .22em; text-transform: uppercase;
+    font-size: 14px; font-weight: 600; letter-spacing: .22em; text-transform: uppercase;
     transition: background-color .4s var(--bk-ease), border-color .4s var(--bk-ease);
 }
 .bk-page .bk-submit:hover { background: var(--bk-red); border-color: var(--bk-red); color: #fff; }
@@ -143,7 +143,7 @@
 .bk-arrow { width: 40px; height: 12px; overflow: visible; fill: none; stroke: currentColor; stroke-width: 1.3; transition: transform .6s var(--bk-ease); }
 .bk-page .bk-submit:hover .bk-arrow { transform: translateX(6px); }
 .bk-link {
-    position: relative; padding-bottom: 4px; color: var(--bk-ink) !important; font-size: 12.5px; font-weight: 600;
+    position: relative; padding-bottom: 4px; color: var(--bk-ink) !important; font-size: 12px; font-weight: 600;
     letter-spacing: .2em; text-transform: uppercase; text-decoration: none;
 }
 .bk-link::after { content: ""; position: absolute; left: 0; right: .2em; bottom: 0; height: 1px; background: var(--bk-red); transform-origin: 0 50%; transition: transform .5s var(--bk-ease); }
@@ -162,7 +162,7 @@
 .bk-ticket__head { display: grid; justify-items: center; gap: 12px; padding-bottom: 26px; text-align: center; border-bottom: 1px dashed var(--bk-line-strong); }
 .bk-ticket__head .bk-eyelet { margin: 0; }
 .bk-page .bk-ticket__code { justify-content: center; }
-.bk-page .lookup-code { font-family: var(--bk-serif); font-size: clamp(36px, 5vw, 52px); font-weight: 500; letter-spacing: .14em; color: var(--bk-ink); }
+.bk-page .lookup-code { font-family: var(--bk-serif); font-size: clamp(31px, 4.3vw, 45px); font-weight: 500; letter-spacing: .14em; color: var(--bk-ink); }
 .bk-page .lookup-copy { border-radius: 0; font-size: 12px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
 .bk-status {
     display: inline-block; padding: 6px 16px; border: 1px solid currentColor; border-radius: 999px;
@@ -173,29 +173,29 @@
 .bk-status--cancelled, .bk-status--rejected, .bk-status--noshow { color: var(--bk-red); }
 .bk-ticket__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 32px; margin: 8px 0 24px; }
 .bk-ticket__grid > div { padding: 18px 0; border-bottom: 1px solid var(--bk-line); }
-.bk-ticket__grid dt { margin-bottom: 6px; color: var(--bk-muted); font-size: 11.5px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; }
-.bk-ticket__grid dd { margin: 0; font-family: var(--bk-serif); font-size: 23px; line-height: 1.3; }
-.bk-ticket__grid small { color: var(--bk-muted); font-family: var(--bk-sans); font-size: 12.5px; }
+.bk-ticket__grid dt { margin-bottom: 6px; color: var(--bk-muted); font-size: 12px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; }
+.bk-ticket__grid dd { margin: 0; font-family: var(--bk-serif); font-size: 20px; line-height: 1.3; }
+.bk-ticket__grid small { color: var(--bk-muted); font-family: var(--bk-sans); font-size: 12px; }
 .bk-ticket__foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-top: 4px; }
-.bk-ticket__foot p { margin: 0; color: var(--bk-muted); font-size: 14.5px; }
+.bk-ticket__foot p { margin: 0; color: var(--bk-muted); font-size: 14px; }
 .bk-ticket__foot a { color: var(--bk-ink); font-weight: 600; text-decoration: none; }
 .bk-ticket__foot a:hover { color: var(--bk-red); }
 .bk-page .bk-cancel {
     min-height: 48px; padding: 0 24px; border: 1px solid var(--bk-red); border-radius: 0; background: transparent; color: var(--bk-red);
-    font-size: 12.5px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase;
+    font-size: 12px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase;
 }
 .bk-page .bk-cancel:hover, .bk-page .bk-cancel--solid { background: var(--bk-red); color: #fff; }
 .bk-page .bk-cancel--solid:hover { background: var(--bk-red-dark); border-color: var(--bk-red-dark); }
 .bk-page .bk-keep {
     min-height: 48px; padding: 0 24px; border: 1px solid var(--bk-ink); border-radius: 0; background: transparent; color: var(--bk-ink);
-    font-size: 12.5px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase;
+    font-size: 12px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase;
 }
 .bk-page .bk-keep:hover { background: var(--bk-ink); color: #fff; }
 
 /* Hộp xác nhận huỷ. */
 .bk-dialog { max-width: 520px; width: calc(100% - 32px); padding: 40px 36px 34px; border: 1px solid var(--bk-line); border-radius: 0; background: var(--bk-paper); color: var(--bk-ink); box-shadow: 0 24px 60px rgba(28, 26, 25, .25); outline: 1px solid var(--bk-line); outline-offset: -10px; }
 .bk-dialog::backdrop { background: rgba(28, 26, 25, .5); }
-.bk-dialog__title { margin: 0 0 14px; font-family: var(--bk-serif); font-size: 32px; font-weight: 400; line-height: 1.1; }
+.bk-dialog__title { margin: 0 0 14px; font-family: var(--bk-serif); font-size: 28px; font-weight: 400; line-height: 1.12; }
 .bk-dialog p { color: var(--bk-muted); line-height: 1.7; }
 .bk-dialog__actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: flex-end; margin-top: 24px; }
 
@@ -222,28 +222,28 @@
 }
 .bk-letter__frame { padding: clamp(26px, 4vw, 44px) clamp(18px, 4vw, 48px); border: 1px solid #dccbbd; outline: 1px solid #dccbbd; outline-offset: -6px; text-align: center; }
 .bk-letter__head .bk-eyelet { margin-bottom: 12px; }
-.bk-letter__title { margin: 0; color: var(--bk-wine); font-family: var(--bk-serif); font-weight: 400; font-size: clamp(38px, 5vw, 56px); line-height: 1.05; }
+.bk-letter__title { margin: 0; color: var(--bk-wine); font-family: var(--bk-serif); font-weight: 400; font-size: clamp(33px, 4.3vw, 48px); line-height: 1.12; }
 .bk-letter__title em { font-style: italic; }
 .bk-letter__divider { margin: 14px auto 18px; max-width: none; color: var(--bk-red); letter-spacing: .4em; }
-.bk-letter__lead { max-width: 44ch; margin: 0 auto; color: #4a3a35; font-family: var(--bk-serif); font-size: 20px; line-height: 1.6; }
+.bk-letter__lead { max-width: 44ch; margin: 0 auto; color: #4a3a35; font-family: var(--bk-serif); font-size: 17px; line-height: 1.6; }
 .bk-letter__lead strong { color: var(--bk-wine); font-weight: 600; }
 .bk-letter__code { margin: 30px 0 8px; }
-.bk-letter__label { margin: 0 0 10px; max-width: none; color: #8a7770; font-size: 11.5px; font-weight: 600; letter-spacing: .22em; text-transform: uppercase; }
+.bk-letter__label { margin: 0 0 10px; max-width: none; color: #8a7770; font-size: 12px; font-weight: 600; letter-spacing: .22em; text-transform: uppercase; }
 .bk-letter__code-value {
     display: table; margin: 0 auto 16px; padding: 10px 30px; max-width: none;
     border: 3px double var(--bk-red); background: #fffdf9;
-    color: var(--bk-red-dark); font-family: var(--bk-serif); font-size: clamp(34px, 5vw, 46px); font-weight: 500; letter-spacing: .16em; line-height: 1.2;
+    color: var(--bk-red-dark); font-family: var(--bk-serif); font-size: clamp(29px, 4.3vw, 40px); font-weight: 500; letter-spacing: .16em; line-height: 1.2;
     -webkit-user-select: all; user-select: all;
 }
 .bk-page .bk-letter__copy { display: inline-flex; align-items: center; gap: 8px; margin: 0 auto; border-radius: 0; font-size: 12px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
 .bk-letter__facts { display: grid; gap: 0; max-width: 460px; margin: 26px auto 0; text-align: left; border-top: 1px solid #dccbbd; }
 .bk-letter__facts > div { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 12px 0; border-bottom: 1px dotted #d6c2b4; }
-.bk-letter__facts dt { color: #8a7770; font-size: 11.5px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; }
-.bk-letter__facts dd { margin: 0; font-family: var(--bk-serif); font-size: 21px; text-align: right; color: var(--bk-ink); }
+.bk-letter__facts dt { color: #8a7770; font-size: 12px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; }
+.bk-letter__facts dd { margin: 0; font-family: var(--bk-serif); font-size: 18px; text-align: right; color: var(--bk-ink); }
 .bk-letter__steps {
     max-width: 520px; margin: 28px auto 0; padding: 20px 22px 20px 44px; text-align: left;
     border-top: 1px solid #dccbbd; border-bottom: 1px solid #dccbbd;
-    color: #4a3a35; font-family: var(--bk-serif); font-size: 17.5px; line-height: 1.6;
+    color: #4a3a35; font-family: var(--bk-serif); font-size: 15px; line-height: 1.6;
 }
 .bk-letter__steps li + li { margin-top: 8px; }
 .bk-letter__steps li::marker { color: var(--bk-red); font-weight: 600; }
