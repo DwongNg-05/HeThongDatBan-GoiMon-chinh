@@ -12,7 +12,7 @@
 }
 else
 {
-    <p>Thời gian tạo: @Model.Order.CreatedAt.ToLocalTime()</p>
+    <p>Thời gian tạo: @Model.Order.CreatedAt.ToLocalTime().ToString("HH:mm dd/MM/yyyy")</p>
     <table class="table">
         <thead>
             <tr>

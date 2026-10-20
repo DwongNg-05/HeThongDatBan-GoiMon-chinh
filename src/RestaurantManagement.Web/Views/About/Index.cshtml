@@ -1,0 +1,246 @@
+@{
+    ViewData["Title"] = "Giới thiệu";
+    // Trang khách không cần jQuery/Bootstrap JS (xem _Layout.cshtml).
+    ViewData["LightweightScripts"] = true;
+
+    const string Address = "Quan Triều, Thái Nguyên";
+    const string Email = "duongdeo021005@gmail.com";
+    const string Phone = "0981681594";
+    const string PhoneDisplay = "0981 681 594";
+    var mapUrl = "https://www.google.com/maps/search/?api=1&query=" + Uri.EscapeDataString("Quan Triều, Thái Nguyên");
+
+    const string Arrow =
+        "<svg class=\"ab-arrow\" viewBox=\"0 0 44 12\" aria-hidden=\"true\"><g><line x1=\"0\" y1=\"6\" x2=\"42\" y2=\"6\"/><path d=\"M36 1l6 5-6 5\"/></g></svg>";
+}
+@section Styles {
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" />
+    <link rel="stylesheet" href="~/css/about.css" asp-append-version="true" />
+}
+
+@* Bật hiệu ứng ngay trước khi nội dung hiện ra để không bị nháy; không có JS (hoặc người dùng giảm chuyển động) thì nội dung vẫn hiện đầy đủ. *@
+<script>
+    try { if (!matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentElement.classList.add('ab-motion'); } catch (e) { }
+</script>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    @* Hoạ tiết góc Bếp Nhà: ba nét viền lồng nhau, lá và dây cuộn. *@
+    <symbol id="ab-corner" viewBox="0 0 120 120">
+        <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 117V3h114" stroke-width="1.6" />
+            <path d="M10 98V10h88" stroke-width=".9" />
+            <path d="M16 58V16h42" stroke-width=".7" />
+            <path d="M30 30c10 3 22 2 34-3 10-4 20-2 24 6 3 7-2 13-8 12-5-1-6-6-3-8" stroke-width="1.25" />
+            <path d="M30 30c3 10 2 22-3 34-4 10-2 20 6 24 7 3 13-2 12-8-1-5-6-6-8-3" stroke-width="1.25" />
+            <path d="M52 27c4-6 10-9 16-8" stroke-width=".8" />
+            <path d="M27 52c-6 4-9 10-8 16" stroke-width=".8" />
+        </g>
+        <g fill="currentColor">
+            <path d="M20 20c14 0 26 8 30 26-6 2-12 1-17-3 4-1 6-3 7-6-6 2-11 0-14-4 3 0 5-1 6-3-6-1-10-5-12-10z" />
+            <path d="M58 26c4-5 10-7 15-5-3 5-9 7-15 5z" />
+            <path d="M26 58c-5 4-7 10-5 15 5-3 7-9 5-15z" />
+            <path d="M3 3h6L3 9z" />
+            <circle cx="117" cy="3" r="2.2" /><circle cx="3" cy="117" r="2.2" />
+            <circle cx="98" cy="10" r="1.4" /><circle cx="10" cy="98" r="1.4" />
+        </g>
+    </symbol>
+    @* Bông hoa sáu cánh — dấu nhấn màu đỏ trên tiêu đề. *@
+    <symbol id="ab-flower" viewBox="0 0 40 40">
+        <g fill="none" stroke="currentColor" stroke-width="1.6">
+            <path d="M20 4c4 0 6 3 6 6s-2 5-6 10c-4-5-6-7-6-10s2-6 6-6z" />
+            <path d="M20 4c4 0 6 3 6 6s-2 5-6 10c-4-5-6-7-6-10s2-6 6-6z" transform="rotate(60 20 20)" />
+            <path d="M20 4c4 0 6 3 6 6s-2 5-6 10c-4-5-6-7-6-10s2-6 6-6z" transform="rotate(120 20 20)" />
+            <path d="M20 4c4 0 6 3 6 6s-2 5-6 10c-4-5-6-7-6-10s2-6 6-6z" transform="rotate(180 20 20)" />
+            <path d="M20 4c4 0 6 3 6 6s-2 5-6 10c-4-5-6-7-6-10s2-6 6-6z" transform="rotate(240 20 20)" />
+            <path d="M20 4c4 0 6 3 6 6s-2 5-6 10c-4-5-6-7-6-10s2-6 6-6z" transform="rotate(300 20 20)" />
+        </g>
+    </symbol>
+</svg>
+
+<div class="about-page">
+    @* Hai đường kẻ dọc chạy suốt trang, tự "vẽ" xuống khi trang mở. *@
+    <span class="ab-rail ab-rail--left" aria-hidden="true"></span>
+    <span class="ab-rail ab-rail--right" aria-hidden="true"></span>
+    @* Khung viền cả trang: hai đường kẻ dọc + đường kẻ trên/dưới, bốn góc là hoạ tiết Bếp Nhà. *@
+    <span class="ab-frame" aria-hidden="true">
+        <svg class="ab-frame__corner ab-frame__corner--tl"><use href="#ab-corner" /></svg>
+        <svg class="ab-frame__corner ab-frame__corner--tr"><use href="#ab-corner" /></svg>
+        <svg class="ab-frame__corner ab-frame__corner--bl"><use href="#ab-corner" /></svg>
+        <svg class="ab-frame__corner ab-frame__corner--br"><use href="#ab-corner" /></svg>
+    </span>
+
+    @* ---------- 1. Mở đầu: tiêu đề lớn + mặt tiền trong khung vòm ---------- *@
+    <section class="ab-hero ab-section ab-section--line" data-anim="hero" aria-labelledby="ab-hero-title">
+        <svg class="ab-flower" data-anim-part="flower" aria-hidden="true"><use href="#ab-flower" /></svg>
+        <h1 class="ab-hero__title" id="ab-hero-title" data-anim-part="title">
+            <span class="ab-hero__line"><em>Chào mừng</em> đến</span>
+            <span class="ab-hero__line"><u>Bếp</u> <em>Nhà</em></span>
+        </h1>
+        <div class="ab-hero__grid">
+            <p class="ab-hero__side ab-hero__side--left" data-anim-part="side">
+                Chào mừng bạn đến với Quan Triều, nơi mỗi bữa cơm được nâng niu như một món quà dành cho người thân.
+            </p>
+            <figure class="ab-picture ab-picture--arch ab-hero__picture" data-anim-part="picture">
+                <span class="ab-picture__inner">
+                    <img src="~/images/gioi-thieu/mat-tien.jpg" asp-append-version="true" alt="Mặt tiền quán Bếp Nhà với biển hiệu gỗ, hoa trước cửa và bàn ghế ngoài hiên" width="1122" height="1402" fetchpriority="high" />
+                </span>
+                <span class="ab-picture__curtain" aria-hidden="true"></span>
+            </figure>
+            <p class="ab-hero__side ab-hero__side--right" data-anim-part="side">
+                Bếp Nhà gìn giữ hương vị quen thuộc, nấu bằng nguyên liệu tươi mỗi ngày và phục vụ bằng cả sự chân thành.
+            </p>
+        </div>
+    </section>
+
+    @* ---------- 2. Lời giới thiệu (chữ hiện lên từng dòng) ---------- *@
+    <section class="ab-quote ab-section ab-section--line ab-section--pad" aria-label="Lời giới thiệu">
+        <div class="ab-quote__box">
+            <p class="ab-quote__text" data-anim="quote">
+                Bếp Nhà là một góc bếp ấm giữa lòng Thái Nguyên. Chúng tôi tin món ngon nhất là món được nấu bằng sự tận tâm:
+                nguyên liệu theo mùa, gia vị vừa vặn, và một chút hoài niệm của những bữa cơm gia đình. Mỗi đĩa ăn mang theo
+                tinh thần hiếu khách, giản dị mà tinh tế, để bạn bước vào như khách và ra về như người nhà.
+            </p>
+        </div>
+    </section>
+
+    @* ---------- 3. Món đặc trưng ---------- *@
+    <section class="ab-feature ab-feature--left ab-section" data-anim="feature" aria-labelledby="ab-signature-title">
+        <figure class="ab-picture ab-picture--arch ab-feature__picture ab-feature__picture--sketch" data-anim-part="picture">
+            <span class="ab-picture__inner"><img src="~/images/gioi-thieu/uc-vit-ap-chao.jpg" asp-append-version="true" alt="Tranh vẽ đĩa ức vịt áp chảo với sốt vang đỏ, khoai nghiền, anh đào ngâm vang và vụn bánh giòn" width="736" height="736" loading="lazy" /></span>
+            <span class="ab-picture__curtain" aria-hidden="true"></span>
+        </figure>
+        <span class="ab-feature__divider" data-anim-part="vline" aria-hidden="true"></span>
+        <div class="ab-feature__text">
+            <p class="ab-eyelet" data-anim-part="text">Bếp Nhà · Quan Triều</p>
+            <h2 class="ab-feature__title" id="ab-signature-title" data-anim-part="text">Món <em>đặc trưng</em></h2>
+            <p class="ab-feature__para" data-anim-part="text">
+                Ức vịt áp chảo da giòn, thịt mềm hồng bên trong, rưới sốt vang đỏ sánh mịn; ăn kèm khoai nghiền, anh đào ngâm vang
+                và chút vụn bánh giòn rụm. Một đĩa ăn được chăm chút như bức tranh, gói trọn tinh thần của Bếp Nhà.
+            </p>
+            <a class="ab-cta" asp-controller="Menu" asp-action="Index" data-anim-part="cta"><span>Khám phá</span>@Html.Raw(Arrow)</a>
+        </div>
+    </section>
+
+    @* ---------- 4. Không gian ---------- *@
+    <section class="ab-feature ab-feature--right ab-section" data-anim="feature" aria-labelledby="ab-space-title">
+        <figure class="ab-picture ab-picture--arch-tall ab-feature__picture" data-anim-part="picture">
+            <span class="ab-picture__inner"><img src="~/images/gioi-thieu/khong-gian.jpg" asp-append-version="true" alt="Phòng ăn Bếp Nhà buổi tối với ánh đèn vàng, khăn trải bàn trắng và ly pha lê" width="1024" height="1536" loading="lazy" /></span>
+            <span class="ab-picture__curtain" aria-hidden="true"></span>
+        </figure>
+        <span class="ab-feature__divider" data-anim-part="vline" aria-hidden="true"></span>
+        <div class="ab-feature__text">
+            <p class="ab-eyelet" data-anim-part="text">Bếp Nhà · Quan Triều</p>
+            <h2 class="ab-feature__title" id="ab-space-title" data-anim-part="text">Không gian</h2>
+            <p class="ab-feature__para" data-anim-part="text">
+                Ánh đèn vàng dịu, khăn trải bàn trắng và những chậu cây xanh rủ xuống từ tường gạch. Không gian được sắp đặt để
+                bạn có thể ngồi lâu hơn một chút: cho buổi hẹn hò, bữa tối cùng gia đình hay một cuộc gặp gỡ bạn bè.
+            </p>
+            <a class="ab-cta" asp-controller="Reservations" asp-action="Create" data-anim-part="cta"><span>Đặt bàn</span>@Html.Raw(Arrow)</a>
+        </div>
+    </section>
+
+    @* ---------- 5. Đầu bếp ---------- *@
+    <section class="ab-feature ab-feature--left ab-section" data-anim="feature" aria-labelledby="ab-chef-title">
+        <figure class="ab-picture ab-picture--arch-tall ab-feature__picture" data-anim-part="picture">
+            <span class="ab-picture__inner"><img src="~/images/gioi-thieu/dau-bep.jpg" asp-append-version="true" alt="Đầu bếp Bếp Nhà mặc áo bếp trắng, khăn đỏ, đang khuấy nồi nước dùng" width="1024" height="1536" loading="lazy" /></span>
+            <span class="ab-picture__curtain" aria-hidden="true"></span>
+        </figure>
+        <span class="ab-feature__divider" data-anim-part="vline" aria-hidden="true"></span>
+        <div class="ab-feature__text">
+            <p class="ab-eyelet" data-anim-part="text">Bếp Nhà · Quan Triều</p>
+            <h2 class="ab-feature__title" id="ab-chef-title" data-anim-part="text">Người giữ <em>lửa</em></h2>
+            <p class="ab-feature__para" data-anim-part="text">
+                Đội ngũ bếp trẻ, kỷ luật và say nghề. Nồi nước dùng được ninh từ sáng sớm, từng món được nêm nếm lại trước khi
+                rời bếp. Với chúng tôi, nấu ăn là cách kể chuyện: câu chuyện về quê hương, mùa màng và người thưởng thức.
+            </p>
+            <a class="ab-cta" asp-controller="Menu" asp-action="Index" data-anim-part="cta"><span>Xem thực đơn</span>@Html.Raw(Arrow)</a>
+        </div>
+    </section>
+
+    @* ---------- 6. Ẩm thực ---------- *@
+    <section class="ab-feature ab-feature--right ab-section" data-anim="feature" aria-labelledby="ab-food-title">
+        <figure class="ab-picture ab-picture--pill ab-feature__picture" data-anim-part="picture">
+            <span class="ab-picture__inner"><img src="~/images/gioi-thieu/dau-bep-bay-mon.jpg" asp-append-version="true" alt="Đầu bếp rưới nước sốt lên món ăn trước khi mang ra bàn" width="1024" height="1536" loading="lazy" /></span>
+            <span class="ab-picture__curtain" aria-hidden="true"></span>
+        </figure>
+        <span class="ab-feature__divider" data-anim-part="vline" aria-hidden="true"></span>
+        <div class="ab-feature__text">
+            <p class="ab-eyelet" data-anim-part="text">Bếp Nhà · Quan Triều</p>
+            <h2 class="ab-feature__title" id="ab-food-title" data-anim-part="text">Từ bếp <em>đến bàn</em></h2>
+            <p class="ab-feature__para" data-anim-part="text">
+                Mỗi đĩa ăn được hoàn thiện ngay trước khi phục vụ: một thìa sốt, một nhánh rau thơm, nhiệt độ vừa đủ.
+                Những chi tiết nhỏ ấy làm nên trải nghiệm trọn vẹn mà Bếp Nhà muốn gửi tới bạn.
+            </p>
+        </div>
+    </section>
+
+    @* ---------- 7. Băng chữ chạy ---------- *@
+    <div class="ab-marquee" aria-hidden="true">
+        <div class="ab-marquee__inner">
+            @for (var i = 0; i < 4; i++)
+            {
+                <span>Bếp Nhà</span><svg class="ab-marquee__mark"><use href="#ab-flower" /></svg>
+                <span><em>Quan Triều</em></span><svg class="ab-marquee__mark"><use href="#ab-flower" /></svg>
+                <span>Thái Nguyên</span><svg class="ab-marquee__mark"><use href="#ab-flower" /></svg>
+            }
+        </div>
+    </div>
+
+    @* ---------- 8. Khám phá thực đơn: ảnh tròn + vòng chữ xoay ---------- *@
+    <section class="ab-discover ab-section ab-section--line" data-anim="discover" aria-labelledby="ab-discover-title">
+        <a class="ab-discover__link" asp-controller="Menu" asp-action="Index">
+            <h2 class="ab-discover__title" id="ab-discover-title" data-anim-part="text"><span>Khám phá</span> <em>thực đơn</em></h2>
+            <span class="ab-discover__visual">
+                <span class="ab-discover__ring" data-anim-part="ring" aria-hidden="true">
+                    <svg viewBox="0 0 200 200">
+                        <defs><path id="ab-ring-path" d="M100 100m-86 0a86 86 0 1 1 172 0a86 86 0 1 1-172 0" /></defs>
+                        <text><textPath href="#ab-ring-path" textLength="536" lengthAdjust="spacing">Khám phá thực đơn ✦ Bếp Nhà ✦ Khám phá thực đơn ✦ Bếp Nhà ✦</textPath></text>
+                    </svg>
+                </span>
+                <figure class="ab-picture ab-picture--circle ab-discover__picture" data-anim-part="picture">
+                    <span class="ab-picture__inner"><img src="~/images/gioi-thieu/mon-nuong.jpg" asp-append-version="true" alt="Đĩa gà nướng sốt đỏ cùng hành tây, chanh và rau bạc hà" width="670" height="1004" loading="lazy" /></span>
+                    <span class="ab-picture__curtain" aria-hidden="true"></span>
+                </figure>
+            </span>
+            <span class="ab-discover__note" data-anim-part="text">Món ngon nấu mới mỗi ngày, giá niêm yết rõ ràng.</span>
+        </a>
+    </section>
+
+    @* ---------- 9. Lời mời đặt bàn ---------- *@
+    <section class="ab-invite ab-section ab-section--line ab-section--pad" data-anim="feature" aria-labelledby="ab-invite-title">
+        <h2 class="ab-invite__title" id="ab-invite-title" data-anim-part="text">Dành riêng một bàn <em>cho bữa tối của bạn</em></h2>
+        <a class="ab-cta ab-cta--center" asp-controller="Reservations" asp-action="Create" data-anim-part="cta"><span>Đặt bàn ngay</span>@Html.Raw(Arrow)</a>
+    </section>
+
+    @* ---------- 10. Liên hệ ---------- *@
+    <section class="ab-contact ab-section ab-section--pad" data-anim="feature" aria-labelledby="ab-contact-title">
+        <p class="ab-eyelet ab-eyelet--center" data-anim-part="text">Liên hệ</p>
+        <h2 class="ab-contact__title" id="ab-contact-title" data-anim-part="text">Ghé thăm <em>Bếp Nhà</em></h2>
+        <div class="ab-contact__grid">
+            <div class="ab-contact__card" data-anim-part="text">
+                <i class="fa-solid fa-location-dot" aria-hidden="true"></i>
+                <h3>Địa chỉ</h3>
+                <p>@Address</p>
+                <a class="ab-link" href="@mapUrl" target="_blank" rel="noopener">Xem bản đồ</a>
+            </div>
+            <div class="ab-contact__card" data-anim-part="text">
+                <i class="fa-solid fa-phone" aria-hidden="true"></i>
+                <h3>Điện thoại</h3>
+                <p><a href="tel:@Phone">@PhoneDisplay</a></p>
+                <span class="ab-contact__hint">Gọi để đặt bàn hoặc hỏi món</span>
+            </div>
+            <div class="ab-contact__card" data-anim-part="text">
+                <i class="fa-regular fa-envelope" aria-hidden="true"></i>
+                <h3>Email</h3>
+                <p class="ab-contact__email"><a href="mailto:@Email">duongdeo021005&#64;<wbr />gmail.com</a></p>
+                <span class="ab-contact__hint">Phản hồi trong ngày làm việc</span>
+            </div>
+        </div>
+        <p class="ab-contact__foot">© @DateTime.Now.Year Bếp Nhà · @Address</p>
+    </section>
+</div>
+
+@section Scripts {
+    <script src="~/js/about.js" asp-append-version="true"></script>
+}

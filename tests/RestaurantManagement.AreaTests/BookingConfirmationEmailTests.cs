@@ -30,7 +30,7 @@ internal static class BookingConfirmationEmailTests
         check(message.To == "khach@example.com" && message.Subject == "Bếp Nhà - Xác nhận đặt bàn A1B2C3",
             "Booking email: subject starts with the restaurant name — \"Bếp Nhà - Xác nhận đặt bàn A1B2C3\"");
         check(message.HtmlBody.Contains(EmailBranding.LogoImg) && message.HtmlBody.Contains(">Xác nhận đặt bàn</td>")
-              && message.HtmlBody.Contains("#b40829") && !message.HtmlBody.Contains("#c92d3e"),
+              && message.HtmlBody.Contains("#3c0102") && !message.HtmlBody.Contains("#c92d3e"),
             "Booking email: header shows the Bếp Nhà logo (instead of the text) and \"Xác nhận đặt bàn\" in the project red");
         foreach (var (body, name) in new[] { (message.TextBody, "text"), (message.HtmlBody, "HTML") })
             check(body.Contains("A1B2C3") && body.Contains("19:00, Thứ Hai ngày 05/10/2026") && body.Contains("4 người") && body.Contains(address),

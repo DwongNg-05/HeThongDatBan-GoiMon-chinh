@@ -19,7 +19,7 @@
 }
 
 @keyframes serving-overdue-flash {
-    from { background-color: #f1aeb5; }
+    from { background-color: #d6c9c9; }
 }
 
 /* S3-08 Task 1: món vừa xong — thông báo phía trên danh sách và dòng tô xanh nhạt trong 15 giây. */

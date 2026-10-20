@@ -48,12 +48,13 @@ public sealed class SmtpEmailSender(IOptions<EmailOptions> options, IWebHostEnvi
             IsBodyHtml = false
         };
         mail.To.Add(new MailAddress(message.To));
-        // Logo Bếp Nhà đính kèm dạng ảnh nhúng (cid:bepnha-logo) để hiện được trong Gmail/Outlook.
-        var logo = message.HtmlBody.Contains(EmailBranding.LogoImg) ? EmailBranding.FindLogo(environment) : null;
+        // Logo Bếp Nhà và ảnh thiệp mời (con dấu sáp, vân giấy) đính kèm dạng ảnh nhúng (cid:...) để hiện được trong Gmail/Outlook.
+        // Ảnh nào thiếu tệp thì bỏ khỏi nội dung, email vẫn gửi bình thường.
+        var images = EmailBranding.FindImages(message.HtmlBody, environment);
         var htmlView = AlternateView.CreateAlternateViewFromString(
-            logo is null ? EmailBranding.RemoveLogo(message.HtmlBody) : message.HtmlBody, Encoding.UTF8, "text/html");
-        if (logo is not null)
-            htmlView.LinkedResources.Add(new LinkedResource(logo, "image/png") { ContentId = EmailBranding.LogoContentId, TransferEncoding = TransferEncoding.Base64 });
+            EmailBranding.RemoveMissingImages(message.HtmlBody, images.Select(i => i.Image.ContentId)), Encoding.UTF8, "text/html");
+        foreach (var (image, path) in images)
+            htmlView.LinkedResources.Add(new LinkedResource(path, image.MediaType) { ContentId = image.ContentId, TransferEncoding = TransferEncoding.Base64 });
         mail.AlternateViews.Add(htmlView);
         using var client = new SmtpClient(o.Host, o.Port)
         {

@@ -4,13 +4,14 @@
    Nạp SAU các file CSS cũ nên ghi đè được màu, chữ và khoảng cách.
    ===================================================================== */
 :root {
-    --m-red: #b40829;        /* đỏ của logo Bếp Nhà */
-    --m-red-dark: #8f0620;
+    --m-red: #3c0102;        /* đỏ của logo Bếp Nhà */
+    --m-red-dark: #260001;
     --m-ink: #222222;
     --m-muted: #6e6e6e;
     --m-line: #e5e5e5;
     --m-surface: #f6f6f6;
     --m-white: #ffffff;
+    --m-bg: #f3f1ed;         /* màu nền chung của toàn hệ thống (kem ấm) */
     --m-ok: #1e7a46;
     --m-radius: 10px;
     --m-card-radius: 4px;
@@ -31,7 +32,7 @@
 }
 
 /* ---------- Nền tảng ---------- */
-html, body, .admin-shell, .guest-shell { background: var(--m-white); color: var(--m-ink); font-family: var(--m-font); }
+html, body, .admin-shell, .guest-shell { background: var(--m-bg); color: var(--m-ink); font-family: var(--m-font); }
 body { font-size: 16px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
 h1, h2, h3, h4, h5, h6 { color: var(--m-ink); font-family: var(--m-font); font-weight: 500; letter-spacing: -.01em; }
 h1, .h1 { font-size: clamp(26px, 3vw, 34px); line-height: 1.2; margin-bottom: 20px; }
@@ -42,12 +43,12 @@ a { color: var(--m-ink); text-decoration-thickness: 1px; text-underline-offset: 
 a:hover { color: var(--m-red); }
 .text-muted { color: var(--m-muted) !important; }
 :focus-visible { outline: 2px solid var(--m-ink); outline-offset: 3px; }
-::selection { background: #f4d6dc; }
+::selection { background: #e8e2e2; }
 
 /* ---------- Khung trang ---------- */
 .workspace-header {
     min-height: 84px; padding: 0 40px; gap: 24px;
-    background: var(--m-white); border-bottom: 0; box-shadow: 0 2px 10px rgba(0, 0, 0, .05);
+    background: var(--m-bg); border-bottom: 0; box-shadow: 0 2px 10px rgba(0, 0, 0, .05);
     position: sticky; top: 0; z-index: 20;
 }
 .workspace-content { padding: 36px 40px 64px; }
@@ -112,7 +113,7 @@ a:hover { color: var(--m-red); }
 .btn-outline-primary:focus, .btn-outline-secondary:focus {
     background: var(--m-white); border-color: var(--m-ink); color: var(--m-ink);
 }
-.btn-outline-danger { background: var(--m-white); border-color: #e9b9c3; color: var(--m-red); }
+.btn-outline-danger { background: var(--m-white); border-color: #d7cbcb; color: var(--m-red); }
 .btn-outline-danger:hover { background: var(--m-red); border-color: var(--m-red); color: #fff; }
 .btn-link { color: var(--m-ink); text-decoration: underline; text-underline-offset: 3px; }
 .btn-link:hover { color: var(--m-red); }
@@ -139,11 +140,11 @@ a:hover { color: var(--m-red); }
 /* ---------- Thông báo, nhãn ---------- */
 .alert { border: 0; border-left: 3px solid var(--m-ink); border-radius: var(--m-card-radius); background: var(--m-surface); color: var(--m-ink); padding: 14px 18px; }
 .alert-success { border-left-color: var(--m-ok); background: #f1f7f3; }
-.alert-danger { border-left-color: var(--m-red); background: #fbf0f2; }
+.alert-danger { border-left-color: var(--m-red); background: #f7f4f4; }
 .alert-warning { border-left-color: #b7791f; background: #fbf6ec; }
 .alert-info, .alert-secondary { border-left-color: var(--m-muted); }
 .badge { padding: 6px 12px; border-radius: var(--m-radius); font-weight: 500; font-size: 13px; }
-.badge.bg-warning { background: var(--m-white) !important; color: var(--m-red) !important; border: 1px solid #e9b9c3; }
+.badge.bg-warning { background: var(--m-white) !important; color: var(--m-red) !important; border: 1px solid #d7cbcb; }
 .badge.bg-success { background: #eef6f1 !important; color: var(--m-ok) !important; }
 .badge.bg-secondary { background: var(--m-surface) !important; color: var(--m-muted) !important; }
 .badge.bg-light { background: var(--m-white) !important; }
@@ -175,7 +176,7 @@ a:hover { color: var(--m-red); }
 .public-menu-no-result, .public-menu-empty { border: 1px solid var(--m-line); border-radius: var(--m-card-radius); color: var(--m-muted); }
 
 /* Chip nhóm món như hàng bộ lọc của Michelin. */
-.public-menu-tabs { top: 84px; gap: 10px; padding: 14px 0; margin: 0 0 18px; background: var(--m-white); border-bottom: 1px solid var(--m-line); }
+.public-menu-tabs { top: 84px; gap: 10px; padding: 14px 0; margin: 0 0 18px; background: var(--m-bg); border-bottom: 1px solid var(--m-line); }
 .public-menu-tabs a { min-height: 46px; padding: 10px 20px; border: 1px solid var(--m-line); border-radius: var(--m-radius); background: var(--m-white); color: var(--m-ink); font-size: 15px; font-weight: 400; }
 .public-menu-tabs a:hover, .public-menu-tabs a:focus-visible { background: var(--m-white); border-color: var(--m-ink); color: var(--m-ink); }
 

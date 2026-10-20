@@ -1,18 +1,18 @@
 /* Màn hình Gọi món của nhân viên: đầu trang có tên bàn (giống màn hình gọi món tại bàn của khách). */
-.staff-order-banner { margin: 0 0 18px; padding: 20px 18px; border: 2px solid var(--s-red, #b40829); border-radius: 16px; background: var(--s-red-soft, #fff4f5); text-align: center; }
+.staff-order-banner { margin: 0 0 18px; padding: 20px 18px; border: 2px solid var(--s-red, #3c0102); border-radius: 16px; background: var(--s-red-soft, #fff4f5); text-align: center; }
 .staff-order-banner.is-awaiting { border-color: #c98a12; background: #fffaf0; }
 .staff-order-kicker { margin: 0; color: #6b7280; font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
-.staff-order-banner h1 { margin: 4px 0 6px; color: var(--s-red, #b40829); font-size: clamp(30px, 5vw, 46px); font-weight: 800; line-height: 1.1; overflow-wrap: anywhere; }
+.staff-order-banner h1 { margin: 4px 0 6px; color: var(--s-red, #3c0102); font-size: clamp(30px, 5vw, 46px); font-weight: 800; line-height: 1.1; overflow-wrap: anywhere; }
 .staff-order-area { margin: 0 0 8px; font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
 .staff-order-meta { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 14px; margin: 0; color: #4b5563; font-size: 14px; }
 .staff-order-meta strong { color: #1f2937; font-variant-numeric: tabular-nums; }
 .staff-order-status { padding: 1px 10px; border-radius: 999px; background: #e8f5ec; color: #17633a; font-weight: 700; }
 .staff-order-banner.is-awaiting .staff-order-status { background: #fdf0d5; color: #8a5a00; }
 .staff-order-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 18px; margin: 12px 0 0; font-weight: 700; }
-.staff-order-links a { color: var(--s-red, #b40829); }
+.staff-order-links a { color: var(--s-red, #3c0102); }
 #da-goi { scroll-margin-top: 90px; }
 /* Tên bàn ngay trên giỏ món (cột bên cạnh thực đơn). */
-.menu-cart-table { display: grid; gap: 2px; margin: 0 0 14px; padding: 10px 12px; border-left: 4px solid var(--s-red, #b40829); border-radius: 8px; background: var(--s-red-soft, #fff4f5); }
+.menu-cart-table { display: grid; gap: 2px; margin: 0 0 14px; padding: 10px 12px; border-left: 4px solid var(--s-red, #3c0102); border-radius: 8px; background: var(--s-red-soft, #fff4f5); }
 .menu-cart-table span { color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
-.menu-cart-table strong { color: var(--s-red, #b40829); font-size: 22px; line-height: 1.2; }
+.menu-cart-table strong { color: var(--s-red, #3c0102); font-size: 22px; line-height: 1.2; }
 .menu-cart-table small { color: #6b7280; }

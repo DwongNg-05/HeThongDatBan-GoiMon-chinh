@@ -30,6 +30,8 @@
     @await RenderSectionAsync("Styles", required: false)
     @* Giao diện phong cách Michelin: nạp cuối để ghi đè màu, chữ, khoảng cách của các file trên. *@
     <link rel="stylesheet" href="~/css/michelin.css" asp-append-version="true" />
+    @* Ô ngày / giờ kiểu Việt Nam (dd/mm/yyyy, 24 giờ) cho mọi trang — xem js/vn-date.js. *@
+    <link rel="stylesheet" href="~/css/vn-date.css" asp-append-version="true" />
     @* Icon Font Awesome Free (wwwroot/lib/fontawesome) dùng chung cho khách và nhân viên. *@
     <partial name="_FontAwesome" />
     @if (signedIn)
@@ -102,6 +104,8 @@
                 @* S2-01 Task 1: khách chưa đăng nhập luôn có đường tới thực đơn công khai. *@
                 <a class="guest-brand" asp-area="" asp-controller="Menu" asp-action="Index" aria-label="Bếp Nhà – thực đơn"><img src="~/images/brand/bep-nha-logo-white.png" asp-append-version="true" alt="" width="75" height="70" /></a>
                 <nav class="guest-links" aria-label="Điều hướng khách">
+                    @* Trang giới thiệu Bếp Nhà (Views/About/Index.cshtml). *@
+                    <a asp-area="" asp-controller="About" asp-action="Index" aria-current="@(IsCurrent("About", "Index") ? "page" : null)">Giới thiệu</a>
                     <a asp-area="" asp-controller="Menu" asp-action="Index" aria-current="@(IsCurrent("Menu", "Index") ? "page" : null)">Thực đơn</a>
                     @* Khách đặt bàn không cần đăng nhập. *@
                     <a asp-area="" asp-controller="Reservations" asp-action="Create" aria-current="@(IsCurrent("Reservations", "Create") ? "page" : null)">Đặt bàn</a>
@@ -157,6 +161,7 @@
         <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     }
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/vn-date.js" asp-append-version="true"></script>
     @if (!signedIn)
     {
         <script src="~/js/login-dialog.js" asp-append-version="true"></script>

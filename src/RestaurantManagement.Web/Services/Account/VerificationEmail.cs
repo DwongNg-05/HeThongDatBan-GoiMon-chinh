@@ -14,7 +14,7 @@ public static class VerificationEmail
         // Quote the separators so the Vietnamese display is stable on every server culture.
         var sentAt = sentAtUtc.AddHours(7).ToString("HH:mm 'ngày' dd'/'MM'/'yyyy", CultureInfo.InvariantCulture);
         var boxes = string.Concat(code.Select(c =>
-            $"<td style=\"padding:0 4px\"><div style=\"width:46px;height:58px;line-height:58px;border:2px solid #c92d3e;border-radius:10px;" +
+            $"<td style=\"padding:0 4px\"><div style=\"width:46px;height:58px;line-height:58px;border:2px solid #3c0102;border-radius:10px;" +
             $"background:#fff3f4;color:#1f1a1b;font-family:'Courier New',Consolas,monospace;font-size:34px;font-weight:700;text-align:center\">{c}</div></td>"));
         var html = $"""
             <!doctype html>
@@ -23,7 +23,7 @@ public static class VerificationEmail
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f1f1;padding:24px 12px">
                 <tr><td align="center">
                   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:16px;overflow:hidden">
-                    {EmailBranding.Header("Mã xác minh đăng nhập", "#c92d3e")}
+                    {EmailBranding.Header("Mã xác minh đăng nhập", "#3c0102")}
                     <tr><td style="padding:28px 24px 8px;font-size:16px;line-height:1.6">
                       <p style="margin:0 0 12px">Xin chào <strong>{name}</strong>,</p>
                       <p style="margin:0 0 20px">Đây là <strong>mã xác minh đăng nhập</strong> của bạn. Hãy nhập mã này vào màn hình xác minh để tiếp tục:</p>

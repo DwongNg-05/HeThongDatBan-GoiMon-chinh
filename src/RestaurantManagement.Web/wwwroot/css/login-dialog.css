@@ -14,7 +14,7 @@ html.login-dialog-open { overflow: hidden; }
     position: absolute; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%;
     background: transparent; color: #555; cursor: pointer;
 }
-.login-dialog-close:hover, .login-dialog-reveal:hover { background: #f5e6e9; color: var(--m-red-dark); }
+.login-dialog-close:hover, .login-dialog-reveal:hover { background: #f0ebeb; color: var(--m-red-dark); }
 .login-dialog-close { top: 18px; right: 18px; width: 44px; height: 44px; font-size: 26px; }
 .login-dialog-title { margin: 0 0 14px; font-size: 32px; font-weight: 500; text-align: center; }
 .login-dialog-lead { margin: 0 0 30px; color: #444; font-size: 16px; line-height: 1.6; text-align: center; }
@@ -29,10 +29,10 @@ html.login-dialog-open { overflow: hidden; }
 }
 .login-dialog-field:has(.login-dialog-reveal) input { padding-right: 52px; }
 .login-dialog-field input::placeholder { color: #8a8a8a; }
-.login-dialog-field input:focus { border-color: var(--m-red-dark); outline: 0; box-shadow: 0 0 0 3px rgba(143, 6, 32, .18); }
+.login-dialog-field input:focus { border-color: var(--m-red-dark); outline: 0; box-shadow: 0 0 0 3px rgba(38, 0, 1, .18); }
 /* Chrome tự điền: giữ nền trắng thay cho nền xanh mặc định. */
 .login-dialog-field input:-webkit-autofill { -webkit-box-shadow: 0 0 0 40px #fff inset; -webkit-text-fill-color: #222; }
-.login-dialog-field input:-webkit-autofill:focus { -webkit-box-shadow: 0 0 0 40px #fff inset, 0 0 0 3px rgba(143, 6, 32, .18); }
+.login-dialog-field input:-webkit-autofill:focus { -webkit-box-shadow: 0 0 0 40px #fff inset, 0 0 0 3px rgba(38, 0, 1, .18); }
 .login-dialog-reveal { top: 50%; right: 8px; transform: translateY(-50%); width: 40px; height: 40px; font-size: 17px; }
 
 .login-dialog-submit {
@@ -41,7 +41,7 @@ html.login-dialog-open { overflow: hidden; }
 }
 .login-dialog-submit:hover, .login-dialog-submit:focus-visible { background: var(--m-red-dark); }
 .login-dialog-submit:disabled { opacity: .7; cursor: progress; }
-.login-dialog-error { display: flex; gap: 10px; padding: 12px 14px; border-radius: 6px; background: #fdecee; color: var(--m-red-dark); font-size: 15px; line-height: 1.5; }
+.login-dialog-error { display: flex; gap: 10px; padding: 12px 14px; border-radius: 6px; background: #f6f3f3; color: var(--m-red-dark); font-size: 15px; line-height: 1.5; }
 .login-dialog-error[hidden] { display: none; }
 .login-dialog-error i { margin-top: 4px; }
 

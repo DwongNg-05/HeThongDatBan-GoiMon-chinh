@@ -11,12 +11,12 @@
 .at-jump { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
 .at-jump a { display: inline-flex; gap: 8px; align-items: center; padding: 8px 14px; border-radius: 999px; background: var(--soft, #fff3f4); border: 1px solid var(--line, #eee3e5); color: var(--ink, #30282a); text-decoration: none; font-weight: 600; }
 .at-jump a span { font-weight: 400; color: var(--muted, #766b6e); font-size: .9em; }
-.at-jump a:hover, .at-jump a:focus-visible { border-color: var(--brand, #c92d3e); color: var(--brand, #c92d3e); }
+.at-jump a:hover, .at-jump a:focus-visible { border-color: var(--brand, #3c0102); color: var(--brand, #3c0102); }
 .at-jump a.is-off { opacity: .6; }
 
-.at-area { background: #fff; border: 1px solid var(--line, #eee3e5); border-left: 6px solid var(--brand, #c92d3e); border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(48, 40, 42, .05); scroll-margin-top: 80px; }
+.at-area { background: #fff; border: 1px solid var(--line, #eee3e5); border-left: 6px solid var(--brand, #3c0102); border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(48, 40, 42, .05); scroll-margin-top: 80px; }
 .at-area.is-off { border-left-color: #b9b2b4; background: #fafafa; }
-.at-area:target { box-shadow: 0 0 0 3px rgba(201, 45, 62, .25); }
+.at-area:target { box-shadow: 0 0 0 3px rgba(60, 1, 2, .25); }
 .at-area-head { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
 .at-area-title h2 { display: inline; font-size: 1.4rem; font-weight: 700; margin: 0 10px 0 0; vertical-align: middle; }
 .at-area-meta { margin: 6px 0 0; color: var(--muted, #766b6e); }
@@ -57,7 +57,7 @@
 .at-form-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
 .at-form-actions .btn { min-height: 46px; padding: 10px 22px; border-radius: 10px; font-weight: 600; }
 .at-back { display: inline-block; margin-top: 12px; color: var(--muted, #766b6e); text-decoration: none; }
-.at-back:hover { color: var(--brand, #c92d3e); }
+.at-back:hover { color: var(--brand, #3c0102); }
 
 @media (max-width: 576px) {
     .at-area { padding: 16px; }

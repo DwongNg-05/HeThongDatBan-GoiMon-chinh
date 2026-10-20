@@ -1,0 +1,333 @@
+/* =====================================================================
+   Đặt bàn (Views/Reservations/Create.cshtml) và Tra cứu đặt bàn (Views/ReservationLookup/Index.cshtml)
+   theo phong cách nhà hàng cao cấp, cùng bộ với trang Giới thiệu:
+   tiêu đề chữ có chân xen chữ nghiêng, nhãn nhỏ in hoa giãn chữ, ô nhập gạch chân mảnh,
+   khung giấy viền đôi, nút đen chuyển đỏ khi rê chuột. Mọi quy tắc gắn với .bk-page.
+   ===================================================================== */
+.bk-page {
+    --bk-bg: var(--m-bg, #f3f1ed);
+    --bk-paper: #fffdfa;
+    --bk-ink: #1c1a19;
+    --bk-muted: #6f6a66;
+    --bk-line: #ddd6cd;
+    --bk-line-strong: #c9c0b5;
+    --bk-red: var(--m-red, #3c0102);
+    --bk-red-dark: var(--m-red-dark, #260001);
+    --bk-serif: "Cormorant Garamond", "Times New Roman", Georgia, serif;
+    --bk-sans: var(--m-font, "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif);
+    --bk-ease: cubic-bezier(.215, .61, .355, 1);
+
+    max-width: 1180px;
+    margin: 0 auto;
+    /* Cormorant mặc định dùng số kiểu cổ (chữ số lên xuống như 0⁹); dùng số thẳng hàng cho ngày giờ, mã đặt bàn, số điện thoại. */
+    font-variant-numeric: lining-nums;
+    font-feature-settings: "lnum" 1;
+    padding: clamp(8px, 2vw, 24px) 0 clamp(40px, 6vw, 80px);
+    color: var(--bk-ink);
+    font-family: var(--bk-sans);
+}
+.bk-page--narrow { max-width: 820px; }
+.bk-page--staff { max-width: 900px; }
+.bk-page a { color: inherit; }
+
+/* ---------- Tiêu đề trang ---------- */
+.bk-hero { margin-bottom: clamp(32px, 4.5vw, 56px); text-align: center; }
+.bk-eyelet { margin: 0 0 14px; max-width: none; color: var(--bk-red); font-size: 12.5px; font-weight: 600; letter-spacing: .28em; text-transform: uppercase; }
+.bk-flower { display: inline-block; margin-right: 6px; letter-spacing: 0; }
+.bk-title {
+    margin: 0; color: var(--bk-ink); font-family: var(--bk-serif); font-weight: 400;
+    font-size: clamp(46px, 6.4vw, 92px); line-height: .98; letter-spacing: -.01em;
+}
+.bk-title em { font-style: italic; }
+.bk-lead { max-width: 54ch; margin: 18px auto 0; color: var(--bk-muted); font-size: 16.5px; line-height: 1.8; }
+.bk-rule { display: block; width: 72px; height: 1px; margin: 28px auto 0; background: var(--bk-red); }
+
+/* ---------- Bố cục: ảnh + thông tin | khung đặt bàn ---------- */
+.bk-layout { display: grid; grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr); gap: clamp(32px, 5vw, 72px); align-items: start; }
+.bk-layout--single { grid-template-columns: minmax(0, 1fr); }
+
+.bk-aside { position: sticky; top: 110px; }
+.bk-aside__picture { margin: 0 0 30px; overflow: hidden; border-radius: 999px 999px 0 0; aspect-ratio: 4 / 5; }
+.bk-aside__picture img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform 1.2s var(--bk-ease); }
+.bk-aside:hover .bk-aside__picture img { transform: scale(1.04); }
+.bk-aside__info { margin: 0; border-top: 1px solid var(--bk-line); }
+.bk-aside__info > div { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 12px; align-items: baseline; padding: 16px 0; border-bottom: 1px solid var(--bk-line); }
+.bk-aside__info dt { color: var(--bk-muted); font-size: 11.5px; font-weight: 600; letter-spacing: .22em; text-transform: uppercase; }
+.bk-aside__info dd { margin: 0; font-family: var(--bk-serif); font-size: 21px; line-height: 1.3; overflow-wrap: anywhere; }
+.bk-aside__info a { text-decoration: none; }
+.bk-aside__info a:hover { color: var(--bk-red); }
+.bk-aside__note { margin: 22px 0 0; color: var(--bk-muted); font-size: 14.5px; line-height: 1.75; }
+
+/* ---------- Khung giấy (viền đôi) ---------- */
+.bk-card {
+    position: relative; padding: clamp(28px, 4vw, 52px);
+    background: var(--bk-paper); border: 1px solid var(--bk-line);
+    outline: 1px solid var(--bk-line); outline-offset: -10px;
+}
+.bk-card + .bk-card, .bk-card + .bk-alert, .bk-alert + .bk-card { margin-top: 28px; }
+
+/* ---------- Ba bước trong form ---------- */
+.bk-step { margin: 0; padding: 0 0 30px; border: 0; min-width: 0; }
+.bk-step + .bk-step { padding-top: 30px; border-top: 1px solid var(--bk-line); }
+/* legend nổi (float) để nằm trong khung bước, không đè lên đường kẻ trên của fieldset. */
+.bk-step__head {
+    float: left; width: 100%; display: flex; align-items: baseline; gap: 14px; margin: 0 0 22px; padding: 0;
+    font-family: var(--bk-serif); font-size: 27px; font-weight: 500; line-height: 1.2; color: var(--bk-ink);
+}
+.bk-step__head + * { clear: left; }
+.bk-step__no { color: var(--bk-red); font-family: var(--bk-sans); font-size: 12px; font-weight: 600; letter-spacing: .2em; }
+
+.bk-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 28px; }
+.bk-row--3 { grid-template-columns: minmax(0, .62fr) minmax(0, 1fr) minmax(0, 1fr); }
+.bk-field { display: flex; flex-direction: column; min-width: 0; margin-bottom: 22px; }
+
+/* ---------- Ô nhập: chỉ gạch chân mảnh ---------- */
+.bk-page .bk-label { margin: 0 0 6px; color: var(--bk-muted); font-size: 11.5px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; }
+.bk-page .bk-input, .bk-page .bk-input:disabled {
+    box-sizing: border-box; width: 100%; min-height: 48px; padding: 10px 0; border: 0; border-bottom: 1px solid var(--bk-line-strong); border-radius: 0;
+    background-color: transparent; box-shadow: none; color: var(--bk-ink); font-size: 17px;
+    transition: border-color .3s var(--bk-ease), box-shadow .3s var(--bk-ease);
+}
+.bk-page .bk-input::placeholder { color: #aaa29a; }
+.bk-page .bk-input:hover { border-bottom-color: var(--bk-ink); }
+.bk-page .bk-input:focus { outline: 0; border-bottom-color: var(--bk-red); box-shadow: inset 0 -1px 0 var(--bk-red); background-color: transparent; }
+.bk-page select.bk-input { padding-right: 26px; background-position: right 2px center; cursor: pointer; }
+.bk-page textarea.bk-input { min-height: 96px; padding: 12px 14px; border: 1px solid var(--bk-line-strong); resize: vertical; }
+.bk-page textarea.bk-input:focus { border-color: var(--bk-red); box-shadow: inset 0 0 0 1px var(--bk-red); }
+.bk-page .bk-input::-webkit-calendar-picker-indicator { opacity: .55; cursor: pointer; }
+.bk-page .bk-input::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+.bk-page .bk-input.input-validation-error { border-bottom-color: var(--bk-red); }
+.bk-page .bk-input--code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .18em; text-transform: uppercase; }
+.bk-page .bk-input--code::placeholder { letter-spacing: .04em; text-transform: none; font-family: var(--bk-sans); }
+
+.bk-hint { margin-top: 8px; color: var(--bk-muted); font-size: 13px; line-height: 1.6; }
+.bk-hint--block { display: block; max-width: none; margin: 4px 0 0; }
+.bk-hint a { color: var(--bk-red); font-weight: 600; text-decoration: none; }
+.bk-page .bk-error { margin-top: 6px; font-size: 13px; }
+.bk-page .bk-error:empty { display: none; }
+.bk-page .field-validation-valid { display: none; }
+
+/* Kết quả kiểm tra lịch (booking-schedule.js đặt lớp text-success / text-danger / text-muted). */
+.bk-page #booking-schedule-feedback:not(:empty) {
+    display: flex; gap: 10px; align-items: flex-start; margin: 0 0 14px !important; padding: 12px 16px;
+    border-left: 2px solid currentColor; background: rgba(28, 26, 25, .035); font-size: 14.5px; line-height: 1.55;
+}
+.bk-page #booking-schedule-feedback.text-success { color: #1e6b42 !important; background: rgba(30, 107, 66, .06); }
+.bk-page #booking-schedule-feedback.text-danger { color: var(--bk-red) !important; background: rgba(60, 1, 2, .05); }
+.bk-page #booking-schedule-feedback.text-success::before { content: "✓"; font-weight: 700; }
+.bk-page #booking-schedule-feedback.text-danger::before { content: "!"; font-weight: 700; }
+
+/* Cảnh báo số điện thoại (chỉ nhân viên thấy) nằm gọn trong bước 1. */
+.bk-page .phone-no-show { margin-top: -4px; }
+
+/* ---------- Thông báo ---------- */
+.bk-page .bk-alert { margin: 0 0 24px; padding: 14px 18px; border: 0; border-left: 2px solid currentColor; border-radius: 0; font-size: 14.5px; }
+.bk-page .bk-alert ul { margin: 0; padding-left: 18px; }
+.bk-page .alert-danger.bk-alert { color: var(--bk-red-dark); background: #f6f3f3; }
+.bk-page .alert-warning.bk-alert { color: #7a4a00; background: #fbf3e2; }
+.bk-page .alert-success.bk-alert { color: #1e6b42; background: #edf6f0; }
+.bk-page .alert-info.bk-alert { color: #234e6b; background: #edf3f8; }
+.bk-page .validation-summary-valid { display: none; }
+
+/* ---------- Nút ---------- */
+.bk-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 18px 30px; margin-top: 8px; }
+.bk-page .bk-submit, .bk-page .bk-submit:focus {
+    display: inline-flex; align-items: center; justify-content: center; gap: 16px; min-height: 58px; padding: 0 34px;
+    border: 1px solid var(--bk-ink); border-radius: 0; background: var(--bk-ink); color: #fff; box-shadow: none;
+    font-size: 13.5px; font-weight: 600; letter-spacing: .22em; text-transform: uppercase;
+    transition: background-color .4s var(--bk-ease), border-color .4s var(--bk-ease);
+}
+.bk-page .bk-submit:hover { background: var(--bk-red); border-color: var(--bk-red); color: #fff; }
+.bk-page a.bk-submit, .bk-page a.bk-submit:hover { text-decoration: none; }
+.bk-page .bk-submit:disabled { opacity: .6; }
+.bk-arrow { width: 40px; height: 12px; overflow: visible; fill: none; stroke: currentColor; stroke-width: 1.3; transition: transform .6s var(--bk-ease); }
+.bk-page .bk-submit:hover .bk-arrow { transform: translateX(6px); }
+.bk-link {
+    position: relative; padding-bottom: 4px; color: var(--bk-ink) !important; font-size: 12.5px; font-weight: 600;
+    letter-spacing: .2em; text-transform: uppercase; text-decoration: none;
+}
+.bk-link::after { content: ""; position: absolute; left: 0; right: .2em; bottom: 0; height: 1px; background: var(--bk-red); transform-origin: 0 50%; transition: transform .5s var(--bk-ease); }
+.bk-link:hover { color: var(--bk-red) !important; }
+.bk-link:hover::after { transform: scaleX(.4); }
+
+/* =====================================================================
+   Tra cứu đặt bàn
+   ===================================================================== */
+.bk-lookup .bk-actions { margin-top: 4px; }
+.bk-lookup__summary ul { margin: 0 0 18px; padding-left: 18px; }
+.bk-lookup__help { margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--bk-line); }
+
+/* Thẻ kết quả kiểu "vé" có đường răng cưa ở giữa. */
+.bk-ticket { margin-top: 32px; }
+.bk-ticket__head { display: grid; justify-items: center; gap: 12px; padding-bottom: 26px; text-align: center; border-bottom: 1px dashed var(--bk-line-strong); }
+.bk-ticket__head .bk-eyelet { margin: 0; }
+.bk-page .bk-ticket__code { justify-content: center; }
+.bk-page .lookup-code { font-family: var(--bk-serif); font-size: clamp(36px, 5vw, 52px); font-weight: 500; letter-spacing: .14em; color: var(--bk-ink); }
+.bk-page .lookup-copy { border-radius: 0; font-size: 12px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
+.bk-status {
+    display: inline-block; padding: 6px 16px; border: 1px solid currentColor; border-radius: 999px;
+    color: var(--bk-muted); font-size: 12px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase;
+}
+.bk-status--pending { color: #9a6200; }
+.bk-status--confirmed, .bk-status--seated, .bk-status--completed { color: #1e6b42; }
+.bk-status--cancelled, .bk-status--rejected, .bk-status--noshow { color: var(--bk-red); }
+.bk-ticket__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 32px; margin: 8px 0 24px; }
+.bk-ticket__grid > div { padding: 18px 0; border-bottom: 1px solid var(--bk-line); }
+.bk-ticket__grid dt { margin-bottom: 6px; color: var(--bk-muted); font-size: 11.5px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; }
+.bk-ticket__grid dd { margin: 0; font-family: var(--bk-serif); font-size: 23px; line-height: 1.3; }
+.bk-ticket__grid small { color: var(--bk-muted); font-family: var(--bk-sans); font-size: 12.5px; }
+.bk-ticket__foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-top: 4px; }
+.bk-ticket__foot p { margin: 0; color: var(--bk-muted); font-size: 14.5px; }
+.bk-ticket__foot a { color: var(--bk-ink); font-weight: 600; text-decoration: none; }
+.bk-ticket__foot a:hover { color: var(--bk-red); }
+.bk-page .bk-cancel {
+    min-height: 48px; padding: 0 24px; border: 1px solid var(--bk-red); border-radius: 0; background: transparent; color: var(--bk-red);
+    font-size: 12.5px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase;
+}
+.bk-page .bk-cancel:hover, .bk-page .bk-cancel--solid { background: var(--bk-red); color: #fff; }
+.bk-page .bk-cancel--solid:hover { background: var(--bk-red-dark); border-color: var(--bk-red-dark); }
+.bk-page .bk-keep {
+    min-height: 48px; padding: 0 24px; border: 1px solid var(--bk-ink); border-radius: 0; background: transparent; color: var(--bk-ink);
+    font-size: 12.5px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase;
+}
+.bk-page .bk-keep:hover { background: var(--bk-ink); color: #fff; }
+
+/* Hộp xác nhận huỷ. */
+.bk-dialog { max-width: 520px; width: calc(100% - 32px); padding: 40px 36px 34px; border: 1px solid var(--bk-line); border-radius: 0; background: var(--bk-paper); color: var(--bk-ink); box-shadow: 0 24px 60px rgba(28, 26, 25, .25); outline: 1px solid var(--bk-line); outline-offset: -10px; }
+.bk-dialog::backdrop { background: rgba(28, 26, 25, .5); }
+.bk-dialog__title { margin: 0 0 14px; font-family: var(--bk-serif); font-size: 32px; font-weight: 400; line-height: 1.1; }
+.bk-dialog p { color: var(--bk-muted); line-height: 1.7; }
+.bk-dialog__actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: flex-end; margin-top: 24px; }
+
+/* =====================================================================
+   Đặt bàn thành công (Views/Reservations/Success.cshtml): lá thư trên nền đỏ rượu vang,
+   giấy kem có vân, con dấu sáp đỏ đặt giữa mép trên tờ giấy (cùng bộ với thư email). Không có logo.
+   ===================================================================== */
+.bk-page--letter { max-width: 760px; }
+.bk-letter {
+    --bk-wine: #3c0102;
+    position: relative; padding: clamp(64px, 8vw, 92px) clamp(16px, 5vw, 56px) clamp(28px, 4vw, 48px);
+    background: var(--bk-wine);
+    box-shadow: 0 24px 60px rgba(60, 1, 2, .25);
+}
+.bk-letter__seal {
+    position: absolute; top: clamp(64px, 8vw, 92px); left: 50%; z-index: 2;
+    width: clamp(96px, 13vw, 130px); height: auto; transform: translate(-50%, -52%);
+    filter: drop-shadow(0 8px 10px rgba(20, 0, 0, .45));
+}
+.bk-letter__paper {
+    position: relative; padding: clamp(46px, 6vw, 64px) clamp(14px, 3vw, 28px) clamp(18px, 3vw, 28px);
+    background: #f5ede4 url("../images/email/giay-thiep.jpg") repeat;
+    box-shadow: 0 2px 0 rgba(0, 0, 0, .08);
+}
+.bk-letter__frame { padding: clamp(26px, 4vw, 44px) clamp(18px, 4vw, 48px); border: 1px solid #dccbbd; outline: 1px solid #dccbbd; outline-offset: -6px; text-align: center; }
+.bk-letter__head .bk-eyelet { margin-bottom: 12px; }
+.bk-letter__title { margin: 0; color: var(--bk-wine); font-family: var(--bk-serif); font-weight: 400; font-size: clamp(38px, 5vw, 56px); line-height: 1.05; }
+.bk-letter__title em { font-style: italic; }
+.bk-letter__divider { margin: 14px auto 18px; max-width: none; color: var(--bk-red); letter-spacing: .4em; }
+.bk-letter__lead { max-width: 44ch; margin: 0 auto; color: #4a3a35; font-family: var(--bk-serif); font-size: 20px; line-height: 1.6; }
+.bk-letter__lead strong { color: var(--bk-wine); font-weight: 600; }
+.bk-letter__code { margin: 30px 0 8px; }
+.bk-letter__label { margin: 0 0 10px; max-width: none; color: #8a7770; font-size: 11.5px; font-weight: 600; letter-spacing: .22em; text-transform: uppercase; }
+.bk-letter__code-value {
+    display: table; margin: 0 auto 16px; padding: 10px 30px; max-width: none;
+    border: 3px double var(--bk-red); background: #fffdf9;
+    color: var(--bk-red-dark); font-family: var(--bk-serif); font-size: clamp(34px, 5vw, 46px); font-weight: 500; letter-spacing: .16em; line-height: 1.2;
+    -webkit-user-select: all; user-select: all;
+}
+.bk-page .bk-letter__copy { display: inline-flex; align-items: center; gap: 8px; margin: 0 auto; border-radius: 0; font-size: 12px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
+.bk-letter__facts { display: grid; gap: 0; max-width: 460px; margin: 26px auto 0; text-align: left; border-top: 1px solid #dccbbd; }
+.bk-letter__facts > div { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 12px 0; border-bottom: 1px dotted #d6c2b4; }
+.bk-letter__facts dt { color: #8a7770; font-size: 11.5px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; }
+.bk-letter__facts dd { margin: 0; font-family: var(--bk-serif); font-size: 21px; text-align: right; color: var(--bk-ink); }
+.bk-letter__steps {
+    max-width: 520px; margin: 28px auto 0; padding: 20px 22px 20px 44px; text-align: left;
+    border-top: 1px solid #dccbbd; border-bottom: 1px solid #dccbbd;
+    color: #4a3a35; font-family: var(--bk-serif); font-size: 17.5px; line-height: 1.6;
+}
+.bk-letter__steps li + li { margin-top: 8px; }
+.bk-letter__steps li::marker { color: var(--bk-red); font-weight: 600; }
+.bk-letter__actions { justify-content: center; margin-top: 30px; }
+
+/* Nền trang Tra cứu: 4 hình trang trí (con dấu sáp, dải sơn xoáy, trăng màu nước) rải ngẫu nhiên hai bên màn hình.
+   Vị trí, góc xoay, cỡ do máy chủ chọn ngẫu nhiên mỗi lần mở trang (Views/ReservationLookup/Index.cshtml) qua biến --x, --y, --r, --s.
+   Lớp đứng yên khi cuộn, nằm sau nội dung, hình trôi nhẹ lên xuống. */
+.bk-scatter { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.bk-scatter__item {
+    position: absolute; left: var(--x); top: var(--y);
+    width: clamp(150px, 16vw, 300px); height: auto;
+    /* Dùng các thuộc tính translate / rotate / scale riêng để hai hiệu ứng chạy cùng lúc:
+       hình lăn tròn liên tục (bk-roll) và nảy lên xuống (bk-bob). */
+    translate: -50% -50%;
+    rotate: var(--r);
+    scale: var(--s);
+    filter: drop-shadow(0 14px 22px rgba(60, 1, 2, .28));
+    animation:
+        bk-roll 14s linear var(--d, 0s) infinite,
+        bk-bob 2.6s ease-in-out var(--d, 0s) infinite alternate;
+    will-change: rotate, translate;
+}
+/* Hình chẵn lăn ngược chiều, mỗi hình một tốc độ cho tự nhiên. */
+.bk-scatter__item:nth-child(even) { animation-direction: reverse, alternate; }
+.bk-scatter__item:nth-child(2) { animation-duration: 11s, 2.2s; }
+.bk-scatter__item:nth-child(3) { animation-duration: 16s, 3s; }
+.bk-scatter__item:nth-child(4) { animation-duration: 12s, 2.4s; }
+.bk-scatter__item--soi-son { width: clamp(140px, 14vw, 260px); }
+/* Có JS (wwwroot/js/lookup-bounce.js): các hình bay va đập trong khung cửa sổ, vị trí và góc xoay do JS tính từng khung hình. */
+.bk-scatter.is-bouncing .bk-scatter__item {
+    left: 0; top: 0; translate: none; rotate: none; scale: none;
+    animation: none; transform-origin: 50% 50%; will-change: transform;
+}
+@keyframes bk-roll {
+    from { rotate: var(--r); }
+    to { rotate: calc(var(--r) + 360deg); }
+}
+@keyframes bk-bob {
+    from { translate: -50% -50%; }
+    to { translate: -50% calc(-50% - 26px); }
+}
+.bk-page--lookup { position: relative; z-index: 1; }
+@media (max-width: 991.98px) {
+    .bk-scatter__item { width: clamp(110px, 26vw, 200px); opacity: .55; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .bk-scatter__item { animation: none; }
+}
+/* Tiêu đề đặt trên một tấm giấy để luôn đọc rõ khi nằm trên dải trời đêm. */
+.bk-page--lookup .bk-hero {
+    position: relative; max-width: 760px; margin-left: auto; margin-right: auto;
+    padding: clamp(26px, 4vw, 40px) clamp(20px, 4vw, 48px) clamp(24px, 3vw, 34px);
+    background: var(--bk-paper); border: 1px solid var(--bk-line); outline: 1px solid var(--bk-line); outline-offset: -8px;
+    box-shadow: 0 18px 50px rgba(60, 1, 2, .18);
+}
+.bk-page--lookup .bk-hero .bk-rule { margin-top: 22px; }
+.bk-page--lookup .bk-card { box-shadow: 0 18px 50px rgba(60, 1, 2, .18); }
+
+/* Ô nhập được trình duyệt tự điền (email, điện thoại): giữ nền giấy thay cho nền xanh mặc định. */
+.bk-page .bk-input:-webkit-autofill, .bk-page .bk-input:-webkit-autofill:hover, .bk-page .bk-input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--bk-ink);
+    -webkit-box-shadow: 0 0 0 1000px var(--bk-paper) inset;
+    caret-color: var(--bk-ink);
+    transition: background-color 9999s ease-out 0s;
+}
+
+/* =====================================================================
+   Màn hình nhỏ
+   ===================================================================== */
+@media (max-width: 991.98px) {
+    .bk-layout { grid-template-columns: minmax(0, 1fr); }
+    .bk-aside { position: static; order: 2; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 0 28px; align-items: center; }
+    .bk-aside__picture { margin: 0; }
+    .bk-aside__note { grid-column: 1 / -1; }
+}
+@media (max-width: 640px) {
+    .bk-row, .bk-row--3, .bk-ticket__grid { grid-template-columns: minmax(0, 1fr); }
+    .bk-letter__facts > div { flex-direction: column; align-items: center; gap: 4px; }
+    .bk-letter__facts dd { text-align: center; }
+    .bk-aside { grid-template-columns: minmax(0, 1fr); }
+    .bk-aside__picture { max-width: 320px; margin: 0 auto 24px; }
+    .bk-card { padding: 28px 22px; outline-offset: -7px; }
+    .bk-page .bk-submit { width: 100%; }
+    .bk-actions { justify-content: center; }
+    .bk-ticket__foot { flex-direction: column; align-items: stretch; text-align: center; }
+}

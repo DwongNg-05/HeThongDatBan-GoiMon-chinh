@@ -433,6 +433,13 @@ public class ReservationsController : Controller
         // để lịch sử không tới và mọi lượt đặt của cùng khách dùng chung một chuỗi.
         PhoneNoShowGuard.NormalizePhone(ModelState, model);
 
+        // Khách tự đặt bàn online (chưa đăng nhập) bắt buộc nhập email để nhận thư xác nhận / huỷ đặt bàn.
+        // Nhân viên đặt hộ khách qua điện thoại vẫn được để trống email.
+        if (User.Identity?.IsAuthenticated != true && string.IsNullOrWhiteSpace(model.Email))
+        {
+            ModelState.AddModelError(nameof(model.Email), "Vui lòng nhập email để nhận thư xác nhận đặt bàn.");
+        }
+
         // Luôn load lại danh sách khu vực
         await LoadActiveAreas(model);
 

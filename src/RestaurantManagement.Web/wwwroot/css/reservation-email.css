@@ -35,17 +35,17 @@
 /* Trang đặt bàn thành công: lượt "Chờ xác nhận", mã đặt bàn lớn + nút sao chép, các bước tiếp theo. Màu theo logo Bếp Nhà. */
 .booking-success, .workspace-content > .container.booking-success { max-width: 680px; margin-left: auto; margin-right: auto; }
 .booking-success-head { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 18px; }
-.booking-success-icon { display: grid; place-items: center; flex: 0 0 auto; width: 52px; height: 52px; border-radius: 50%; background: #fdecee; color: var(--m-red, #b40829); font-size: 24px; }
+.booking-success-icon { display: grid; place-items: center; flex: 0 0 auto; width: 52px; height: 52px; border-radius: 50%; background: #f6f3f3; color: var(--m-red, #3c0102); font-size: 24px; }
 .booking-success-title { margin: 0; font-size: 28px; }
 .booking-success-lead { margin: 2px 0 0; color: #444; }
-.booking-code-card { margin: 0 0 16px; padding: 22px 18px; background: #fff; border: 2px solid var(--m-red, #b40829); border-radius: 14px; text-align: center; }
+.booking-code-card { margin: 0 0 16px; padding: 22px 18px; background: #fff; border: 2px solid var(--m-red, #3c0102); border-radius: 14px; text-align: center; }
 .booking-code-label { margin: 0 0 4px; color: #6e6e6e; font-size: 14px; }
-.booking-code { margin: 0 0 12px; font-family: ui-monospace, SFMono-Regular, Consolas, "Courier New", monospace; font-size: clamp(30px, 9vw, 42px); font-weight: 700; letter-spacing: .2em; color: var(--m-red-dark, #8f0620); white-space: nowrap; user-select: all; }
+.booking-code { margin: 0 0 12px; font-family: ui-monospace, SFMono-Regular, Consolas, "Courier New", monospace; font-size: clamp(30px, 9vw, 42px); font-weight: 700; letter-spacing: .2em; color: var(--m-red-dark, #260001); white-space: nowrap; user-select: all; }
 .booking-copy, .lookup-copy {
-    display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 18px; border: 1px solid var(--m-red, #b40829); border-radius: 999px;
-    background: #fff; color: var(--m-red, #b40829); font-size: 15px; font-weight: 600; cursor: pointer; transition: background-color .15s, color .15s;
+    display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 18px; border: 1px solid var(--m-red, #3c0102); border-radius: 999px;
+    background: #fff; color: var(--m-red, #3c0102); font-size: 15px; font-weight: 600; cursor: pointer; transition: background-color .15s, color .15s;
 }
-.booking-copy:hover, .lookup-copy:hover, .booking-copy:focus-visible, .lookup-copy:focus-visible { background: var(--m-red, #b40829); color: #fff; }
+.booking-copy:hover, .lookup-copy:hover, .booking-copy:focus-visible, .lookup-copy:focus-visible { background: var(--m-red, #3c0102); color: #fff; }
 .booking-copy.is-copied, .lookup-copy.is-copied { background: #1e7a46; border-color: #1e7a46; color: #fff; }
 .booking-code-facts { display: grid; width: fit-content; grid-template-columns: auto auto; gap: 4px 14px; margin: 18px auto 0; text-align: left; font-size: 15px; }
 .booking-code-facts dt { color: #6e6e6e; font-weight: 600; }
@@ -56,7 +56,7 @@
 .booking-email-notice { overflow-wrap: anywhere; }
 .booking-ref { margin: 0 0 10px; color: #6e6e6e; font-size: 14px; font-variant-numeric: tabular-nums; }
 .lookup-code-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-.lookup-code { font-family: ui-monospace, SFMono-Regular, Consolas, "Courier New", monospace; font-size: 20px; letter-spacing: .12em; color: var(--m-red-dark, #8f0620); }
+.lookup-code { font-family: ui-monospace, SFMono-Regular, Consolas, "Courier New", monospace; font-size: 20px; letter-spacing: .12em; color: var(--m-red-dark, #260001); }
 .lookup-copy { min-height: 36px; padding: 4px 14px; font-size: 14px; }
 
 /* S2-09 Task 2 — kết quả từng lần thử gửi và trạng thái email trên lượt đặt bàn. */
