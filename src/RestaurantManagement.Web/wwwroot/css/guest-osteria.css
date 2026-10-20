@@ -14,7 +14,7 @@
     --go-line-soft: #e8e4de;
     --go-red: var(--m-red, #3c0102);
     --go-red-dark: var(--m-red-dark, #260001);
-    --go-serif: "Cormorant Garamond", "Times New Roman", Georgia, serif;
+    --go-serif: "Playfair Display", "Times New Roman", Georgia, serif;
     --go-sans: var(--m-font, "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif);
     --go-header: 92px;
 }
