@@ -140,8 +140,10 @@
                 </tbody>
                 <tfoot>
                     <tr>
-                        <th scope="row" colspan="5" class="text-end">Tạm tính (@Model.ChargedLineCount dòng)</th>
+                        @* Số tạm tính nằm đúng dưới cột "Thành tiền"; ô cuối thuộc cột "Hủy món" (ẩn khi in). *@
+                        <th scope="row" colspan="4" class="text-end">Tạm tính (@Model.ChargedLineCount dòng)</th>
                         <td class="text-end text-nowrap provisional-bill-total" data-bill-subtotal="@Model.Subtotal.ToString("0")">@Vnd.Format(Model.Subtotal)</td>
+                        <td class="provisional-bill-action" aria-hidden="true"></td>
                     </tr>
                 </tfoot>
             </table>

@@ -92,4 +92,13 @@
     .provisional-bill { max-width: none; margin: 0 !important; }
     .provisional-bill-requests { background: none; border-left-color: #000; }
     .provisional-bill-quick li { background: none; color: #000; border: 1px solid #000; }
+    /* Bản in chỉ có nội dung hoá đơn: bỏ cột "Hủy món" (nút + lý do khoá nút) và thông báo kết quả trên màn hình. */
+    .provisional-bill-action-heading, .provisional-bill-action, .provisional-bill > .alert { display: none !important; }
+    /* Không cuộn ngang khi in: bảng co vừa khổ giấy, cột tiền không bị cắt. */
+    .provisional-bill .table-responsive { overflow: visible !important; }
+    .provisional-bill-table { width: 100% !important; table-layout: auto; font-size: 12pt; }
+    .provisional-bill-dish { min-width: 0; }
+    .provisional-bill-name { font-size: 13pt; }
+    .provisional-bill-total { font-size: 14pt; }
+    .provisional-bill-table tr { break-inside: avoid; }
 }
