@@ -36,6 +36,7 @@ public sealed record BookingEmailDetails(
 
 /// <summary>
 /// Nội dung email đặt bàn: mã đặt bàn (để tra cứu), bàn đã giữ, ngày giờ, số khách, địa chỉ quán.
+/// Bản HTML trình bày như một tấm thiệp mời: nền đỏ rượu vang, giấy kem, con dấu sáp đỏ (ảnh nhúng, xem EmailBranding).
 /// Email chỉ gửi khi Quản lý / Phục vụ xác nhận lượt đặt (BookingConfirmed, migration 050); email huỷ khi lượt bị huỷ.
 /// Tiêu đề dạng "Bếp Nhà - Xác nhận đặt bàn ED095C". Có bản HTML và bản chữ thường; mọi dữ liệu khách nhập đều được mã hoá HTML.
 /// </summary>
@@ -82,7 +83,7 @@ public static class BookingConfirmationEmail
     public const string Rejected = "BookingRejected";
 
     /// <summary>Màu thương hiệu (đỏ logo Bếp Nhà) dùng trong email.</summary>
-    private const string Brand = "#b40829", BrandDark = "#8f0620", BrandSoft = "#fff4f5";
+    private const string Brand = "#3c0102", BrandDark = "#260001";
 
     /// <summary>Ví dụ: "Bếp Nhà - Xác nhận đặt bàn ED095C" (tên nhà hàng đứng trước).</summary>
     public static string Subject(BookingEmailDetails d, string messageType = Confirmed) => messageType == Rejected
@@ -145,19 +146,28 @@ public static class BookingConfirmationEmail
             ? "Nếu bạn vẫn muốn dùng bữa, vui lòng đặt bàn mới hoặc gọi điện cho nhà hàng."
             : "Giờ hiển thị theo giờ Việt Nam (UTC+7). Dùng mã đặt bàn và số điện thoại để tra cứu hoặc huỷ đặt bàn.";
         // Mã hoá ký tự HTML nguy hiểm nhưng giữ nguyên chữ tiếng Việt để email dễ đọc (kể cả khi xem mã nguồn).
-        static string E(string? value) => Html.Encode(value ?? string.Empty);
+        // Chuẩn hoá Unicode dạng dựng sẵn (NFC): dữ liệu nhập kiểu "tổ hợp" (ví dụ "Tầng" = "Tâ" + dấu huyền rời) hiện lỗi dấu trên nhiều phông.
+        static string E(string? value) => Html.Encode((value ?? string.Empty).Normalize(System.Text.NormalizationForm.FormC));
         var when = FormatDateTime(d.StartsAtVietnam);
         var guestName = string.IsNullOrWhiteSpace(d.CustomerName) ? "quý khách" : d.CustomerName;
         var address = string.IsNullOrWhiteSpace(d.RestaurantAddress) ? "(nhà hàng sẽ liên hệ để báo địa chỉ)" : d.RestaurantAddress;
+        // ---------- Thiệp mời: nền đỏ rượu vang, tờ giấy kem có con dấu sáp đỏ ở mép trên ----------
+        // Bảng lồng + CSS nội dòng để hiện đúng trên Gmail/Outlook; chữ có chân có sẵn trên máy người đọc (không tải phông ngoài).
+        const string Wine = "#3c0102", Paper = "#f5ede4", Ink = "#2b1a17", Muted = "#8a7770", Line = "#dccbbd";
+        // Palatino / Times: chữ có chân đủ dấu tiếng Việt và chữ số thẳng hàng (Georgia dùng số kiểu cổ, "09:00" lên xuống không đều).
+        const string Serif = "'Palatino Linotype','Book Antiqua',Palatino,'Times New Roman',Times,serif";
+        const string Sans = "Arial,Helvetica,sans-serif";
+        var eyelet = rejected ? "Thư báo từ nhà hàng" : closed ? "Thư báo huỷ đặt bàn" : "Thiệp xác nhận đặt bàn";
         string Row(string label, string valueHtml) =>
-            $"<tr><td style=\"padding:8px 0;color:#6e6e6e;width:120px;vertical-align:top\">{label}</td><td style=\"padding:8px 0;font-weight:600\">{valueHtml}</td></tr>";
-        // Nút dạng bảng lồng để hiện đúng trên Gmail/Outlook, kèm liên kết dự phòng dạng chữ.
+            $"<tr><td style=\"padding:11px 0;border-bottom:1px dotted {Line};font-family:{Sans};font-size:11px;letter-spacing:2px;text-transform:uppercase;color:{Muted};vertical-align:top;width:38%\">{label}</td>" +
+            $"<td align=\"right\" style=\"padding:11px 0;border-bottom:1px dotted {Line};font-family:{Serif};font-size:17px;line-height:1.45;color:{Ink};vertical-align:top\">{valueHtml}</td></tr>";
+        // Nút vuông màu đỏ thương hiệu, kèm liên kết dự phòng dạng chữ.
         string Button(string url, string label, string hint) => $"""
-            <tr><td align="center" style="padding:4px 24px 20px">
-              <table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:10px;background:{Brand}">
-                <a href="{E(url)}" target="_blank" style="display:inline-block;padding:14px 30px;font-size:16px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:10px">{label}</a>
+            <tr><td align="center" style="padding:30px 0 4px">
+              <table role="presentation" cellpadding="0" cellspacing="0"><tr><td bgcolor="{Brand}" style="background:{Brand}">
+                <a href="{E(url)}" target="_blank" style="display:inline-block;padding:15px 36px;font-family:{Sans};font-size:13px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#ffffff;text-decoration:none">{label}</a>
               </td></tr></table>
-              <div style="font-size:12px;color:#8a8a8a;margin-top:10px;line-height:1.5">{hint}<br><a href="{E(url)}" style="color:{Brand};word-break:break-all">{E(url)}</a></div>
+              <div style="font-family:{Sans};font-size:11px;color:{Muted};margin-top:12px;line-height:1.6">{hint}<br><a href="{E(url)}" style="color:{Brand};word-break:break-all">{E(url)}</a></div>
             </td></tr>
             """;
 
@@ -166,43 +176,63 @@ public static class BookingConfirmationEmail
             : showLookup
                 ? Button(lookupUrl!, "Tra cứu đặt bàn", "Mã đặt bàn đã được điền sẵn, bạn chỉ cần nhập số điện thoại. Hoặc mở liên kết:")
                 : string.Empty;
+        // Lượt đã huỷ / bị từ chối: mã đặt bàn hiện màu nhạt, gạch ngang.
+        var codeStyle = closed
+            ? $"color:{Muted};border:3px double {Line};text-decoration:line-through"
+            : $"color:{BrandDark};border:3px double {Brand}";
 
         var html = $"""
             <!doctype html>
             <html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{E(d.RestaurantName)} - {title} {E(d.Code)}</title></head>
-            <body style="margin:0;padding:0;background:#f6f6f6;font-family:Arial,Helvetica,sans-serif;color:#222222">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f6f6;padding:24px 12px">
-                <tr><td align="center">
-                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:16px;overflow:hidden">
-                    {EmailBranding.Header(E(title), Brand)}
-                    <tr><td style="padding:24px 24px 8px;font-size:16px;line-height:1.6">
-                      <p style="margin:0 0 12px">Xin chào <strong>{E(guestName)}</strong>,</p>
-                      <p style="margin:0">{E(intro)}</p>
+            <body style="margin:0;padding:0;background:{Wine};color:{Ink}">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="{Wine}" style="background:{Wine}">
+                <tr><td align="center" style="padding:32px 12px 36px">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px">
+                    <tr><td align="center" style="padding:0 0 22px">{EmailBranding.LogoImg}</td></tr>
+                    <tr><td style="line-height:0;font-size:0">{EmailBranding.InviteTopImg}</td></tr>
+                    <tr><td bgcolor="{Paper}"{EmailBranding.PaperBackgroundAttr} style="background-color:{Paper};{EmailBranding.PaperBackgroundCss}padding:4px 26px 34px">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid {Line}"><tr><td style="padding:5px">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid {Line}"><tr><td style="padding:30px 26px 32px">
+
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                          <tr><td align="center" style="font-family:{Sans};font-size:11px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:{Brand};padding:0 0 12px">{E(d.RestaurantName)} · {eyelet}</td></tr>
+                          <tr><td align="center" style="font-family:{Serif};font-size:34px;font-style:italic;line-height:1.2;color:{Wine};padding:0 0 10px">{E(title)}</td></tr>
+                          <tr><td align="center" style="font-family:{Serif};font-size:14px;letter-spacing:6px;color:{Brand};padding:0 0 22px">—&nbsp;✦&nbsp;—</td></tr>
+                          <tr><td align="center" style="font-family:{Serif};font-size:17px;line-height:1.75;color:{Ink};padding:0 4px">
+                            <p style="margin:0 0 10px;font-style:italic">Kính gửi <strong style="font-style:normal">{E(guestName)}</strong>,</p>
+                            <p style="margin:0">{E(intro)}</p>
+                          </td></tr>
+                          <tr><td align="center" style="padding:26px 0 8px">
+                            <div style="font-family:{Sans};font-size:11px;letter-spacing:2px;text-transform:uppercase;color:{Muted};margin-bottom:10px">Mã đặt bàn (dùng để tra cứu)</div>
+                            <div style="display:inline-block;padding:12px 26px;background:#fffdf9;{codeStyle};font-family:{Serif};font-size:30px;letter-spacing:8px;-webkit-user-select:all;user-select:all">{E(d.Code)}</div>
+                          </td></tr>
+                          <tr><td style="padding:18px 0 0">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid {Line}">
+                              {(d.TableCode is null ? "" : Row("Bàn", E(d.TableCode)))}
+                              {Row("Ngày giờ", E(when))}
+                              {Row("Số khách", E($"{d.GuestCount} người"))}
+                              {(d.AreaName is null ? "" : Row("Khu vực", E(d.AreaName)))}
+                              {Row("Địa chỉ quán", E(address))}
+                              {(d.RestaurantPhone is null ? "" : Row("Điện thoại", E(d.RestaurantPhone)))}
+                              {(cancelled && !customerCancelled && d.CancelReason is not null ? Row("Lý do huỷ", E(d.CancelReason)) : "")}
+                              {(rejected && rejectionLabel is not null ? Row("Lý do", E(rejectionLabel)) : "")}
+                            </table>
+                          </td></tr>
+                          {actionHtml}
+                          <tr><td align="center" style="padding:28px 6px 0;font-family:{Serif};font-size:15px;font-style:italic;line-height:1.7;color:{Muted}">
+                            {E(note)}
+                            {(closed ? "" : $" Khi đến quán, vui lòng đọc mã đặt bàn <strong style=\"font-style:normal;color:{BrandDark}\">{E(d.Code)}</strong> cho nhân viên.")}
+                          </td></tr>
+                          <tr><td align="center" style="padding:26px 0 0">
+                            <div style="font-family:{Serif};font-size:15px;font-style:italic;color:{Muted}">Trân trọng,</div>
+                            <div style="font-family:{Serif};font-size:26px;font-style:italic;color:{Brand};margin-top:4px">{E(d.RestaurantName)}</div>
+                          </td></tr>
+                        </table>
+
+                      </td></tr></table>
+                      </td></tr></table>
                     </td></tr>
-                    <tr><td align="center" style="padding:12px 24px">
-                      <div style="font-size:13px;color:#6e6e6e;margin-bottom:6px">Mã đặt bàn (dùng để tra cứu)</div>
-                      <div style="display:inline-block;padding:10px 22px;border:2px solid {Brand};border-radius:12px;background:{BrandSoft};font-family:'Courier New',Consolas,monospace;font-size:32px;font-weight:700;letter-spacing:6px;color:{BrandDark};-webkit-user-select:all;user-select:all">{E(d.Code)}</div>
-                    </td></tr>
-                    <tr><td style="padding:8px 24px 16px">
-                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:15px;border-top:1px solid #eeeeee">
-                        {(d.TableCode is null ? "" : Row("Bàn", E(d.TableCode)))}
-                        {Row("Ngày giờ", E(when))}
-                        {Row("Số khách", E($"{d.GuestCount} người"))}
-                        {(d.AreaName is null ? "" : Row("Khu vực", E(d.AreaName)))}
-                        {Row("Địa chỉ quán", E(address))}
-                        {(d.RestaurantPhone is null ? "" : Row("Điện thoại", E(d.RestaurantPhone)))}
-                        {(cancelled && !customerCancelled && d.CancelReason is not null ? Row("Lý do huỷ", E(d.CancelReason)) : "")}
-                        {(rejected && rejectionLabel is not null ? Row("Lý do", E(rejectionLabel)) : "")}
-                      </table>
-                    </td></tr>
-                    {actionHtml}
-                    <tr><td style="padding:0 24px 24px">
-                      <div style="background:{BrandSoft};border:1px solid #f1b8c2;border-radius:10px;padding:12px 14px;font-size:14px;line-height:1.5">
-                        {E(note)}
-                        {(closed ? "" : $" Khi đến quán, vui lòng đọc mã đặt bàn <strong>{E(d.Code)}</strong> cho nhân viên.")}
-                      </div>
-                    </td></tr>
-                    <tr><td style="background:#fafafa;padding:14px 24px;font-size:12px;color:#8a8a8a">Email được gửi tự động, vui lòng không trả lời.</td></tr>
+                    <tr><td align="center" style="padding:20px 12px 0;font-family:{Sans};font-size:11px;letter-spacing:1px;color:#c9a7a3">Email được gửi tự động, vui lòng không trả lời.</td></tr>
                   </table>
                 </td></tr>
               </table>

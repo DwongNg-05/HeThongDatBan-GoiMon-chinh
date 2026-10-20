@@ -6,8 +6,8 @@
    nên mọi bộ chọn bắt đầu bằng ".admin-shell .at-luxe" để không bị ghi đè.
    ===================================================================== */
 .at-luxe {
-    --lx-wine: var(--m-red, #b40829);
-    --lx-wine-dark: var(--m-red-dark, #8f0620);
+    --lx-wine: var(--m-red, #3c0102);
+    --lx-wine-dark: var(--m-red-dark, #260001);
     --lx-gold: #b08d57;
     --lx-gold-soft: #e7d7b8;
     /* Nền trắng như các màn hình khác của hệ thống. */

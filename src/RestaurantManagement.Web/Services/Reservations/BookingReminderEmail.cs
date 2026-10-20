@@ -16,7 +16,7 @@ public static class BookingReminderEmail
     public const string MessageType = "BookingReminder";
 
     private static readonly HtmlEncoder Html = HtmlEncoder.Create(UnicodeRanges.All);
-    private const string Brand = "#b40829", BrandDark = "#8f0620", BrandSoft = "#fff4f5";
+    private const string Brand = "#3c0102", BrandDark = "#260001", BrandSoft = "#fff4f5";
 
     /// <summary>Dòng "Bàn" khi lượt đặt chưa có bàn (không xảy ra với lượt đã xác nhận, phòng dữ liệu cũ).</summary>
     public const string NoTableLabel = "Nhà hàng sẽ xếp bàn khi bạn đến";
@@ -92,7 +92,7 @@ public static class BookingReminderEmail
                     {lookupHtml}
                     {cancelHtml}
                     <tr><td style="padding:0 24px 24px">
-                      <div style="background:{BrandSoft};border:1px solid #f1b8c2;border-radius:10px;padding:12px 14px;font-size:14px;line-height:1.5">
+                      <div style="background:{BrandSoft};border:1px solid #dacfcf;border-radius:10px;padding:12px 14px;font-size:14px;line-height:1.5">
                         Giờ hiển thị theo giờ Việt Nam (UTC+7). Khi đến quán, vui lòng đọc mã đặt bàn <strong>{E(d.Code)}</strong> cho nhân viên.
                         {E(cancelNote)}
                       </div>

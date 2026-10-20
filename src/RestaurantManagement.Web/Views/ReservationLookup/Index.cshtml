@@ -3,113 +3,154 @@
 @{
     ViewData["Title"] = "Tra cứu đặt bàn";
     var codePrefilled = Model.Result is null && !string.IsNullOrWhiteSpace(Model.Code);
+
+    // Ảnh nền rải ngẫu nhiên: mỗi lần mở trang, 4 hình (con dấu sáp trăng, con dấu sáp hoa, dải sơn xoáy, trăng màu nước)
+    // được xếp vào các ô chọn ngẫu nhiên ở hai bên màn hình, lệch vị trí, xoay và đổi cỡ ngẫu nhiên; vùng giữa (nội dung) để trống.
+    // Toạ độ ô tính theo % màn hình (tâm hình); hàng trên bắt đầu từ 28% để không bị thanh menu che.
+    var rng = Random.Shared;
+    var artworks = new[] { "dau-trang", "dau-hoa", "soi-son", "trang-mau-nuoc" }.OrderBy(_ => rng.Next()).ToArray();
+    (double X, double Y)[] slots = [(11, 30), (13, 60), (10, 88), (89, 28), (87, 58), (90, 88)];
+    var chosenSlots = slots.OrderBy(_ => rng.Next()).Take(artworks.Length).ToArray();
+    string Css(double value) => value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
 }
 @section Styles {
     <link rel="stylesheet" href="~/css/reservation-email.css" asp-append-version="true" />
+    @* Giao diện tra cứu sang trọng, cùng bộ với trang Đặt bàn (wwwroot/css/booking-luxe.css). *@
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" />
+    <link rel="stylesheet" href="~/css/booking-luxe.css" asp-append-version="true" />
 }
 
-<div class="row justify-content-center">
-    <div class="col-md-8 col-lg-6">
-        <h1 class="mb-3">Tra cứu đặt bàn</h1>
+@* Lớp ảnh nền cố định phía sau nội dung (booking-luxe.css: .bk-scatter); chỉ để trang trí nên ẩn với trình đọc màn hình. *@
+<div class="bk-scatter" aria-hidden="true">
+    @for (var i = 0; i < artworks.Length; i++)
+    {
+        var (x, y) = chosenSlots[i];
+        var style = $"--x:{Css(x + rng.NextDouble() * 6 - 3)}%;--y:{Css(y + rng.NextDouble() * 8 - 4)}%;" +
+                    $"--r:{Css(rng.NextDouble() * 50 - 25)}deg;--s:{Css(0.85 + rng.NextDouble() * 0.3)};--d:{Css(rng.NextDouble() * -12)}s";
+        <img class="bk-scatter__item bk-scatter__item--@(artworks[i])" src="@Url.Content($"~/images/tra-cuu/{artworks[i]}.webp")" alt="" style="@style" decoding="async" />
+    }
+</div>
 
-        <p class="text-muted">Nhập mã đặt bàn và số điện thoại đã dùng khi đặt bàn.</p>
+<div class="bk-page bk-page--narrow bk-page--lookup">
 
-        <form asp-controller="ReservationLookup" asp-action="Lookup" method="post" class="card card-body mb-4">
-            <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+    <header class="bk-hero">
+        <p class="bk-eyelet"><span class="bk-flower" aria-hidden="true">✦</span> Bếp Nhà · Quan Triều</p>
+        <h1 class="bk-title">Tra cứu <em>đặt bàn</em></h1>
+        <p class="bk-lead">Nhập mã đặt bàn và số điện thoại đã dùng khi đặt để xem trạng thái, bàn được xếp hoặc huỷ lượt đặt.</p>
+        <span class="bk-rule" aria-hidden="true"></span>
+    </header>
 
-            <div class="mb-3">
-                <label asp-for="Code" class="form-label"></label>
-                <input asp-for="Code" class="form-control" maxlength="30" placeholder="Ví dụ: ABC123" autocapitalize="characters" spellcheck="false" />
-                <span asp-validation-for="Code" class="text-danger"></span>
+    <form asp-controller="ReservationLookup" asp-action="Lookup" method="post" class="bk-card bk-lookup">
+        <div asp-validation-summary="ModelOnly" class="text-danger bk-error bk-lookup__summary" role="alert"></div>
+
+        <div class="bk-row">
+            <div class="bk-field">
+                <label asp-for="Code" class="bk-label"></label>
+                <input asp-for="Code" class="form-control bk-input bk-input--code" maxlength="30" placeholder="Ví dụ: ABC123" autocapitalize="characters" spellcheck="false" />
+                <span asp-validation-for="Code" class="text-danger bk-error"></span>
             </div>
 
-            <div class="mb-3">
-                <label asp-for="Phone" class="form-label"></label>
-                <input asp-for="Phone" type="tel" class="form-control" maxlength="50" autocomplete="tel" placeholder="Số điện thoại đã đặt bàn" autofocus="@(codePrefilled ? "autofocus" : null)" />
-                <span asp-validation-for="Phone" class="text-danger"></span>
+            <div class="bk-field">
+                <label asp-for="Phone" class="bk-label"></label>
+                <input asp-for="Phone" type="tel" class="form-control bk-input" maxlength="50" autocomplete="tel" placeholder="Số điện thoại đã đặt bàn" autofocus="@(codePrefilled ? "autofocus" : null)" />
+                <span asp-validation-for="Phone" class="text-danger bk-error"></span>
             </div>
+        </div>
 
-            <button type="submit" class="btn btn-primary">Tra cứu</button>
-        </form>
+        <div class="bk-actions">
+            <button type="submit" class="btn btn-primary bk-submit">
+                <span>Tra cứu</span>
+                <svg class="bk-arrow" viewBox="0 0 44 12" aria-hidden="true"><line x1="0" y1="6" x2="42" y2="6" /><path d="M36 1l6 5-6 5" /></svg>
+            </button>
+            <a asp-controller="Reservations" asp-action="Create" class="bk-link">Đặt bàn mới</a>
+        </div>
 
-        @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
-        {
-            <div class="alert alert-success" role="status">@Model.SuccessMessage</div>
-        }
+        <p class="bk-hint bk-hint--block bk-lookup__help">
+            Mã đặt bàn có trong email xác nhận và trên trang đặt bàn thành công. Quên mã? Gọi <a href="tel:0981681594">0981 681 594</a>.
+        </p>
+    </form>
 
-        @if (Model.Result is { } result)
-        {
-            <div class="card">
-                <div class="card-body">
-                    <h2 class="h4 mb-3">Thông tin đặt bàn</h2>
+    @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
+    {
+        <div class="alert alert-success bk-alert" role="status">@Model.SuccessMessage</div>
+    }
 
-                    <dl class="row">
-                        <dt class="col-sm-4">Mã đặt bàn</dt>
-                        <dd class="col-sm-8 lookup-code-row">
-                            <strong class="lookup-code">@result.Code</strong>
-                            <button type="button" class="lookup-copy" data-copy-code="@result.Code" aria-label="Sao chép mã đặt bàn @result.Code">
-                                <i class="fa-regular fa-copy" aria-hidden="true"></i><span data-copy-label>Sao chép</span>
-                            </button>
-                        </dd>
-                        <dt class="col-sm-4">Trạng thái</dt>
-                        <dd class="col-sm-8">@result.StatusLabel</dd>
-                        <dt class="col-sm-4">Thời gian</dt>
-                        <dd class="col-sm-8">@result.AppointmentLabel <small class="text-muted">(giờ Việt Nam)</small></dd>
-                        <dt class="col-sm-4">Số khách</dt>
-                        <dd class="col-sm-8">@result.GuestCount khách</dd>
-                        <dt class="col-sm-4">Khu vực</dt>
-                        <dd class="col-sm-8">@(result.AreaName ?? "Chưa chọn khu vực")</dd>
-                        <dt class="col-sm-4">Bàn</dt>
-                        <dd class="col-sm-8">@result.TableLabel</dd>
-                    </dl>
-
-                    @if (result.Status == "Pending")
-                    {
-                        @* Khách tra cứu trước khi nhà hàng xác nhận: hiển thị "Chờ xác nhận" và giải thích bước tiếp theo. *@
-                        <div class="alert alert-warning" role="status" data-lookup-pending>
-                            Lượt đặt đang <strong>chờ nhà hàng xác nhận</strong>. Khi được xác nhận, bàn sẽ hiện ở đây và bạn nhận email kèm mã đặt bàn (nếu đã nhập email).
-                        </div>
-                    }
-
-                    @if (!string.IsNullOrWhiteSpace(result.CancellationMessage))
-                    {
-                        <div class="alert alert-info" role="status">@result.CancellationMessage</div>
-                    }
-
-                    @if (!string.IsNullOrWhiteSpace(result.EmailDeliveryMessage))
-                    {
-                        var emailAlertClass = result.EmailDeliveryMessage.Contains("chưa gửi được", StringComparison.OrdinalIgnoreCase)
-                            ? "alert-warning" : "alert-success";
-                        <div class="alert @emailAlertClass" role="status">@result.EmailDeliveryMessage</div>
-                    }
-
-                    @if (result.CanCancel)
-                    {
-                        <button type="button" id="openCancelDialog" class="btn btn-danger">Huỷ đặt bàn</button>
-                        <dialog id="cancelDialog" aria-labelledby="cancelDialogTitle" class="rounded border p-4">
-                            <h3 id="cancelDialogTitle" class="h5">Xác nhận huỷ đặt bàn</h3>
-                            <p>Bạn có chắc muốn huỷ đặt bàn <strong>@result.Code</strong> lúc @result.AppointmentLabel cho @result.GuestCount khách?</p>
-                            <form asp-controller="ReservationLookup" asp-action="Cancel" method="post" id="cancelForm">
-                                <input asp-for="Code" type="hidden" />
-                                <input asp-for="Phone" type="hidden" />
-                                <div class="d-flex gap-2">
-                                    <button type="button" id="closeCancelDialog" class="btn btn-secondary">Giữ đặt bàn</button>
-                                    <button type="submit" id="confirmCancelButton" class="btn btn-danger">Xác nhận huỷ</button>
-                                </div>
-                            </form>
-                        </dialog>
-                    }
-
-                    <p class="mt-3 mb-0">Liên hệ quán: <a href="tel:@result.RestaurantPhone">@result.RestaurantPhone</a></p>
+    @if (Model.Result is { } result)
+    {
+        <section class="bk-card bk-ticket" aria-labelledby="bk-ticket-title">
+            <header class="bk-ticket__head">
+                <p class="bk-eyelet" id="bk-ticket-title">Thông tin đặt bàn</p>
+                <div class="lookup-code-row bk-ticket__code">
+                    <strong class="lookup-code">@result.Code</strong>
+                    <button type="button" class="lookup-copy" data-copy-code="@result.Code" aria-label="Sao chép mã đặt bàn @result.Code">
+                        <i class="fa-regular fa-copy" aria-hidden="true"></i><span data-copy-label>Sao chép</span>
+                    </button>
                 </div>
-            </div>
-        }
-    </div>
+                <span class="bk-status bk-status--@result.Status.ToLowerInvariant()">@result.StatusLabel</span>
+            </header>
+
+            <dl class="bk-ticket__grid">
+                <div><dt>Thời gian</dt><dd>@result.AppointmentLabel <small>(giờ Việt Nam)</small></dd></div>
+                <div><dt>Số khách</dt><dd>@result.GuestCount khách</dd></div>
+                <div><dt>Khu vực</dt><dd>@(result.AreaName ?? "Chưa chọn khu vực")</dd></div>
+                <div><dt>Bàn</dt><dd>@result.TableLabel</dd></div>
+            </dl>
+
+            @if (result.Status == "Pending")
+            {
+                @* Khách tra cứu trước khi nhà hàng xác nhận: hiển thị "Chờ xác nhận" và giải thích bước tiếp theo. *@
+                <div class="alert alert-warning bk-alert" role="status" data-lookup-pending>
+                    Lượt đặt đang <strong>chờ nhà hàng xác nhận</strong>. Khi được xác nhận, bàn sẽ hiện ở đây và bạn nhận email kèm mã đặt bàn (nếu đã nhập email).
+                </div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(result.CancellationMessage))
+            {
+                <div class="alert alert-info bk-alert" role="status">@result.CancellationMessage</div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(result.EmailDeliveryMessage))
+            {
+                var emailAlertClass = result.EmailDeliveryMessage.Contains("chưa gửi được", StringComparison.OrdinalIgnoreCase)
+                    ? "alert-warning" : "alert-success";
+                <div class="alert @emailAlertClass bk-alert" role="status">@result.EmailDeliveryMessage</div>
+            }
+
+            <footer class="bk-ticket__foot">
+                <p>Liên hệ quán: <a href="tel:@result.RestaurantPhone">@result.RestaurantPhone</a></p>
+
+                @if (result.CanCancel)
+                {
+                    <button type="button" id="openCancelDialog" class="btn btn-danger bk-cancel">Huỷ đặt bàn</button>
+                }
+            </footer>
+
+            @if (result.CanCancel)
+            {
+                <dialog id="cancelDialog" aria-labelledby="cancelDialogTitle" class="bk-dialog">
+                    <h3 id="cancelDialogTitle" class="bk-dialog__title">Xác nhận <em>huỷ đặt bàn</em></h3>
+                    <p>Bạn có chắc muốn huỷ đặt bàn <strong>@result.Code</strong> lúc @result.AppointmentLabel cho @result.GuestCount khách?</p>
+                    <form asp-controller="ReservationLookup" asp-action="Cancel" method="post" id="cancelForm">
+                        <input asp-for="Code" type="hidden" />
+                        <input asp-for="Phone" type="hidden" />
+                        <div class="bk-dialog__actions">
+                            <button type="button" id="closeCancelDialog" class="btn btn-secondary bk-keep">Giữ đặt bàn</button>
+                            <button type="submit" id="confirmCancelButton" class="btn btn-danger bk-cancel bk-cancel--solid">Xác nhận huỷ</button>
+                        </div>
+                    </form>
+                </dialog>
+            }
+        </section>
+    }
 </div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script src="~/js/copy-code.js" asp-append-version="true"></script>
+    @* Hình nền bay va đập trong khung cửa sổ. *@
+    <script src="~/js/lookup-bounce.js" asp-append-version="true"></script>
 
     <script>
         const cancelDialog = document.getElementById("cancelDialog");

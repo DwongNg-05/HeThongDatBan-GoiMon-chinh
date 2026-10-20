@@ -1,15 +1,15 @@
 /* =====================================================================
-   Màn hình nhân viên đồng bộ màu đỏ thương hiệu Bếp Nhà (#b40829, cùng thanh bên).
+   Màn hình nhân viên đồng bộ màu đỏ thương hiệu Bếp Nhà (#3c0102, cùng thanh bên).
    Nạp SAU michelin.css (chỉ khi đã đăng nhập).
    Áp dụng cho: tab trong trang, nút phụ, ô nhập, bảng, Danh sách đặt bàn,
    Đơn chờ xử lý và Sơ đồ bàn. Màu trạng thái bàn vẫn tách biệt để dễ phân biệt.
    ===================================================================== */
 :root {
-    --s-red: var(--m-red, #b40829);
-    --s-red-dark: var(--m-red-dark, #8f0620);
+    --s-red: var(--m-red, #3c0102);
+    --s-red-dark: var(--m-red-dark, #260001);
     --s-red-soft: #fff4f5;
-    --s-red-tint: #fbe7eb;
-    --s-red-line: #f1c9d1;
+    --s-red-tint: #f3efef;
+    --s-red-line: #e1d9d9;
     --s-ink: var(--m-ink, #222);
     --s-muted: var(--m-muted, #6e6e6e);
     --s-line: var(--m-line, #e5e5e5);
@@ -33,7 +33,7 @@
 .admin-shell .btn-outline-primary { border-color: var(--s-red-line); background: #fff; color: var(--s-red); }
 .admin-shell .btn-outline-primary:hover, .admin-shell .btn-outline-primary:focus { border-color: var(--s-red); background: var(--s-red-soft); color: var(--s-red-dark); }
 .admin-shell .btn-outline-secondary:hover, .admin-shell .btn-outline-secondary:focus { border-color: var(--s-red-line); background: var(--s-red-soft); color: var(--s-red-dark); }
-.admin-shell .form-control:focus, .admin-shell .form-select:focus { border-color: var(--s-red); box-shadow: 0 0 0 3px rgba(180, 8, 41, .12); }
+.admin-shell .form-control:focus, .admin-shell .form-select:focus { border-color: var(--s-red); box-shadow: 0 0 0 3px rgba(60, 1, 2, .12); }
 .admin-shell :focus-visible { outline-color: var(--s-red); }
 
 /* ---------- Đầu trang, thanh lọc, ghi chú ---------- */
@@ -74,7 +74,7 @@
 .staff-table td { padding: 14px 18px; white-space: nowrap; }
 .staff-table tbody td:first-child { font-weight: 600; letter-spacing: .03em; }
 .staff-table tbody tr:hover > * { --bs-table-bg-state: #fff8f9; }
-.staff-table tr.table-danger > * { --bs-table-bg: #fdecef; --bs-table-bg-state: #fbe1e6; color: var(--s-ink); }
+.staff-table tr.table-danger > * { --bs-table-bg: #f6f3f3; --bs-table-bg-state: #f0ecec; color: var(--s-ink); }
 .staff-table tr.table-warning > * { --bs-table-bg: #fff8ea; --bs-table-bg-state: #fff2d9; color: var(--s-ink); }
 .staff-table th[scope="rowgroup"] { border-bottom: 1px solid var(--s-line) !important; padding: 10px 18px; font-size: 13px; font-weight: 700; letter-spacing: .02em; }
 .staff-table tr.table-danger th[scope="rowgroup"] { color: var(--s-red-dark); border-left: 4px solid var(--s-red); }
@@ -100,7 +100,7 @@
     padding: 16px 20px; border: 1px solid var(--s-line); border-left: 4px solid var(--s-red); border-radius: var(--s-radius);
     background: #fff; box-shadow: var(--s-shadow); transition: border-color .15s, box-shadow .15s;
 }
-.pending-card:hover { border-color: var(--s-red-line); border-left-color: var(--s-red); box-shadow: 0 6px 18px rgba(180, 8, 41, .08); }
+.pending-card:hover { border-color: var(--s-red-line); border-left-color: var(--s-red); box-shadow: 0 6px 18px rgba(60, 1, 2, .08); }
 .pending-main { display: grid; gap: 2px; min-width: 0; }
 .pending-code { color: var(--s-red); font-size: 13px; font-weight: 700; letter-spacing: .08em; }
 .pending-name { font-size: 18px; font-weight: 600; overflow-wrap: anywhere; }
@@ -143,7 +143,7 @@
 /* Lưới tự co giãn: mỗi thẻ rộng tối thiểu 180px nên mã bàn dài (LAUVIP01) và nhãn trạng thái không bị cắt. */
 .table-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)) !important; gap: 14px; }
 .table-card { min-height: 0; padding: 14px 14px 12px; border: 1px solid var(--s-line) !important; border-top: 4px solid var(--status, #cfcfcf) !important; border-radius: var(--s-radius); background: #fff; box-shadow: var(--s-shadow); }
-.table-card:hover { transform: translateY(-2px); border-color: var(--s-red-line) !important; border-top-color: var(--status, #cfcfcf) !important; box-shadow: 0 8px 20px rgba(180, 8, 41, .1); }
+.table-card:hover { transform: translateY(-2px); border-color: var(--s-red-line) !important; border-top-color: var(--status, #cfcfcf) !important; box-shadow: 0 8px 20px rgba(60, 1, 2, .1); }
 .table-glyph { transform: none; color: var(--s-red); font-size: 15px; opacity: .55; }
 .table-status { gap: 6px; flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; padding: 4px 10px; border-radius: 999px; background: var(--status-soft, #f2f2f2) !important; color: var(--status-ink, #555) !important; font-size: 12px; font-weight: 600; }
 .table-status i { margin: 0; background: var(--status, #9a9a9a) !important; }
@@ -151,18 +151,18 @@
 .table-capacity { color: var(--s-muted); font-size: 13px; font-weight: 500; }
 .person-icon { margin-right: 4px; color: var(--s-red); opacity: .7; font-size: 12px; }
 .table-status-editor { display: block; width: 100%; min-height: 36px; margin-top: 12px; padding: 6px 10px; border: 1px solid var(--s-line); border-radius: 8px; background-color: #fff; color: var(--s-ink); font: 500 13px var(--m-font, inherit); }
-.table-status-editor:focus { border-color: var(--s-red); outline: 0; box-shadow: 0 0 0 3px rgba(180, 8, 41, .12); }
+.table-status-editor:focus { border-color: var(--s-red); outline: 0; box-shadow: 0 0 0 3px rgba(60, 1, 2, .12); }
 .table-detail-trigger:focus-visible { outline: 3px solid var(--s-red); }
 
 /* Màu trạng thái bàn: trống = xanh, đã đặt trước = đỏ đô thương hiệu, đang phục vụ = cam, đang dọn = xám xanh. */
 .status-available { --status: #1e7a46; --status-soft: #eaf5ee; --status-ink: #17603a; }
-.status-reserved { --status: #8f0620; --status-soft: #fbe7eb; --status-ink: #8f0620; }
+.status-reserved { --status: #260001; --status-soft: #f3efef; --status-ink: #260001; }
 .status-serving { --status: #d48a1d; --status-soft: #fdf2e1; --status-ink: #8a5a0b; }
 .status-cleaning { --status: #4f6b78; --status-soft: #eaf0f3; --status-ink: #3c535e; }
 .status-unknown { --status: #9a9a9a; --status-soft: #f2f2f2; --status-ink: #555; }
 .table-card.status-available, .table-card.status-reserved, .table-card.status-serving, .table-card.status-cleaning, .table-card.status-unknown { border-left: 1px solid var(--s-line) !important; }
 /* Bàn có khách trễ 15 phút (S3-09): viền đỏ dày nổi bật. */
-.table-card.has-late-alert { border-color: var(--s-red) !important; box-shadow: 0 0 0 2px rgba(180, 8, 41, .3) !important; }
+.table-card.has-late-alert { border-color: var(--s-red) !important; box-shadow: 0 0 0 2px rgba(60, 1, 2, .3) !important; }
 
 .empty-state { border-color: var(--s-red-line); border-radius: var(--s-radius); background: var(--s-red-soft); }
 .empty-state > span { background: #fff !important; color: var(--s-red) !important; }

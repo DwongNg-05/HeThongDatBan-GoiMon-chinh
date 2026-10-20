@@ -2,277 +2,169 @@
 
 @{
     ViewData["Title"] = "Đặt bàn";
+    var signedIn = User.Identity?.IsAuthenticated == true;
+}
+@section Styles {
+    @* Giao diện đặt bàn sang trọng (wwwroot/css/booking-luxe.css): tiêu đề chữ có chân, ô nhập gạch chân mảnh, chia 3 bước. *@
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" />
+    <link rel="stylesheet" href="~/css/booking-luxe.css" asp-append-version="true" />
 }
 
-<div class="container mt-4">
+<div class="bk-page @(signedIn ? "bk-page--staff" : "")">
 
-    <div class="row justify-content-center">
+    <header class="bk-hero">
+        <p class="bk-eyelet"><span class="bk-flower" aria-hidden="true">✦</span> Bếp Nhà · Quan Triều</p>
+        <h1 class="bk-title">Đặt <em>bàn</em></h1>
+        @if (!signedIn)
+        {
+            <p class="bk-lead">Giữ cho bạn một chỗ ngồi ấm cúng. Điền vài thông tin dưới đây, Bếp Nhà sẽ xác nhận và báo lại cho bạn sớm nhất.</p>
+        }
+        <span class="bk-rule" aria-hidden="true"></span>
+    </header>
 
-        <div class="col-md-8">
+    <div class="bk-layout @(signedIn ? "bk-layout--single" : "")">
 
-            <div class="card shadow-sm">
+        @if (!signedIn)
+        {
+            @* Cột trái cho khách: ảnh không gian quán + thông tin liên hệ. *@
+            <aside class="bk-aside" aria-label="Thông tin Bếp Nhà">
+                <figure class="bk-aside__picture">
+                    <img src="~/images/gioi-thieu/khong-gian.jpg" asp-append-version="true" alt="Phòng ăn Bếp Nhà buổi tối với ánh đèn vàng và bàn trải khăn trắng" width="1024" height="1536" loading="lazy" />
+                </figure>
+                <dl class="bk-aside__info">
+                    <div><dt>Địa chỉ</dt><dd>Quan Triều, Thái Nguyên</dd></div>
+                    <div><dt>Điện thoại</dt><dd><a href="tel:0981681594">0981 681 594</a></dd></div>
+                    <div><dt>Email</dt><dd><a href="mailto:duongdeo021005&#64;gmail.com">duongdeo021005&#64;<wbr />gmail.com</a></dd></div>
+                </dl>
+                <p class="bk-aside__note">Đặt cho nhóm đông hoặc tiệc riêng? Gọi trực tiếp để Bếp Nhà chuẩn bị chu đáo hơn.</p>
+            </aside>
+        }
 
-                <div class="card-body">
+        <div class="bk-card">
 
-                    <h2 class="mb-4">
-                        Đặt bàn
-                    </h2>
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger bk-alert"></div>
 
+            @if (TempData[RestaurantManagement.Web.Authentication.BookingAntiforgeryRecoveryFilter.MessageKey] is string formMessage)
+            {
+                <div class="alert alert-warning bk-alert" role="alert">@formMessage</div>
+            }
 
-                    <!-- ============================= -->
-                    <!-- THÔNG BÁO LỖI -->
-                    <!-- ============================= -->
+            <form asp-action="Create" method="post" class="bk-form">
 
-                    <div asp-validation-summary="ModelOnly"
-                         class="alert alert-danger">
+                @Html.AntiForgeryToken()
+
+                @* ---------- Bước 1: thông tin khách ---------- *@
+                <fieldset class="bk-step">
+                    <legend class="bk-step__head"><span class="bk-step__no">01</span> Thông tin của bạn</legend>
+
+                    <div class="bk-field">
+                        <label asp-for="CustomerName" class="bk-label"></label>
+                        <input asp-for="CustomerName" class="form-control bk-input" placeholder="Nguyễn Văn A" autocomplete="name" />
+                        <span asp-validation-for="CustomerName" class="text-danger bk-error"></span>
                     </div>
 
+                    <div class="bk-row">
+                        <div class="bk-field">
+                            <label asp-for="Phone" class="bk-label"></label>
+                            <input asp-for="Phone" type="tel" class="form-control bk-input" placeholder="0912345678" autocomplete="tel" />
+                            <span asp-validation-for="Phone" class="text-danger bk-error"></span>
+                        </div>
+                        <div class="bk-field">
+                            <label asp-for="Email" class="bk-label"></label>
+                            @* Khách tự đặt online bắt buộc nhập email để nhận thư xác nhận / huỷ đặt bàn (máy chủ kiểm tra lại ở ReservationsController.Create).
+                               Nhân viên đặt hộ khách qua điện thoại vẫn được để trống. *@
+                            <input asp-for="Email" type="email" class="form-control bk-input" placeholder="example@gmail.com" autocomplete="email" required="@(signedIn ? null : "required")" />
+                            <span asp-validation-for="Email" class="text-danger bk-error"></span>
+                        </div>
+                    </div>
 
-                    @if (TempData[RestaurantManagement.Web.Authentication.BookingAntiforgeryRecoveryFilter.MessageKey] is string formMessage)
+                    @* S3-09 Task 3: nhân viên đặt hộ khách — cảnh báo số điện thoại có ít nhất 3 lần không tới trong 90 ngày.
+                       Khách tự đặt (không đăng nhập) không thấy lịch sử của số điện thoại. *@
+                    @if (User.IsInRole("Manager") || User.IsInRole("Waiter"))
                     {
-                        <div class="alert alert-warning" role="alert">@formMessage</div>
+                        <partial name="_PhoneNoShowWarning" model="Model" />
                     }
-                    <form asp-action="Create"
-                          method="post">
+                </fieldset>
 
-                        @Html.AntiForgeryToken()
+                @* ---------- Bước 2: số khách & thời gian ---------- *@
+                <fieldset class="bk-step">
+                    <legend class="bk-step__head"><span class="bk-step__no">02</span> Thời gian &amp; số khách</legend>
 
-
-                        <!-- ============================= -->
-                        <!-- TÊN KHÁCH HÀNG -->
-                        <!-- ============================= -->
-
-                        <div class="mb-3">
-
-                            <label asp-for="CustomerName"
-                                   class="form-label">
-                            </label>
-
-                            <input asp-for="CustomerName"
-                                   class="form-control"
-                                   placeholder="Nguyễn Văn A" />
-
-                            <span asp-validation-for="CustomerName"
-                                  class="text-danger">
-                            </span>
-
+                    <div class="bk-row bk-row--3">
+                        <div class="bk-field">
+                            <label asp-for="GuestCount" class="bk-label"></label>
+                            <input asp-for="GuestCount" type="number" min="1" max="20" class="form-control bk-input" inputmode="numeric" />
+                            <span asp-validation-for="GuestCount" class="text-danger bk-error"></span>
                         </div>
-
-
-                        <!-- ============================= -->
-                        <!-- SỐ ĐIỆN THOẠI -->
-                        <!-- ============================= -->
-
-                        <div class="mb-3">
-
-                            <label asp-for="Phone"
-                                   class="form-label">
-                            </label>
-
-                            <input asp-for="Phone"
-                                   class="form-control"
-                                   placeholder="0912345678" />
-
-                            <span asp-validation-for="Phone"
-                                  class="text-danger">
-                            </span>
-
+                        <div class="bk-field">
+                            <label asp-for="ReservationDate" class="bk-label">Ngày đặt bàn</label>
+                            <input asp-for="ReservationDate" type="date" asp-format="{0:yyyy-MM-dd}" class="form-control bk-input" required />
+                            <span asp-validation-for="ReservationDate" class="text-danger bk-error"></span>
                         </div>
-
-
-                        @* S3-09 Task 3: nhân viên đặt hộ khách — cảnh báo số điện thoại có ít nhất 3 lần không tới trong 90 ngày.
-                           Khách tự đặt (không đăng nhập) không thấy lịch sử của số điện thoại. *@
-                        @if (User.IsInRole("Manager") || User.IsInRole("Waiter"))
-                        {
-                            <partial name="_PhoneNoShowWarning" model="Model" />
-                        }
-
-
-                        <!-- ============================= -->
-                        <!-- SỐ KHÁCH -->
-                        <!-- ============================= -->
-
-                        <div class="mb-3">
-
-                            <label asp-for="GuestCount"
-                                   class="form-label">
-                            </label>
-
-                            <input asp-for="GuestCount"
-                                   type="number"
-                                   min="1"
-                                   max="20"
-                                   class="form-control" />
-
-                            <span asp-validation-for="GuestCount"
-                                  class="text-danger">
-                            </span>
-
+                        <div class="bk-field">
+                            <label asp-for="ReservationTime" class="bk-label">Giờ đặt bàn</label>
+                            <input asp-for="ReservationTime" type="time" asp-format="{0:HH:mm}" step="60" class="form-control bk-input" required />
+                            <span asp-validation-for="ReservationTime" class="text-danger bk-error"></span>
                         </div>
+                    </div>
+                    <input asp-for="StartsAt" type="hidden" asp-format="{0:yyyy-MM-ddTHH:mm}" data-schedule-url="@Url.Action("CheckSchedule", "Reservations")" />
 
+                    <span asp-validation-for="StartsAt" class="text-danger bk-error"></span>
+                    @* booking-schedule.js kiểm tra lịch ngay khi chọn ngày/giờ và ghi kết quả vào đây. *@
+                    <div id="booking-schedule-feedback" aria-live="polite" class="mt-2"></div>
 
-                        <!-- ============================= -->
-                        <!-- THỜI GIAN -->
-                        <!-- ============================= -->
+                    <p class="bk-hint bk-hint--block">
+                        Giờ Việt Nam (UTC+7), kể cả khi thiết bị của bạn đang ở múi giờ khác. Các lượt cách nhau 30 phút
+                        tính từ giờ mở cửa của ngày đã chọn; giờ nhận bàn phải trước giờ đóng cửa.
+                    </p>
+                </fieldset>
 
-                        <div class="mb-3">
+                @* ---------- Bước 3: yêu cầu thêm ---------- *@
+                <fieldset class="bk-step">
+                    <legend class="bk-step__head"><span class="bk-step__no">03</span> Yêu cầu thêm</legend>
 
-                            <div class="row g-3">
-                                <div class="col-sm-6">
-                                    <label asp-for="ReservationDate" class="form-label">Ngày đặt bàn</label>
-                                    <input asp-for="ReservationDate" type="date" asp-format="{0:yyyy-MM-dd}" class="form-control" required />
-                                    <span asp-validation-for="ReservationDate" class="text-danger"></span>
-                                </div>
-                                <div class="col-sm-6">
-                                    <label asp-for="ReservationTime" class="form-label">Giờ đặt bàn</label>
-                                    <input asp-for="ReservationTime" type="time" asp-format="{0:HH:mm}" step="60" class="form-control" required />
-                                    <span asp-validation-for="ReservationTime" class="text-danger"></span>
-                                </div>
-                            </div>
-                            <input asp-for="StartsAt" type="hidden" asp-format="{0:yyyy-MM-ddTHH:mm}" data-schedule-url="@Url.Action("CheckSchedule", "Reservations")" />
-
-                            <div class="form-text">
-                                Asia/Ho_Chi_Minh (UTC+7): nhập giờ tại Việt Nam dù thiết bị đang ở múi giờ khác.
-                                Các lượt cách nhau 30 phút tính từ giờ mở cửa của ngày đã chọn.
-                                Giờ nhận bàn phải trước giờ đóng cửa.
-                            </div>
-
-                            <span asp-validation-for="StartsAt"
-                                  class="text-danger">
-                            </span>
-                            <div id="booking-schedule-feedback" aria-live="polite" class="mt-2"></div>
-
-                        </div>
-
-
-                        <!-- ============================= -->
-                        <!-- KHU VỰC -->
-                        <!-- ============================= -->
-
-                        <div class="mb-3">
-
-                            <label asp-for="PreferredAreaId"
-                                   class="form-label">
-                                Khu vực mong muốn
-                            </label>
-
-                            <select asp-for="PreferredAreaId"
-                                    class="form-select">
-
-                                <option value="">
-                                    -- Không yêu cầu khu vực --
-                                </option>
-
-                                @foreach (var area in Model.Areas)
-                                {
-                                    <option value="@area.Id">
-                                        @area.Name
-                                    </option>
-                                }
-
-                            </select>
-
-                            <div class="form-text">
-                                Chỉ hiển thị các khu vực đang hoạt động.
-                                Nếu không yêu cầu khu vực, hãy để mặc định.
-                            </div>
-
-                            <span asp-validation-for="PreferredAreaId"
-                                  class="text-danger">
-                            </span>
-
-                        </div>
-
-
-                        <!-- ============================= -->
-                        <!-- EMAIL -->
-                        <!-- ============================= -->
-
-                        <div class="mb-3">
-
-                            <label asp-for="Email"
-                                   class="form-label">
-                            </label>
-
-                            <input asp-for="Email"
-                                   type="email"
-                                   class="form-control"
-                                   placeholder="example@gmail.com" />
-
-                            <span asp-validation-for="Email"
-                                  class="text-danger">
-                            </span>
-
-                        </div>
-
-
-                        <!-- ============================= -->
-                        <!-- GHI CHÚ -->
-                        <!-- ============================= -->
-
-                        <div class="mb-3">
-
-                            <label asp-for="Notes"
-                                   class="form-label">
-                            </label>
-
-                            <textarea asp-for="Notes"
-                                      class="form-control"
-                                      rows="4"
-                                      placeholder="Ví dụ: Muốn ngồi gần cửa sổ"></textarea>
-
-                            <span asp-validation-for="Notes"
-                                  class="text-danger">
-                            </span>
-
-                        </div>
-
-
-                        <!-- ============================= -->
-                        <!-- NÚT -->
-                        <!-- ============================= -->
-
-                        <div class="d-flex gap-2">
-
-                            <button type="submit"
-                                    class="btn btn-primary">
-
-                                Đặt bàn
-
-                            </button>
-
-
-                            @if (User.Identity?.IsAuthenticated == true)
+                    <div class="bk-field">
+                        <label asp-for="PreferredAreaId" class="bk-label">Khu vực mong muốn</label>
+                        <select asp-for="PreferredAreaId" class="form-select bk-input">
+                            <option value="">Không yêu cầu khu vực</option>
+                            @foreach (var area in Model.Areas)
                             {
-                                <a asp-action="Index"
-                                   class="btn btn-secondary">
-
-                                    Xem đặt bàn
-
-                                </a>
+                                <option value="@area.Id">@area.Name</option>
                             }
-                            else
-                            {
-                                <a asp-controller="Menu" asp-action="Index"
-                                   class="btn btn-secondary">
+                        </select>
+                        <span class="bk-hint">Chỉ hiển thị các khu vực đang hoạt động. Không có yêu cầu thì để mặc định.</span>
+                        <span asp-validation-for="PreferredAreaId" class="text-danger bk-error"></span>
+                    </div>
 
-                                    Xem thực đơn
+                    <div class="bk-field">
+                        <label asp-for="Notes" class="bk-label"></label>
+                        <textarea asp-for="Notes" class="form-control bk-input" rows="3" placeholder="Ví dụ: muốn ngồi gần cửa sổ, có trẻ nhỏ, tổ chức sinh nhật…"></textarea>
+                        <span asp-validation-for="Notes" class="text-danger bk-error"></span>
+                    </div>
+                </fieldset>
 
-                                </a>
-                            }
+                <div class="bk-actions">
+                    <button type="submit" class="btn btn-primary bk-submit">
+                        <span>Gửi yêu cầu đặt bàn</span>
+                        <svg class="bk-arrow" viewBox="0 0 44 12" aria-hidden="true"><line x1="0" y1="6" x2="42" y2="6" /><path d="M36 1l6 5-6 5" /></svg>
+                    </button>
 
-                        </div>
-
-                    </form>
-
+                    @if (signedIn)
+                    {
+                        <a asp-action="Index" class="bk-link">Xem đặt bàn</a>
+                    }
+                    else
+                    {
+                        <a asp-controller="Menu" asp-action="Index" class="bk-link">Xem thực đơn</a>
+                    }
                 </div>
 
-            </div>
+            </form>
 
         </div>
-
     </div>
-
 </div>
 
 

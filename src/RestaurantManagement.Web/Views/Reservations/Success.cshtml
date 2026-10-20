@@ -4,72 +4,83 @@
 }
 @section Styles {
     <link rel="stylesheet" href="~/css/reservation-email.css" asp-append-version="true" />
+    @* Trang đặt bàn thành công trình bày như một lá thư (cùng bộ với thư email): nền đỏ rượu vang, giấy kem, con dấu sáp đỏ. *@
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" />
+    <link rel="stylesheet" href="~/css/booking-luxe.css" asp-append-version="true" />
 }
 
 @* Khách vừa đặt bàn: lượt ở trạng thái "Chờ xác nhận". Email (mã đặt bàn + bàn) chỉ gửi khi nhà hàng xác nhận (migration 050).
    Khách sao chép mã đặt bàn bằng một chạm (copy-code.js) để tra cứu, không phải gõ từng chữ. *@
-<div class="container mt-4 booking-success">
-    <header class="booking-success-head">
-        <span class="booking-success-icon" aria-hidden="true"><i class="fa-regular fa-calendar-check"></i></span>
-        <div>
-            <h1 class="booking-success-title">Đặt bàn thành công!</h1>
-            <p class="booking-success-lead">Yêu cầu đã được ghi nhận và đang <strong>chờ nhà hàng xác nhận</strong>.</p>
+<div class="bk-page bk-page--letter">
+    <article class="bk-letter" aria-labelledby="bk-letter-title">
+        <img class="bk-letter__seal" src="~/images/email/con-dau.webp" asp-append-version="true" alt="" width="130" height="140" />
+        <div class="bk-letter__paper">
+            <div class="bk-letter__frame">
+
+                <header class="bk-letter__head">
+                    <p class="bk-eyelet">Thư xác nhận đặt bàn</p>
+                    <h1 class="bk-letter__title" id="bk-letter-title">Đặt bàn <em>thành công</em></h1>
+                    <p class="bk-letter__divider" aria-hidden="true">— ✦ —</p>
+                    <p class="bk-letter__lead">Yêu cầu của bạn đã được ghi nhận và đang <strong>chờ nhà hàng xác nhận</strong>.</p>
+                </header>
+
+                @if (Model is not null)
+                {
+                    <section class="bk-letter__code" aria-labelledby="booking-code-label">
+                        <p id="booking-code-label" class="bk-letter__label">Mã đặt bàn của bạn</p>
+                        <p class="bk-letter__code-value" data-booking-code="@Model.DisplayCode">@Model.DisplayCode</p>
+                        <button type="button" class="booking-copy bk-letter__copy" data-copy-code="@Model.DisplayCode" aria-label="Sao chép mã đặt bàn @Model.DisplayCode">
+                            <i class="fa-regular fa-copy" aria-hidden="true"></i><span data-copy-label>Sao chép mã</span>
+                        </button>
+                    </section>
+
+                    <dl class="bk-letter__facts">
+                        @if (Model.StartsAt is not null)
+                        {
+                            <div><dt>Ngày giờ</dt><dd>@RestaurantManagement.Web.Services.BookingConfirmationEmail.FormatDateTime(Model.StartsAt.Value)</dd></div>
+                        }
+                        @if (Model.GuestCount is not null)
+                        {
+                            <div><dt>Số khách</dt><dd>@Model.GuestCount người</dd></div>
+                        }
+                        @if (Model.TableCode is not null)
+                        {
+                            <div><dt>Bàn đã chọn</dt><dd>@Model.TableCode</dd></div>
+                        }
+                        <div><dt>Trạng thái</dt><dd><span class="bk-status bk-status--pending">Chờ xác nhận</span></dd></div>
+                    </dl>
+
+                    <ol class="bk-letter__steps" aria-label="Các bước tiếp theo">
+                        <li><strong>Nhà hàng xác nhận</strong> lượt đặt và giữ bàn cho bạn.</li>
+                        <li>@Model.CurrentEmailMessage</li>
+                        <li><strong>Tra cứu</strong> bằng mã đặt bàn và số điện thoại bất cứ lúc nào; khi đến quán, đọc mã cho nhân viên.</li>
+                    </ol>
+                }
+
+                <div class="bk-actions bk-letter__actions">
+                    @if (Model is not null)
+                    {
+                        <a class="btn btn-primary bk-submit" asp-controller="ReservationLookup" asp-action="Index" asp-route-code="@Model.DisplayCode">
+                            <span>Tra cứu đặt bàn</span>
+                            <svg class="bk-arrow" viewBox="0 0 44 12" aria-hidden="true"><line x1="0" y1="6" x2="42" y2="6" /><path d="M36 1l6 5-6 5" /></svg>
+                        </a>
+                    }
+                    <a asp-controller="Reservations" asp-action="Create" class="bk-link">Đặt bàn tiếp</a>
+                    @if (User.Identity?.IsAuthenticated == true)
+                    {
+                        <a asp-controller="Reservations" asp-action="Index" class="bk-link">Xem danh sách đặt bàn</a>
+                    }
+                    else
+                    {
+                        <a asp-controller="Menu" asp-action="Index" class="bk-link">Xem thực đơn</a>
+                    }
+                </div>
+
+            </div>
         </div>
-    </header>
-
-    @if (Model is not null)
-    {
-        <section class="booking-code-card" aria-labelledby="booking-code-label">
-            <p id="booking-code-label" class="booking-code-label">Mã đặt bàn của bạn</p>
-            <p class="booking-code" data-booking-code="@Model.DisplayCode">@Model.DisplayCode</p>
-            <button type="button" class="booking-copy" data-copy-code="@Model.DisplayCode" aria-label="Sao chép mã đặt bàn @Model.DisplayCode">
-                <i class="fa-regular fa-copy" aria-hidden="true"></i><span data-copy-label>Sao chép mã</span>
-            </button>
-            <dl class="booking-code-facts">
-                @if (Model.StartsAt is not null)
-                {
-                    <dt>Ngày giờ</dt>
-                    <dd>@RestaurantManagement.Web.Services.BookingConfirmationEmail.FormatDateTime(Model.StartsAt.Value)</dd>
-                }
-                @if (Model.GuestCount is not null)
-                {
-                    <dt>Số khách</dt>
-                    <dd>@Model.GuestCount người</dd>
-                }
-                @if (Model.TableCode is not null)
-                {
-                    <dt>Bàn đã chọn</dt>
-                    <dd>@Model.TableCode</dd>
-                }
-                <dt>Trạng thái</dt>
-                <dd><span class="booking-pending">Chờ xác nhận</span></dd>
-            </dl>
-        </section>
-
-        <ol class="booking-steps" aria-label="Các bước tiếp theo">
-            <li><strong>Nhà hàng xác nhận</strong> lượt đặt và giữ bàn cho bạn.</li>
-            <li>@Model.CurrentEmailMessage</li>
-            <li><strong>Tra cứu</strong> bằng mã đặt bàn và số điện thoại bất cứ lúc nào; khi đến quán, đọc mã cho nhân viên.</li>
-        </ol>
-    }
-
-    <div class="booking-actions">
-        @if (Model is not null)
-        {
-            <a class="btn btn-primary" asp-controller="ReservationLookup" asp-action="Index" asp-route-code="@Model.DisplayCode">
-                <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Tra cứu đặt bàn
-            </a>
-        }
-        <a asp-controller="Reservations" asp-action="Create" class="btn btn-outline-secondary">Đặt bàn tiếp</a>
-        @if (User.Identity?.IsAuthenticated == true)
-        {
-            <a asp-controller="Reservations" asp-action="Index" class="btn btn-outline-secondary">Xem danh sách đặt bàn</a>
-        }
-        else
-        {
-            <a asp-controller="Menu" asp-action="Index" class="btn btn-outline-secondary">Xem thực đơn</a>
-        }
-    </div>
+    </article>
 </div>
 
 @section Scripts {

@@ -1,19 +1,19 @@
 /* S3-01 Task 1: đầu trang gọi món tại bàn — mã bàn thật to để khách xác nhận đúng bàn. Dùng chung public-menu.css. */
-.table-order-banner { padding: 18px; margin-bottom: 14px; background: var(--soft, #fff5f6); border: 2px solid var(--brand, #b3122e); border-radius: 14px; text-align: center; }
+.table-order-banner { padding: 18px; margin-bottom: 14px; background: var(--soft, #fff5f6); border: 2px solid var(--brand, #3c0102); border-radius: 14px; text-align: center; }
 .table-order-kicker { margin: 0; color: var(--muted, #6b7280); font-size: 13px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
-.table-order-banner h1 { margin: 4px 0; font-size: 34px; line-height: 1.15; color: var(--brand, #b3122e); overflow-wrap: anywhere; }
+.table-order-banner h1 { margin: 4px 0; font-size: 34px; line-height: 1.15; color: var(--brand, #3c0102); overflow-wrap: anywhere; }
 .table-order-area { margin: 0 0 6px; font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
 .table-order-note { margin: 0; color: var(--muted, #6b7280); font-size: 13px; }
 .table-order-links { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; margin: 10px 0 0; font-weight: 600; }
-.table-order-links a { color: var(--brand, #b3122e); }
+.table-order-links a { color: var(--brand, #3c0102); }
 
 .table-order-alert { margin: 0 0 14px; padding: 12px 16px; border-radius: 10px; font-weight: 600; }
 .table-order-alert.is-success { background: #ecfdf3; border: 1px solid #86d4a6; color: #14532d; }
 .table-order-alert.is-error { background: #fef2f2; border: 1px solid #f3a5a5; color: #7f1d1d; }
 
 /* Nút thêm món: luôn nằm cuối thẻ món (michelin.css sắp thứ tự giá/mô tả bằng order). */
-.table-order-add { order: 9; align-self: flex-start; margin-top: 10px; min-height: 44px; padding: 8px 18px; border: 1px solid var(--brand, #b3122e);
-  border-radius: 999px; background: var(--brand, #b3122e); color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; }
+.table-order-add { order: 9; align-self: flex-start; margin-top: 10px; min-height: 44px; padding: 8px 18px; border: 1px solid var(--brand, #3c0102);
+  border-radius: 999px; background: var(--brand, #3c0102); color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; }
 .table-order-add:disabled { background: #e5e7eb; border-color: #e5e7eb; color: #6b7280; cursor: not-allowed; }
 
 /* Bố cục 2 cột: thực đơn bên trái, cột phải (Giỏ món ở trên, Món đã đặt ở dưới) dính theo màn hình khi cuộn,
@@ -51,7 +51,7 @@
 .table-order-note-input { width: 100%; min-height: 40px; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 15px; }
 .table-order-cart-footer { flex: 0 0 auto; border-top: 1px solid #e5e7eb; padding-top: 4px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; }
 .table-order-total { margin: 8px 0 0; font-size: 16px; }
-.table-order-submit { min-height: 48px; padding: 10px 28px; border: 0; border-radius: 999px; background: var(--brand, #b3122e); color: #fff; font-size: 17px; font-weight: 700; }
+.table-order-submit { min-height: 48px; padding: 10px 28px; border: 0; border-radius: 999px; background: var(--brand, #3c0102); color: #fff; font-size: 17px; font-weight: 700; }
 .table-order-submit:disabled { background: #e5e7eb; color: #6b7280; }
 
 .table-order-batch h3 { margin: 12px 0 6px; font-size: 15px; color: var(--muted, #6b7280); }
@@ -103,7 +103,7 @@
 .table-order-tag { display: inline-block; vertical-align: middle; margin-left: 6px; padding: 1px 8px; border-radius: 999px;
   font-size: 11px; font-weight: 700; letter-spacing: 0; text-transform: none; background: #f3f4f6; color: #374151; }
 .table-order-tag.is-draft { background: #fff7e6; color: #92400e; border: 1px dashed #f59e0b; }
-.table-order-tag.source-thisphone { background: #fde8ec; color: #9f1239; }
+.table-order-tag.source-thisphone { background: #f4f1f1; color: #3c0102; }
 .table-order-tag.source-staff { background: #e0f2fe; color: #075985; }
 .table-order-cart { border-style: dashed; border-color: #f59e0b; }
 
@@ -118,7 +118,7 @@
 .table-order-note-warning { color: #92400e; font-size: 12px; }
 .table-order-review h3 { margin: 4px 0; font-size: 15px; }
 .table-order-review .table-order-hint { margin: 0 0 6px; }
-.table-order-review h3:focus { outline: 2px solid var(--brand, #b3122e); outline-offset: 2px; }
+.table-order-review h3:focus { outline: 2px solid var(--brand, #3c0102); outline-offset: 2px; }
 .table-order-review-list { list-style: none; margin: 0; padding: 0; max-height: 50vh; }
 .table-order-review-item { display: flex; flex-direction: column; gap: 2px; padding: 6px 0; border-bottom: 1px dashed #e5e7eb; font-size: 13px; overflow-wrap: anywhere; }
 .table-order-review-item .table-order-item-note { color: #374151; }
@@ -131,10 +131,10 @@
 .table-order-quick-option { min-height: 30px; padding: 2px 12px; border: 1px solid #d1d5db; border-radius: 999px;
   background: #fff; color: #374151; font-size: 12px; }
 .table-order-quick-option::before { content: "+ "; }
-.table-order-quick-option.is-on { background: #fde8ec; border-color: var(--brand, #b3122e); color: #9f1239; font-weight: 700; }
+.table-order-quick-option.is-on { background: #f4f1f1; border-color: var(--brand, #3c0102); color: #3c0102; font-weight: 700; }
 .table-order-quick-option.is-on::before { content: "✓ "; }
-.table-order-quick-option:focus-visible { outline: 2px solid var(--brand, #b3122e); outline-offset: 2px; }
-.table-order-item-quick { color: #9f1239; font-size: 12px; font-weight: 700; }
+.table-order-quick-option:focus-visible { outline: 2px solid var(--brand, #3c0102); outline-offset: 2px; }
+.table-order-item-quick { color: #3c0102; font-size: 12px; font-weight: 700; }
 
 /* Sửa lỗi mất nút "Đặt món" trên máy tính: khung danh sách món (data-cart-editor, từ S3-03 Task 1) và khung xác nhận
    được co lại và cuộn bên trong, nên phần chân giỏ (Tạm tính + "Đặt món"/"Xác nhận gửi bếp") luôn nằm trong giỏ. */
@@ -164,7 +164,7 @@
     padding: 8px 14px; border: 1px solid #e5e7eb; border-radius: 14px; background: #fff; color: #1f2937;
     box-shadow: 0 10px 28px rgba(0, 0, 0, .16); text-align: left;
   }
-  .table-order-mobilebar .table-order-mobilebar-cart { flex-grow: 1.7; border-color: transparent; background: var(--brand, #b3122e); color: #fff; }
+  .table-order-mobilebar .table-order-mobilebar-cart { flex-grow: 1.7; border-color: transparent; background: var(--brand, #3c0102); color: #fff; }
   .table-order-mobilebar-label { font-size: 12px; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
   .table-order-mobilebar strong { font-size: 16px; line-height: 1.2; }
   .table-order-mobilebar.is-bumped .table-order-mobilebar-cart { animation: table-order-bump .35s ease; }
@@ -197,7 +197,7 @@
   .table-order-panel-back { min-height: 40px; padding: 6px 12px; border: 1px solid #d1d5db; border-radius: 999px; background: #fff; color: #1f2937; font-size: 14px; font-weight: 600; }
   .table-order-panel-tabs { flex: 1 1 auto; display: flex; gap: 4px; padding: 3px; border-radius: 999px; background: #f3f4f6; }
   .table-order-panel-tabs button { flex: 1 1 0; min-height: 34px; padding: 4px 10px; border: 0; border-radius: 999px; background: transparent; color: #4b5563; font-size: 13px; font-weight: 600; white-space: nowrap; }
-  .table-order-panel-tabs button[aria-selected="true"] { background: var(--brand, #b3122e); color: #fff; }
+  .table-order-panel-tabs button[aria-selected="true"] { background: var(--brand, #3c0102); color: #fff; }
 
   html.table-order-panel-open, html.table-order-panel-open body { overflow: hidden; }
 }

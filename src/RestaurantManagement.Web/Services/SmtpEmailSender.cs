@@ -35,18 +35,15 @@ namespace RestaurantManagement.Web.Services
 
             message.Subject = subject;
 
-            // Logo Bếp Nhà đính kèm dạng ảnh nhúng (cid:bepnha-logo); không có tệp logo thì bỏ thẻ ảnh.
+            // Logo Bếp Nhà và ảnh thiệp mời (con dấu sáp, vân giấy) đính kèm dạng ảnh nhúng (cid:...);
+            // ảnh nào thiếu tệp thì bỏ khỏi nội dung.
             var builder = new BodyBuilder();
-            var logo = body.Contains(EmailBranding.LogoImg) ? EmailBranding.FindLogo(_environment) : null;
-            if (logo is null)
+            var images = EmailBranding.FindImages(body, _environment);
+            builder.HtmlBody = EmailBranding.RemoveMissingImages(body, images.Select(i => i.Image.ContentId));
+            foreach (var (inline, path) in images)
             {
-                builder.HtmlBody = EmailBranding.RemoveLogo(body);
-            }
-            else
-            {
-                builder.HtmlBody = body;
-                var image = builder.LinkedResources.Add(logo);
-                image.ContentId = EmailBranding.LogoContentId;
+                var image = builder.LinkedResources.Add(path);
+                image.ContentId = inline.ContentId;
             }
             message.Body = builder.ToMessageBody();
 

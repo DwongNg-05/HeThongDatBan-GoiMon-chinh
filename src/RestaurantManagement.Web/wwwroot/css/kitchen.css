@@ -11,7 +11,7 @@
 }
 .kitchen-quick { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 6px; padding: 0; list-style: none; }
 .kitchen-quick:last-child { margin-bottom: 0; }
-.kitchen-quick li { padding: 3px 12px; border-radius: 999px; background: #b3122e; color: #fff; font-size: 15px; font-weight: 700; line-height: 1.4; }
+.kitchen-quick li { padding: 3px 12px; border-radius: 999px; background: #3c0102; color: #fff; font-size: 15px; font-weight: 700; line-height: 1.4; }
 .kitchen-note {
     max-width: none; margin: 0; font-size: 17px; line-height: 1.5; font-weight: 500;
     white-space: pre-wrap; overflow-wrap: anywhere; word-break: normal; text-overflow: clip; overflow: visible;
@@ -24,7 +24,7 @@
 }
 
 /* S3-05 Task 3: thẻ "DỪNG MÓN" — món bị Quản lý huỷ khi bếp đang nấu / đã xong. */
-.kitchen-stops { margin-bottom: 20px; padding: 14px 16px; border-radius: 10px; background: #b3122e; color: #fff; box-shadow: 0 6px 18px rgba(179, 18, 46, .25); }
+.kitchen-stops { margin-bottom: 20px; padding: 14px 16px; border-radius: 10px; background: #3c0102; color: #fff; box-shadow: 0 6px 18px rgba(60, 1, 2, .25); }
 .kitchen-stops-title { margin: 0 0 10px; font-size: 20px; font-weight: 800; letter-spacing: .02em; }
 .kitchen-stops-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .kitchen-stop { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 8px; background: rgba(255, 255, 255, .12); }

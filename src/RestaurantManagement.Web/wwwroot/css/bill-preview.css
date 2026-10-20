@@ -37,8 +37,8 @@
 /* S4-01 Task 2: phần đầu hoá đơn tạm tính (tên quán, bàn, giờ bắt đầu phục vụ, giờ in, người in). */
 .bill-receipt-head { padding: 14px 16px; border: 1px solid #e5e7eb; border-radius: 10px; background: #fff; text-align: center; }
 .bill-receipt-notice {
-    display: inline-block; margin: 0 0 8px; padding: 3px 12px; border: 2px solid #b3122e; border-radius: 6px;
-    color: #b3122e; font-size: 13px; font-weight: 800; letter-spacing: .04em;
+    display: inline-block; margin: 0 0 8px; padding: 3px 12px; border: 2px solid #3c0102; border-radius: 6px;
+    color: #3c0102; font-size: 13px; font-weight: 800; letter-spacing: .04em;
 }
 .bill-receipt-restaurant { margin: 0 0 10px; font-size: 22px; font-weight: 800; overflow-wrap: anywhere; }
 .bill-receipt-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 16px; margin: 0 0 8px; text-align: left; }

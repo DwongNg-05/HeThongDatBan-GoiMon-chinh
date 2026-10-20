@@ -1,0 +1,232 @@
+/* =====================================================================
+   Trang dành cho khách (Thực đơn, Đặt bàn, Đặt bàn thành công, Tra cứu đặt bàn)
+   theo tinh thần trang nhà hàng cao cấp kiểu Gucci Osteria:
+   nền sáng, đường kẻ mảnh, logo ở giữa thanh trên, tiêu đề chữ có chân
+   lớn xen chữ nghiêng, nhãn nhỏ viết hoa giãn chữ, liên kết "XEM ⟶", khung ảnh hình vòm.
+   Chỉ nạp cho khách chưa đăng nhập (_Layout.cshtml), nạp sau cùng; mọi quy tắc gắn với .guest-shell.
+   ===================================================================== */
+.guest-shell {
+    --go-bg: #f3f1ed;
+    --go-paper: #ffffff;
+    --go-ink: #1c1a19;
+    --go-muted: #6f6a66;
+    --go-line: #d9d4cd;
+    --go-line-soft: #e8e4de;
+    --go-red: var(--m-red, #3c0102);
+    --go-red-dark: var(--m-red-dark, #260001);
+    --go-serif: "Cormorant Garamond", "Times New Roman", Georgia, serif;
+    --go-sans: var(--m-font, "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif);
+    --go-header: 92px;
+}
+html:has(body.guest-shell), body.guest-shell, .guest-shell .admin-workspace, .guest-shell .workspace-content { background: var(--go-bg); }
+.guest-shell { color: var(--go-ink); }
+.guest-shell a:hover { color: var(--go-red); }
+
+/* ---------- Chữ dùng chung ---------- */
+.guest-shell .guest-kicker {
+    margin: 0 0 14px; max-width: none;
+    color: var(--go-muted); font-family: var(--go-sans); font-size: 12px; font-weight: 600; letter-spacing: .28em; text-transform: uppercase;
+}
+.guest-shell .guest-kicker::before { content: "✦"; display: block; margin-bottom: 12px; color: var(--go-red); font-size: 14px; letter-spacing: 0; }
+.guest-shell .guest-display,
+.guest-shell .public-menu-hero h1,
+.guest-shell .booking-success-title,
+.guest-shell .public-menu-group h2 {
+    font-family: var(--go-serif); font-weight: 500; letter-spacing: -.01em; font-variant-numeric: lining-nums;
+}
+.guest-shell .guest-display em, .guest-shell .public-menu-hero h1 em, .guest-shell .booking-success-title em { font-style: italic; font-weight: 500; }
+.guest-shell .guest-title { margin: 0 0 34px; text-align: center; }
+.guest-shell .guest-title .guest-display { margin: 0 0 12px; font-size: clamp(42px, 6vw, 68px); line-height: 1.02; }
+.guest-shell .guest-title .guest-lead,
+.guest-shell .guest-title > p:not(.guest-kicker) { max-width: 52ch; margin: 0 auto; color: var(--go-muted); font-size: 16px; }
+
+/* ---------- Thanh trên: điều hướng | logo ở giữa | tài khoản ---------- */
+.guest-shell .workspace-header {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); grid-template-areas: "nav brand account";
+    align-items: stretch; gap: 0; min-height: var(--go-header); padding: 0;
+    background: var(--go-bg); color: var(--go-ink); border-bottom: 1px solid var(--go-line); box-shadow: none;
+}
+.guest-shell .guest-links {
+    grid-area: nav; display: flex; align-items: center; justify-content: flex-start; gap: 0; padding: 0 28px;
+    border-right: 1px solid var(--go-line); font-size: 12px;
+}
+.guest-shell .guest-links a, .guest-shell .guest-links a:visited {
+    position: relative; padding: 10px 16px; border: 0; border-radius: 0;
+    color: var(--go-ink); font-weight: 600; letter-spacing: .2em; text-transform: uppercase; text-decoration: none; white-space: nowrap;
+}
+.guest-shell .guest-links a::after {
+    content: ""; position: absolute; left: 16px; right: 16px; bottom: 4px; height: 1px; background: currentColor;
+    transform: scaleX(0); transform-origin: left; transition: transform .25s ease;
+}
+.guest-shell .guest-links a:hover { color: var(--go-ink); border-color: transparent; }
+.guest-shell .guest-links a:hover::after, .guest-shell .guest-links a[aria-current="page"]::after { transform: scaleX(1); }
+.guest-shell .guest-links a[aria-current="page"] { font-weight: 600; border-color: transparent; }
+.guest-shell .guest-brand { grid-area: brand; display: grid; place-items: center; padding: 10px 44px; border-radius: 0; }
+.guest-shell .guest-brand img { width: auto; height: 68px; }
+.guest-shell .guest-avatar, .guest-shell .guest-avatar:visited {
+    grid-area: account; justify-self: end; align-self: center; position: static;
+    width: 46px; height: 46px; margin: 0 28px 0 0; border: 1px solid var(--go-ink); border-radius: 50%;
+    background: transparent; color: var(--go-ink); font-size: 18px; box-shadow: none;
+}
+.guest-shell .guest-avatar:hover, .guest-shell .guest-avatar[aria-current="page"] { background: var(--go-ink); color: #fff; box-shadow: none; }
+/* Đường kẻ dọc bên trái ô tài khoản, giống thanh trên chia ba cột. */
+.guest-shell .workspace-header::after { content: ""; grid-area: account; justify-self: start; width: 1px; background: var(--go-line); }
+.guest-shell .workspace-header a:focus-visible { outline: 2px solid var(--go-ink); outline-offset: 2px; }
+
+.guest-shell .workspace-content { max-width: 1280px; margin: 0 auto; padding: 56px 40px 88px; }
+
+/* ---------- Nút và liên kết ---------- */
+.guest-shell .btn { min-height: 52px; padding: 14px 30px; border-radius: 0; font-size: 12px; font-weight: 600; letter-spacing: .22em; text-transform: uppercase; }
+.guest-shell .btn.btn-primary { background: var(--go-ink); border-color: var(--go-ink); color: #fff; }
+.guest-shell .btn.btn-primary:hover, .guest-shell .btn.btn-primary:focus { background: var(--go-red); border-color: var(--go-red); color: #fff; }
+.guest-shell .btn.btn-primary::after { content: "⟶"; margin-left: 14px; letter-spacing: 0; }
+.guest-shell .btn.btn-primary:has(i)::after { content: none; }
+/* Nút phụ: liên kết chữ gạch chân có mũi tên, kiểu "DISCOVER ⟶". */
+.guest-shell .btn.btn-secondary, .guest-shell .btn.btn-outline-secondary {
+    min-height: 52px; padding: 14px 4px; border: 0; background: transparent; color: var(--go-ink);
+    text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 8px;
+}
+.guest-shell .btn.btn-secondary::after, .guest-shell .btn.btn-outline-secondary::after { content: "⟶"; display: inline-block; margin-left: 10px; letter-spacing: 0; text-decoration: none; }
+.guest-shell .btn.btn-secondary:hover, .guest-shell .btn.btn-outline-secondary:hover,
+.guest-shell .btn.btn-secondary:focus, .guest-shell .btn.btn-outline-secondary:focus { background: transparent; border: 0; color: var(--go-red); }
+.guest-shell .btn.btn-danger { background: transparent; border: 1px solid var(--go-red); color: var(--go-red); }
+.guest-shell .btn.btn-danger:hover, .guest-shell .btn.btn-danger:focus { background: var(--go-red); color: #fff; }
+.guest-shell .btn:disabled, .guest-shell .btn.disabled { background: #d9d4cd !important; border-color: #d9d4cd !important; color: #8a837d !important; }
+
+/* ---------- Ô nhập: một đường kẻ dưới, nhãn nhỏ viết hoa ---------- */
+.guest-shell .form-label {
+    margin-bottom: 4px; color: var(--go-muted); font-size: 11px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase;
+}
+.guest-shell .form-control, .guest-shell .form-select {
+    min-height: 48px; padding: 10px 2px; border: 0; border-bottom: 1px solid var(--go-line); border-radius: 0;
+    background-color: transparent; color: var(--go-ink); font-size: 17px; box-shadow: none;
+}
+.guest-shell .form-select { padding-right: 28px; background-position: right 2px center; }
+.guest-shell textarea.form-control { min-height: 96px; padding-top: 10px; }
+.guest-shell .form-control:focus, .guest-shell .form-select:focus { border-color: var(--go-ink); box-shadow: inset 0 -1px 0 var(--go-ink); background-color: transparent; }
+.guest-shell .form-control::placeholder { color: #a7a09a; }
+.guest-shell .form-text { color: var(--go-muted); font-size: 13px; }
+.guest-shell .alert { border-radius: 0; background: var(--go-paper); }
+
+/* ---------- Thẻ nội dung: giấy trắng, viền mảnh, không đổ bóng ---------- */
+.guest-shell .card { border: 1px solid var(--go-line); border-radius: 0; background: var(--go-paper); box-shadow: none; }
+.guest-shell .guest-form-card > .card-body { padding: 56px clamp(22px, 6vw, 72px) 52px; }
+.guest-shell .guest-form-card .d-flex.gap-2 { flex-wrap: wrap; align-items: center; gap: 12px 28px !important; margin-top: 30px; }
+.guest-shell .guest-form-card .mb-3 { margin-bottom: 26px !important; }
+
+/* ---------- Thực đơn ---------- */
+.guest-shell .public-menu { max-width: 1280px; }
+.guest-shell .public-menu-hero { margin: 0 0 40px; padding: 0 0 40px; text-align: center; border-bottom: 1px solid var(--go-line); }
+.guest-shell .public-menu-hero h1 { margin: 0 0 14px; font-size: clamp(48px, 7vw, 84px); line-height: 1; }
+.guest-shell .public-menu-hero p:not(.guest-kicker) { max-width: none; margin: 0; color: var(--go-muted); font-size: 15px; }
+
+.guest-shell .public-menu-search { max-width: 640px; margin: 0 auto 26px; gap: 0; border-bottom: 1px solid var(--go-ink); }
+.guest-shell .public-menu-search-input {
+    min-height: 56px; padding: 10px 4px; border: 0; border-radius: 0; background: transparent; font-size: 18px; box-shadow: none;
+}
+.guest-shell .public-menu-search-input:focus { outline: 0; box-shadow: none; }
+.guest-shell .public-menu-search-button {
+    min-height: 56px; padding: 10px 4px 10px 18px; border: 0; border-radius: 0; background: transparent; color: var(--go-ink);
+    font-size: 12px; font-weight: 600; letter-spacing: .22em; text-transform: uppercase;
+}
+.guest-shell .public-menu-search-button::after { content: "⟶"; margin-left: 10px; letter-spacing: 0; }
+.guest-shell .public-menu-search-button:hover, .guest-shell .public-menu-search-button:focus-visible { background: transparent; color: var(--go-red); }
+.guest-shell .public-menu-search:focus-within { border-bottom-color: var(--go-red); }
+.guest-shell .public-menu-search-status { max-width: 640px; margin: 0 auto 22px; }
+.guest-shell .public-menu-no-result, .guest-shell .public-menu-empty { border: 1px solid var(--go-line); border-radius: 0; background: var(--go-paper); }
+
+/* Thanh nhóm món dính trên cùng (nền thanh vẫn trong suốt): nhãn chữ hoa nhỏ trên nền giấy. */
+.guest-shell .public-menu .public-menu-tabs { top: var(--go-header); justify-content: center; gap: 8px; margin: 0 0 30px; padding: 12px 2px; }
+.guest-shell .public-menu .public-menu-tabs a {
+    min-height: 40px; padding: 8px 18px; border: 1px solid var(--go-line); border-radius: 0; background: var(--go-paper);
+    color: var(--go-ink); font-size: 11px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; box-shadow: 0 4px 14px rgba(28, 26, 25, .08);
+}
+.guest-shell .public-menu .public-menu-tabs a:hover, .guest-shell .public-menu .public-menu-tabs a:focus-visible { background: var(--go-ink); border-color: var(--go-ink); color: #fff; }
+
+.guest-shell .public-menu-group { margin: 0 0 64px; padding: 40px 0 0; border-top: 1px solid var(--go-line); scroll-margin-top: calc(var(--go-header) + 70px); }
+.guest-shell .public-menu-group h2 { margin: 0 0 30px; font-size: clamp(36px, 4.4vw, 54px); line-height: 1.05; }
+.guest-shell .public-menu-list { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 40px 32px; }
+
+/* Thẻ món: ảnh trong khung vòm, tên món chữ có chân, giá chữ nhỏ. */
+.guest-shell .public-dish { padding: 18px 18px 0; background: var(--go-paper); border: 1px solid var(--go-line-soft); border-radius: 0; box-shadow: none; transition: border-color .2s; }
+.guest-shell .public-dish:hover { border-color: var(--go-line); }
+.guest-shell .public-dish-image, .guest-shell .public-dish .public-dish-image {
+    width: 100%; height: auto; aspect-ratio: 4 / 4.4; object-fit: cover; border-radius: 999px 999px 0 0; background: var(--go-bg);
+}
+.guest-shell .public-dish-body { gap: 8px; padding: 22px 4px 26px; text-align: center; }
+.guest-shell .public-dish-name { font-family: var(--go-serif); font-size: 26px; font-weight: 500; line-height: 1.15; font-variant-numeric: lining-nums; }
+.guest-shell .public-dish-price { justify-content: center; }
+.guest-shell .public-dish-price data { color: var(--go-ink); font-size: 14px; font-weight: 600; letter-spacing: .08em; font-variant-numeric: lining-nums tabular-nums; }
+.guest-shell .public-dish-unit { font-size: 13px; }
+.guest-shell .public-dish-desc { font-size: 14px; }
+.guest-shell .public-dish-status { top: 30px; left: 50%; transform: translateX(-50%); border-radius: 0; font-size: 11px; letter-spacing: .18em; text-transform: uppercase; white-space: nowrap; }
+
+/* ---------- Đặt bàn thành công ---------- */
+.guest-shell .booking-success, .guest-shell .workspace-content > .container.booking-success { max-width: 720px; }
+.guest-shell .booking-success-head { flex-direction: column; gap: 0; margin-bottom: 34px; text-align: center; }
+.guest-shell .booking-success-icon { width: 64px; height: 64px; margin-bottom: 20px; border: 1px solid var(--go-red); background: transparent; font-size: 24px; }
+.guest-shell .booking-success-title { font-size: clamp(42px, 6vw, 64px); line-height: 1.02; }
+.guest-shell .booking-success-lead { max-width: none; margin-top: 12px; color: var(--go-muted); }
+.guest-shell .booking-code-card { margin-bottom: 24px; padding: 40px 24px 34px; border: 1px solid var(--go-line); border-radius: 0; background: var(--go-paper); }
+.guest-shell .booking-code-label, .guest-shell .booking-code-facts dt {
+    color: var(--go-muted); font-size: 11px; font-weight: 600; letter-spacing: .22em; text-transform: uppercase;
+}
+.guest-shell .booking-code-label { margin-bottom: 10px; }
+.guest-shell .booking-code { color: var(--go-red-dark); font-family: var(--go-serif); font-size: clamp(40px, 10vw, 60px); font-weight: 600; letter-spacing: .14em; font-variant-numeric: lining-nums; }
+.guest-shell .booking-copy, .guest-shell .lookup-copy { border-color: var(--go-ink); border-radius: 0; color: var(--go-ink); font-size: 11px; letter-spacing: .2em; text-transform: uppercase; }
+.guest-shell .booking-copy:hover, .guest-shell .lookup-copy:hover, .guest-shell .booking-copy:focus-visible, .guest-shell .lookup-copy:focus-visible { background: var(--go-ink); color: #fff; }
+.guest-shell .booking-code-facts { gap: 10px 22px; margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--go-line-soft); }
+.guest-shell .booking-code-facts dt { align-self: center; }
+.guest-shell .booking-pending { border-radius: 0; letter-spacing: .04em; }
+.guest-shell .booking-steps { margin-bottom: 30px; padding: 26px 28px 26px 50px; border: 1px solid var(--go-line); border-radius: 0; background: transparent; }
+.guest-shell .booking-steps li::marker { color: var(--go-red); font-family: var(--go-serif); font-size: 20px; font-weight: 600; }
+.guest-shell .booking-actions { gap: 12px 30px; align-items: center; }
+
+/* ---------- Tra cứu đặt bàn ---------- */
+.guest-shell .guest-lookup { max-width: 640px; margin: 0 auto; }
+.guest-shell .guest-lookup > form.card { padding: 40px clamp(22px, 5vw, 52px) 40px; }
+.guest-shell .guest-lookup > form.card .btn { align-self: flex-start; margin-top: 8px; }
+.guest-shell .guest-lookup .card .card-body { padding: 36px clamp(22px, 5vw, 44px); }
+.guest-shell .guest-lookup .card h2 { font-family: var(--go-serif); font-size: 34px; font-weight: 500; }
+.guest-shell .guest-lookup dl.row dt { color: var(--go-muted); font-size: 11px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; padding-top: 4px; }
+.guest-shell .guest-lookup dl.row dd { padding-bottom: 10px; border-bottom: 1px solid var(--go-line-soft); }
+.guest-shell .lookup-code { font-family: var(--go-serif); font-size: 28px; font-weight: 600; font-variant-numeric: lining-nums; }
+.guest-shell #cancelDialog { border: 1px solid var(--go-line) !important; border-radius: 0 !important; }
+
+/* ---------- Màn hình nhỏ ---------- */
+@media (max-width: 991.98px) {
+    .guest-shell { --go-header: 80px; }
+    .guest-shell .guest-links { padding: 0 14px; }
+    .guest-shell .guest-links a { padding: 10px 10px; letter-spacing: .14em; }
+    .guest-shell .guest-links a::after { left: 10px; right: 10px; }
+    .guest-shell .guest-brand { padding: 8px 28px; }
+    .guest-shell .guest-brand img { height: 58px; }
+    .guest-shell .workspace-content { padding: 40px 22px 64px; }
+}
+@media (max-width: 760px) {
+    /* Logo giữa hàng trên, tài khoản bên phải; điều hướng thành một hàng bên dưới. */
+    .guest-shell .workspace-header {
+        grid-template-columns: 62px minmax(0, 1fr) 62px; grid-template-areas: ". brand account" "nav nav nav";
+        min-height: 0; padding: 0; position: sticky;
+    }
+    .guest-shell .workspace-header::after { display: none; }
+    .guest-shell .guest-brand { padding: 10px 0 8px; }
+    .guest-shell .guest-brand img { height: 52px; }
+    .guest-shell .guest-avatar, .guest-shell .guest-avatar:visited { position: static; width: 40px; height: 40px; margin: 0 16px 0 0; font-size: 16px; }
+    .guest-shell .guest-links {
+        justify-content: center; padding: 0 8px; overflow-x: auto; flex-wrap: nowrap;
+        border-right: 0; border-top: 1px solid var(--go-line); font-size: 11px;
+    }
+    .guest-shell .guest-links a { padding: 12px 10px; letter-spacing: .12em; }
+    .guest-shell .public-menu .public-menu-tabs { position: static; justify-content: flex-start; flex-wrap: nowrap; }
+    .guest-shell .public-menu-list { grid-template-columns: 1fr; gap: 28px; }
+    .guest-shell .public-dish-image, .guest-shell .public-dish .public-dish-image { aspect-ratio: 4 / 3.4; }
+    .guest-shell .guest-form-card > .card-body { padding: 36px 20px 34px; }
+    .guest-shell .workspace-content { padding: 32px 16px 56px; }
+}
+@media (max-width: 400px) {
+    .guest-shell .guest-links a { padding: 12px 7px; letter-spacing: .06em; }
+    .guest-shell .public-menu-hero h1, .guest-shell .guest-title .guest-display, .guest-shell .booking-success-title { font-size: 42px; }
+    .guest-shell .public-dish-name { font-size: 23px; }
+}
+@media (prefers-reduced-motion: reduce) { .guest-shell .guest-links a::after { transition: none; } }

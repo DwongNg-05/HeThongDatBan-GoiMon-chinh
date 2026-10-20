@@ -1,0 +1,20 @@
+/* Ô ngày / giờ kiểu Việt Nam (wwwroot/js/vn-date.js): ô chữ dd/mm/yyyy hoặc HH:mm + nút lịch / đồng hồ.
+   Ô gốc của trình duyệt nằm ẩn ngay dưới ô chữ để bảng chọn ngày / giờ bật ra đúng chỗ. */
+.vn-date { position: relative; display: block; }
+.vn-date--inline { display: inline-block; vertical-align: middle; }
+.vn-date .vn-date__native {
+    position: absolute !important; left: 0; bottom: 0;
+    width: 100% !important; height: 1px !important; min-height: 0 !important;
+    margin: 0 !important; padding: 0 !important; border: 0 !important;
+    opacity: 0; pointer-events: none; overflow: hidden;
+}
+.vn-date .vn-date__text { padding-right: 44px !important; font-variant-numeric: tabular-nums lining-nums; }
+.vn-date--inline .vn-date__text { width: 11.5em; }
+.vn-date__btn {
+    position: absolute; top: 50%; right: 4px; transform: translateY(-50%);
+    display: grid; place-items: center; width: 36px; height: 36px; padding: 0;
+    border: 0; border-radius: 50%; background: transparent; color: inherit; opacity: .55; cursor: pointer;
+    transition: opacity .2s, color .2s, background-color .2s;
+}
+.vn-date__btn:hover, .vn-date__btn:focus-visible { opacity: 1; color: var(--m-red, #3c0102); background: rgba(60, 1, 2, .06); }
+.vn-date__btn:disabled { opacity: .25; cursor: default; }
