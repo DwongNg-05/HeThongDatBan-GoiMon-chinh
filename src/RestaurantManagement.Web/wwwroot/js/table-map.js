@@ -100,10 +100,11 @@
             billLink.href = hasBill ? `${billLink.dataset.billUrl}${encodeURIComponent(details.code)}` : '#';
         }
 
-        // S4-01 Task 1: nút "Tạm tính" chỉ hiện cho bàn đang phục vụ có phiên thật (dữ liệu mẫu không có tạm tính).
+        // S4-01: bất kỳ bàn đang phục vụ có phiên mở nào (kể cả bàn dữ liệu demo)
+        // đều mở được xem / in tạm tính. Đây là luồng cần có để nghiệm thu demo.
         const previewLink = byId('details-preview-link');
         if (previewLink) {
-            const hasPreview = serving && details.hasActiveSession && !details.isDemoData;
+            const hasPreview = serving && details.hasActiveSession;
             previewLink.hidden = !hasPreview;
             previewLink.href = hasPreview ? `${previewLink.dataset.previewUrl}${encodeURIComponent(details.code)}` : '#';
         }

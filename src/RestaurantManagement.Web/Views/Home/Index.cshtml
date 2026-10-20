@@ -140,10 +140,8 @@
     </section>
 
     <div class="details-actions">
-        @* S4-01 Task 1: bàn đang phục vụ → nút "Tạm tính" mở màn hình xem trước hoá đơn tạm tính (chỉ đọc, không đổi trạng thái bàn). *@
-        <a class="btn btn-primary btn-sm details-preview-link" id="details-preview-link" hidden href="#" data-preview-url="@Url.Content("~/ProvisionalBill/Preview/")">Tạm tính</a>
-        @* S3-04 Task 4: bàn đang có khách → mở hoá đơn tạm tính để đối chiếu ghi chú của từng món khi mang ra. *@
-        <a class="btn btn-outline-primary btn-sm details-bill-link" id="details-bill-link" hidden href="#" data-bill-url="@Url.Content("~/ProvisionalBill/Table/")">Xem hoá đơn tạm tính</a>
+        @* S4-01: bàn đang phục vụ → đúng màn hình xem trước có cả nút In 80 mm và Xuất PDF; một lối vào rõ ràng, không tạo hai màn hình trùng nhau. *@
+        <a class="btn btn-primary btn-sm details-preview-link" id="details-preview-link" hidden href="#" data-preview-url="@Url.Content("~/ProvisionalBill/Preview/")"><i class="fa-solid fa-receipt" aria-hidden="true"></i> Xem / in tạm tính</a>
     </div>
     <p class="details-source" id="details-source" hidden>Dữ liệu mẫu phát triển</p>
 </section>
