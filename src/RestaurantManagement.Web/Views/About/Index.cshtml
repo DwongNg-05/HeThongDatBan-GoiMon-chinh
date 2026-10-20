@@ -15,7 +15,7 @@
 @section Styles {
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" />
     <link rel="stylesheet" href="~/css/about.css" asp-append-version="true" />
 }
 
@@ -94,7 +94,7 @@
     </section>
 
     @* ---------- 2. Lời giới thiệu (chữ hiện lên từng dòng) ---------- *@
-    <section class="ab-quote ab-section ab-section--line ab-section--pad" aria-label="Lời giới thiệu">
+    <section class="ab-quote ab-quote--clouds ab-section ab-section--line ab-section--pad" aria-label="Lời giới thiệu">
         <div class="ab-quote__box">
             <p class="ab-quote__text" data-anim="quote">
                 Bếp Nhà là một góc bếp ấm giữa lòng Thái Nguyên. Chúng tôi tin món ngon nhất là món được nấu bằng sự tận tâm:
@@ -123,12 +123,14 @@
     </section>
 
     @* ---------- 4. Không gian ---------- *@
-    <section class="ab-feature ab-feature--right ab-section" data-anim="feature" aria-labelledby="ab-space-title">
+    <section class="ab-feature ab-feature--right ab-feature--spotlight ab-section" data-anim="feature" aria-labelledby="ab-space-title">
         <figure class="ab-picture ab-picture--arch-tall ab-feature__picture" data-anim-part="picture">
             <span class="ab-picture__inner"><img src="~/images/gioi-thieu/khong-gian.jpg" asp-append-version="true" alt="Phòng ăn Bếp Nhà buổi tối với ánh đèn vàng, khăn trải bàn trắng và ly pha lê" width="1024" height="1536" loading="lazy" /></span>
             <span class="ab-picture__curtain" aria-hidden="true"></span>
         </figure>
         <span class="ab-feature__divider" data-anim-part="vline" aria-hidden="true"></span>
+        @* Ánh đèn treo chiếu xuống từ đầu đường kẻ giữa chữ và ảnh. *@
+        <span class="ab-spotlight" aria-hidden="true"><span class="ab-spotlight__lamp"></span><span class="ab-spotlight__beam"></span></span>
         <div class="ab-feature__text">
             <p class="ab-eyelet" data-anim-part="text">Bếp Nhà · Quan Triều</p>
             <h2 class="ab-feature__title" id="ab-space-title" data-anim-part="text">Không gian</h2>
@@ -143,7 +145,7 @@
     @* ---------- 5. Đầu bếp ---------- *@
     <section class="ab-feature ab-feature--left ab-section" data-anim="feature" aria-labelledby="ab-chef-title">
         <figure class="ab-picture ab-picture--arch-tall ab-feature__picture" data-anim-part="picture">
-            <span class="ab-picture__inner"><img src="~/images/gioi-thieu/dau-bep.jpg" asp-append-version="true" alt="Đầu bếp Bếp Nhà mặc áo bếp trắng, khăn đỏ, đang khuấy nồi nước dùng" width="1024" height="1536" loading="lazy" /></span>
+            <span class="ab-picture__inner"><img src="~/images/gioi-thieu/hai-dau-bep.jpg" asp-append-version="true" alt="Hai đầu bếp Bếp Nhà mặc áo bếp trắng đang nấu nước dùng trong gian bếp" width="1122" height="1402" loading="lazy" /></span>
             <span class="ab-picture__curtain" aria-hidden="true"></span>
         </figure>
         <span class="ab-feature__divider" data-anim-part="vline" aria-hidden="true"></span>
@@ -174,18 +176,6 @@
             </p>
         </div>
     </section>
-
-    @* ---------- 7. Băng chữ chạy ---------- *@
-    <div class="ab-marquee" aria-hidden="true">
-        <div class="ab-marquee__inner">
-            @for (var i = 0; i < 4; i++)
-            {
-                <span>Bếp Nhà</span><svg class="ab-marquee__mark"><use href="#ab-flower" /></svg>
-                <span><em>Quan Triều</em></span><svg class="ab-marquee__mark"><use href="#ab-flower" /></svg>
-                <span>Thái Nguyên</span><svg class="ab-marquee__mark"><use href="#ab-flower" /></svg>
-            }
-        </div>
-    </div>
 
     @* ---------- 8. Khám phá thực đơn: ảnh tròn + vòng chữ xoay ---------- *@
     <section class="ab-discover ab-section ab-section--line" data-anim="discover" aria-labelledby="ab-discover-title">

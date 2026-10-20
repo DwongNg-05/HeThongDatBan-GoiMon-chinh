@@ -95,7 +95,7 @@ public sealed class ProvisionalBillController(IConfiguration configuration) : Co
     [ValidateAntiForgeryToken]
     [Authorize(Roles = AppRoles.FrontOfHouse)]
     public async Task<IActionResult> CancelItem(long sessionId, long orderItemId, string? reason, string? note, string? expectedStatus,
-        CancellationToken cancellationToken, bool confirmCharged = false)
+        CancellationToken cancellationToken, bool confirmCharged = false, string? returnUrl = null)
     {
         var actorUserId = User.ActorUserId();
         if (actorUserId <= 0)
@@ -106,7 +106,7 @@ public sealed class ProvisionalBillController(IConfiguration configuration) : Co
         async Task<IActionResult> Refuse(int number, string message)
         {
             await log.LogRejectionAsync(orderItemId > 0 ? orderItemId : null, sessionId, actorUserId, reason, number, message);
-            return Back(sessionId, "Error", message);
+            return Back(sessionId, "Error", message, returnUrl);
         }
 
         var isManager = User.IsInRole(AppRoles.Manager);
@@ -133,7 +133,7 @@ public sealed class ProvisionalBillController(IConfiguration configuration) : Co
             var result = await new OrderCancelStore(ConnectionString)
                 .CancelAsync(orderItemId, sessionId, reason, note, expectedStatus, actorUserId, cancellationToken, confirmCharged);
             // Huỷ thành công đã có nhật ký trong dbo.OrderItemEvents; lần xác nhận lặp (AlreadyCancelled) không ghi thêm.
-            return Back(sessionId, result.AlreadyCancelled ? "Info" : "Success", result.Message);
+            return Back(sessionId, result.AlreadyCancelled ? "Info" : "Success", result.Message, returnUrl);
         }
         catch (SqlException exception) when (exception.Number is >= 51000 and < 51500)
         {
@@ -141,10 +141,15 @@ public sealed class ProvisionalBillController(IConfiguration configuration) : Co
         }
     }
 
-    /// <summary>Về lại hoá đơn (tải lại trạng thái mới nhất của từng dòng và tạm tính) kèm thông báo kết quả.</summary>
-    private RedirectToActionResult Back(long sessionId, string kind, string message)
+    /// <summary>
+    /// Về lại hoá đơn (tải lại trạng thái mới nhất của từng dòng và tạm tính) kèm thông báo kết quả.
+    /// returnUrl: huỷ từ bảng "Món bàn đã gọi" trên màn hình Gọi món thì quay lại đúng màn hình đó (chỉ nhận địa chỉ trong hệ thống).
+    /// </summary>
+    private IActionResult Back(long sessionId, string kind, string message, string? returnUrl = null)
     {
         TempData[kind] = message;
+        if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+            return LocalRedirect(returnUrl);
         return RedirectToAction(nameof(Index), new { sessionId });
     }
 

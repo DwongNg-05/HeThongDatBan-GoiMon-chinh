@@ -82,6 +82,8 @@ builder.Services.AddScoped<RestaurantManagement.Web.Services.TableQrService>();
 builder.Services.AddScoped<RestaurantManagement.Web.Services.GuestTableSessionService>();
 builder.Services.AddSingleton<RestaurantManagement.Web.Services.TableQrPdfBuilder>();
 builder.Services.AddHostedService<RestaurantManagement.Web.Services.TableStatusOutboxWorker>();
+// Bàn "Đang dọn" sau thanh toán tự trở lại "Trống" / "Đã đặt trước" sau tối đa 15 phút.
+builder.Services.AddHostedService<RestaurantManagement.Web.Services.TableCleaningReleaseWorker>();
 
 // Use the same SQL Server database as the controllers and background worker.
 builder.Services.AddDbContext<RestaurantManagement.Data.Data.RestaurantDbContext>(options =>

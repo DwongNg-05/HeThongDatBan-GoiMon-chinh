@@ -11,7 +11,7 @@
     var items = Array.prototype.slice.call(layer.querySelectorAll('.bk-scatter__item'));
     if (!items.length) return;
 
-    var SPEED_MIN = 140, SPEED_MAX = 230;   // px mỗi giây
+    var SPEED_MIN = 35, SPEED_MAX = 65;    // px mỗi giây
     var bodies = [];
     var width = layer.clientWidth, height = layer.clientHeight;
 
@@ -33,7 +33,7 @@
                 vx: Math.cos(dir) * speed,
                 vy: Math.sin(dir) * speed,
                 angle: angle,
-                spin: rand(40, 90) * (Math.random() < 0.5 ? -1 : 1),   // độ mỗi giây
+                spin: rand(10, 25) * (Math.random() < 0.5 ? -1 : 1),   // độ mỗi giây
                 scale: scale
             };
         });
