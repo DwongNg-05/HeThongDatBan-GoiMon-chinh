@@ -246,6 +246,55 @@ public sealed class CashierController(IConfiguration configuration) : Controller
         return View(new InvoicesViewModel(day, invoices));
     }
 
+    /// <summary>
+    /// S4-02 Task 3: đối soát lịch sử hóa đơn. Cho phép Thu ngân và Quản lý xem
+    /// bản chụp món, số tiền, phương thức thanh toán và thông tin hủy (nếu có).
+    /// </summary>
+    [HttpGet("Invoices/{invoiceId:long}")]
+    public async Task<IActionResult> InvoiceDetails(long invoiceId, CancellationToken cancellationToken)
+    {
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new SqlCommand("""
+            SELECT i.Id,i.InvoiceNumber,i.TableLabels,i.GuestCount,i.IssuedAt,i.BusinessDate,
+                   COALESCE(issuer.FullName,N'Không xác định'),i.Subtotal,i.DiscountAmount,i.Total,
+                   p.Method,p.CashReceived,p.ChangeAmount,p.TransferReference,i.Status,
+                   i.VoidReason,voider.FullName,i.VoidedAt
+            FROM dbo.Invoices i
+            JOIN dbo.Payments p ON p.InvoiceId=i.Id
+            LEFT JOIN dbo.Users issuer ON issuer.Id=i.IssuedBy
+            LEFT JOIN dbo.Users voider ON voider.Id=i.VoidedBy
+            WHERE i.Id=@id;
+
+            SELECT l.ItemName,l.Unit,l.Quantity,l.UnitPrice,l.LineTotal,l.Notes,l.OriginalTableCode,l.IsChargedCancellation
+            FROM dbo.InvoiceLines l WHERE l.InvoiceId=@id ORDER BY l.Id;
+            """, connection);
+        command.Parameters.Add("@id", SqlDbType.BigInt).Value = invoiceId;
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken)) return NotFound();
+
+        var details = new InvoiceHistoryDetailsViewModel(
+            reader.GetInt64(0), reader.GetString(1), reader.GetString(2), reader.GetInt32(3),
+            VietnamTime.FromUtc(reader.GetDateTime(4)), DateOnly.FromDateTime(reader.GetDateTime(5)),
+            reader.GetString(6), reader.GetDecimal(7), reader.GetDecimal(8), reader.GetDecimal(9),
+            reader.GetString(10), reader.IsDBNull(11) ? null : reader.GetDecimal(11),
+            reader.IsDBNull(12) ? null : reader.GetDecimal(12), reader.IsDBNull(13) ? null : reader.GetString(13),
+            reader.GetString(14), reader.IsDBNull(15) ? null : reader.GetString(15),
+            reader.IsDBNull(16) ? null : reader.GetString(16),
+            reader.IsDBNull(17) ? null : VietnamTime.FromUtc(reader.GetDateTime(17)),
+            Array.Empty<CashierPaymentLine>());
+
+        var lines = new List<CashierPaymentLine>();
+        if (await reader.NextResultAsync(cancellationToken))
+            while (await reader.ReadAsync(cancellationToken))
+                lines.Add(new CashierPaymentLine(reader.GetString(0), reader.GetString(1), reader.GetInt32(2),
+                    reader.GetDecimal(3), reader.GetDecimal(4), reader.IsDBNull(5) ? null : reader.GetString(5),
+                    reader.GetString(6), reader.GetBoolean(7)));
+
+        return View("InvoiceDetails", details with { Lines = lines });
+    }
+
     /// <summary>S4-02 Task 4: chỉ Quản lý có thể huỷ hoá đơn đã chốt trong ca đang mở.</summary>
     [HttpPost("Invoices/{invoiceId:long}/Void")]
     [Authorize(Roles = AppRoles.Manager)]

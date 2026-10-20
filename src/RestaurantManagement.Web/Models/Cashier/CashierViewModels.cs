@@ -96,6 +96,36 @@ public sealed record InvoicesViewModel(DateOnly BusinessDate, IReadOnlyList<Invo
     public decimal PaidTotal => Invoices.Where(i => i.Status == "Paid").Sum(i => i.Total);
 }
 
+/// <summary>
+/// Chi tiết hóa đơn trong lịch sử. Khác với biên lai vừa thanh toán, màn hình này
+/// vẫn hiển thị được cả hóa đơn đã bị hủy để Quản lý/Thu ngân đối soát minh bạch.
+/// </summary>
+public sealed record InvoiceHistoryDetailsViewModel(
+    long InvoiceId,
+    string InvoiceNumber,
+    string Tables,
+    int GuestCount,
+    DateTime IssuedAt,
+    DateOnly BusinessDate,
+    string CashierName,
+    decimal Subtotal,
+    decimal DiscountAmount,
+    decimal Total,
+    string Method,
+    decimal? CashReceived,
+    decimal? ChangeAmount,
+    string? TransferReference,
+    string Status,
+    string? VoidReason,
+    string? VoidedBy,
+    DateTime? VoidedAt,
+    IReadOnlyList<CashierPaymentLine> Lines)
+{
+    public bool IsVoided => Status == "Voided";
+    public string MethodLabel => Method == "Transfer" ? "Chuyển khoản" : "Tiền mặt";
+    public string StatusLabel => IsVoided ? "Đã huỷ" : "Đã thanh toán";
+}
+
 /// <summary>Phiên hoặc hoá đơn khiến ca chưa được phép chốt.</summary>
 public sealed record ShiftBlocker(long SessionId, string Tables, string Status, string? InvoiceNumber, string Reason)
 {

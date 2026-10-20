@@ -40,6 +40,7 @@
                             else { <span class="badge text-bg-success">@i.StatusLabel</span> }
                         </td>
                         <td>
+                            <a asp-action="InvoiceDetails" asp-route-invoiceId="@i.Id" class="btn btn-outline-primary btn-sm mb-1">Xem chi tiết</a>
                             @if (i.Status == "Paid" && User.IsInRole("Manager"))
                             {
                                 <details><summary class="btn btn-outline-danger btn-sm">Huỷ hoá đơn</summary>

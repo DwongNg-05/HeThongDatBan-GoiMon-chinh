@@ -1,0 +1,69 @@
+@model RestaurantManagement.Web.Models.Cashier.InvoiceHistoryDetailsViewModel
+@using RestaurantManagement.Web.Models.Cashier
+@{
+    ViewData["Title"] = "Chi tiết hoá đơn " + Model.InvoiceNumber;
+}
+@section Styles { <link rel="stylesheet" href="~/css/cashier-payment.css" asp-append-version="true" /> }
+
+<div class="container mt-4 cashier-payment" data-screen="cashier-invoice-details">
+    <div class="cashier-receipt card shadow-sm mx-auto">
+        <div class="card-body p-4 p-md-5">
+            <div class="text-center mb-4">
+                <span class="badge @(Model.IsVoided ? "text-bg-danger" : "text-bg-success") mb-2">@Model.StatusLabel</span>
+                <h1 class="h3 mb-1">Hoá đơn @Model.InvoiceNumber</h1>
+                <p class="text-muted mb-0">@Model.IssuedAt.ToString("dd/MM/yyyy HH:mm") · Thu ngân: @Model.CashierName</p>
+            </div>
+
+            @if (Model.IsVoided)
+            {
+                <div class="alert alert-danger" role="alert">
+                    <strong>Hoá đơn đã huỷ.</strong>
+                    <div>Lý do: @Model.VoidReason</div>
+                    <div>Người huỷ: @(Model.VoidedBy ?? "Không xác định")@(Model.VoidedAt is not null ? $" · {Model.VoidedAt.Value:dd/MM/yyyy HH:mm}" : "")</div>
+                </div>
+            }
+
+            <dl class="row small border-top border-bottom py-3 mb-3">
+                <dt class="col-5 text-muted">Bàn</dt><dd class="col-7 text-end">@Model.Tables</dd>
+                <dt class="col-5 text-muted">Số khách</dt><dd class="col-7 text-end">@Model.GuestCount</dd>
+                <dt class="col-5 text-muted">Hình thức</dt><dd class="col-7 text-end">@Model.MethodLabel</dd>
+                @if (Model.TransferReference is not null) { <dt class="col-5 text-muted">Mã tham chiếu</dt><dd class="col-7 text-end">@Model.TransferReference</dd> }
+            </dl>
+
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead><tr><th>Món</th><th class="text-center">SL</th><th class="text-end">Thành tiền</th></tr></thead>
+                    <tbody>
+                    @foreach (var line in Model.Lines)
+                    {
+                        <tr>
+                            <td>
+                                @line.ItemName <small class="text-muted">(@Vnd.Format(line.UnitPrice)/@line.Unit)</small>
+                                @if (!string.IsNullOrWhiteSpace(line.Notes)) { <small class="d-block text-muted">Ghi chú: @line.Notes</small> }
+                                @if (line.IsChargedCancellation) { <small class="d-block text-danger">Món huỷ vẫn tính phí</small> }
+                            </td>
+                            <td class="text-center">@line.Quantity</td>
+                            <td class="text-end">@Vnd.Format(line.LineTotal)</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+
+            <dl class="cashier-payment__summary mt-3">
+                <div><dt>Tạm tính</dt><dd>@Vnd.Format(Model.Subtotal)</dd></div>
+                @if (Model.DiscountAmount > 0) { <div><dt>Giảm giá</dt><dd>-@Vnd.Format(Model.DiscountAmount)</dd></div> }
+                <div class="cashier-payment__total"><dt>Tổng tiền</dt><dd>@Vnd.Format(Model.Total)</dd></div>
+                @if (Model.Method == "Cash")
+                {
+                    <div><dt>Khách đưa</dt><dd>@Vnd.Format(Model.CashReceived ?? 0)</dd></div>
+                    <div><dt>Tiền thối</dt><dd>@Vnd.Format(Model.ChangeAmount ?? 0)</dd></div>
+                }
+            </dl>
+            <div class="d-flex flex-wrap gap-2 mt-4">
+                <a asp-action="Invoices" asp-route-date="@Model.BusinessDate.ToString("yyyy-MM-dd")" class="btn btn-outline-secondary">Quay lại lịch sử hoá đơn</a>
+                <a asp-action="Index" class="btn btn-primary">Về thanh toán</a>
+            </div>
+        </div>
+    </div>
+</div>
