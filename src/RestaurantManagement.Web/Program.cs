@@ -9,6 +9,20 @@ using RestaurantManagement.Web.Services;
 using RestaurantManagement.Web.Services.EmailVerification;
 
 var builder = WebApplication.CreateBuilder(args);
+// Trust forwarded HTTPS/client information only from the configured Docker proxy.
+var knownProxy = builder.Configuration["ReverseProxy:KnownProxy"];
+if (!string.IsNullOrWhiteSpace(knownProxy))
+{
+    var proxyAddress = System.Net.IPAddress.Parse(knownProxy);
+    builder.Services.Configure<Microsoft.AspNetCore.Builder.ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders =
+            Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor |
+            Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto;
+        options.KnownProxies.Add(proxyAddress);
+        options.ForwardLimit = 1;
+    });
+}
 var sqlConnectionString = Environment.GetEnvironmentVariable("RM_CONNECTION_STRING");
 if (string.IsNullOrWhiteSpace(sqlConnectionString))
     sqlConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -139,6 +153,8 @@ builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.GzipCompress
 builder.Services.AddHostedService<TemporaryOutResetWorker>();
 builder.Services.AddScoped<RestaurantManagement.Web.Services.SessionOrderingService>();
 var app = builder.Build();
+
+app.UseForwardedHeaders();
 
 if (!app.Environment.IsDevelopment())
 {

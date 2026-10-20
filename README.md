@@ -1,5 +1,7 @@
 # Hệ thống đặt bàn và gọi món nhà hàng
 
+Triển khai bằng Docker: xem [hướng dẫn Docker Compose](docs/DOCKER.md) (web .NET 10, SQL Server, migration và HTTPS).
+
 Database SQL Server và bộ khung ASP.NET Core MVC .NET 10 cho nhóm phát triển.
 
 ## Trạng thái hiện tại

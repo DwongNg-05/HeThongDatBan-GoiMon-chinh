@@ -1,0 +1,7 @@
+{$SITE_HOST:localhost} {
+    encode zstd gzip
+    reverse_proxy web:8080 {
+        # Preserve timely table-map Server-Sent Events.
+        flush_interval -1
+    }
+}

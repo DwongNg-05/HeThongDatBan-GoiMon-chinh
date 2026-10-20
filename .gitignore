@@ -11,6 +11,7 @@ TestResults/
 *.bak
 *.trn
 .env
+*.lic
 **/appsettings.Local.json
 **/appsettings.*.local.json
 **/wwwroot/uploads/*

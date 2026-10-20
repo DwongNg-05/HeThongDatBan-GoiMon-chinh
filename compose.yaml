@@ -1,0 +1,100 @@
+name: bep-nha
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: ${MSSQL_PID:-Express}
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD in .env}
+    volumes:
+      - sql-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", 'SQLCMDPASSWORD="$$MSSQL_SA_PASSWORD" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -Q "SELECT 1" -b -o /dev/null']
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    restart: unless-stopped
+    networks: [backend]
+
+  migrate:
+    build:
+      context: .
+      target: dbtool
+      secrets:
+        - sixlabors_license
+    environment:
+      RM_CONNECTION_STRING: 'Server=db,1433;Database=${DB_NAME:-RestaurantManagement_Dev};User Id=sa;Password="${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD in .env}";Encrypt=True;TrustServerCertificate=True'
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+    networks: [backend]
+
+  web:
+    build:
+      context: .
+      target: web
+      secrets:
+        - sixlabors_license
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      RM_CONNECTION_STRING: '${RM_WEB_CONNECTION_STRING:-Server=db,1433;Database=${DB_NAME:-RestaurantManagement_Dev};User Id=sa;Password="${MSSQL_SA_PASSWORD}";Encrypt=True;TrustServerCertificate=True}'
+      ReverseProxy__KnownProxy: 172.28.231.10
+      Booking__PublicBaseUrl: https://${SITE_HOST:-localhost}
+      TableQr__PublicBaseUrl: https://${SITE_HOST:-localhost}
+      EmailVerification__Enabled: ${EMAIL_VERIFICATION_ENABLED:-true}
+      Email__Host: ${SMTP_HOST:-}
+      Email__Port: ${SMTP_PORT:-587}
+      Email__EnableSsl: "true"
+      Email__UserName: ${SMTP_USERNAME:-}
+      Email__Password: ${SMTP_PASSWORD:-}
+      Email__FromAddress: ${SMTP_FROM:-}
+      Smtp__Host: ${SMTP_HOST:-}
+      Smtp__Port: ${SMTP_PORT:-587}
+      Smtp__Username: ${SMTP_USERNAME:-}
+      Smtp__Password: ${SMTP_PASSWORD:-}
+      Smtp__FromEmail: ${SMTP_FROM:-}
+    volumes:
+      - app-data:/app/App_Data
+      - dish-images:/app/wwwroot/uploads/mon-an
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    networks: [backend]
+
+  proxy:
+    image: caddy:2
+    environment:
+      SITE_HOST: ${SITE_HOST:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on: [web]
+    restart: unless-stopped
+    networks:
+      backend:
+        ipv4_address: 172.28.231.10
+
+networks:
+  backend:
+    ipam:
+      config:
+        - subnet: 172.28.231.0/24
+
+volumes:
+  sql-data:
+  app-data:
+  dish-images:
+  caddy-data:
+  caddy-config:
+
+secrets:
+  sixlabors_license:
+    file: ${SIXLABORS_LICENSE_FILE:-./.local/sixlabors.lic}
