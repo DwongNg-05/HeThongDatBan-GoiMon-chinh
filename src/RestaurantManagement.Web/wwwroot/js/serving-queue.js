@@ -213,6 +213,9 @@
         if (!form) return;
         event.preventDefault();
         const row = form.closest('tr[data-serving-item]');
+        const dish = row.querySelector('[data-cell="name"]')?.textContent?.trim() || 'món này';
+        const table = row.querySelector('[data-cell="table"]')?.textContent?.trim() || '';
+        if (!window.confirm(`Xác nhận đã mang ${dish}${table ? ` ra bàn ${table}` : ''}?`)) return;
         const id = Number(row.dataset.servingItem);
         const button = form.querySelector('button');
         button.disabled = true;

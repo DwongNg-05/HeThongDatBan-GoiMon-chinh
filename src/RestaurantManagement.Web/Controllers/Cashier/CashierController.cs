@@ -68,7 +68,9 @@ public sealed class CashierController(IConfiguration configuration) : Controller
         var effectiveRequestId = requestId is { } id && id != Guid.Empty ? id : Guid.NewGuid();
         var transferQr = BuildTransferQr(payment.Session.Subtotal - (discount?.Amount ?? 0), effectiveRequestId);
         var paymentMethod = method is "Transfer" ? "Transfer" : "Cash";
-        var received = cashReceived ?? (payment.Session.Subtotal - (discount?.Amount ?? 0));
+        // Tiền mặt được xác nhận đúng bằng số phải thu; thu ngân không cần nhập
+        // số tiền khách đưa trên màn hình chốt (không còn tính tiền thối tại đây).
+        var received = payment.Session.Subtotal - (discount?.Amount ?? 0);
         return View(new CashierPaymentViewModel(
             payment.Session,
             payment.Lines,
@@ -139,11 +141,10 @@ public sealed class CashierController(IConfiguration configuration) : Controller
         var configuredReference = method == "Transfer" ? BuildTransferQr(0, requestId)?.Reference : null;
         var effectiveTransferReference = configuredReference ?? transferReference;
         if (requestId == Guid.Empty || method is not ("Cash" or "Transfer") ||
-            (method == "Cash" && (cashReceived is null || cashReceived < 0)) ||
             (method == "Transfer" && !IsValidTransferReference(effectiveTransferReference)))
         {
             return RedirectToAction(nameof(Payment), new { sessionId, method, cashReceived, transferReference = effectiveTransferReference, requestId,
-                error = method == "Transfer" ? "Mã chuyển khoản gồm 6–50 ký tự chữ, số hoặc dấu gạch ngang." : "Vui lòng nhập số tiền khách đưa hợp lệ." });
+                error = "Mã chuyển khoản gồm 6–50 ký tự chữ, số hoặc dấu gạch ngang." });
         }
         if (!string.IsNullOrEmpty(sessionVersion) && (sessionVersion.Length!=16 || !sessionVersion.All(Uri.IsHexDigit)))
         {
@@ -153,6 +154,10 @@ public sealed class CashierController(IConfiguration configuration) : Controller
         try
         {
             var discount = await ReadDiscountAsync(sessionId, HttpContext.RequestAborted);
+            var payment = await ReadPaymentAsync(sessionId, HttpContext.RequestAborted);
+            if (payment is null)
+                return RedirectToAction(nameof(Payment), new { sessionId, method, requestId, error = "Không tìm thấy phiên thanh toán." });
+            var requiredCash = Math.Max(0, payment.Value.Session.Subtotal - (discount?.Amount ?? 0));
             await using var connection = new SqlConnection(ConnectionString);
             await using var command = new SqlCommand("dbo.usp_Checkout", connection) { CommandType = CommandType.StoredProcedure };
             command.Parameters.Add("@SessionId", SqlDbType.BigInt).Value = sessionId;
@@ -163,7 +168,7 @@ public sealed class CashierController(IConfiguration configuration) : Controller
             command.Parameters.Add("@DiscountType", SqlDbType.VarChar, 10).Value = discount?.Type ?? "None";
             command.Parameters.Add("@DiscountValue", SqlDbType.Decimal).Value = discount?.Value ?? 0;
             command.Parameters.Add("@DiscountReason", SqlDbType.NVarChar, 500).Value = discount?.Reason ?? (object)DBNull.Value;
-            command.Parameters.Add("@CashReceived", SqlDbType.Decimal).Value = method == "Cash" ? cashReceived!.Value : DBNull.Value;
+            command.Parameters.Add("@CashReceived", SqlDbType.Decimal).Value = method == "Cash" ? requiredCash : DBNull.Value;
             command.Parameters.Add("@TransferReference", SqlDbType.NVarChar, 100).Value = method == "Transfer" ? effectiveTransferReference!.Trim().ToUpperInvariant() : DBNull.Value;
             await connection.OpenAsync();
             await using var reader = await command.ExecuteReaderAsync();

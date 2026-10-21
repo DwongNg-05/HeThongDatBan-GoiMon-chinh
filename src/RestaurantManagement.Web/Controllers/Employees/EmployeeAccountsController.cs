@@ -18,6 +18,7 @@ public sealed class EmployeeAccountsController(IEmployeeAccountStore employeeAcc
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
+        ViewBag.Roles = await employeeAccounts.GetInternalRolesAsync(cancellationToken);
         return View(await employeeAccounts.GetEmployeeAccountsAsync(cancellationToken));
     }
 
@@ -141,6 +142,30 @@ public sealed class EmployeeAccountsController(IEmployeeAccountStore employeeAcc
             TempData["StatusMessage"] = "Tài khoản này đã ở trạng thái đã nghỉ hoặc không tồn tại.";
         }
 
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost("{accountId:int}/role")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateRole(int accountId, int roleId, CancellationToken cancellationToken)
+    {
+        // Không cho tự hạ quyền ngay trong phiên đang dùng, tránh mất luôn quyền quản trị.
+        if (accountId == User.ActorUserId())
+        {
+            TempData["StatusMessage"] = "Không thể đổi vai trò của chính tài khoản đang đăng nhập. Hãy dùng một Quản lý khác.";
+        }
+        else if (!await employeeAccounts.IsInternalRoleAsync(roleId, cancellationToken))
+        {
+            TempData["StatusMessage"] = "Vai trò được chọn không hợp lệ.";
+        }
+        else if (await employeeAccounts.UpdateRoleAsync(accountId, roleId, cancellationToken))
+        {
+            TempData["StatusMessage"] = "Đã cập nhật vai trò. Các phiên đang đăng nhập của nhân viên này đã được đăng xuất; họ đăng nhập lại để dùng quyền mới.";
+        }
+        else
+        {
+            TempData["StatusMessage"] = "Không thể cập nhật vai trò. Tài khoản có thể đã nghỉ hoặc không tồn tại.";
+        }
         return RedirectToAction(nameof(Index));
     }
 

@@ -35,7 +35,7 @@ public sealed class SqlEmployeeAccountStore(string? connectionString) : IEmploye
     public async Task<IReadOnlyList<EmployeeAccountListItem>> GetEmployeeAccountsAsync(CancellationToken cancellationToken = default)
     {
         const string sql = """
-            SELECT u.Id, u.FullName, u.Phone, u.UserName, r.Name, u.IsActive
+            SELECT u.Id, u.RoleId, u.FullName, u.Phone, u.UserName, r.Name, u.IsActive
             FROM dbo.Users AS u
             INNER JOIN dbo.Roles AS r ON r.Id = u.RoleId
             ORDER BY u.IsActive DESC, u.FullName, u.Id;
@@ -49,11 +49,12 @@ public sealed class SqlEmployeeAccountStore(string? connectionString) : IEmploye
         {
             accounts.Add(new EmployeeAccountListItem(
                 reader.GetInt32(0),
-                reader.GetString(1),
+                reader.GetInt32(1),
                 reader.GetString(2),
                 reader.GetString(3),
                 reader.GetString(4),
-                reader.GetBoolean(5)));
+                reader.GetString(5),
+                reader.GetBoolean(6)));
         }
 
         return accounts;
@@ -71,6 +72,27 @@ public sealed class SqlEmployeeAccountStore(string? connectionString) : IEmploye
         await using var command = new SqlCommand(sql, connection);
         command.Parameters.AddWithValue("@accountId", accountId);
         return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
+    }
+
+    public async Task<bool> UpdateRoleAsync(int accountId, int roleId, CancellationToken cancellationToken = default)
+    {
+        // Chỉ nhận 4 vai trò nội bộ, vô hiệu mọi phiên cũ để lần đăng nhập sau
+        // nhận đúng claim Role mới ngay lập tức.
+        const string sql = $$"""
+            UPDATE dbo.Users
+            SET RoleId=@roleId, SecurityStamp=NEWID(), UpdatedAt=SYSUTCDATETIME()
+            WHERE Id=@accountId AND IsActive=1
+              AND EXISTS (SELECT 1 FROM dbo.Roles WHERE Id=@roleId AND Code IN {{InternalRolesFilter}});
+            IF @@ROWCOUNT=1
+                UPDATE dbo.LoginSessions SET RevokedAt=SYSUTCDATETIME()
+                WHERE UserId=@accountId AND RevokedAt IS NULL;
+            """;
+        await using var connection = await OpenConnectionAsync(cancellationToken);
+        await using var command = new SqlCommand(sql, connection);
+        command.Parameters.AddWithValue("@accountId", accountId);
+        command.Parameters.AddWithValue("@roleId", roleId);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+        return await ExistsAsync("SELECT 1 FROM dbo.Users WHERE Id=@value AND RoleId=@normalizedValue AND IsActive=1;", accountId, roleId, cancellationToken);
     }
 
     public Task<bool> IsLoginAllowedAsync(string userNameOrPhone, CancellationToken cancellationToken = default)

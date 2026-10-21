@@ -44,7 +44,8 @@
                             @if (i.Status == "Paid" && User.IsInRole("Manager"))
                             {
                                 <details><summary class="btn btn-outline-danger btn-sm">Huỷ hoá đơn</summary>
-                                    <form asp-action="VoidInvoice" asp-route-invoiceId="@i.Id" method="post" class="mt-2" style="min-width: 230px">
+                                    <form asp-action="VoidInvoice" asp-route-invoiceId="@i.Id" method="post" class="mt-2" style="min-width: 230px"
+                                          data-confirm-action data-confirm="Xác nhận hủy hóa đơn @i.InvoiceNumber? Hóa đơn sẽ bị ghi nhận là đã hủy.">
                                         <input type="hidden" name="date" value="@Model.BusinessDate.ToString("yyyy-MM-dd")" />
                                         <label class="form-label small" for="reason-@i.Id">Lý do</label>
                                         <input id="reason-@i.Id" name="reason" required minlength="5" maxlength="500" class="form-control form-control-sm" placeholder="Ít nhất 5 ký tự" />

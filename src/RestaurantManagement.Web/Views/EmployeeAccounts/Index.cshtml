@@ -2,6 +2,7 @@
 @{
     ViewData["Title"] = "Danh sách nhân viên";
     var statusMessage = TempData["StatusMessage"] as string;
+    var roles = ViewBag.Roles as IReadOnlyList<RestaurantManagement.Data.EmployeeRole> ?? Array.Empty<RestaurantManagement.Data.EmployeeRole>();
 }
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
@@ -39,7 +40,25 @@ else
                         <td>@account.FullName</td>
                         <td>@account.PhoneNumber</td>
                         <td>@account.UserName</td>
-                        <td>@account.RoleName</td>
+                        <td>
+                            @if (account.IsActive)
+                            {
+                                <form asp-action="UpdateRole" asp-route-accountId="@account.Id" method="post" class="d-flex gap-1 align-items-center"
+                                      data-confirm-action data-confirm="Xác nhận đổi vai trò của @account.FullName? Nhân viên sẽ phải đăng nhập lại để nhận quyền mới.">
+                                    <select name="roleId" class="form-select form-select-sm" aria-label="Vai trò của @account.FullName">
+                                        @foreach (var role in roles)
+                                        {
+                                            <option value="@role.Id" selected="@(role.Id == account.RoleId)">@role.Name</option>
+                                        }
+                                    </select>
+                                    <button type="submit" class="btn btn-outline-primary btn-sm text-nowrap">Cập nhật</button>
+                                </form>
+                            }
+                            else
+                            {
+                                @account.RoleName
+                            }
+                        </td>
                         <td>
                             @if (account.IsActive)
                             {

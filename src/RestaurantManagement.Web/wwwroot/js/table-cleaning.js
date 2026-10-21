@@ -36,7 +36,9 @@
         update(); card.append(button, feedback);
         new MutationObserver(update).observe(card, { attributes: true, attributeFilter: ['data-status', 'data-changed-at', 'data-upcoming-guest', 'data-upcoming-starts-at'] });
         button.addEventListener('click', async event => {
-            event.stopPropagation(); button.disabled = true; message.textContent = ''; feedback.textContent = '';
+            event.stopPropagation();
+            if (!window.confirm(`Xác nhận bàn ${card.dataset.tableCode} đã dọn xong và sẵn sàng đón khách mới?`)) return;
+            button.disabled = true; message.textContent = ''; feedback.textContent = '';
             try {
                 const response = await fetch(`${config.dataset.url}/${encodeURIComponent(card.dataset.tableCode)}/complete`, {
                     method: 'POST', body: new URLSearchParams({ __RequestVerificationToken: config.querySelector('[name=__RequestVerificationToken]').value })

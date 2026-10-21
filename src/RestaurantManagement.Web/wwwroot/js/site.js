@@ -29,3 +29,16 @@
     expand.addEventListener('click', function () { setCollapsed(false); });
     sync();
 })();
+
+// Các thao tác làm thay đổi trạng thái thật (phục vụ món, đóng ca, hủy...) phải
+// được hỏi lại.  Gắn data-confirm-action vào form, nội dung trong data-confirm.
+// Đặt tại đây để mọi màn hình dùng cùng một cơ chế và không vô tình gửi form.
+(function () {
+    'use strict';
+    document.addEventListener('submit', function (event) {
+        var form = event.target;
+        if (!(form instanceof HTMLFormElement) || !form.matches('[data-confirm-action]')) return;
+        var message = form.dataset.confirm || 'Bạn có chắc muốn thực hiện thao tác này không?';
+        if (!window.confirm(message)) event.preventDefault();
+    }, true);
+})();

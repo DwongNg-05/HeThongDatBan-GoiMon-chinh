@@ -2,7 +2,7 @@
 @using RestaurantManagement.Web.Models.Cashier
 @using System.Globalization
 @{
-    ViewData["Title"] = "Chốt tiền mặt";
+    ViewData["Title"] = "Thanh toán";
     var number = CultureInfo.InvariantCulture;
 }
 @section Styles { <link rel="stylesheet" href="~/css/cashier-payment.css" asp-append-version="true" /> }
@@ -80,7 +80,8 @@
                     }
                 </div>
             </section>
-            <form asp-action="Checkout" method="post" class="card shadow-sm cashier-payment__form">
+            <form asp-action="Checkout" method="post" class="card shadow-sm cashier-payment__form"
+                  data-confirm-action data-confirm="Xác nhận đã nhận đủ tiền và chốt hóa đơn? Thao tác này sẽ chuyển bàn sang trạng thái đang dọn.">
                 <div class="card-body">
                     <h3 class="h5">Chốt hoá đơn</h3>
                     <input type="hidden" name="sessionId" value="@Model.Session.SessionId" />
@@ -95,10 +96,10 @@
                         <div class="d-flex gap-3"><label class="form-check"><input class="form-check-input" type="radio" name="method" value="Cash" @(Model.Method == "Cash" ? "checked" : null) data-payment-method /> Tiền mặt</label>
                         <label class="form-check"><input class="form-check-input" type="radio" name="method" value="Transfer" @(Model.Method == "Transfer" ? "checked" : null) data-payment-method /> Chuyển khoản</label></div>
                     </fieldset>
-                    <div data-cash-fields>
-                        <label class="form-label fw-semibold" for="cashReceived">Tiền khách đưa (VND)</label>
-                        <input id="cashReceived" name="cashReceived" type="number" min="0" step="1" inputmode="numeric" class="form-control form-control-lg" value="@Model.CashReceived.ToString("0", number)" data-cash-received />
-                        <div class="form-text">Hệ thống chặn số tiền nhỏ hơn tổng phải thu.</div>
+                    <div data-cash-fields class="alert alert-light border mb-3">
+                        <span class="d-block text-muted small">Tiền mặt cần nhận</span>
+                        <strong class="fs-4">@Vnd.Format(Model.Total)</strong>
+                        <div class="form-text">Số tiền này được hệ thống tính từ hóa đơn; không cần nhập tiền khách đưa.</div>
                     </div>
                     <div data-transfer-fields>
                         @if (Model.TransferQr is { } qr)
@@ -120,10 +121,7 @@
                             <div class="form-text">6–50 ký tự: chữ, số hoặc dấu gạch ngang.</div>
                         }
                     </div>
-                    <div class="cashier-payment__change mt-3" aria-live="polite" data-change-box>
-                        <span>Tiền thối lại</span><strong data-change>@Vnd.Format(Model.Change)</strong>
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100 mt-4" data-checkout-button @(Model.Lines.Count == 0 || Model.Session.UnservedCount > 0 ? "disabled" : null)>Chốt tiền mặt</button>
+                    <button type="submit" class="btn btn-primary w-100 mt-4" data-checkout-button @(Model.Lines.Count == 0 || Model.Session.UnservedCount > 0 ? "disabled" : null)>Xác nhận tiền mặt</button>
                 </div>
             </form>
         </aside>
@@ -133,15 +131,10 @@
 <script>
 (() => {
   const root = document.querySelector('[data-screen="cashier-cash-payment"]');
-  const input = root?.querySelector('[data-cash-received]');
-  const change = root?.querySelector('[data-change]');
   const methods = root?.querySelectorAll('[data-payment-method]'); const cash = root?.querySelector('[data-cash-fields]'); const transfer = root?.querySelector('[data-transfer-fields]'); const checkout = root?.querySelector('[data-checkout-button]');
-  if (!root || !input || !change || !methods || !cash || !transfer) return;
-  const total = Number(root.dataset.total || 0);
-  const format = value => new Intl.NumberFormat('vi-VN').format(Math.max(0, value)) + ' ₫';
-  const refresh = () => change.textContent = format(Number(input.value || 0) - total);
-  const toggle = () => { const isCash = root.querySelector('[data-payment-method]:checked')?.value === 'Cash'; cash.hidden = !isCash; transfer.hidden = isCash; root.querySelector('[data-change-box]').hidden = !isCash; input.required = isCash; transfer.querySelector('input').required = !isCash; if (checkout) checkout.textContent = isCash ? 'Chốt tiền mặt' : 'Xác nhận chuyển khoản'; };
-  input.addEventListener('input', refresh); methods.forEach(x => x.addEventListener('change', toggle)); toggle(); refresh();
+  if (!root || !methods || !cash || !transfer) return;
+  const toggle = () => { const isCash = root.querySelector('[data-payment-method]:checked')?.value === 'Cash'; cash.hidden = !isCash; transfer.hidden = isCash; transfer.querySelector('input').required = !isCash; if (checkout) checkout.textContent = isCash ? 'Xác nhận tiền mặt' : 'Xác nhận chuyển khoản'; };
+  methods.forEach(x => x.addEventListener('change', toggle)); toggle();
 })();
 </script>
 }

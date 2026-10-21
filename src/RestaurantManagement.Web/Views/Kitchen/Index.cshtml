@@ -85,7 +85,7 @@
                             </div>
                             @if (Model.CanChangeStatus)
                             {
-                                <form asp-controller="Kitchen" asp-action="StopAck" asp-route-id="@stop.OrderItemId" method="post" class="kitchen-stop-ack">
+                                <form asp-controller="Kitchen" asp-action="StopAck" asp-route-id="@stop.OrderItemId" method="post" class="kitchen-stop-ack" data-confirm-action data-confirm="Xác nhận bếp đã dừng chế biến món này?">
                                     <button type="submit" class="btn btn-sm btn-light">Đã dừng món</button>
                                 </form>
                             }
@@ -193,7 +193,7 @@
                                                               asp-action="Advance"
                                                               asp-route-id="@item.Id"
                                                               method="post"
-                                                              class="d-inline">
+                                                              class="d-inline" data-confirm-action data-confirm="Xác nhận chuyển món @item.ItemName sang trạng thái '@item.NextLabel'?">
 
                                                             <input type="hidden"
                                                                    name="toStatus"
@@ -248,6 +248,7 @@
 
             screen.addEventListener('submit', event => {
                 if (!(event.target instanceof HTMLFormElement)) return;
+                if (event.defaultPrevented) return;
 
                 if (submitting) {
                     event.preventDefault();
