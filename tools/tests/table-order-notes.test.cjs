@@ -99,11 +99,11 @@ test('giỏ đọc lại từ sessionStorage: bỏ dòng hỏng, cắt ghi chú 
     assert.deepEqual(plain(Cart.sanitize('không phải mảng')), []);
 });
 
-test('số lượng tối đa 99 mỗi dòng, giỏ tối đa 100 dòng', () => {
+test('số lượng tối đa 20 mỗi dòng, giỏ tối đa 100 dòng', () => {
     const cart = [];
     Cart.addDish(cart, goi);
     Cart.changeQuantity(cart, 0, 200);
-    assert.equal(cart[0].quantity, 99);
+    assert.equal(cart[0].quantity, 20);
     for (let i = 1; i < 100; i++) Cart.addSeparateLine(cart, 0);
     assert.equal(cart.length, 100);
     assert.equal(Cart.addSeparateLine(cart, 0), -1);

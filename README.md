@@ -32,8 +32,8 @@ GitHub lưu **mã nguồn tạo database**, không lưu database đang chạy ha
 Mở PowerShell:
 
 ```powershell
-git clone https://github.com/DwongNg-05/HeThongDatBan-Ordering-chinh.git
-cd HeThongDatBan-Ordering-chinh
+git clone https://github.com/DwongNg-05/HeThongDatBan-GoiMon-chinh.git
+cd HeThongDatBan-GoiMon-chinh
 dotnet restore RestaurantManagement.sln --locked-mode
 
 # Đổi tên server phù hợp với máy của bạn, ví dụ .\SQLEXPRESS.
@@ -135,7 +135,7 @@ dotnet run --project tools/RestaurantManagement.DbTool -- verify
 - Đơn giá, tên món và đơn vị được chụp lại trên order và hoá đơn.
 - Các thao tác nghiệp vụ chính đi qua stored procedure có giao dịch. Không dùng thao tác sửa bảng trực tiếp để thay thế quy trình thanh toán, đặt bàn hoặc chuyển trạng thái món.
 - `ActorUserId` phải lấy từ người dùng đã xác thực ở phía máy chủ, không tin giá trị do trình duyệt gửi. Stored procedure kiểm tra quyền nhưng không thay thế xác thực web.
-- Chưa triển khai worker gửi SMTP, cập nhật SignalR, lịch chạy tác vụ, sao lưu, xuất PDF hoặc toàn bộ giao diện. Cấu trúc dữ liệu đã chuẩn bị cho các phần này.
+- Đã có worker gửi SMTP và nhắc lịch, cập nhật trạng thái bàn theo cơ chế polling/SSE, cùng xuất PDF hóa đơn tạm tính và PDF chốt ca. Chưa có cơ chế sao lưu vận hành và môi trường staging Internet được triển khai sẵn; xem tài liệu Sprint 4 để cấu hình/kiểm tra hai phần này.
 - `usp_RunMaintenance` xử lý đặt lại món tạm hết, xếp email nhắc lịch vào hàng đợi và xoá dữ liệu đặt bàn quá 12 tháng. Cần cấu hình lịch chạy khi phát triển worker.
 
 ## Làm việc nhóm trên GitHub

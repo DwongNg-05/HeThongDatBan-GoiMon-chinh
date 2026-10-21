@@ -79,8 +79,8 @@ BEGIN
     VALUES (@shiftId, @number + 1, 'Closed', @waiter, @openedAt, @closedAt, @cashier);
     SET @sessionId = SCOPE_IDENTITY();
     INSERT dbo.SessionTables(SessionId, TableId, AssignedAt, ReleasedAt) VALUES (@sessionId, @tableId, @openedAt, @closedAt);
-    INSERT dbo.OrderBatches(SessionId, BatchNumber, RequestId, CreatedBy, CreatedAt)
-    VALUES (@sessionId, 1, NEWID(), @waiter, DATEADD(minute, 10, @openedAt));
+    INSERT dbo.OrderBatches(SessionId, OriginSessionId, BatchNumber, RequestId, CreatedBy, CreatedAt)
+    VALUES (@sessionId, @sessionId, 1, NEWID(), @waiter, DATEADD(minute, 10, @openedAt));
     SET @batchId = SCOPE_IDENTITY();
 
     INSERT dbo.OrderItems(BatchId, MenuItemId, OriginalTableId, ItemName, Unit, UnitPrice, Quantity, EstimatedPrepMinutes,

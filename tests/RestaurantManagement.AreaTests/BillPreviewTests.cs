@@ -119,12 +119,14 @@ internal static class BillPreviewTests
                 $"S4-01 permissions: {key} is for the manager and the waiter only");
         }
 
-        // Giao diện: nút "Tạm tính" trên chi tiết bàn, nhóm có nhãn, dòng tổng cộng, nút "Quay lại gọi món".
+        // Giao diện: lối vào "Xem / in tạm tính" trên chi tiết bàn, nhóm có nhãn,
+        // dòng tổng cộng, nút "Quay lại gọi món". Cả bàn dữ liệu demo đang phục vụ
+        // cũng phải xem/in được; đây chỉ là thao tác đọc và không đổi trạng thái bàn.
         var map = Source("src", "RestaurantManagement.Web", "Views", "Home", "Index.cshtml");
         var mapJs = Source("src", "RestaurantManagement.Web", "wwwroot", "js", "table-map.js");
-        check(map.Contains("id=\"details-preview-link\"") && map.Contains(">Tạm tính</a>") && map.Contains("~/ProvisionalBill/Preview/")
-              && mapJs.Contains("const hasPreview = serving && details.hasActiveSession && !details.isDemoData;"),
-            "S4-01 UI: the table details show a \"Tạm tính\" button only for a table being served");
+        check(map.Contains("id=\"details-preview-link\"") && map.Contains("Xem / in tạm tính</a>") && map.Contains("~/ProvisionalBill/Preview/")
+              && mapJs.Contains("const hasPreview = serving && details.hasActiveSession;"),
+            "S4-01 UI: the table details show the provisional-bill action for every serving table with an active session");
         var view = Source("src", "RestaurantManagement.Web", "Views", "ProvisionalBill", "Preview.cshtml");
         check(view.Contains("data-preview-back>← Quay lại gọi món</a>") && view.Contains("\"?table=\"") && mapJs.Contains("get('table')")
               && view.Contains("data-preview-group=\"charged-cancelled\"") && view.Contains("@BillRules.ChargedCancellationLabel")

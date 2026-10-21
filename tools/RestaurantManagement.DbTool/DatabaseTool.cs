@@ -16,7 +16,7 @@ internal static partial class DatabaseTool
             var connection = Environment.GetEnvironmentVariable("RM_CONNECTION_STRING");
             if (command == "help" || string.IsNullOrWhiteSpace(connection))
             {
-                Console.WriteLine("Commands: migration-status | verify-merge-upgrade | verify-merge-tables | verify-unmerge-tables | migrate | seed-demo | reset-demo | reset-demo-accounts | seed-login-demo | seed-menu-demo | seed-menu-extra | seed-khai-vi | seed-confirmation-demo | seed-s4-demo | seed-menu-200 | hide-menu-200 | email-retry-now | verify | verify-s410-task3 | verify-booking-email | verify-api-permissions | verify-temporary-out | verify-qr-session | verify-late-reservations | verify-hold-extension | verify-phone-no-show | verify-cancel-item | verify-cancel-report | verify-charged-cancel | verify-bill-preview | verify-bill-header | verify-bill-print | verify-bill-pdf | maintenance | check\nSet RM_CONNECTION_STRING first. seed-demo, reset-demo-accounts and seed-login-demo also require RM_DEMO_PASSWORD.\nreset-demo restores only a previously seeded _Dev, _Demo, _Staging or _Test_ database; it preserves password hashes and retained audit history.\nseed-login-demo accepts RM_DEMO_USERNAME and RM_DEMO_PHONE; existing accounts are preserved.\nverify and verify-s410-task3 create and remove their own uniquely named test database.");
+                Console.WriteLine("Commands: migration-status | verify-merge-upgrade | verify-merge-tables | verify-unmerge-tables | migrate | seed-demo | reset-demo | reset-demo-accounts | seed-login-demo | seed-menu-demo | seed-menu-extra | seed-khai-vi | seed-confirmation-demo | seed-s4-demo | seed-s4-live-demo | refresh-s4-live-demo | seed-menu-200 | hide-menu-200 | email-retry-now | verify | verify-s410-task3 | verify-booking-email | verify-api-permissions | verify-temporary-out | verify-qr-session | verify-late-reservations | verify-hold-extension | verify-phone-no-show | verify-cancel-item | verify-cancel-report | verify-charged-cancel | verify-bill-preview | verify-bill-header | verify-bill-print | verify-bill-pdf | maintenance | check\nSet RM_CONNECTION_STRING first. seed-demo, reset-demo-accounts and seed-login-demo also require RM_DEMO_PASSWORD.\nreset-demo restores only a previously seeded _Dev, _Demo, _Staging or _Test_ database; it preserves password hashes and retained audit history.\nseed-login-demo accepts RM_DEMO_USERNAME and RM_DEMO_PHONE; existing accounts are preserved.\nseed-s4-live-demo only adds the S4 live rehearsal records and leaves existing data untouched. refresh-s4-live-demo moves only the two active S4 rehearsal bookings forward by seven days.\nverify and verify-s410-task3 create and remove their own uniquely named test database.");
                 Environment.ExitCode = command == "help" ? 0 : 1;
                 return;
             }
@@ -36,6 +36,8 @@ internal static partial class DatabaseTool
                 case "seed-khai-vi": await SeedKhaiVi(connection); break;
                 case "seed-confirmation-demo": await SeedConfirmationDemo(connection); break;
                 case "seed-s4-demo": await SeedS4Demo(connection); break;
+                case "seed-s4-live-demo": await SeedS4LiveDemo(connection); break;
+                case "refresh-s4-live-demo": await RefreshS4LiveDemo(connection); break;
                 case "seed-menu-200": await SeedMenu200(connection); break;
                 case "hide-menu-200": await HideMenu200(connection); break;
                 case "verify": await Verification.Run(connection); break;
@@ -98,9 +100,26 @@ internal static partial class DatabaseTool
         var database = builder.InitialCatalog;
         if (!DatabaseName().IsMatch(database) || new[] { "master", "model", "msdb", "tempdb" }.Contains(database, StringComparer.OrdinalIgnoreCase))
             throw new ArgumentException("Use a dedicated database name with letters, digits and underscores.");
-        builder.InitialCatalog = "master";
-        await using (var master = new SqlConnection(builder.ConnectionString))
+        // Azure Portal can provision an empty database before this tool runs.
+        // Connecting to that database is the reliable existence check: querying
+        // DB_ID from Azure's master database can be denied or return NULL even
+        // though the caller can connect to the target database.
+        var databaseAlreadyExists = false;
+        try
         {
+            await using var target = new SqlConnection(connection);
+            await target.OpenAsync();
+            databaseAlreadyExists = true;
+        }
+        catch (SqlException ex) when (ex.Number == 4060)
+        {
+            // The local-development flow creates a dedicated database below.
+        }
+
+        if (!databaseAlreadyExists)
+        {
+            builder.InitialCatalog = "master";
+            await using var master = new SqlConnection(builder.ConnectionString);
             await master.OpenAsync();
             await using var cmd = new SqlCommand($"IF DB_ID(@name) IS NULL CREATE DATABASE [{database}];", master);
             cmd.Parameters.AddWithValue("@name", database);

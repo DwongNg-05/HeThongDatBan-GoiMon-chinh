@@ -154,10 +154,20 @@ builder.Services.AddDbContext<
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddDistributedMemoryCache();
 
-var dataProtectionKeyFolder = Path.Combine(
-    builder.Environment.ContentRootPath,
-    "App_Data",
-    "data-protection-keys");
+// Production containers can mount a durable folder (for example Azure App
+// Service /home).  Keeping the keys there means email confirmation/cancellation
+// links and logged-in cookies survive a restart or a new container revision.
+var configuredDataProtectionKeyFolder = builder.Configuration[
+    "DataProtection:KeyDirectory"];
+var dataProtectionKeyFolder = string.IsNullOrWhiteSpace(
+    configuredDataProtectionKeyFolder)
+    ? Path.Combine(
+        builder.Environment.ContentRootPath,
+        "App_Data",
+        "data-protection-keys")
+    : Path.GetFullPath(
+        configuredDataProtectionKeyFolder,
+        builder.Environment.ContentRootPath);
 
 Directory.CreateDirectory(dataProtectionKeyFolder);
 

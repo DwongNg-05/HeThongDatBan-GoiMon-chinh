@@ -54,6 +54,46 @@ internal static partial class DatabaseTool
         catch { await tx.RollbackAsync(); throw; }
     }
 
+    /// <summary>
+    /// Bổ sung các trạng thái đang diễn ra để diễn tập S4: bàn phục vụ, bếp,
+    /// tạm tính, thanh toán, dọn bàn, ghép bàn và đặt bàn. Chạy lại an toàn;
+    /// script tự dừng nếu bộ dữ liệu đã có hoặc bàn mục tiêu đang được dùng.
+    /// </summary>
+    internal static async Task SeedS4LiveDemo(string connection)
+    {
+        await using var cn = new SqlConnection(connection);
+        await cn.OpenAsync();
+        await using var tx = (SqlTransaction)await cn.BeginTransactionAsync(IsolationLevel.Serializable);
+        try
+        {
+            await Batches(cn, tx, await File.ReadAllTextAsync(Path.Combine(Root, "database", "seeds", "S4LiveDemo.sql")));
+            await tx.CommitAsync();
+            Console.WriteLine("S4 live demo ready: serving, kitchen, payment, cleaning, merge and reservation rehearsal records added. Existing data preserved.");
+        }
+        catch { await tx.RollbackAsync(); throw; }
+    }
+
+    /// <summary>
+    /// Gia hạn hai lượt đặt bàn còn hiệu lực của bộ S4 live. Chỉ tác động đúng
+    /// các mã L4A009/L4A010 do seed tạo, không thay đổi lịch sử huỷ/không tới.
+    /// </summary>
+    internal static async Task RefreshS4LiveDemo(string connection)
+    {
+        await Execute(connection, """
+            DECLARE @now datetime2(3)=SYSUTCDATETIME();
+            UPDATE dbo.Reservations
+            SET StartsAt=DATEADD(day,7,@now), EndsAt=DATEADD(day,7,DATEADD(minute,90,@now))
+            WHERE Code='L4A009' AND Status='Confirmed';
+            UPDATE dbo.Reservations
+            SET StartsAt=DATEADD(day,8,@now), EndsAt=DATEADD(day,8,DATEADD(minute,90,@now))
+            WHERE Code='L4A010' AND Status='Pending';
+            UPDATE dbo.DiningTables SET Status='Available',StatusChangedAt=@now
+            WHERE Code='S4D09' AND Status='Reserved'
+              AND NOT EXISTS(SELECT 1 FROM dbo.Reservations r WHERE r.TableId=dbo.DiningTables.Id AND r.Status='Confirmed' AND r.StartsAt<=DATEADD(minute,30,@now) AND r.EndsAt>@now);
+            """);
+        Console.WriteLine("S4 live booking dates refreshed: L4A009 is 7 days ahead and L4A010 is 8 days ahead. Historical records were not changed.");
+    }
+
     /// <summary>Thêm 6 món Khai vị (đang bán): khoai tây chiên, ngô chiên, phô mai que, gỏi tai heo, mực chiên giòn, hành tây chiên giòn.</summary>
     internal static async Task SeedKhaiVi(string connection)
     {

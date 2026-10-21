@@ -20,9 +20,13 @@ internal static class AuditReadOnlyTests
         var web = typeof(AuditLogsController).Assembly;
         var declared = BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
 
-        // 1. Không có hàm nào tên kiểu Xoá/Sửa/Cập nhật nhật ký ở bất kỳ đâu trong ứng dụng web.
+        // 1. Không có hàm nào tên kiểu Xoá/Sửa/Cập nhật nhật ký trong các lớp quản lý nhật ký.
+        // Chỉ xét lớp Audit/PriceHistory: tên phương thức chung như EmailBranding.RemoveLogo
+        // không phải thao tác trên nhật ký và không được biến thành false-positive.
         var writeName = new Regex("^(Delete|Remove|Update|Edit|Clear|Truncate|Purge|Delete|Edit|Update)\\w*(Audit|PriceHistory|Log)", RegexOptions.IgnoreCase);
-        var offenders = web.GetTypes().SelectMany(t => t.GetMethods(declared).Select(m => $"{t.Name}.{m.Name}"))
+        var offenders = web.GetTypes()
+            .Where(t => Regex.IsMatch(t.Name, "Audit|PriceHistory", RegexOptions.IgnoreCase))
+            .SelectMany(t => t.GetMethods(declared).Select(m => $"{t.Name}.{m.Name}"))
             .Where(n => writeName.IsMatch(n[(n.IndexOf('.') + 1)..])).ToArray();
         check(offenders.Length == 0, "Read-only: no method that edits or deletes logs exists in the web app" + (offenders.Length > 0 ? ": " + string.Join(", ", offenders) : ""));
 
