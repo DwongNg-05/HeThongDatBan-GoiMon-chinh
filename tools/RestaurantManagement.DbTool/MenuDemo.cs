@@ -35,6 +35,21 @@ internal static partial class DatabaseTool
         catch { await tx.RollbackAsync(); throw; }
     }
 
+    /// <summary>Đổi các ảnh SVG minh hoạ của menu demo sang ảnh chụp món ăn thật.</summary>
+    internal static async Task SeedRealFoodImages(string connection)
+    {
+        await using var cn = new SqlConnection(connection);
+        await cn.OpenAsync();
+        await using var tx = (SqlTransaction)await cn.BeginTransactionAsync(IsolationLevel.Serializable);
+        try
+        {
+            await Batches(cn, tx, await File.ReadAllTextAsync(Path.Combine(Root, "database", "seeds", "RealFoodImages.sql")));
+            await tx.CommitAsync();
+            Console.WriteLine("Real food images ready: demo menu now uses real food photography instead of SVG illustrations.");
+        }
+        catch { await tx.RollbackAsync(); throw; }
+    }
+
     /// <summary>
     /// Dữ liệu nghiệp vụ bổ sung để diễn tập báo cáo S4: ba hoá đơn lịch sử,
     /// tiền mặt/chuyển khoản và một dòng món đã huỷ có tính tiền. Chạy lại an toàn,
