@@ -420,35 +420,16 @@ public sealed class CashierController(IConfiguration configuration) : Controller
 
     [HttpPost("CloseShift")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> CloseShift(long shiftId, decimal? countedCash, string? explanation,
-        int? expectedInvoiceCount, decimal? expectedCashRevenue, decimal? expectedTransferRevenue,
-        decimal? expectedDiscountTotal, int? expectedServedTableCount, decimal? expectedOpeningCash)
+    public async Task<IActionResult> CloseShift(long shiftId)
     {
-        if (shiftId <= 0 || countedCash is null || !IsValidMoney(countedCash.Value) ||
-            expectedInvoiceCount is null || expectedInvoiceCount < 0 || expectedServedTableCount is null || expectedServedTableCount < 0 ||
-            expectedCashRevenue is null || !IsValidMoney(expectedCashRevenue.Value) || expectedTransferRevenue is null || !IsValidMoney(expectedTransferRevenue.Value) ||
-            expectedDiscountTotal is null || !IsValidMoney(expectedDiscountTotal.Value) || expectedOpeningCash is null || !IsValidMoney(expectedOpeningCash.Value))
+        if (shiftId <= 0)
         {
-            TempData["Error"] = "Thiếu hoặc sai số liệu đối chiếu của ca. Vui lòng tải lại màn hình rồi thử lại.";
+            TempData["Error"] = "Mã ca không hợp lệ. Vui lòng tải lại màn hình rồi thử lại.";
             return RedirectToAction(nameof(Shift));
         }
-        explanation = explanation?.Trim();
-        if (explanation?.Length > 500)
-        {
-            TempData["Error"] = "Giải trình không được vượt quá 500 ký tự.";
-            return RedirectToAction(nameof(Shift));
-        }
-        return await Run("dbo.usp_CloseShiftReviewed", command =>
+        return await Run("dbo.usp_CloseShiftAutomatically", command =>
         {
             command.Parameters.Add("@ShiftId", SqlDbType.BigInt).Value = shiftId;
-            AddMoney(command, "@CountedCash", countedCash.Value);
-            command.Parameters.Add("@ExpectedInvoiceCount", SqlDbType.Int).Value = expectedInvoiceCount.Value;
-            AddMoney(command, "@ExpectedCashRevenue", expectedCashRevenue.Value);
-            AddMoney(command, "@ExpectedTransferRevenue", expectedTransferRevenue.Value);
-            AddMoney(command, "@ExpectedDiscountTotal", expectedDiscountTotal.Value);
-            command.Parameters.Add("@ExpectedServedTableCount", SqlDbType.Int).Value = expectedServedTableCount.Value;
-            AddMoney(command, "@ExpectedOpeningCash", expectedOpeningCash.Value);
-            command.Parameters.Add("@Explanation", SqlDbType.NVarChar, 500).Value = string.IsNullOrWhiteSpace(explanation) ? (object)DBNull.Value : explanation;
         }, "Đã chốt ca thành công.");
     }
 

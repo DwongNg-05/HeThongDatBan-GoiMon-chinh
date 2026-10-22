@@ -176,7 +176,7 @@
                     </tbody>
                 </table>
 
-                <h3 class="h5 mt-4">Đối chiếu tiền mặt</h3>
+                <h3 class="h5 mt-4">Tiền mặt cuối ca</h3>
 
                 <table class="table table-bordered">
                     <tbody>
@@ -185,40 +185,11 @@
                             <td>@Vnd.Format(closing.OpeningCash)</td>
                         </tr>
                         <tr>
-                            <th scope="row">Tiền mặt phải có</th>
+                            <th scope="row">Tiền mặt cần có cuối ca</th>
                             <td>@Vnd.Format(closing.ExpectedCash)</td>
-                        </tr>
-                        <tr>
-                            <th scope="row">Tiền mặt thực đếm</th>
-                            <td>@Vnd.Format(closing.CountedCash)</td>
-                        </tr>
-                        <tr>
-                            <th scope="row">Chênh lệch</th>
-                            <td>
-                                <strong>
-                                    @Vnd.Format(closing.CashDifference)
-                                </strong>
-
-                                @if (closing.CashDifference > 0)
-                                {
-                                    <span>— Thừa tiền mặt</span>
-                                }
-                                else if (closing.CashDifference < 0)
-                                {
-                                    <span>— Thiếu tiền mặt</span>
-                                }
-                                else
-                                {
-                                    <span>— Khớp tiền mặt</span>
-                                }
-                            </td>
                         </tr>
                     </tbody>
                 </table>
-
-                <h3 class="h5 mt-4">Giải trình</h3>
-
-                <p style="white-space: pre-wrap; overflow-wrap: anywhere;">@(string.IsNullOrWhiteSpace(closing.Explanation) ? "Không có giải trình." : closing.Explanation)</p>
             </div>
         </section>
     }

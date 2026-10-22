@@ -1,7 +1,5 @@
 @model RestaurantManagement.Web.Models.Cashier.ShiftViewModel
 @using RestaurantManagement.Web.Models.Cashier
-@using System.Globalization
-
 @{
     ViewData["Title"] = "Chốt ca";
 }
@@ -16,7 +14,6 @@
 
     <p class="text-muted">
         Thời gian hiển thị theo giờ Việt Nam.
-        Chênh lệch = tiền thực đếm − tiền mặt phải có.
     </p>
 
     @if (User.IsInRole("Manager"))
@@ -96,15 +93,14 @@
                         @Vnd.Format(shift.OpeningCash)
                     </dd>
 
-                    <dt class="col-sm-5">Tiền mặt phải có trong két</dt>
-                    <dd class="col-sm-7 fw-bold"
-                        data-expected-cash="@shift.ExpectedCashNow.ToString("0", CultureInfo.InvariantCulture)">
+                    <dt class="col-sm-5">Tiền mặt cần có cuối ca</dt>
+                    <dd class="col-sm-7 fw-bold">
                         @Vnd.Format(shift.ExpectedCashNow)
                     </dd>
                 </dl>
 
                 <p class="text-muted mt-2 mb-0">
-                    Tiền mặt phải có = tiền đầu ca + thu tiền mặt.
+                    Tiền mặt cần có = tiền đầu ca + thu tiền mặt.
                     Số lượt bàn được tính theo các lần bàn gắn với phiên trong ca.
                 </p>
             </div>
@@ -147,92 +143,23 @@
 
         <section class="card mb-4">
             <div class="card-body">
-                <h3 class="h5">Đối chiếu tiền mặt</h3>
+                <h3 class="h5">Xác nhận chốt ca</h3>
 
                 <form id="closeShiftForm"
                       asp-action="CloseShift"
                       method="post"
-                      data-expected="@shift.ExpectedCashNow.ToString("0", CultureInfo.InvariantCulture)"
+                      data-confirm-action
+                      data-confirm="Xác nhận chốt ca? Hệ thống sẽ tự lưu số tiền mặt cần có và không thể sửa lại nếu không mở lại ca."
                       data-can-close="@Model.CanClose.ToString().ToLowerInvariant()">
 
                     <input type="hidden"
                            name="shiftId"
                            value="@shift.Id" />
 
-                    <input type="hidden"
-                           name="expectedInvoiceCount"
-                           value="@shift.InvoiceCount" />
-
-                    <input type="hidden"
-                           name="expectedCashRevenue"
-                           value="@shift.CashRevenue.ToString("0", CultureInfo.InvariantCulture)" />
-
-                    <input type="hidden"
-                           name="expectedTransferRevenue"
-                           value="@shift.TransferRevenue.ToString("0", CultureInfo.InvariantCulture)" />
-
-                    <input type="hidden"
-                           name="expectedDiscountTotal"
-                           value="@shift.DiscountTotal.ToString("0", CultureInfo.InvariantCulture)" />
-
-                    <input type="hidden"
-                           name="expectedServedTableCount"
-                           value="@shift.ServedTableCount" />
-
-                    <input type="hidden"
-                           name="expectedOpeningCash"
-                           value="@shift.OpeningCash.ToString("0", CultureInfo.InvariantCulture)" />
-
-                    <div class="mb-3">
-                        <label for="countedCash" class="form-label">
-                            Tiền mặt thực đếm trong két (VND)
-                        </label>
-
-                        <input id="countedCash"
-                               name="countedCash"
-                               type="number"
-                               min="0"
-                               max="999999999999999999"
-                               step="1"
-                               class="form-control"
-                               placeholder="Nhập số tiền thực đếm"
-                               required />
-
-                        <div class="form-text">
-                            Nhập số nguyên, ví dụ: 2000000.
-                        </div>
-                    </div>
-
-                    <div id="cashDifferenceNotice"
-                         class="alert alert-secondary"
-                         role="status"
-                         aria-live="polite">
-                        Nhập tiền thực đếm để tính chênh lệch.
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="explanation" class="form-label">
-                            Giải trình
-                            <span id="explanationRequired"
-                                  class="text-danger"
-                                  hidden>
-                                (bắt buộc)
-                            </span>
-                        </label>
-
-                        <textarea id="explanation"
-                                  name="explanation"
-                                  class="form-control"
-                                  rows="3"
-                                  maxlength="500"
-                                  placeholder="Nhập nguyên nhân thừa hoặc thiếu tiền"></textarea>
-
-                        <div class="form-text">
-                            Bắt buộc khi thừa hoặc thiếu quá 50.000 đồng.
-                            Đúng 50.000 đồng chưa bắt buộc.
-                            Tối đa 500 ký tự.
-                        </div>
-                    </div>
+                    <p class="text-muted">
+                        Hệ thống tự lưu tổng doanh thu, tiền đầu ca và tiền mặt cần có.
+                        Không cần nhập thêm số liệu.
+                    </p>
 
                     <button id="closeShiftButton"
                             type="submit"
@@ -347,208 +274,13 @@
                         @Vnd.Format(last.OpeningCash)
                     </dd>
 
-                    <dt class="col-sm-5">Tiền mặt thực đếm</dt>
-                    <dd class="col-sm-7">
-                        @Vnd.Format(last.CountedCash ?? 0)
-                    </dd>
-
-                    <dt class="col-sm-5">Tiền mặt phải có</dt>
+                    <dt class="col-sm-5">Tiền mặt cần có cuối ca</dt>
                     <dd class="col-sm-7">
                         @Vnd.Format(last.ExpectedCash ?? 0)
                     </dd>
-
-                    <dt class="col-sm-5">Chênh lệch</dt>
-                    <dd class="col-sm-7">
-                        @{
-                            var difference = last.CashDifference ?? 0;
-                        }
-
-                        @if (difference > 0)
-                        {
-                            <span class="text-warning fw-bold">
-                                Thừa @Vnd.Format(difference)
-                            </span>
-                        }
-                        else if (difference < 0)
-                        {
-                            <span class="text-danger fw-bold">
-                                Thiếu @Vnd.Format(Math.Abs(difference))
-                            </span>
-                        }
-                        else
-                        {
-                            <span class="text-success fw-bold">
-                                Khớp tiền
-                            </span>
-                        }
-                    </dd>
-
-                    @if (!string.IsNullOrWhiteSpace(last.Explanation))
-                    {
-                        <dt class="col-sm-5">Giải trình</dt>
-                        <dd class="col-sm-7 text-break"
-                            style="white-space: pre-wrap">@last.Explanation</dd>
-                    }
                 </dl>
             </div>
         </section>
     }
 </div>
 
-@section Scripts {
-    <script>
-        (() => {
-            'use strict';
-
-            const form = document.getElementById('closeShiftForm');
-            if (!form) return;
-
-            const counted = document.getElementById('countedCash');
-            const explanation = document.getElementById('explanation');
-            const requiredLabel =
-                document.getElementById('explanationRequired');
-            const notice =
-                document.getElementById('cashDifferenceNotice');
-            const button =
-                document.getElementById('closeShiftButton');
-
-            const expected = BigInt(form.dataset.expected);
-            const canClose = form.dataset.canClose === 'true';
-
-            let submitting = false;
-
-            const money = value =>
-                value.toLocaleString('vi-VN') + ' ₫';
-
-            function readCounted() {
-                const value = counted.value.trim();
-
-                if (!/^\d+$/.test(value)) return null;
-
-                const amount = BigInt(value);
-
-                if (amount > 999999999999999999n) return null;
-
-                return amount;
-            }
-
-            function updateDifference() {
-                explanation.setCustomValidity('');
-
-                const amount = readCounted();
-
-                if (amount === null) {
-                    explanation.required = false;
-                    requiredLabel.hidden = true;
-                    notice.className = 'alert alert-secondary';
-                    notice.textContent =
-                        'Nhập tiền thực đếm hợp lệ để tính chênh lệch.';
-                    return null;
-                }
-
-                const difference = amount - expected;
-                const absolute = difference < 0n
-                    ? -difference
-                    : difference;
-
-                const needsExplanation = absolute > 50000n;
-
-                explanation.required = needsExplanation;
-                requiredLabel.hidden = !needsExplanation;
-
-                if (difference === 0n) {
-                    notice.className = 'alert alert-success';
-                    notice.textContent =
-                        'Khớp tiền. Chênh lệch: 0 ₫.';
-                } else {
-                    notice.className = needsExplanation
-                        ? 'alert alert-danger'
-                        : 'alert alert-warning';
-
-                    notice.textContent =
-                        (difference > 0n ? 'Thừa ' : 'Thiếu ')
-                        + money(absolute)
-                        + (needsExplanation
-                            ? '. Bắt buộc nhập giải trình.'
-                            : '. Có thể nhập giải trình nếu cần.');
-                }
-
-                return {
-                    amount,
-                    difference,
-                    absolute,
-                    needsExplanation
-                };
-            }
-
-            counted.addEventListener('input', updateDifference);
-
-            explanation.addEventListener('input', () => {
-                explanation.setCustomValidity('');
-            });
-
-            form.addEventListener('submit', event => {
-                if (submitting || !canClose) {
-                    event.preventDefault();
-                    return;
-                }
-
-                const result = updateDifference();
-
-                if (!result) {
-                    event.preventDefault();
-                    counted.focus();
-                    return;
-                }
-
-                if (result.needsExplanation
-                    && explanation.value.trim().length === 0) {
-                    event.preventDefault();
-
-                    explanation.setCustomValidity(
-                        'Vui lòng nhập giải trình khi lệch quá 50.000 đồng.');
-
-                    explanation.reportValidity();
-                    explanation.focus();
-                    return;
-                }
-
-                if (!form.reportValidity()) {
-                    event.preventDefault();
-                    return;
-                }
-
-                const differenceText =
-                    result.difference === 0n
-                        ? 'Khớp tiền'
-                        : (result.difference > 0n ? 'Thừa ' : 'Thiếu ')
-                        + money(result.absolute);
-
-                const confirmed = window.confirm(
-                    'Xác nhận chốt ca?\n\n'
-                    + 'Tiền mặt phải có: ' + money(expected) + '\n'
-                    + 'Tiền thực đếm: ' + money(result.amount) + '\n'
-                    + 'Chênh lệch: ' + differenceText + '\n'
-                    + 'Giải trình: '
-                    + (explanation.value.trim() || 'Không có')
-                );
-
-                if (!confirmed) {
-                    event.preventDefault();
-                    return;
-                }
-
-                submitting = true;
-                button.disabled = true;
-                button.textContent = 'Đang chốt ca...';
-            });
-
-            window.addEventListener('pageshow', () => {
-                submitting = false;
-                button.disabled = !canClose;
-                button.textContent = 'Chốt ca';
-                updateDifference();
-            });
-        })();
-    </script>
-}

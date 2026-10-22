@@ -168,60 +168,14 @@ public sealed class ShiftClosingPdfBuilder
             closing.ServedTableCount.ToString(
                 "N0", VietnameseCulture));
 
-        AddHeading(section, "2. Đối chiếu tiền mặt");
-
-        var cash = CreateTable(section);
-
-        AddRow(cash, "Tiền mặt đầu ca", Money(closing.OpeningCash));
+        AddRow(totals, "Tiền đầu ca", Money(closing.OpeningCash));
 
         AddRow(
-            cash,
-            "Thu tiền mặt trong ca",
-            Money(closing.CashRevenue));
-
-        AddRow(
-            cash,
-            "Tiền mặt phải có",
+            totals,
+            "Tiền mặt cần có cuối ca",
             Money(closing.ExpectedCash));
 
-        AddRow(
-            cash,
-            "Tiền mặt thực đếm",
-            Money(closing.CountedCash));
-
-        AddRow(
-            cash,
-            "Chênh lệch (thực đếm - phải có)",
-            Money(closing.CashDifference));
-
-        var result = closing.CashDifference switch
-        {
-            > 0 => "Thừa tiền mặt",
-            < 0 => "Thiếu tiền mặt",
-            _ => "Khớp tiền mặt"
-        };
-
-        AddRow(cash, "Kết quả đối chiếu", result);
-
-        AddHeading(section, "3. Giải trình");
-
-        var explanation = string.IsNullOrWhiteSpace(
-            closing.Explanation)
-                ? "Không có giải trình."
-                : closing.Explanation;
-
-        // Tách đoạn để nội dung dài có thể sang trang.
-        foreach (var line in Clean(explanation)
-            .Replace("\r\n", "\n")
-            .Replace('\r', '\n')
-            .Split('\n'))
-        {
-            var paragraph = section.AddParagraph(line);
-            paragraph.Format.KeepTogether = false;
-            paragraph.Format.KeepWithNext = false;
-        }
-
-        AddHeading(section, "4. Xác nhận");
+        AddHeading(section, "2. Xác nhận");
 
         var signatures = section.AddTable();
         signatures.Borders.Visible = false;
@@ -237,7 +191,7 @@ public sealed class ShiftClosingPdfBuilder
             ParagraphAlignment.Center;
 
         signatureRow.Cells[0].AddParagraph("Người chốt ca");
-        signatureRow.Cells[1].AddParagraph("Người đối chiếu");
+        signatureRow.Cells[1].AddParagraph("Quản lý xác nhận");
 
         signatureRow.Cells[0].AddParagraph(
             "(Ký, ghi rõ họ tên)");
